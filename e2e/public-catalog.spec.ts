@@ -1,0 +1,161 @@
+import { expect, test, type APIResponse, type Page } from "@playwright/test";
+import axe from "axe-core";
+
+// E1, PR4: public pages of a collection and a place, seen as a guest. Needs a
+// migrated, seeded database (demo accounts and the demo collection) like the
+// other specs that sign in; without it the spec is skipped.
+const password = process.env.DEMO_ACCOUNT_PASSWORD;
+
+const DEMO_SLUG = "demo-mosty-i-zamki-nad-wisla";
+const DEMO_TITLE = "Mosty i zamki nad Wisłą (demo)";
+
+async function expectNoAccessibilityViolations(page: Page) {
+  await page.addScriptTag({ content: axe.source });
+
+  const violations = await page.evaluate(async () => {
+    const result = await (window as unknown as { axe: typeof axe }).axe.run();
+
+    return result.violations.map((violation) => ({
+      id: violation.id,
+      nodes: violation.nodes.map((node) => node.target.join(" ")),
+    }));
+  });
+
+  expect(violations).toEqual([]);
+}
+
+async function signInAsCurator(page: Page) {
+  await page.goto("/login");
+
+  const form = page.locator("form", { has: page.getByLabel("Hasło") });
+
+  await form.getByLabel("E-mail").fill("curator-a@demo.krajozbior.local");
+  await form.getByLabel("Hasło").fill(password ?? "");
+  await form.getByRole("button", { name: "Zaloguj się" }).click();
+  await expect(page).toHaveURL(/\/my$/);
+}
+
+async function created(response: APIResponse): Promise<Record<string, string | number>> {
+  expect(response.ok(), await response.text()).toBe(true);
+
+  return (await response.json()) as Record<string, string | number>;
+}
+
+test.describe("public catalog pages", () => {
+  test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
+
+  test("a guest reads the demo collection and a place, never from a shared cache", async ({
+    page,
+  }) => {
+    const response = await page.goto(`/collections/${DEMO_SLUG}`);
+
+    expect(response?.status()).toBe(200);
+    expect(response?.headers()["cache-control"]).toBe("private, no-store");
+    await expect(page).toHaveTitle(`${DEMO_TITLE} — Krajozbiór`);
+    await expect(page.getByRole("heading", { level: 1, name: DEMO_TITLE })).toBeVisible();
+    await expect(page.getByText("Prowadzi: Gmina A (demo)")).toBeVisible();
+
+    const places = page.getByRole("main").getByRole("list").getByRole("link");
+
+    await expect(places).toHaveCount(3);
+    await expect(places.first()).toContainText("Most Tczewski");
+    await expectNoAccessibilityViolations(page);
+
+    const placeResponse = await Promise.all([
+      page.waitForResponse((r) => r.url().includes("/places/")),
+      places.first().click(),
+    ]).then(([r]) => r);
+
+    expect(placeResponse.headers()["cache-control"]).toBe("private, no-store");
+    await expect(page).toHaveURL(/\/places\/[0-9a-f-]{36}$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Most Tczewski" })).toBeVisible();
+    await expect(page.getByRole("link", { name: DEMO_TITLE })).toHaveAttribute(
+      "href",
+      `/collections/${DEMO_SLUG}`,
+    );
+    await expectNoAccessibilityViolations(page);
+  });
+
+  test("the collection page fits a phone screen", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.goto(`/collections/${DEMO_SLUG}`);
+
+    await expect(page.getByRole("heading", { level: 1, name: DEMO_TITLE })).toBeVisible();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  test("a missing address, a draft and a withdrawn collection all give the same 'not found'", async ({
+    browser,
+    page,
+  }) => {
+    await signInAsCurator(page);
+
+    const draft = await created(
+      await page.request.post("/api/curator/collections", {
+        data: { title: "Szkic z testu publicznego", region: "pomorskie" },
+      }),
+    );
+    const slug = String(draft.slug);
+    const collectionId = String(draft.id);
+    const place = await created(
+      await page.request.post(`/api/curator/collections/${collectionId}/places`, {
+        data: { name: "Miejsce z testu", address: "Gniew", latitude: 53.83, longitude: 18.82 },
+      }),
+    );
+    const placeId = String(place.placeId);
+
+    const guestContext = await browser.newContext();
+    const guest = await guestContext.newPage();
+
+    // The 404 page of a missing slug is the reference answer.
+    const missing = await guest.goto("/collections/nie-ma-takiej-kolekcji-aaaaaa");
+
+    expect(missing?.status()).toBe(404);
+    expect(missing?.headers()["cache-control"]).toBe("private, no-store");
+    await expect(guest.getByRole("heading", { level: 1, name: "Nie znaleziono" })).toBeVisible();
+    const referenceBody = await guest.getByRole("main").innerText();
+
+    async function expectNotFound(path: string, who: Page) {
+      const response = await who.goto(path);
+
+      expect(response?.status(), path).toBe(404);
+      expect(response?.headers()["cache-control"], path).toBe("private, no-store");
+      expect(await who.getByRole("main").innerText(), path).toBe(referenceBody);
+    }
+
+    // A draft: not found for the guest, and also for its own signed-in curator.
+    await expectNotFound(`/collections/${slug}`, guest);
+    await expectNotFound(`/collections/${slug}`, page);
+    await expectNotFound(`/places/${placeId}`, guest);
+    await expectNotFound("/places/not-a-uuid", guest);
+
+    // Published: the guest reads it.
+    const published = await created(
+      await page.request.post(`/api/curator/collections/${collectionId}/publish`, {
+        data: { version: draft.version },
+      }),
+    );
+
+    await guest.goto(`/collections/${slug}`);
+    await expect(
+      guest.getByRole("heading", { level: 1, name: "Szkic z testu publicznego" }),
+    ).toBeVisible();
+    await guest.goto(`/places/${placeId}`);
+    await expect(guest.getByRole("heading", { level: 1, name: "Miejsce z testu" })).toBeVisible();
+
+    // Withdrawn: not found again, same answer as a missing one.
+    await created(
+      await page.request.post(`/api/curator/collections/${collectionId}/unpublish`, {
+        data: { version: published.version },
+      }),
+    );
+    await expectNotFound(`/collections/${slug}`, guest);
+    await expectNotFound(`/places/${placeId}`, guest);
+
+    await guestContext.close();
+  });
+});

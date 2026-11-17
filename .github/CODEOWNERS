@@ -44,6 +44,13 @@
 /src/features/catalog/             @MariuszSkowron
 /tests/features/catalog/           @MariuszSkowron
 
+# Publiczne strony kolekcji i miejsc (dziś treść publiczna, w kolejnych krokach
+# także prywatny postęp odkrywcy) oraz ich wspólne style
+/src/app/collections/              @MariuszSkowron
+/src/app/places/                   @MariuszSkowron
+/src/app/catalog.module.css        @MariuszSkowron
+/e2e/public-catalog.spec.ts        @MariuszSkowron
+
 # Uprawnienia bazy, reguły dostępu do danych (RLS) i wszystkie migracje
 /src/lib/db/                       @MariuszSkowron
 /mikro-orm.config.ts               @MariuszSkowron
