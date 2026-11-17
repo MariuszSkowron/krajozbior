@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   InvalidActorIdError,
   NestedUserContextError,
+  runInGuestContext,
   runInUserContext,
 } from "@/lib/db/user-context";
 
@@ -88,6 +89,37 @@ describe("runInUserContext", () => {
       NestedUserContextError,
     );
     expect(work).not.toHaveBeenCalled();
+    expect(calls).toEqual([]);
+  });
+});
+
+describe("runInGuestContext", () => {
+  it("opens a read-only transaction without setting any user", async () => {
+    const { em, calls } = fakeEntityManager();
+
+    const result = await runInGuestContext(em, async () => "public");
+
+    expect(result).toBe("public");
+    expect(calls).toEqual(["begin", "set transaction read only []", "commit"]);
+    expect(calls.join(" ")).not.toContain("app.user_id");
+  });
+
+  it("rolls back and rethrows when the work fails", async () => {
+    const { em, calls } = fakeEntityManager();
+    const failure = new Error("read failed");
+
+    await expect(
+      runInGuestContext(em, async () => {
+        throw failure;
+      }),
+    ).rejects.toBe(failure);
+    expect(calls.at(-1)).toBe("rollback");
+  });
+
+  it("refuses to open inside another transaction", async () => {
+    const { em, calls } = fakeEntityManager({ inTransaction: true });
+
+    await expect(runInGuestContext(em, vi.fn())).rejects.toBeInstanceOf(NestedUserContextError);
     expect(calls).toEqual([]);
   });
 });

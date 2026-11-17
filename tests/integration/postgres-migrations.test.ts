@@ -115,6 +115,48 @@ describe("PostgreSQL migrations and transactions", () => {
     }
   });
 
+  it("reverts the catalog migration (no CASCADE needed) and applies it again", async () => {
+    const owner = await MikroORM.init(createOrmConfig(db.urls.krajozbior_owner));
+    const objects = () =>
+      orm.em.execute<{
+        collections: string | null;
+        places: string | null;
+        links: string | null;
+        fn: string | null;
+        organizations: string | null;
+      }>(
+        `select to_regclass('public.collections')::text as collections,
+                to_regclass('public.places')::text as places,
+                to_regclass('public.collection_places')::text as links,
+                to_regprocedure('public.collections_publication()')::text as fn,
+                to_regclass('public.organizations')::text as organizations`,
+        [],
+        "get",
+      );
+
+    try {
+      await owner.migrator.down({ to: "Migration20261117130000_organizations_ops_audit" });
+      expect(await objects()).toEqual({
+        collections: null,
+        places: null,
+        links: null,
+        fn: null,
+        organizations: "organizations",
+      });
+
+      await owner.migrator.up();
+      expect(await objects()).toEqual({
+        collections: "collections",
+        places: "places",
+        links: "collection_places",
+        fn: "collections_publication()",
+        organizations: "organizations",
+      });
+    } finally {
+      await owner.close(true);
+    }
+  });
+
   it("reverts everything and applies it again", async () => {
     const owner = await MikroORM.init(createOrmConfig(db.urls.krajozbior_owner));
 
