@@ -146,6 +146,15 @@ test.describe("curator panel", () => {
 
     await curator.getByRole("button", { name: "Publikuj" }).click();
     await expect(curator.getByRole("status").filter({ hasText: "opublikowana" })).toBeVisible();
+    // From a published collection the last place cannot be removed (withdraw first).
+    await curator.getByRole("button", { name: "Usuń z kolekcji: Pierwsze miejsce" }).click();
+    await expect(
+      curator.getByRole("list", { name: "Miejsca w kolejności" }).getByRole("listitem"),
+    ).toHaveCount(1);
+    await curator.getByRole("button", { name: "Usuń z kolekcji: Drugie miejsce" }).click();
+    await expect(curator.locator("main [role=alert]")).toContainText(
+      "To ostatnie miejsce opublikowanej kolekcji. Najpierw wycofaj publikację.",
+    );
     // A published collection can only be withdrawn, never deleted.
     await expect(curator.getByRole("button", { name: "Usuń szkic" })).toHaveCount(0);
     await curator.getByRole("button", { name: "Wycofaj publikację" }).click();
