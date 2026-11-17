@@ -13,6 +13,14 @@ Projekt ma **dwa repozytoria, w dwóch folderach obok siebie**:
 
 Repozytorium powstało z szablonu `ai-repo-starter`.
 
+## Jak działa Krajozbiór
+
+- **Kolekcje.** Miejsca są zebrane w tematyczne kolekcje, np. „Wieże ciśnień Pomorza”. Jedno miejsce może należeć do kilku kolekcji.
+- **Wizyty.** Odkrywca potwierdza wizytę lokalizacją telefonu na miejscu albo dopisuje wcześniejsze wizyty. Postęp w kolekcji widzi jako liczbę zebranych miejsc, np. 9/24.
+- **Kuratorzy.** Gotowe kolekcje przygotowują kuratorzy: gminy, organizacje turystyczne i lokalni przewodnicy. Użytkownicy mogą też tworzyć własne kolekcje.
+
+Projekt jest na wczesnym etapie: działa logowanie kodem z e-maila i podstawy design systemu, a pierwsza wersja kolekcji i wizyt jest w przygotowaniu. Na początek aplikacja działa w przeglądarce na komputerze i telefonie.
+
 ## Codzienny start (Visual Studio Code)
 
 1. Oba foldery leżą obok siebie: `krajozbior` i `krajozbior-docs`.
