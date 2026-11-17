@@ -1,5 +1,6 @@
 import { expect, test, type APIResponse, type Page } from "@playwright/test";
 import axe from "axe-core";
+import { Client } from "pg";
 
 // E1, PR4: public pages of a collection and a place, seen as a guest. Needs a
 // migrated, seeded database (demo accounts and the demo collection) like the
@@ -41,8 +42,44 @@ async function created(response: APIResponse): Promise<Record<string, string | n
   return (await response.json()) as Record<string, string | number>;
 }
 
+// A collection that was published once cannot be deleted through the API (D-15),
+// so the test removes what it created straight in the database, with the admin
+// connection (the same one the e2e setup uses). It runs after every test, also a
+// failed one, so the demo database keeps no traces.
+const createdCollectionIds: string[] = [];
+const createdPlaceIds: string[] = [];
+
+async function removeCreatedData() {
+  const collectionIds = createdCollectionIds.splice(0);
+  const placeIds = createdPlaceIds.splice(0);
+
+  if (collectionIds.length === 0 && placeIds.length === 0) {
+    return;
+  }
+
+  const client = new Client({ connectionString: process.env.DATABASE_ADMIN_URL });
+
+  await client.connect();
+  try {
+    await client.query(
+      "delete from public.collection_places where collection_id = any($1::uuid[])",
+      [collectionIds],
+    );
+    await client.query("delete from public.collections where id = any($1::uuid[])", [
+      collectionIds,
+    ]);
+    await client.query("delete from public.places where id = any($1::uuid[])", [placeIds]);
+  } finally {
+    await client.end();
+  }
+}
+
 test.describe("public catalog pages", () => {
   test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
+
+  test.afterEach(async () => {
+    await removeCreatedData();
+  });
 
   test("a guest reads the demo collection and a place, never from a shared cache", async ({
     page,
@@ -101,12 +138,16 @@ test.describe("public catalog pages", () => {
     );
     const slug = String(draft.slug);
     const collectionId = String(draft.id);
+
+    createdCollectionIds.push(collectionId);
     const place = await created(
       await page.request.post(`/api/curator/collections/${collectionId}/places`, {
         data: { name: "Miejsce z testu", address: "Gniew", latitude: 53.83, longitude: 18.82 },
       }),
     );
     const placeId = String(place.placeId);
+
+    createdPlaceIds.push(placeId);
 
     const guestContext = await browser.newContext();
     const guest = await guestContext.newPage();

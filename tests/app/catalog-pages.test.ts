@@ -1,3 +1,4 @@
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,6 +11,7 @@ vi.mock("@/features/catalog/application/public-catalog", () => ({
 vi.mock("@/features/catalog/infrastructure/catalog-deps", () => ({ getCatalogDeps: () => ({}) }));
 vi.mock("@/app/request-actor", () => ({ logReadFailure: vi.fn() }));
 
+const { CatalogError } = await import("@/app/catalog-error");
 const collectionPage = await import("@/app/collections/[slug]/page");
 const placePage = await import("@/app/places/[placeId]/page");
 
@@ -93,22 +95,46 @@ describe("public catalog pages", () => {
     ).rejects.toMatchObject({ digest: expect.stringContaining("404") });
   });
 
-  it("say a database failure is not a missing page", async () => {
+  it("throw on a database failure, to the error boundary (a server error, not a 404)", async () => {
     mocks.collection.mockRejectedValue(new Error("db down"));
     mocks.place.mockRejectedValue(new Error("db down"));
 
-    const collectionHtml = renderToStaticMarkup(
-      await collectionPage.default({ params: Promise.resolve({ slug: next() }) }),
-    );
-    const placeHtml = renderToStaticMarkup(
-      await placePage.default({ params: Promise.resolve({ placeId: next() }) }),
-    );
+    const collectionError = await collectionPage
+      .default({ params: Promise.resolve({ slug: next() }) })
+      .catch((error: unknown) => error);
+    const placeError = await placePage
+      .default({ params: Promise.resolve({ placeId: next() }) })
+      .catch((error: unknown) => error);
 
-    expect(collectionHtml).toContain('role="alert"');
-    expect(placeHtml).toContain("Nie udało się wczytać miejsca");
+    // A plain error: not the `notFound()` error, which carries a digest.
+    expect(collectionError).toBeInstanceOf(Error);
+    expect(collectionError).not.toHaveProperty("digest");
+    expect(placeError).toBeInstanceOf(Error);
+    expect(placeError).not.toHaveProperty("digest");
     expect(
       await placePage.generateMetadata({ params: Promise.resolve({ placeId: next() }) }),
     ).toEqual({});
+  });
+
+  it("show the error boundary as a Polish alert without technical details", () => {
+    const html = renderToStaticMarkup(createElement(CatalogError, { retry: () => undefined }));
+
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Spróbuj ponownie za chwilę");
+    expect(html).toContain("Spróbuj ponownie</button>");
+    expect(html).not.toContain("db down");
+  });
+
+  it("say so when a collection has no places yet", async () => {
+    mocks.collection.mockResolvedValue({ status: "ok", value: { ...collection, places: [] } });
+
+    const html = renderToStaticMarkup(
+      await collectionPage.default({ params: Promise.resolve({ slug: next() }) }),
+    );
+
+    expect(html).toContain("Ta kolekcja nie ma jeszcze miejsc.");
+    expect(html).not.toContain("(0)");
+    expect(html).not.toContain("<ol");
   });
 
   it("show a place with address, access, description and its collections", async () => {

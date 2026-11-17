@@ -44,14 +44,8 @@ export default async function CollectionPage({ params }: { params: Params }) {
   }
 
   if (result.status === "failed") {
-    return (
-      <div className={`content-width ${styles.page}`}>
-        <h1>Kolekcja</h1>
-        <p role="alert" className={styles.status}>
-          Nie udało się wczytać kolekcji. Spróbuj ponownie za chwilę.
-        </p>
-      </div>
-    );
+    // Handled by error.tsx next to this page: a server error with a Polish message.
+    throw new Error("Public collection read failed");
   }
 
   const collection = result.value;
@@ -66,21 +60,29 @@ export default async function CollectionPage({ params }: { params: Params }) {
         {collection.summary === "" ? null : <p className={styles.summary}>{collection.summary}</p>}
       </header>
       <section className={styles.section} aria-labelledby="miejsca">
-        <h2 id="miejsca">Miejsca w kolekcji ({collection.places.length})</h2>
-        <ol className={styles.list}>
-          {collection.places.map((place) => (
-            <li key={place.id} className={styles.item}>
-              <Link className={styles.itemLink} href={`/places/${place.id}`}>
-                <span className={styles.itemTitle}>
-                  {place.position}. {place.name}
-                </span>
-                {place.address === "" ? null : (
-                  <span className={styles.itemMeta}>{place.address}</span>
-                )}
-              </Link>
-            </li>
-          ))}
-        </ol>
+        <h2 id="miejsca">
+          {collection.places.length === 0
+            ? "Miejsca w kolekcji"
+            : `Miejsca w kolekcji (${collection.places.length})`}
+        </h2>
+        {collection.places.length === 0 ? (
+          <p>Ta kolekcja nie ma jeszcze miejsc.</p>
+        ) : (
+          <ol className={styles.list}>
+            {collection.places.map((place) => (
+              <li key={place.id} className={styles.item}>
+                <Link className={styles.itemLink} href={`/places/${place.id}`}>
+                  <span className={styles.itemTitle}>
+                    {place.position}. {place.name}
+                  </span>
+                  {place.address === "" ? null : (
+                    <span className={styles.itemMeta}>{place.address}</span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ol>
+        )}
       </section>
     </div>
   );

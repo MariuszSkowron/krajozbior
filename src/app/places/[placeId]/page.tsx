@@ -39,14 +39,8 @@ export default async function PlacePage({ params }: { params: Params }) {
   }
 
   if (result.status === "failed") {
-    return (
-      <div className={`content-width ${styles.page}`}>
-        <h1>Miejsce</h1>
-        <p role="alert" className={styles.status}>
-          Nie udało się wczytać miejsca. Spróbuj ponownie za chwilę.
-        </p>
-      </div>
-    );
+    // Handled by error.tsx next to this page: a server error with a Polish message.
+    throw new Error("Public place read failed");
   }
 
   const place = result.value;
