@@ -1,0 +1,125 @@
+name: Guard
+
+# Keeps the public repository clean (docs/agent-workflow.md, "Czystość
+# repozytorium publicznego"). Private material lives in the <repo>-docs
+# repository; this job fails when it shows up here: in the tree, in any commit
+# of the pull request (PR commits stay public even after a squash merge), in
+# commit messages, PR title or body, or as a reference to the private
+# repository. It runs on drafts too: it is cheap and must never be skipped.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Block private material
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          # Untrusted text goes through the environment, never into the script.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          DOCS_REPO: ${{ github.repository }}-docs
+        run: |
+          set -uo pipefail
+          # Unquoted paths (non-ASCII names would otherwise come back in quotes).
+          git config core.quotePath false
+          failed=0
+
+          # Case-insensitive: on Windows and macOS `Bootstrap.md` and `BOOTSTRAP.md`
+          # are the same file, so a different spelling must not slip through.
+          is_private() {
+            local path="${1,,}"
+            local base="${path##*/}"
+            # 1. Private by name, wherever the file is: this runs BEFORE the
+            #    public .ai/ allowance below, so `.ai/skills/.env` or
+            #    `.ai/trackers/security-notes.md` are still caught.
+            case "$base" in
+              security-notes.md | bootstrap.md | project-intake.md | bootstrap-checklist.md \
+                | claude.local.md | *.code-workspace) return 0 ;;
+              # `.env.example` holds no secrets; its folder is judged below.
+              .env.example) ;;
+              .env | .env.*) return 0 ;;
+            esac
+            case "$path" in
+              # Product material under any docs/ directory.
+              docs/product.md | */docs/product.md | docs/decisions.md | */docs/decisions.md \
+                | docs/source/* | */docs/source/*) return 0 ;;
+              # Local Claude Code settings and notes (never shared).
+              .claude/settings.local.json | */.claude/settings.local.json) return 0 ;;
+            esac
+            # 2. Public pipeline configuration read by the om-* skills (root only).
+            case "$path" in
+              .ai/agentic.config.json | .ai/trackers/* | .ai/browsers/* | .ai/skills/*) return 1 ;;
+              # Anything else under a .ai/ directory, at any depth.
+              .ai/* | */.ai/*) return 0 ;;
+            esac
+            return 1
+          }
+
+          fail() {
+            echo "::error::$1"
+            failed=1
+          }
+
+          # 1. The tree being tested.
+          while IFS= read -r file; do
+            if is_private "$file"; then
+              fail "Plik prywatny w repozytorium publicznym: $file (jego miejsce to repozytorium dokumentacji)."
+            fi
+          done < <(git ls-files)
+
+          # 2. Every commit of the change, also files added and removed again.
+          if git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            range="$BASE_SHA..$HEAD_SHA"
+            diff_range="$BASE_SHA...$HEAD_SHA"
+          else
+            echo "Nieznany commit bazowy: sprawdzam tylko $HEAD_SHA."
+            range="$HEAD_SHA^!"
+            diff_range="$HEAD_SHA^!"
+          fi
+          while IFS= read -r commit; do
+            while IFS= read -r file; do
+              if is_private "$file"; then
+                fail "Commit $commit dotyka pliku prywatnego: $file. Usunięcie w kolejnym commicie nie wystarcza; przygotuj gałąź od nowa."
+              fi
+            # `-m`: a merge commit is compared with every parent, so a file it
+            # brings in is seen (without `-m` diff-tree prints nothing for merges).
+            done < <(git diff-tree --no-commit-id --name-only -r -m --root "$commit")
+          done < <(git rev-list "$range")
+
+          # 3. References to the private repository (`grep -i`: any letter case).
+          if printf '%s\n%s\n' "$PR_TITLE" "$PR_BODY" | grep -qiF "$DOCS_REPO"; then
+            fail "Tytuł lub opis PR odwołuje się do repozytorium prywatnego. Zadanie zapisuj jako docs#N, bez linku."
+          fi
+          if git log --format=%B "$range" | grep -qiF "$DOCS_REPO"; then
+            fail "Opis commita odwołuje się do repozytorium prywatnego."
+          fi
+          if git diff "$diff_range" 2>/dev/null | grep '^+' | grep -qiF "$DOCS_REPO"; then
+            fail "Zmiana dodaje odwołanie do repozytorium prywatnego."
+          fi
+
+          if [ "$failed" -eq 0 ]; then
+            echo "OK: brak plików prywatnych i odwołań do repozytorium dokumentacji."
+          fi
+          exit "$failed"

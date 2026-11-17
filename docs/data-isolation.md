@@ -1,0 +1,98 @@
+# Izolacja danych (RLS)
+
+## W skrócie
+
+Obiecujemy użytkownikom, że nikt nie zobaczy ich prywatnych danych, a rola z ograniczonym zakresem widzi tylko swój zakres. Tę obietnicę trzymają dwie niezależne bariery: serwer sprawdza uprawnienia, a baza (reguły PostgreSQL ograniczające wiersze, RLS) sama odmawia dostępu, nawet gdy kod aplikacji się pomyli. Dokument opisuje klasy danych, role bazy, kontekst użytkownika w transakcji, politykę dla każdej tabeli i testy odmowy dostępu, które trzeba dodać razem z każdą funkcją z danymi prywatnymi. Szkielet zawiera fundament i jedną techniczną tabelę kontrolną jako wzór; tabele produktu dopisuje się tu w miarę ich powstawania.
+
+Konwencja: **[Z]** wymaganie, **Decyzja techniczna** — wybór projektowy tego dokumentu.
+
+## 1. Cele i model zagrożeń
+
+- **[Z]** Użytkownik widzi wyłącznie własne dane prywatne. Filtrowanie w UI ani samo `WHERE user_id = ?` w zapytaniach nie wystarcza.
+- **[Z]** Rola z zakresem (jeśli produkt ją ma) widzi tylko zasoby w swoim zakresie i nie dziedziczy uprawnień innych ról.
+- Chronimy przed: błędem w handlerze (brak sprawdzenia właściciela), IDOR (cudzy identyfikator w ścieżce), nowym zapytaniem bez filtra, wyciekiem przez agregaty i eskalacją roli poza zakres.
+- Poza zakresem: kradzież sesji, przejęcie bazy przez rolę właściciela, błędy dostawcy uwierzytelniania.
+
+## 2. Klasy danych
+
+Każda tabela i zasób ma klasę zapisaną w tej tabeli, zanim powstanie migracja.
+
+| Klasa              | Tabele / zasoby                                                  | Odczyt                                                | Zapis                                                |
+| ------------------ | ---------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------- |
+| Publiczna          | {{np. opublikowane treści}}                                      | każdy, także gość                                     | tylko operacje administracyjne (`starter_ops`)       |
+| Prywatna (PRIV)    | {{dane użytkownika, np. notatki}}; w szkielecie tabela kontrolna | tylko właściciel                                      | tylko właściciel                                     |
+| Autor + rola (CUR) | {{np. wnioski do zatwierdzenia}}                                 | autor; rola z zakresem, gdy zasób jest w jej zakresie | autor; rola przez nazwane funkcje `security definer` |
+| Systemowa (SYS)    | schemat `auth` (hasła, sesje), dziennik audytu, jeśli istnieje   | nikt przez `starter_app`                              | rola techniczna (`starter_auth`, `starter_ops`)      |
+
+## 3. Role bazy danych
+
+**Decyzja techniczna:** cztery role, żadna użytkowa nie jest właścicielem tabel.
+
+- `starter_owner` — właściciel obiektów, uruchamia migracje. Nie jest używana przez aplikację w czasie działania.
+- `starter_app` — rola aplikacji. `NOSUPERUSER NOBYPASSRLS`, nie jest właścicielem tabel; uprawnienia `SELECT/INSERT/UPDATE/DELETE` nadawane tabela po tabeli (jawny `GRANT`, bez `ALL TABLES`).
+- `starter_auth` — wyłącznie adapter logowania (better-auth): dostęp do schematu `auth`, zero uprawnień do tabel produktu; `NOSUPERUSER NOBYPASSRLS NOINHERIT`. W `auth.users` wstawia i zmienia wszystkie kolumny poza `role` (grant kolumnowy), więc każde nowe konto jest `user`, a adapter nie utworzy administratora ani nie awansuje konta. Inną rolę ustawia `starter_owner` ze skryptu operatora (`npm run auth:create-admin`, seed kont demo; `src/features/identity/infrastructure/user-role.ts`) albo równoważnym SQL wykonanym jako `starter_owner`: `update auth.users set role = 'admin', updated_at = now() where email = '<e-mail>';`.
+- `starter_ops` — operacje administracyjne (skrypty CLI, zapis danych publicznych). Poza aplikacją webową; wywołania warto zapisywać w dzienniku audytu. `BYPASSRLS` tylko jeśli konkretna operacja tego wymaga, nadawane świadomie i opisane.
+
+Każda tabela z danymi osobistymi: `ENABLE ROW LEVEL SECURITY` **oraz** `FORCE ROW LEVEL SECURITY` (właściciel nie omija polityk przypadkiem). Brak polityki = brak dostępu. Aplikacja odmawia startu, gdy jej rola ma zbyt szerokie uprawnienia (`src/lib/db/role-guard.ts`).
+
+## 4. Kontekst użytkownika w transakcji
+
+Funkcja `app_current_user_id()` czyta `app.user_id` z ustawienia transakcyjnego; bez ustawienia zwraca `NULL`, więc polityki nie dopasowują żadnego wiersza. Zasady:
+
+- **Decyzja techniczna:** jedyna droga dostępu do bazy w kodzie domenowym to wrapper `withUserContext(actor, fn)` (`src/lib/db/user-context.ts`), który otwiera transakcję i wywołuje `select set_config('app.user_id', $1, true)` (zakres transakcji) przed jakimkolwiek zapytaniem. Gość: brak ustawienia (`NULL`).
+- Wrapper nie może być zagnieżdżony w otwartej transakcji (`NestedUserContextError`): „lokalne” ustawienie trwa do końca transakcji najwyższego poziomu, więc zagnieżdżone wywołanie po cichu podmieniłoby aktora.
+- Nigdy `SET` na poziomie sesji ani `set_config(..., false)` — pula połączeń przeniosłaby tożsamość na inne żądanie.
+- Identyfikator pochodzi wyłącznie z zaufanej sesji po stronie serwera, nie z ciała żądania, nagłówków ani parametrów. Nieprawidłowy UUID powoduje błąd (nie ciche `NULL`).
+- Rola i zakres nie są ustawieniami sesji, które klient mógłby podmienić: polityki sprawdzają je w bazie.
+- Polityki używają `(select app_current_user_id())`, żeby planista policzył wartość raz na zapytanie; kolumny `user_id` są indeksowane.
+
+## 5. Polityki — macierz
+
+Wszystkie polityki powstają **w tej samej migracji co tabela**; nie wolno utworzyć tabeli i „dodać RLS później”. Pilnują tego dwie bariery: hook `.claude/hooks/require-rls-in-migration.mjs` (wczesne ostrzeżenie przy zapisie migracji, czyta tekst jednego pliku) i test `tests/integration/rls-coverage.test.ts`, który po wszystkich migracjach sprawdza w katalogu bazy każdą tabelę poza schematem `auth`: włączony i wymuszony RLS oraz co najmniej jedna polityka. Wyjątek wymaga wpisu na liście w tym teście z uzasadnieniem (decyzja właściciela; plik jest w `CODEOWNERS`).
+
+| Tabela                                 | Klasa                  | Polityka                                                                                                                                                           |
+| -------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `auth.*`                               | SYS                    | Brak uprawnień dla `starter_app`; dostęp wyłącznie `starter_auth`.                                                                                                 |
+| tabela kontrolna szkieletu (wzór PRIV) | PRIV                   | `privateTableSecuritySql` z `src/lib/db/policies.ts`: SELECT/INSERT/DELETE tylko dla `user_id = app_current_user_id()`, INSERT z `WITH CHECK` tym samym warunkiem. |
+| {{tabela produktu}}                    | {{PRIV/CUR/publiczna}} | {{opis polityki, zakres grantów kolumnowych}}                                                                                                                      |
+
+Wzorzec PRIV, zasady wspólne i pułapki:
+
+- `UPDATE` nadawaj tylko na edytowane kolumny (grant kolumnowy); `user_id` i klucze są niezmienialne. Test sprawdza też `has_column_privilege`.
+- **Klucz obcy omija RLS.** PostgreSQL sprawdza klucz obcy jako właściciel tabeli docelowej, bez polityk. Wiersz PRIV wskazujący inną tabelę przyjmie więc identyfikator niewidocznego wiersza, jeśli ktoś go zna. Dodaj restrykcyjną politykę `INSERT` wymagającą, by cel był widoczny dla `starter_app`, i test surowego `insert` → `42501`.
+- Polityka odwołująca się do innej tabeli blokuje `DROP TABLE` tamtej: w `down()` usuwaj powiązane tabele jedną instrukcją `drop table a, b`, bez `CASCADE`.
+- Funkcja `security definer` czytająca tabelę z `FORCE` potrzebuje wąskiej polityki dla `starter_owner`, jawnego `set search_path`, a agregaty zwracają liczby, nie wiersze.
+- Wartości słownikowe w `CHECK` kopiuj do migracji jako zamrożone stałe, nie importuj z kodu domeny.
+
+## 6. Niezmienniki poza RLS
+
+Rzeczy, których RLS nie zapewni, a które trzeba sprawdzić w serwerze: zakaz samozatwierdzania, kolejność przejść stanów, limity i walidacja wejścia, brak identyfikatora właściciela w parametrach przypadków użycia (aktor zawsze z sesji), nagłówki `Cache-Control: private, no-store` dla odpowiedzi z danymi prywatnych.
+
+**Globalny dzienny limit kodów logowania (znane ograniczenie).** Prośby o kod logowania mają limity na adres e-mail i na IP oraz jeden limit wspólny dla całej aplikacji: `OTP_GLOBAL_DAILY_LIMIT` (domyślnie 250 na dobę UTC, `src/features/identity/domain/otp-send-limits.ts`). Taki limit chroni skrzynkę nadawczą i koszt wysyłki, ale ma skutek uboczny: napastnik z kilkoma adresami IP może wyczerpać pulę i do północy UTC nikt nie dostanie nowego kodu (aplikacja odpowiada wszystkim tak samo, żeby nie zdradzać nic o kontach). Nie przestają działać: logowanie hasłem konta administratora i sesje już zalogowanych osób. Przy 80% i 100% puli aplikacja zapisuje alarm w logach; po alarmie sprawdź, czy ruch jest prawdziwy. Gdy rośnie liczba prawdziwych użytkowników albo pula wyczerpuje się od ataku, ustaw większą wartość w zmiennej środowiskowej `OTP_GLOBAL_DAILY_LIMIT` (liczba całkowita od 1 do 9999999) i uruchom aplikację ponownie; limity na adres i na IP zostają bez zmian. To ograniczenie nie ujawnia danych, tylko utrudnia logowanie kodem, więc nie wymaga RLS.
+
+## 7. Testy (wymagane przed uznaniem funkcji za gotową)
+
+Każda funkcja używająca danych prywatnych lub roli z zakresem ma test integracyjny na harnessie (`docs/testing.md`), na połączeniu `starter_app`, który pokrywa:
+
+- [ ] **Katalog:** `findRowLevelSecurityGaps(client, ["public.<tabela>"])` i `findApplicationRoleGaps(client)` zwracają `[]`.
+- [ ] **Dokładne uprawnienia:** `has_table_privilege('starter_app', ...)` dla każdej operacji — dokładnie te nadane, nic więcej (`truncate`, `references`, `trigger` = `false`).
+- [ ] **Brak kontekstu:** bez `app.user_id` 0 wierszy, `INSERT` odrzucony.
+- [ ] **A kontra B:** użytkownik B nie odczyta, nie zmieni i nie usunie wiersza A — także surowym SQL; `INSERT` z cudzym `user_id` kończy się `42501`.
+- [ ] **Inne role:** rola z zakresem poza zakresem i rola administracyjna dostają odmowę (role nie dziedziczą); gość — 401 przez prawdziwy handler trasy.
+- [ ] **Klucz obcy:** surowy `insert` wskazujący niewidoczny wiersz → `42501`.
+- [ ] **Wyciek kontekstu:** pula `{ min: 1, max: 1 }`, kolejna transakcja na tym samym połączeniu nie dziedziczy aktora.
+- [ ] **Migracja:** „revert + apply” przechodzi.
+
+Jeśli funkcja ma ekran, dodaj scenariusz E2E z dwoma kontami, który pokazuje, że B nie widzi danych A.
+
+## 8. Kolejność wdrażania
+
+1. Klasyfikacja danych w sekcji 2 (w specyfikacji i tutaj).
+2. Migracja z tabelą i RLS (skill `private-data`).
+3. Przypadek użycia z kontrolą roli, potem adapter w kontekście użytkownika.
+4. Test odmowy dostępu z sekcji 7.
+5. Aktualizacja sekcji 2 i 5 w tym samym PR.
+
+## 9. Otwarte kwestie
+
+Zapisuj w `<docs>/docs/decisions.md`.

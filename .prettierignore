@@ -1,0 +1,30 @@
+.next/
+coverage/
+out/
+node_modules/
+.npm/
+next-env.d.ts
+*.docx
+*.ico
+playwright-report/
+test-results/
+
+# Artefakt designu (mockup), nie źródło kodu
+docs/design/
+
+# Zainstalowane skille agentów
+.agents/
+
+# Notatki, specyfikacje i konfiguracja agentów; często generowane przez narzędzia
+.ai/
+
+# Źródłowe materiały produktu skonwertowane z .docx
+docs/source/
+storybook-static/
+
+# Lokalne worktree gałęzi (kopie repozytorium, sprawdzane we własnym katalogu)
+.worktrees/
+.claude/worktrees/
+
+# Kontrakt UX generowany przez uxproof (om-ux-setup); regeneracja nadpisuje formatowanie
+.uxproof/

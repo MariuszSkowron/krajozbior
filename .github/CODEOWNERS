@@ -1,0 +1,85 @@
+# Właściciel kodu dla zmian, które czekają na kliknięcie człowieka
+# (docs/agent-workflow.md, „Wyjątki od auto-merge”). Ruleset „Ochrona main” wymaga
+# zatwierdzenia właściciela kodu, więc PR dotykający tych ścieżek nie scali się
+# automatycznie, nawet przy zielonych checkach i statusach przeglądu. To jest
+# granica bezpieczeństwa: statusy `agent-review` i `security-review` może ustawić
+# każde konto z prawem zapisu, zatwierdzenia właściciela — nie.
+#
+# Lista jest jawna (nie „wszystko poza…”): zwykłe funkcje, ekrany i dokumentacja
+# scalają się same. Nowa funkcja z danymi prywatnymi albo nowa trasa API dopisuje
+# swoje ścieżki do tego pliku w tym samym PR. Ten plik też ma właściciela, więc
+# właściciel widzi każdą zmianę listy.
+#
+# {{GITHUB_OWNER}} zamienia BOOTSTRAP.md (krok 3) na login właściciela,
+# np. @jan-kowalski. Właściciel nie może być autorem PR-ów agentów: autorem jest
+# aplikacja GitHub projektu (`<app-slug>[bot]`, `.github/bot.json`), bo GitHub nie
+# pozwala zatwierdzić własnego PR.
+#
+# Kolejność: późniejszy wzorzec wygrywa; każdy wpis wskazuje tego samego właściciela.
+
+# Logowanie, sesje, role, autoryzacja i wszystkie trasy API
+/src/features/identity/            @{{GITHUB_OWNER}}
+/src/app/api/                      @{{GITHUB_OWNER}}
+/src/app/login/                    @{{GITHUB_OWNER}}
+/src/app/my/                       @{{GITHUB_OWNER}}
+/src/app/request-actor.ts          @{{GITHUB_OWNER}}
+/src/app/layout.tsx                @{{GITHUB_OWNER}}
+/src/app/shell/                    @{{GITHUB_OWNER}}
+/src/proxy.ts                      @{{GITHUB_OWNER}}
+
+# Konfiguracja bezpieczeństwa: nagłówki, kontrola środowiska, e-mail z kodami,
+# logowanie błędów, ścieżki importów i ustawienia Next.js
+/src/lib/security-headers.ts       @{{GITHUB_OWNER}}
+/src/lib/config/                   @{{GITHUB_OWNER}}
+/src/lib/email/                    @{{GITHUB_OWNER}}
+/src/lib/log-failure.ts            @{{GITHUB_OWNER}}
+/next.config.ts                    @{{GITHUB_OWNER}}
+/tsconfig.json                     @{{GITHUB_OWNER}}
+
+# Uprawnienia bazy, reguły dostępu do danych (RLS) i wszystkie migracje
+/src/lib/db/                       @{{GITHUB_OWNER}}
+/mikro-orm.config.ts               @{{GITHUB_OWNER}}
+/docs/data-isolation.md            @{{GITHUB_OWNER}}
+
+# Zależności (także aktualizacje Dependabota), licencja i skrypty operacyjne
+/package.json                      @{{GITHUB_OWNER}}
+/package-lock.json                 @{{GITHUB_OWNER}}
+/LICENSE                           @{{GITHUB_OWNER}}
+/scripts/                          @{{GITHUB_OWNER}}
+
+# Tożsamość agentów: aplikacja GitHub (bot), jej token i jawne identyfikatory.
+# Pokryte już przez /scripts/ i /.github/; wpisy jawne, żeby nie zniknęły przy
+# zmianie tamtych reguł.
+/scripts/bot-token.ps1             @{{GITHUB_OWNER}}
+/scripts/lib/github-app-token.mjs  @{{GITHUB_OWNER}}
+/.github/bot.json                  @{{GITHUB_OWNER}}
+
+# Testy, które dowodzą odmowy dostępu, wspólne narzędzia tych testów,
+# testy hooków strażniczych oraz testy logowania, konfiguracji i proxy
+/tests/integration/                @{{GITHUB_OWNER}}
+/tests/support/                    @{{GITHUB_OWNER}}
+/tests/scripts/                    @{{GITHUB_OWNER}}
+/tests/features/identity/          @{{GITHUB_OWNER}}
+/tests/lib/                        @{{GITHUB_OWNER}}
+/tests/proxy.test.ts               @{{GITHUB_OWNER}}
+/e2e/security-headers.spec.ts      @{{GITHUB_OWNER}}
+
+# CI, ustawienia GitHub i definicje kontroli (osłabienie skryptu `check`,
+# progu pokrycia albo listy ignorowanych plików działa jak wyłączenie CI)
+/.github/                          @{{GITHUB_OWNER}}
+/vitest.config.mts                 @{{GITHUB_OWNER}}
+/vitest.integration.config.mts     @{{GITHUB_OWNER}}
+/playwright.config.ts              @{{GITHUB_OWNER}}
+/eslint.config.mjs                 @{{GITHUB_OWNER}}
+/.env.example                      @{{GITHUB_OWNER}}
+/.gitignore                        @{{GITHUB_OWNER}}
+/.prettierignore                   @{{GITHUB_OWNER}}
+
+# Ustawienia, skille i zasady agentów
+/.claude/                          @{{GITHUB_OWNER}}
+/.ai/                              @{{GITHUB_OWNER}}
+/skills-lock.json                  @{{GITHUB_OWNER}}
+/om-sandbox.toml                   @{{GITHUB_OWNER}}
+/AGENTS.md                         @{{GITHUB_OWNER}}
+/CLAUDE.md                         @{{GITHUB_OWNER}}
+/docs/agent-workflow.md            @{{GITHUB_OWNER}}

@@ -1,0 +1,7 @@
+version = 3
+
+# Next.js. The dev server listens only on the loopback interface: it must not be
+# reachable from the local network (dev mode shows stack traces and source).
+[[services]]
+name = "next"
+start_command = ["npm", "run", "dev", "--", "--hostname", "127.0.0.1", "--port", "3000"]

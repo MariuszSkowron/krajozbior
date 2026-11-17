@@ -1,0 +1,192 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# A newer run of the same pull request (or of main) replaces the older one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# The repository is public, so Actions minutes are free: every job runs on every
+# pull request, drafts included. No job has an `if:` condition on purpose: a
+# skipped required check counts as passed, so a skipping rule (draft, docs-only,
+# path filter) could let a pull request merge on an all-skipped run. The jobs
+# `gitleaks`, `check`, `integration` and `e2e` are required status checks of the
+# ruleset.
+#
+# Every action is pinned to a full commit SHA (the version is in the comment;
+# Dependabot updates both). Checkouts do not keep the token in .git/config
+# (`persist-credentials: false`): no step after the checkout needs it.
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The secret scan reads the whole history.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Scan the history for secrets
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.17.0
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      # Decyzja właściciela 2026-11-17: check czerwienieje tylko przy wysokich
+      # i krytycznych podatnościach zależności produkcyjnych. Pełny audyt (także
+      # narzędzia deweloperskie) tylko raportuje ostrzeżeniem w podsumowaniu.
+      - name: Audit production dependencies (high and critical, blocking)
+        run: npm audit --omit=dev --omit=optional --audit-level=high
+
+      - name: Audit all dependencies (report only)
+        run: |
+          if ! npm audit; then
+            echo "::warning title=npm audit::Pełny audyt zależności (także deweloperskich) zgłasza podatności. Nie blokuje to checku; szczegóły w logu kroku 'Audit all dependencies'."
+          fi
+
+      - name: Run required checks
+        run: npm run check
+
+      - name: Build Storybook
+        run: npm run build-storybook
+
+  integration:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: starter_test
+          POSTGRES_PASSWORD: test_only_password
+          POSTGRES_DB: starter_integration_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U starter_test -d starter_integration_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.17.0
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run PostgreSQL integration tests
+        env:
+          TEST_DATABASE_URL: postgres://starter_test:test_only_password@localhost:5432/starter_integration_test
+        run: npm run test:integration
+
+  e2e:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: starter_e2e
+          POSTGRES_PASSWORD: e2e_only_password
+          POSTGRES_DB: starter_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U starter_e2e -d starter_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Throwaway values for the CI-only database; none of them is a real secret.
+      # starter_e2e is the cluster administrator: it only creates the roles. The
+      # migrations run as starter_owner, the application as starter_app and the
+      # identity adapter as starter_auth, like outside CI.
+      DATABASE_ADMIN_URL: postgres://starter_e2e:e2e_only_password@localhost:5432/starter_e2e
+      STARTER_OWNER_DB_PASSWORD: ci-e2e-only-owner-password
+      STARTER_APP_DB_PASSWORD: ci-e2e-only-app-password
+      STARTER_AUTH_DB_PASSWORD: ci-e2e-only-auth-password
+      STARTER_OPS_DB_PASSWORD: ci-e2e-only-ops-password
+      DATABASE_MIGRATION_URL: postgres://starter_owner:ci-e2e-only-owner-password@localhost:5432/starter_e2e
+      DATABASE_URL: postgres://starter_app:ci-e2e-only-app-password@localhost:5432/starter_e2e
+      DATABASE_AUTH_URL: postgres://starter_auth:ci-e2e-only-auth-password@localhost:5432/starter_e2e
+      BETTER_AUTH_SECRET: ci-e2e-only-session-secret-0123456789abcdef
+      DEMO_ACCOUNT_PASSWORD: ci-e2e-only-demo-password
+      # The demo seed runs only with this explicit flag (scripts/seed-demo-accounts.ts).
+      ALLOW_DEMO_SEED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.17.0
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Create database roles, migrate and seed demo accounts
+        run: |
+          npm run db:roles
+          npm run db:migrate
+          npm run db:seed:demo
+
+      - name: Build production application
+        run: npm run build
+
+      - name: Install headless Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright reports and failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-failure-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7

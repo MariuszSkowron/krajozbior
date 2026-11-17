@@ -1,0 +1,92 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+/playwright-report
+/test-results
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Przykład konfiguracji jest wersjonowany.
+!.env.example
+
+# MikroORM schema snapshots are generated per database
+src/lib/db/migrations/.snapshot-*.json
+
+storybook-static/
+
+# Dane lokalne aplikacji (np. skrzynka e-mail w trybie outbox)
+/.data/
+
+# Lokalne worktree gałęzi (kopie repozytorium, sprawdzane we własnym katalogu)
+/.worktrees/
+/.claude/worktrees/
+
+# Skrzynka lokalna e-mail (EMAIL_TRANSPORT=outbox), gdy EMAIL_OUTBOX_DIR wskazuje katalog główny
+/email-outbox/
+
+# --- Repozytorium publiczne: materiały prywatne mieszkają w ../<projekt>-docs ---
+# Skille om-* zapisują plany, raporty i stan QA pod .ai/ (ścieżki muszą być
+# względne wobec repozytorium). Tu zostają lokalnie i nigdy nie trafiają do gita;
+# agent przenosi wynik do repozytorium dokumentacji (docs/agent-workflow.md).
+# Wersjonowana jest tylko publiczna konfiguracja pipeline'u.
+/.ai/*
+!/.ai/agentic.config.json
+!/.ai/trackers/
+!/.ai/browsers/
+!/.ai/skills/
+
+# Pliki, które należą wyłącznie do repozytorium dokumentacji (job `guard` w CI
+# odrzuca je także wtedy, gdy ktoś doda je z pominięciem .gitignore).
+/security-notes.md
+/BOOTSTRAP.md
+/project-intake.md
+/bootstrap-checklist.md
+/docs/product.md
+/docs/decisions.md
+/docs/source/
+*.code-workspace
+
+# Lokalne ustawienia i notatki Claude Code (osobiste, mogą luzować reguły;
+# job `guard` także je odrzuca)
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Ustawienia edytora: wersjonowane są tylko rekomendowane rozszerzenia
+/.vscode/*
+!/.vscode/extensions.json

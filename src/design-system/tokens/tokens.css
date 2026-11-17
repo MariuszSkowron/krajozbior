@@ -1,0 +1,79 @@
+/*
+ * Semantic design tokens szkieletu (theme jasny). Źródło prawdy: docs/design/tokens.md.
+ * Komponenty używają wyłącznie tych zmiennych, bez wartości „na sztywno”.
+ */
+:root {
+  /* Kolor */
+  --color-brand-primary: #176b5b;
+  --color-brand-accent: #b85a1a;
+  --color-surface-canvas: #f7f6f1;
+  --color-surface-card: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-surface-tint: #efede3;
+  --color-text-primary: #172321;
+  --color-text-secondary: #5b6763;
+  --color-text-inverse: #ffffff;
+  --color-border-default: #7a8681;
+  --color-border-subtle: #e3e1d6;
+  --color-border-focus: #176b5b;
+  --color-feedback-danger: #b3261e;
+
+  /* Odstępy (moduł 4 px) */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Promienie i cienie (warstwa wizualna szkieletu) */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgb(23 35 33 / 6%), 0 6px 20px rgb(23 35 33 / 7%);
+  --shadow-overlay: 0 8px 24px rgb(23 35 33 / 16%);
+
+  /* Minimalny cel dotykowy */
+  --size-touch-min: 44px;
+  /* Główna akcja ekranu terenowego (np. Zapisz): większa niż minimum */
+  --size-touch-primary: 48px;
+
+  /* Typografia: tekst krojem systemowym (bez ładowania czcionek; działa offline w terenie). */
+  --font-family-base:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Nagłówki: krój z next/font/local (--font-display-face na <html>), bez niego stos systemowy. */
+  --font-family-display: var(
+    --font-display-face,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif
+  );
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.75rem;
+  --font-size-2xl: 2.125rem;
+  --font-size-3xl: 3rem;
+  --font-weight-strong: 600;
+  --line-height-body: 1.5;
+  --line-height-heading: 1.25;
+
+  /* Fokus: kolor wskaźnika to --color-border-focus */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* Ruch */
+  --motion-duration-short: 150ms;
+  --motion-easing-standard: ease-out;
+}
+
+/* Jedno miejsce obsługi redukcji ruchu: komponenty używają tokenu i nic nie wiedzą o preferencji. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-short: 0ms;
+  }
+}
