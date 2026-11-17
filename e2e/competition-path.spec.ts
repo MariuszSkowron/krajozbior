@@ -155,10 +155,9 @@ test.describe("the competition path", () => {
     await guest.getByRole("link", { name: /Most ze ścieżki/ }).click();
     await expect(guest.getByRole("heading", { level: 1, name: "Most ze ścieżki" })).toBeVisible();
     await expect(
-      guest.getByRole("link", { name: "Zaloguj się, aby potwierdzić wizytę" }),
-    ).toBeVisible();
-    await expect(
-      guest.getByRole("link", { name: "Zaloguj się, aby zapisać na Chcę zobaczyć" }),
+      guest.getByRole("link", {
+        name: "Zaloguj się, aby potwierdzić wizytę lub zapisać na Chcę zobaczyć",
+      }),
     ).toBeVisible();
 
     // The explorer saves it, sees 0/1, confirms the visit on site and sees 1/1.

@@ -12,7 +12,8 @@ import {
 import styles from "./visit-confirmation.module.css";
 import { WantToSeeButton } from "./want-to-see-button";
 
-type Props = { placeId: string; initialWanted: boolean };
+// initialWanted is null when the list could not be read: only its button is hidden.
+type Props = { placeId: string; initialWanted: boolean | null };
 
 type Reading = { latitude: number; longitude: number; accuracy: number };
 type Attempt = { clientVisitId: string; reading: Reading };
@@ -225,7 +226,11 @@ export function VisitConfirmation({ placeId, initialWanted }: Props) {
       >
         {feedbackText(state)}
       </p>
-      <WantToSeeButton placeId={placeId} initialWanted={initialWanted} />
+      {initialWanted === null ? (
+        <p className={styles.feedback}>Lista „Chcę zobaczyć” jest chwilowo niedostępna.</p>
+      ) : (
+        <WantToSeeButton placeId={placeId} initialWanted={initialWanted} />
+      )}
     </div>
   );
 }

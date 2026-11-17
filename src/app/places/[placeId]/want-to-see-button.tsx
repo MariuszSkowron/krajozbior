@@ -1,13 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
+
+import { safeReturnTo } from "@/features/identity/domain/return-to";
 
 import styles from "./visit-confirmation.module.css";
 
 type Props = { placeId: string; initialWanted: boolean };
 
 const MESSAGES: Record<number, string> = {
-  401: "Sesja wygasła. Zaloguj się ponownie.",
+  401: "Sesja wygasła.",
   404: "To miejsce nie jest już dostępne.",
   429: "Za dużo prób. Spróbuj za chwilę.",
 };
@@ -21,10 +24,12 @@ export function WantToSeeButton({ placeId, initialWanted }: Props) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [removed, setRemoved] = useState(false);
+  const [expired, setExpired] = useState(false);
 
   async function toggle() {
     setPending(true);
     setError(null);
+    setExpired(false);
 
     try {
       const response = await fetch(`/api/me/want-to-see/${placeId}`, {
@@ -36,6 +41,7 @@ export function WantToSeeButton({ placeId, initialWanted }: Props) {
         setRemoved(wanted);
       } else {
         setError(MESSAGES[response.status] ?? "Nie udało się zapisać zmiany. Spróbuj ponownie.");
+        setExpired(response.status === 401);
       }
     } catch {
       setError("Brak połączenia. Spróbuj ponownie.");
@@ -62,6 +68,17 @@ export function WantToSeeButton({ placeId, initialWanted }: Props) {
             : removed
               ? "Usunięto z listy „Chcę zobaczyć”."
               : "")}
+        {expired ? (
+          <>
+            {" "}
+            <Link
+              href={`/login?returnTo=${encodeURIComponent(safeReturnTo(`/places/${placeId}`))}`}
+            >
+              Zaloguj się ponownie
+            </Link>
+            .
+          </>
+        ) : null}
       </p>
     </div>
   );

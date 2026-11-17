@@ -117,7 +117,9 @@ describe("removeFromWantToSee", () => {
 
 describe("listWantToSee", () => {
   it("returns the places of the repository without counting against the limit", async () => {
-    const places = [{ id: PLACE, name: "Most", address: "Tczew", savedAt: new Date(0) }];
+    const places = [
+      { id: PLACE, name: "Most", address: "Tczew", savedAt: new Date(0), visited: true },
+    ];
     const { deps, reserve } = makeDeps({ listPlaces: async () => places });
 
     expect(await listWantToSee(actor, deps)).toEqual({ status: "ok", value: places });

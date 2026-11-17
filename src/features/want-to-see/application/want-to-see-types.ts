@@ -3,12 +3,14 @@ import type { Actor } from "@/features/identity/domain/actor";
 import type { TransactionContext } from "@/lib/db/user-context";
 
 // One place on the list of the signed-in explorer. Only what the list shows: no
-// user id, and no coordinates.
+// user id, and no coordinates. `visited` is only whether the actor has a visit
+// of their own here (so the list can mark it); never a date or a count.
 export type WantToSeePlace = Readonly<{
   id: string;
   name: string;
   address: string;
   savedAt: Date;
+  visited: boolean;
 }>;
 
 // All database access of the list. Every method runs inside the user context

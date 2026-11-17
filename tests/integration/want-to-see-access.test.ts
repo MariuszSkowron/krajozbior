@@ -83,8 +83,33 @@ describe("the want-to-see use cases", () => {
       expect(mine[0]).toMatchObject({ name: "Miejsce" });
       expect(mine[0]!.savedAt).toBeInstanceOf(Date);
       expect(Math.abs(mine[0]!.savedAt.getTime() - Date.now())).toBeLessThan(60_000);
-      expect(Object.keys(mine[0]!).sort()).toEqual(["address", "id", "name", "savedAt"]);
+      expect(Object.keys(mine[0]!).sort()).toEqual(["address", "id", "name", "savedAt", "visited"]);
+      expect(mine[0]!.visited).toBe(false);
     }
+
+    // After a visit the entry stays (it can be removed) and the list marks it;
+    // another explorer's visit of the same place does not mark it for A.
+    await f.as(
+      explorerA,
+      `insert into public.visits (user_id, place_id, kind, date_precision)
+       values (app_current_user_id(), ?, 'past', 'unknown')`,
+      [placeId],
+    );
+
+    const afterVisit = await listWantToSee(explorerA, deps());
+
+    expect(
+      afterVisit.status === "ok" && afterVisit.value.find((place) => place.id === placeId)?.visited,
+    ).toBe(true);
+
+    await addToWantToSee(explorerB, placeId, deps());
+
+    const asB = await listWantToSee(explorerB, deps());
+
+    expect(asB.status === "ok" && asB.value.find((place) => place.id === placeId)?.visited).toBe(
+      false,
+    );
+    await removeFromWantToSee(explorerB, placeId, deps());
 
     for (let i = 0; i < 2; i += 1) {
       expect(await removeFromWantToSee(explorerA, placeId, deps())).toEqual({

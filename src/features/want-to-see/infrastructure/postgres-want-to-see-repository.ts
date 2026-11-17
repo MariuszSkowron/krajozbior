@@ -20,12 +20,24 @@ const publicPlace = (place: string) => `
        and o.status = 'approved'
   )`;
 
-type ListRow = { id: string; name: string; address: string; savedAt: Date | string };
+type ListRow = {
+  id: string;
+  name: string;
+  address: string;
+  savedAt: Date | string;
+  visited: boolean;
+};
 
 export const postgresWantToSeeRepository: WantToSeeRepository = {
   async listPlaces(tx) {
+    // "visited" reads only the actor's own visits (owner filter plus the row
+    // policy of visits); it is one flag, never a date or a count.
     const rows = await tx.em.execute<ListRow[]>(
-      `select p.id, p.name, p.address, w.saved_at as "savedAt"
+      `select p.id, p.name, p.address, w.saved_at as "savedAt",
+              exists (
+                select from public.visits v
+                 where v.user_id = app_current_user_id() and v.place_id = p.id
+              ) as visited
          from public.want_to_see_places w
          join public.places p on p.id = w.place_id
         where w.user_id = app_current_user_id() and ${publicPlace("p.id")}
@@ -37,6 +49,7 @@ export const postgresWantToSeeRepository: WantToSeeRepository = {
       name: row.name,
       address: row.address,
       savedAt: new Date(row.savedAt),
+      visited: row.visited,
     }));
   },
 

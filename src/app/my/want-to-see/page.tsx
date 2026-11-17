@@ -65,6 +65,7 @@ export default async function WantToSeePage() {
                   )}
                   <span className={catalog.itemMeta}>
                     Zapisano: {formatSavedDate(place.savedAt)}
+                    {place.visited ? " · Odwiedzone" : ""}
                   </span>
                 </Link>
               </li>
