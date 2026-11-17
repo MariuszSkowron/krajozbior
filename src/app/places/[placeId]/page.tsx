@@ -3,14 +3,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
-import { logReadFailure } from "@/app/request-actor";
+import { getRequestActor, logReadFailure, loginHref } from "@/app/request-actor";
 import { getPublishedPlace } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
+import { hasVisitedPlace } from "@/features/visits/application/confirm-on-site-visit";
+import { getVisitDeps } from "@/features/visits/infrastructure/visit-deps";
 
+import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
+import { VisitConfirmation } from "./visit-confirmation";
 
 // Same rules as the collection page: dynamic, never in a shared cache (the
-// visit button and "Chcę zobaczyć" of a signed-in explorer come later).
+// visit state of a signed-in explorer must not reach anyone else).
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ placeId: string }>;
@@ -24,6 +28,29 @@ const load = cache(async (placeId: string) => {
     return { status: "failed" } as const;
   }
 });
+
+// What the page adds for the visitor: a guest is sent to sign in and back here,
+// an explorer gets the visit button (or the note that the place is visited). A
+// failure leaves the public page whole, without the personal part.
+async function loadVisit(placeId: string) {
+  try {
+    const actor = await getRequestActor();
+
+    if (actor === null) {
+      return { kind: "guest", loginHref: loginHref(`/places/${placeId}`) } as const;
+    }
+
+    const state = await hasVisitedPlace(actor, placeId, getVisitDeps());
+
+    return state.status === "ok"
+      ? ({ kind: "explorer", visited: state.value.visited } as const)
+      : ({ kind: "none" } as const);
+  } catch (error) {
+    logReadFailure("Place visit read", error);
+
+    return { kind: "unavailable" } as const;
+  }
+}
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const result = await load((await params).placeId);
@@ -44,6 +71,7 @@ export default async function PlacePage({ params }: { params: Params }) {
   }
 
   const place = result.value;
+  const visit = await loadVisit((await params).placeId);
 
   return (
     <div className={`content-width ${styles.page}`}>
@@ -71,6 +99,27 @@ export default async function PlacePage({ params }: { params: Params }) {
           </div>
         )}
       </dl>
+      <section className={styles.section} aria-labelledby="wizyta">
+        <h2 id="wizyta">Wizyta</h2>
+        {visit.kind === "guest" ? (
+          <div>
+            <Link className={albumStyles.action} href={visit.loginHref}>
+              Zaloguj się, aby potwierdzić wizytę
+            </Link>
+            <p className={albumStyles.feedback}>Po zalogowaniu wrócisz na tę stronę.</p>
+          </div>
+        ) : visit.kind === "explorer" ? (
+          visit.visited ? (
+            <p>Masz już zapisaną wizytę w tym miejscu.</p>
+          ) : (
+            <VisitConfirmation placeId={place.id} />
+          )
+        ) : visit.kind === "unavailable" ? (
+          <p className={albumStyles.feedback}>
+            Nie udało się sprawdzić Twojej wizyty. Odśwież stronę za chwilę.
+          </p>
+        ) : null}
+      </section>
       <section className={styles.section} aria-labelledby="kolekcje">
         <h2 id="kolekcje">Kolekcje z tym miejscem</h2>
         <ul className={styles.list}>

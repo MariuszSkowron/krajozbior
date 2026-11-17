@@ -28,6 +28,14 @@ describe("security headers", () => {
     expect(valueOf("Strict-Transport-Security")).toMatch(/^max-age=\d{8,}$/);
   });
 
+  it("allows geolocation for the own origin only (the visit button of PR7), and no other device", () => {
+    const policy = valueOf("Permissions-Policy");
+
+    expect(policy).toContain("geolocation=(self)");
+    expect(policy).toContain("camera=()");
+    expect(policy).toContain("microphone=()");
+  });
+
   it("forbids framing and foreign origins", () => {
     const csp = contentSecurityPolicy(false);
 

@@ -39,7 +39,7 @@ export function securityHeaders(isDev: boolean): HeaderRule[] {
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         {
           key: "Permissions-Policy",
-          value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+          value: "camera=(), microphone=(), geolocation=(self), payment=(), usb=()",
         },
         // Not in development: `next dev --experimental-https` would pin HSTS on
         // localhost for a year. No includeSubDomains/preload: irreversible,
