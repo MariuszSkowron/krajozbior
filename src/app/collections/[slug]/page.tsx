@@ -55,7 +55,7 @@ async function loadAlbum(collectionId: string, slug: string) {
   } catch (error) {
     logReadFailure("Collection album read", error);
 
-    return { kind: "none" } as const;
+    return { kind: "unavailable" } as const;
   }
 }
 
@@ -105,6 +105,10 @@ export default async function CollectionPage({ params }: { params: Params }) {
               label={`Twój postęp w kolekcji ${collection.title}`}
             />
           </>
+        ) : album.kind === "unavailable" ? (
+          <p className={albumStyles.feedback}>
+            Nie udało się wczytać Twojego zapisu tej kolekcji. Odśwież stronę za chwilę.
+          </p>
         ) : null}
       </header>
       <section className={styles.section} aria-labelledby="miejsca">

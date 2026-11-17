@@ -137,6 +137,19 @@ describe("public catalog pages", () => {
     expect(html).not.toContain("<ol");
   });
 
+  it("say so, in short Polish, when the album read fails, and keep the rest of the page", async () => {
+    mocks.collection.mockResolvedValue({ status: "ok", value: collection });
+
+    const html = renderToStaticMarkup(
+      await collectionPage.default({ params: Promise.resolve({ slug: next() }) }),
+    );
+
+    // getRequestActor is not mocked here, so the personal read throws.
+    expect(html).toContain("Nie udało się wczytać Twojego zapisu tej kolekcji.");
+    expect(html).not.toContain("Zapisz kolekcję");
+    expect(html).toContain("Miejsca w kolekcji (1)");
+  });
+
   it("show a place with address, access, description and its collections", async () => {
     mocks.place.mockResolvedValue({ status: "ok", value: place });
 

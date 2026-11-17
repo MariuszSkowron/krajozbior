@@ -21,6 +21,7 @@ export function SaveCollectionButton({ collectionId, initialSaved }: Props) {
   const [saved, setSaved] = useState(initialSaved);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [removed, setRemoved] = useState(false);
 
   async function toggle() {
     setPending(true);
@@ -33,6 +34,7 @@ export function SaveCollectionButton({ collectionId, initialSaved }: Props) {
 
       if (response.ok) {
         setSaved(!saved);
+        setRemoved(saved);
         router.refresh();
       } else {
         setError(MESSAGES[response.status] ?? "Nie udało się zapisać zmiany. Spróbuj ponownie.");
@@ -55,7 +57,12 @@ export function SaveCollectionButton({ collectionId, initialSaved }: Props) {
         {saved ? "Usuń z zapisanych" : "Zapisz kolekcję"}
       </button>
       <p className={styles.feedback} role="status">
-        {error ?? (saved ? "Ta kolekcja jest w Twoich zapisanych." : "")}
+        {error ??
+          (saved
+            ? "Ta kolekcja jest w Twoich zapisanych."
+            : removed
+              ? "Usunięto z zapisanych."
+              : "")}
       </p>
     </div>
   );

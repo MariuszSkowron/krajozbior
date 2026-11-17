@@ -102,6 +102,10 @@ test.describe("saved collections", () => {
     await expect(page.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
     await expect(page.getByText("Ta kolekcja jest w Twoich zapisanych.")).toBeVisible();
     await expectNoAccessibilityViolations(page);
+
+    await page.getByRole("button", { name: "Usuń z zapisanych" }).click();
+    await expect(page.getByRole("button", { name: "Zapisz kolekcję" })).toBeVisible();
+    await expect(page.getByRole("status")).toHaveText("Usunięto z zapisanych.");
   });
 
   test("explorer A sees the saved collection with 0/3, explorer B does not and cannot remove it", async ({
