@@ -37,6 +37,7 @@ async function main() {
   // Before any connection: NODE_ENV alone does not say where the database is.
   assertLocalDatabaseUrl(process.env.DATABASE_AUTH_URL);
   assertLocalDatabaseUrl(process.env.DATABASE_MIGRATION_URL);
+  assertLocalDatabaseUrl(process.env.DATABASE_URL);
 
   try {
     const accounts = await seedDemoAccounts(
@@ -60,7 +61,6 @@ async function main() {
 
     // One published sample collection of the first demo organization, made
     // through the curator use cases as krajozbior_app (needs DATABASE_URL).
-    assertLocalDatabaseUrl(process.env.DATABASE_URL);
     const sampleCurator = demoOrganizations[0]!.curatorEmail;
     const sample = await seedDemoCatalog(
       process.env.DATABASE_URL as string,

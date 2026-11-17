@@ -8,6 +8,7 @@ import { logFailure } from "@/lib/log-failure";
 import type { CatalogDeps, CuratorOutcome } from "../application/catalog-types";
 import { getCatalogDeps } from "../infrastructure/catalog-deps";
 import { CURATOR_BODY_MAX_BYTES } from "../domain/limits";
+import { isUuid } from "../domain/uuid";
 
 // Shared by the /api/curator routes: origin check, bounded JSON body, the
 // actor from the session, and the mapping of a use case answer to a status.
@@ -15,9 +16,7 @@ import { CURATOR_BODY_MAX_BYTES } from "../domain/limits";
 
 const HEADERS = { "Cache-Control": "private, no-store" };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export const isUuid = (value: string): boolean => UUID.test(value);
+export { isUuid };
 
 function json(status: number, body: unknown, extra: Record<string, string> = {}): Response {
   return Response.json(body, { status, headers: { ...HEADERS, ...extra } });

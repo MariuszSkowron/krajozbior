@@ -2,6 +2,7 @@ import type { Actor } from "@/features/identity/domain/actor";
 
 import { nextPosition, validateReorder } from "../domain/order";
 import { validatePlaceInput } from "../domain/place";
+import { isUuid } from "../domain/uuid";
 import type { CatalogDeps, CuratorOutcome, PlaceRow } from "./catalog-types";
 import { admitCurator, inCuratorContext } from "./curator-runner";
 
@@ -11,13 +12,6 @@ import { admitCurator, inCuratorContext } from "./curator-runner";
 
 function isVersion(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 1;
-}
-
-function isUuid(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
-  );
 }
 
 export type AddPlaceInput = Readonly<Record<string, unknown>>;
@@ -204,6 +198,16 @@ export async function removePlaceFromCollection(
 
     if (collection === null) {
       return { status: "not_found" } as const;
+    }
+
+    // A published collection keeps at least one place (the collection row is
+    // locked above, so two removals cannot both pass this check).
+    if (collection.status === "published") {
+      const current = await deps.repository.listCollectionPlaceIds(tx, collectionId);
+
+      if (current.length === 1 && current[0] === placeId) {
+        return { status: "conflict", reason: "last_place_of_published_collection" } as const;
+      }
     }
 
     return (await deps.repository.unlinkPlace(tx, collectionId, placeId))

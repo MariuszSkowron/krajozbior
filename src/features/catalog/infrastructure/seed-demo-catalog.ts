@@ -9,7 +9,7 @@ import { createOrmConfig } from "@/lib/db/config";
 import { runInGuestContext, runInUserContext } from "@/lib/db/user-context";
 
 import type { CatalogDeps } from "../application/catalog-types";
-import { createCollection, publishCollection } from "../application/curator-collections";
+import { publishCollection } from "../application/curator-collections";
 import { addPlace } from "../application/curator-places";
 import { postgresCatalogRepository } from "./postgres-catalog-repository";
 
@@ -18,6 +18,7 @@ import { postgresCatalogRepository } from "./postgres-catalog-repository";
 // publication (never inserted as published, so first_published_at is set by the
 // trigger). Running it again changes nothing.
 export const DEMO_COLLECTION_TITLE = "Mosty i zamki nad Wisłą (demo)";
+export const DEMO_COLLECTION_SLUG = "demo-mosty-i-zamki-nad-wisla";
 
 const demoPlaces = [
   { name: "Most Tczewski", latitude: 54.0928, longitude: 18.7919, address: "Tczew" },
@@ -68,43 +69,59 @@ export async function seedDemoCatalog(
       random: (max) => randomInt(max),
     };
 
-    const existing = await runInUserContext(orm.em, actor, ({ em }) =>
-      em.execute<{ id: string }[]>(`select id from public.collections where title = ?`, [
-        DEMO_COLLECTION_TITLE,
-      ]),
-    );
+    // Resumable: the collection is found by its fixed slug (not by title), and
+    // each run continues from the stored state, so a run that failed halfway is
+    // repaired by the next one.
+    const repository = deps.repository;
+    const state = await runInUserContext(orm.em, actor, async (tx) => {
+      const organizationId = (await repository.permittedOrganizationIds(tx))[0];
 
-    if (existing.length > 0) {
+      if (organizationId === undefined) {
+        throw new Error("Demo curator has no organization");
+      }
+
+      await repository.insertCollection(tx, {
+        title: DEMO_COLLECTION_TITLE,
+        summary: "Kolekcja przykładowa.",
+        region: "pomorskie",
+        organizationId,
+        slug: DEMO_COLLECTION_SLUG,
+      });
+
+      const rows = await tx.em.execute<{ id: string; status: string; version: number }[]>(
+        `select id, status, version from public.collections
+          where slug = ? and organization_id = ?`,
+        [DEMO_COLLECTION_SLUG, organizationId],
+      );
+
+      if (rows[0] === undefined) {
+        throw new Error("Demo collection address is taken by another organization");
+      }
+
+      return {
+        ...rows[0],
+        placeCount: (await repository.listCollectionPlaceIds(tx, rows[0].id)).length,
+      };
+    });
+
+    if (state.status === "published" && state.placeCount >= demoPlaces.length) {
       return "noop";
     }
 
-    const created = await createCollection(
-      actor,
-      { title: DEMO_COLLECTION_TITLE, summary: "Kolekcja przykładowa.", region: "pomorskie" },
-      deps,
-    );
-
-    if (created.status !== "ok") {
-      throw new Error(`Demo collection was refused: ${created.status}`);
-    }
-
-    for (const place of demoPlaces) {
-      const added = await addPlace(actor, created.value.id, place, deps);
+    for (const place of demoPlaces.slice(state.placeCount)) {
+      const added = await addPlace(actor, state.id, place, deps);
 
       if (added.status !== "ok") {
         throw new Error(`Demo place was refused: ${added.status}`);
       }
     }
 
-    const published = await publishCollection(
-      actor,
-      created.value.id,
-      { version: created.value.version },
-      deps,
-    );
+    if (state.status !== "published") {
+      const published = await publishCollection(actor, state.id, { version: state.version }, deps);
 
-    if (published.status !== "ok") {
-      throw new Error(`Demo collection was not published: ${published.status}`);
+      if (published.status !== "ok") {
+        throw new Error(`Demo collection was not published: ${published.status}`);
+      }
     }
 
     return "created";

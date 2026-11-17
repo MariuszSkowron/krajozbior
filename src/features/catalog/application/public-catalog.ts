@@ -1,3 +1,4 @@
+import { isUuid } from "../domain/uuid";
 import type { CatalogDeps, PublishedCollection, PublishedPlace } from "./catalog-types";
 
 // Public reads for everyone, a guest included (D-T4): always in the guest
@@ -9,7 +10,6 @@ export type PublicReadResult<T> =
   Readonly<{ status: "ok"; value: T }> | Readonly<{ status: "not_found" }>;
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function getPublishedCollection(
   slug: string,
@@ -30,7 +30,7 @@ export async function getPublishedPlace(
   placeId: string,
   deps: CatalogDeps,
 ): Promise<PublicReadResult<PublishedPlace>> {
-  if (!UUID.test(placeId)) {
+  if (!isUuid(placeId)) {
     return { status: "not_found" };
   }
 

@@ -52,6 +52,8 @@ describe("validatePlaceInput", () => {
     [{ address: "x".repeat(201) }, "address"],
     [{ accessInfo: "x".repeat(1001) }, "accessInfo"],
     [{ accessInfo: 7 }, "accessInfo"],
+    [{ name: "a\u0000b" }, "name"],
+    [{ description: "a\u0000b" }, "description"],
   ])("rejects %j", (patch, field) => {
     expect(validatePlaceInput({ ...valid, ...patch })).toEqual({ ok: false, errors: [field] });
   });

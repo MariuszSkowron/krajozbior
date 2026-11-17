@@ -11,6 +11,17 @@ import {
 const valid = { title: "  Wieże Tczewa ", summary: "Krótki opis", region: "pomorskie" };
 
 describe("validateCollectionInput", () => {
+  it("rejects a NUL character in the title and the summary (invalid input, not a database error)", () => {
+    expect(validateCollectionInput({ ...valid, title: "a\u0000b" })).toEqual({
+      ok: false,
+      errors: ["title"],
+    });
+    expect(validateCollectionInput({ ...valid, summary: "a\u0000b" })).toEqual({
+      ok: false,
+      errors: ["summary"],
+    });
+  });
+
   it("accepts a valid form and trims the title", () => {
     expect(validateCollectionInput(valid)).toEqual({
       ok: true,
