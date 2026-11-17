@@ -2,6 +2,19 @@
 // API answers with a status and a small JSON body (src/features/catalog/http);
 // this turns both into Polish text. No rule of who may do what lives here.
 
+import {
+  COLLECTION_SUMMARY_MAX_LENGTH,
+  COLLECTION_TITLE_MAX_LENGTH,
+} from "@/features/catalog/domain/collection";
+import {
+  PLACE_ACCESS_MAX_LENGTH,
+  PLACE_ADDRESS_MAX_LENGTH,
+  PLACE_DESCRIPTION_MAX_LENGTH,
+  PLACE_NAME_MAX_LENGTH,
+  VISIT_RADIUS_MAX_M,
+  VISIT_RADIUS_MIN_M,
+} from "@/features/catalog/domain/place";
+
 export type Subject = "collection" | "place";
 
 export type Failure = Readonly<{
@@ -79,16 +92,16 @@ export function describeFailure(status: number, body: Body, subject: Subject): F
 
 // Hints shown next to a refused field: how to correct it.
 export const fieldHints: Readonly<Record<string, string>> = {
-  title: "Wpisz nazwę kolekcji (do 120 znaków).",
-  summary: "Opis może mieć najwyżej 280 znaków.",
+  title: `Wpisz nazwę kolekcji (do ${COLLECTION_TITLE_MAX_LENGTH} znaków).`,
+  summary: `Opis może mieć najwyżej ${COLLECTION_SUMMARY_MAX_LENGTH} znaków.`,
   region: "Wybierz województwo.",
-  name: "Wpisz nazwę miejsca (do 120 znaków).",
-  description: "Opis może mieć najwyżej 4000 znaków.",
-  address: "Adres może mieć najwyżej 200 znaków.",
-  accessInfo: "Informacja o dostępie może mieć najwyżej 1000 znaków.",
+  name: `Wpisz nazwę miejsca (do ${PLACE_NAME_MAX_LENGTH} znaków).`,
+  description: `Opis może mieć najwyżej ${PLACE_DESCRIPTION_MAX_LENGTH} znaków.`,
+  address: `Adres może mieć najwyżej ${PLACE_ADDRESS_MAX_LENGTH} znaków.`,
+  accessInfo: `Informacja o dostępie może mieć najwyżej ${PLACE_ACCESS_MAX_LENGTH} znaków.`,
   latitude: "Podaj szerokość geograficzną od −90 do 90, na przykład 54.0928.",
   longitude: "Podaj długość geograficzną od −180 do 180, na przykład 18.7919.",
-  visitRadiusM: "Podaj promień jako liczbę całkowitą od 50 do 2000 metrów.",
+  visitRadiusM: `Podaj promień jako liczbę całkowitą od ${VISIT_RADIUS_MIN_M} do ${VISIT_RADIUS_MAX_M} metrów.`,
 };
 
 /** Text of a number typed with a comma or a dot; anything else stays as typed. */

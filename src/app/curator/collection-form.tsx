@@ -125,13 +125,18 @@ function CollectionFields({
 
   return (
     <form className={styles.form} onSubmit={submit} noValidate>
-      <Field id={FIELDS.title[0]} label="Nazwa" invalidHint={hint("title")}>
+      <Field
+        id={FIELDS.title[0]}
+        label="Nazwa"
+        help={`Do ${COLLECTION_TITLE_MAX_LENGTH} znaków.`}
+        invalidHint={hint("title")}
+      >
         {(aria) => (
           <input
             {...aria}
             name="title"
             type="text"
-            maxLength={COLLECTION_TITLE_MAX_LENGTH * 2}
+            maxLength={COLLECTION_TITLE_MAX_LENGTH}
             defaultValue={initial.title}
             required
             autoComplete="off"
