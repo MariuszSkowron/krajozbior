@@ -16,6 +16,10 @@ export const demoAccounts: readonly DemoAccount[] = [
   { email: `user@${DEMO_EMAIL_DOMAIN}`, role: "user", name: "Użytkownik (demo)" },
   { email: `user2@${DEMO_EMAIL_DOMAIN}`, role: "user", name: "Użytkownik 2 (demo)" },
   { email: `admin@${DEMO_EMAIL_DOMAIN}`, role: "admin", name: "Administrator (demo)" },
+  // Curators are ordinary `user` accounts; the membership in a demo organization
+  // is granted by the organizations seed (seedDemoOrganizations), not by a role.
+  { email: `curator-a@${DEMO_EMAIL_DOMAIN}`, role: "user", name: "Kurator A (demo)" },
+  { email: `curator-b@${DEMO_EMAIL_DOMAIN}`, role: "user", name: "Kurator B (demo)" },
 ];
 
 // Demo accounts that exist in the database, for the list on /login. Returns

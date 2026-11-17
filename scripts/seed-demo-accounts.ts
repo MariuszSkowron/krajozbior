@@ -13,6 +13,7 @@
 import { closeAuth } from "../src/features/identity/infrastructure/better-auth";
 import { seedDemoAccounts } from "../src/features/identity/infrastructure/demo-accounts";
 import { ownerRoleAssigner } from "../src/features/identity/infrastructure/user-role";
+import { seedDemoOrganizations } from "../src/features/organizations/infrastructure/seed-demo-organizations";
 import { assertLocalDatabaseUrl } from "../src/lib/config/loopback";
 
 async function main() {
@@ -36,6 +37,13 @@ async function main() {
 
     for (const { email } of accounts) {
       console.log(`Demo account ready: ${email}`);
+    }
+
+    // The identity area does not import organizations; the script wires them.
+    for (const { organizationSlug, outcome } of await seedDemoOrganizations(
+      process.env.DATABASE_MIGRATION_URL as string,
+    )) {
+      console.log(`Demo organization ${organizationSlug}: ${outcome}`);
     }
   } finally {
     await closeAuth();

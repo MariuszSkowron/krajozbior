@@ -27,6 +27,7 @@
     "db:seed:demo": "tsx --conditions react-server --env-file-if-exists=.env ./scripts/seed-demo-accounts.ts",
     "auth:throttle": "tsx --conditions react-server --env-file-if-exists=.env ./scripts/auth-throttle.ts",
     "auth:create-admin": "tsx --conditions react-server --env-file-if-exists=.env ./scripts/create-admin.ts",
+    "ops:curator": "tsx --conditions react-server --env-file-if-exists=.env ./scripts/ops-curator.ts",
     "rename-project": "tsx ./scripts/rename-project.ts"
   },
   "dependencies": {
