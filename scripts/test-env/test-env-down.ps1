@@ -1,4 +1,4 @@
-# Local disposable test environment of the starter (Windows PowerShell 5.1+).
+# Local disposable test environment of the krajozbior (Windows PowerShell 5.1+).
 #
 # Usage: powershell -ExecutionPolicy Bypass -File scripts/test-env/test-env-down.ps1 [--quiet]
 # ASCII-only on purpose (Windows PowerShell 5.1).
@@ -6,7 +6,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$Containers = @('starter-testenv-e2e-pg', 'starter-testenv-int-pg')
+$Containers = @('krajozbior-testenv-e2e-pg', 'krajozbior-testenv-int-pg')
 $Quiet = $args -contains '--quiet'
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path

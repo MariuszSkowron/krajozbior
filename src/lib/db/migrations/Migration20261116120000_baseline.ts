@@ -1,7 +1,7 @@
 import { Migration } from "@mikro-orm/migrations";
 
-// Baseline of the starter (docs/data-isolation.md):
-// - a guard: migrations run only as starter_owner and only after
+// Baseline of the krajozbior (docs/data-isolation.md):
+// - a guard: migrations run only as krajozbior_owner and only after
 //   `npm run db:roles` created the runtime roles, so no object is ever owned by
 //   the cluster administrator or by a runtime role;
 // - app_current_user_id(): row policies read the user of the transaction from
@@ -18,19 +18,19 @@ export class Migration20261116120000_baseline extends Migration {
     this.addSql(`
       do $$
       begin
-        if current_user <> 'starter_owner' then
-          raise exception 'Migrations must run as starter_owner (DATABASE_MIGRATION_URL)';
+        if current_user <> 'krajozbior_owner' then
+          raise exception 'Migrations must run as krajozbior_owner (DATABASE_MIGRATION_URL)';
         end if;
 
         if (select count(*) from pg_roles
-             where rolname in ('starter_app', 'starter_auth', 'starter_ops')) <> 3 then
+             where rolname in ('krajozbior_app', 'krajozbior_auth', 'krajozbior_ops')) <> 3 then
           raise exception 'Database roles are missing: run npm run db:roles first';
         end if;
       end $$;
     `);
 
     this.addSql(
-      `alter default privileges for role starter_owner revoke execute on functions from public;`,
+      `alter default privileges for role krajozbior_owner revoke execute on functions from public;`,
     );
 
     this.addSql(`
@@ -39,13 +39,13 @@ export class Migration20261116120000_baseline extends Migration {
       as $$ select nullif(current_setting('app.user_id', true), '')::uuid $$;
     `);
     this.addSql(`revoke all on function app_current_user_id() from public;`);
-    this.addSql(`grant execute on function app_current_user_id() to starter_app;`);
+    this.addSql(`grant execute on function app_current_user_id() to krajozbior_app;`);
   }
 
   override async down(): Promise<void> {
     this.addSql(`drop function if exists app_current_user_id();`);
     this.addSql(
-      `alter default privileges for role starter_owner grant execute on functions to public;`,
+      `alter default privileges for role krajozbior_owner grant execute on functions to public;`,
     );
   }
 }

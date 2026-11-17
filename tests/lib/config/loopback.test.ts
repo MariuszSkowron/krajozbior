@@ -29,17 +29,17 @@ describe("isLoopbackHost", () => {
 
 describe("assertLocalDatabaseUrl", () => {
   it.each([
-    "postgres://starter_auth:secret@localhost:5432/starter",
-    "postgres://starter_auth:secret@127.0.0.1:5432/starter",
-    "postgresql://starter_auth:secret@[::1]:5432/starter",
+    "postgres://krajozbior_auth:secret@localhost:5432/krajozbior",
+    "postgres://krajozbior_auth:secret@127.0.0.1:5432/krajozbior",
+    "postgresql://krajozbior_auth:secret@[::1]:5432/krajozbior",
   ])("accepts %s", (url) => {
     expect(() => assertLocalDatabaseUrl(url)).not.toThrow();
   });
 
   it.each([
-    "postgres://starter_auth:hunter2@db.prod.example:5432/starter",
-    "postgres://starter_auth:hunter2@10.0.0.5:5432/starter",
-    "postgres://starter_auth:hunter2@/starter?host=/var/run/postgresql",
+    "postgres://krajozbior_auth:hunter2@db.prod.example:5432/krajozbior",
+    "postgres://krajozbior_auth:hunter2@10.0.0.5:5432/krajozbior",
+    "postgres://krajozbior_auth:hunter2@/krajozbior?host=/var/run/postgresql",
     "not a url hunter2",
     "",
     undefined,

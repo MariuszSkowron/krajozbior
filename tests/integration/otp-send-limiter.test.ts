@@ -19,7 +19,7 @@ import {
 } from "../support/database-harness";
 
 // The limits of sign-in code requests on their own scratch database, as
-// starter_auth: per-address and per-IP daily caps, a global daily cap, folding
+// krajozbior_auth: per-address and per-IP daily caps, a global daily cap, folding
 // of address aliases, and separation from the password sign-in limits.
 const SECRET = "integration-only-secret-0123456789abcdef";
 const hmacKey = otpSendHmacKey(SECRET);
@@ -51,9 +51,9 @@ async function reserveMany(email: (i: number) => string, count: number, ip = (i:
 
 describe("PostgresOtpSendLimiter", () => {
   beforeAll(async () => {
-    db = await createScratchDatabase("starter_integration_otp_send");
+    db = await createScratchDatabase("krajozbior_integration_otp_send");
     await db.migrate();
-    pool = new Pool({ connectionString: db.urls.starter_auth, max: 5 });
+    pool = new Pool({ connectionString: db.urls.krajozbior_auth, max: 5 });
   }, 60_000);
 
   beforeEach(async () => {
@@ -165,8 +165,8 @@ describe("PostgresOtpSendLimiter", () => {
     });
   });
 
-  it("is reachable only by starter_auth", async () => {
-    for (const role of ["starter_app", "starter_ops"] as const) {
+  it("is reachable only by krajozbior_auth", async () => {
+    for (const role of ["krajozbior_app", "krajozbior_ops"] as const) {
       await expect(
         withClient(db.urls[role], (client) => client.query("select * from auth.otp_send_counters")),
       ).rejects.toMatchObject({ code: "42501" });

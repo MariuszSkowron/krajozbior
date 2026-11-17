@@ -12,14 +12,14 @@ import { renderSignInCodeEmail } from "@/lib/email/sign-in-code-email";
 
 const rendered = renderSignInCodeEmail({
   code: "123456",
-  siteUrl: "https://starter.example",
+  siteUrl: "https://krajozbior.example",
 });
 const message: EmailMessage = { to: "jan@example.com", tag: "sign_in_code", ...rendered };
 
 const directories: string[] = [];
 
 async function tempDirectory(): Promise<string> {
-  const directory = await mkdtemp(path.join(tmpdir(), "starter-outbox-"));
+  const directory = await mkdtemp(path.join(tmpdir(), "krajozbior-outbox-"));
   directories.push(directory);
   return directory;
 }
@@ -33,7 +33,7 @@ const adapters: Array<[string, () => Promise<EmailSender>]> = [
   [
     "OutboxEmailSender",
     async () =>
-      new OutboxEmailSender({ directory: await tempDirectory(), from: "noreply@starter.local" }),
+      new OutboxEmailSender({ directory: await tempDirectory(), from: "noreply@krajozbior.local" }),
   ],
 ];
 
@@ -88,7 +88,7 @@ describe("MemoryEmailSender", () => {
 describe("OutboxEmailSender", () => {
   it("writes one .eml per message with an RFC 2047 subject and decodable parts", async () => {
     const directory = await tempDirectory();
-    const sender = new OutboxEmailSender({ directory, from: "noreply@starter.local" });
+    const sender = new OutboxEmailSender({ directory, from: "noreply@krajozbior.local" });
 
     await sender.send(message);
     await sender.send(message);
@@ -104,13 +104,15 @@ describe("OutboxEmailSender", () => {
     expect(headers).toMatch(/^[\x00-\x7f]*$/);
     expect(headers).toContain("To: jan@example.com");
     expect(headers).toContain("X-App-Tag: sign_in_code");
-    expect(headers).toContain(`From: ${encodeHeaderValue("Starter")} <noreply@starter.local>`);
+    expect(headers).toContain(
+      `From: ${encodeHeaderValue("Krajozbiór")} <noreply@krajozbior.local>`,
+    );
 
     const subjectBlock = /^Subject: (.*(?:\r\n .*)*)/m.exec(headers)![1]!;
     const decoded = [...subjectBlock.matchAll(/=\?UTF-8\?B\?([^?]+)\?=/g)]
       .map((match) => Buffer.from(match[1]!, "base64").toString("utf8"))
       .join("");
-    expect(decoded).toBe("123456 — kod logowania (Starter)");
+    expect(decoded).toBe("123456 — kod logowania (Krajozbiór)");
     for (const word of subjectBlock.split(/\r\n /)) expect(word.length).toBeLessThanOrEqual(75);
 
     const bodies = [...eml.matchAll(/base64\r\n\r\n([A-Za-z0-9+/=\r\n]+?)\r\n--/g)].map((match) =>
@@ -122,7 +124,7 @@ describe("OutboxEmailSender", () => {
   it("returns a retryable failure when the directory cannot be written", async () => {
     const sender = new OutboxEmailSender({
       directory: path.join(await tempDirectory(), "bad\0dir"),
-      from: "noreply@starter.local",
+      from: "noreply@krajozbior.local",
     });
 
     await expect(sender.send(message)).resolves.toEqual({
@@ -136,7 +138,7 @@ describe("OutboxEmailSender", () => {
 describe("OutboxEmailSender files", () => {
   it("returns a random id that does not depend on the address", async () => {
     const directory = await tempDirectory();
-    const sender = new OutboxEmailSender({ directory, from: "noreply@starter.local" });
+    const sender = new OutboxEmailSender({ directory, from: "noreply@krajozbior.local" });
 
     const first = await sender.send(message);
     const second = await sender.send(message);
@@ -154,7 +156,7 @@ describe("OutboxEmailSender files", () => {
 
   it.skipIf(process.platform === "win32")("creates the directory 0700 and files 0600", async () => {
     const directory = path.join(await tempDirectory(), "nested", "outbox");
-    const sender = new OutboxEmailSender({ directory, from: "noreply@starter.local" });
+    const sender = new OutboxEmailSender({ directory, from: "noreply@krajozbior.local" });
 
     await sender.send(message);
 
@@ -187,10 +189,10 @@ describe("encodeHeaderValue", () => {
 
 describe("buildEml", () => {
   const options = {
-    from: "noreply@starter.local",
-    fromName: "Starter",
+    from: "noreply@krajozbior.local",
+    fromName: "Krajozbiór",
     date: new Date("2026-11-15T10:20:30Z"),
-    messageId: "id@starter.local",
+    messageId: "id@krajozbior.local",
     boundary: "b",
   };
 

@@ -8,7 +8,7 @@ import { Migration } from "@mikro-orm/migrations";
 // by `npm run auth:throttle`. Per-user limits of authenticated actions use the
 // same table under the `action:` prefix (PostgresActionRateLimiter).
 //
-// Like the rest of `auth`, only starter_auth may touch it.
+// Like the rest of `auth`, only krajozbior_auth may touch it.
 export class Migration20261116120200_sign_in_throttle extends Migration {
   override async up(): Promise<void> {
     this.addSql(`
@@ -23,8 +23,10 @@ export class Migration20261116120200_sign_in_throttle extends Migration {
       `create index sign_in_throttle_window_idx on auth.sign_in_throttle (window_started_at);`,
     );
 
-    this.addSql(`revoke all on auth.sign_in_throttle from public, starter_app, starter_ops;`);
-    this.addSql(`grant select, insert, update, delete on auth.sign_in_throttle to starter_auth;`);
+    this.addSql(`revoke all on auth.sign_in_throttle from public, krajozbior_app, krajozbior_ops;`);
+    this.addSql(
+      `grant select, insert, update, delete on auth.sign_in_throttle to krajozbior_auth;`,
+    );
   }
 
   override async down(): Promise<void> {

@@ -10,76 +10,76 @@
 # swoje ścieżki do tego pliku w tym samym PR. Ten plik też ma właściciela, więc
 # właściciel widzi każdą zmianę listy.
 #
-# {{GITHUB_OWNER}} zamienia BOOTSTRAP.md (krok 3) na login właściciela,
-# np. @jan-kowalski. Właściciel nie może być autorem PR-ów agentów: autorem jest
+# Właściciel projektu: @MariuszSkowron (wpisany przy zakładaniu projektu).
+# Właściciel nie może być autorem PR-ów agentów: autorem jest
 # aplikacja GitHub projektu (`<app-slug>[bot]`, `.github/bot.json`), bo GitHub nie
 # pozwala zatwierdzić własnego PR.
 #
 # Kolejność: późniejszy wzorzec wygrywa; każdy wpis wskazuje tego samego właściciela.
 
 # Logowanie, sesje, role, autoryzacja i wszystkie trasy API
-/src/features/identity/            @{{GITHUB_OWNER}}
-/src/app/api/                      @{{GITHUB_OWNER}}
-/src/app/login/                    @{{GITHUB_OWNER}}
-/src/app/my/                       @{{GITHUB_OWNER}}
-/src/app/request-actor.ts          @{{GITHUB_OWNER}}
-/src/app/layout.tsx                @{{GITHUB_OWNER}}
-/src/app/shell/                    @{{GITHUB_OWNER}}
-/src/proxy.ts                      @{{GITHUB_OWNER}}
+/src/features/identity/            @MariuszSkowron
+/src/app/api/                      @MariuszSkowron
+/src/app/login/                    @MariuszSkowron
+/src/app/my/                       @MariuszSkowron
+/src/app/request-actor.ts          @MariuszSkowron
+/src/app/layout.tsx                @MariuszSkowron
+/src/app/shell/                    @MariuszSkowron
+/src/proxy.ts                      @MariuszSkowron
 
 # Konfiguracja bezpieczeństwa: nagłówki, kontrola środowiska, e-mail z kodami,
 # logowanie błędów, ścieżki importów i ustawienia Next.js
-/src/lib/security-headers.ts       @{{GITHUB_OWNER}}
-/src/lib/config/                   @{{GITHUB_OWNER}}
-/src/lib/email/                    @{{GITHUB_OWNER}}
-/src/lib/log-failure.ts            @{{GITHUB_OWNER}}
-/next.config.ts                    @{{GITHUB_OWNER}}
-/tsconfig.json                     @{{GITHUB_OWNER}}
+/src/lib/security-headers.ts       @MariuszSkowron
+/src/lib/config/                   @MariuszSkowron
+/src/lib/email/                    @MariuszSkowron
+/src/lib/log-failure.ts            @MariuszSkowron
+/next.config.ts                    @MariuszSkowron
+/tsconfig.json                     @MariuszSkowron
 
 # Uprawnienia bazy, reguły dostępu do danych (RLS) i wszystkie migracje
-/src/lib/db/                       @{{GITHUB_OWNER}}
-/mikro-orm.config.ts               @{{GITHUB_OWNER}}
-/docs/data-isolation.md            @{{GITHUB_OWNER}}
+/src/lib/db/                       @MariuszSkowron
+/mikro-orm.config.ts               @MariuszSkowron
+/docs/data-isolation.md            @MariuszSkowron
 
 # Zależności (także aktualizacje Dependabota), licencja i skrypty operacyjne
-/package.json                      @{{GITHUB_OWNER}}
-/package-lock.json                 @{{GITHUB_OWNER}}
-/LICENSE                           @{{GITHUB_OWNER}}
-/scripts/                          @{{GITHUB_OWNER}}
+/package.json                      @MariuszSkowron
+/package-lock.json                 @MariuszSkowron
+/LICENSE                           @MariuszSkowron
+/scripts/                          @MariuszSkowron
 
 # Tożsamość agentów: aplikacja GitHub (bot), jej token i jawne identyfikatory.
 # Pokryte już przez /scripts/ i /.github/; wpisy jawne, żeby nie zniknęły przy
 # zmianie tamtych reguł.
-/scripts/bot-token.ps1             @{{GITHUB_OWNER}}
-/scripts/lib/github-app-token.mjs  @{{GITHUB_OWNER}}
-/.github/bot.json                  @{{GITHUB_OWNER}}
+/scripts/bot-token.ps1             @MariuszSkowron
+/scripts/lib/github-app-token.mjs  @MariuszSkowron
+/.github/bot.json                  @MariuszSkowron
 
 # Testy, które dowodzą odmowy dostępu, wspólne narzędzia tych testów,
 # testy hooków strażniczych oraz testy logowania, konfiguracji i proxy
-/tests/integration/                @{{GITHUB_OWNER}}
-/tests/support/                    @{{GITHUB_OWNER}}
-/tests/scripts/                    @{{GITHUB_OWNER}}
-/tests/features/identity/          @{{GITHUB_OWNER}}
-/tests/lib/                        @{{GITHUB_OWNER}}
-/tests/proxy.test.ts               @{{GITHUB_OWNER}}
-/e2e/security-headers.spec.ts      @{{GITHUB_OWNER}}
+/tests/integration/                @MariuszSkowron
+/tests/support/                    @MariuszSkowron
+/tests/scripts/                    @MariuszSkowron
+/tests/features/identity/          @MariuszSkowron
+/tests/lib/                        @MariuszSkowron
+/tests/proxy.test.ts               @MariuszSkowron
+/e2e/security-headers.spec.ts      @MariuszSkowron
 
 # CI, ustawienia GitHub i definicje kontroli (osłabienie skryptu `check`,
 # progu pokrycia albo listy ignorowanych plików działa jak wyłączenie CI)
-/.github/                          @{{GITHUB_OWNER}}
-/vitest.config.mts                 @{{GITHUB_OWNER}}
-/vitest.integration.config.mts     @{{GITHUB_OWNER}}
-/playwright.config.ts              @{{GITHUB_OWNER}}
-/eslint.config.mjs                 @{{GITHUB_OWNER}}
-/.env.example                      @{{GITHUB_OWNER}}
-/.gitignore                        @{{GITHUB_OWNER}}
-/.prettierignore                   @{{GITHUB_OWNER}}
+/.github/                          @MariuszSkowron
+/vitest.config.mts                 @MariuszSkowron
+/vitest.integration.config.mts     @MariuszSkowron
+/playwright.config.ts              @MariuszSkowron
+/eslint.config.mjs                 @MariuszSkowron
+/.env.example                      @MariuszSkowron
+/.gitignore                        @MariuszSkowron
+/.prettierignore                   @MariuszSkowron
 
 # Ustawienia, skille i zasady agentów
-/.claude/                          @{{GITHUB_OWNER}}
-/.ai/                              @{{GITHUB_OWNER}}
-/skills-lock.json                  @{{GITHUB_OWNER}}
-/om-sandbox.toml                   @{{GITHUB_OWNER}}
-/AGENTS.md                         @{{GITHUB_OWNER}}
-/CLAUDE.md                         @{{GITHUB_OWNER}}
-/docs/agent-workflow.md            @{{GITHUB_OWNER}}
+/.claude/                          @MariuszSkowron
+/.ai/                              @MariuszSkowron
+/skills-lock.json                  @MariuszSkowron
+/om-sandbox.toml                   @MariuszSkowron
+/AGENTS.md                         @MariuszSkowron
+/CLAUDE.md                         @MariuszSkowron
+/docs/agent-workflow.md            @MariuszSkowron

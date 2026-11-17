@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { APP_NAME, escapeHtml, renderSignInCodeEmail } from "@/lib/email/sign-in-code-email";
 
-const input = { code: "123456", siteUrl: "https://starter.example" };
+const input = { code: "123456", siteUrl: "https://krajozbior.example" };
 
 describe("renderSignInCodeEmail", () => {
   const email = renderSignInCodeEmail(input);
@@ -39,7 +39,7 @@ describe("renderSignInCodeEmail", () => {
   it("escapes HTML in the code and the link, but not in the plain text", () => {
     const hostile = renderSignInCodeEmail({
       code: `<b>"&'`,
-      siteUrl: `https://starter.example/"><script>?a=1&b=2`,
+      siteUrl: `https://krajozbior.example/"><script>?a=1&b=2`,
     });
 
     expect(hostile.html).not.toContain("<b>");

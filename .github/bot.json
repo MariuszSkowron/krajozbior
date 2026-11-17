@@ -1,9 +1,9 @@
 {
   "$comment": "Aplikacja GitHub (bot) projektu. Wszystkie wartosci sa jawne, to nie sekrety: identyfikatory widac w adresach i odpowiedziach API GitHub, a bez klucza prywatnego (poza repozytoriami, ~/.config/<appSlug>/) nic nie daja. Wypelnia BOOTSTRAP.md, krok 9. Uzywa scripts/bot-token.ps1.",
   "owner": "{{GITHUB_OWNER}}",
-  "appSlug": "starter-bot",
+  "appSlug": "krajozbior-bot",
   "appId": 0,
   "installationId": 0,
   "botUserId": 0,
-  "repositories": ["ai-repo-starter", "ai-repo-starter-docs"]
+  "repositories": ["krajozbior", "krajozbior-docs"]
 }

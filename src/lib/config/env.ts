@@ -9,7 +9,7 @@ import { isLoopbackHost } from "./loopback";
 const postgresUrl = z.url({ protocol: /^postgres(ql)?$/ });
 
 // DATABASE_URL is the web application's connection as the unprivileged role
-// starter_app (docs/data-isolation.md). It never points at the owner role.
+// krajozbior_app (docs/data-isolation.md). It never points at the owner role.
 const serverEnvSchema = z.object({
   DATABASE_URL: postgresUrl,
 });
@@ -18,7 +18,7 @@ export type ServerEnv = z.infer<typeof serverEnvSchema>;
 
 // Authentication settings are validated separately from the database URL, so
 // routes that only need the database (health, migrations) do not require them.
-// DATABASE_AUTH_URL connects as starter_auth, the only role allowed into `auth`.
+// DATABASE_AUTH_URL connects as krajozbior_auth, the only role allowed into `auth`.
 const authEnvSchema = z.object({
   DATABASE_AUTH_URL: postgresUrl,
   BETTER_AUTH_SECRET: z.string().min(32),
@@ -39,7 +39,7 @@ const authEnvSchema = z.object({
 
 export type AuthEnv = z.infer<typeof authEnvSchema>;
 
-// Read only by the MikroORM CLI: migrations run as starter_owner.
+// Read only by the MikroORM CLI: migrations run as krajozbior_owner.
 const migrationEnvSchema = z.object({
   DATABASE_MIGRATION_URL: postgresUrl,
 });
@@ -133,7 +133,7 @@ function hasLoopbackAuthUrl(source: Record<string, string | undefined>): boolean
 // Outgoing e-mail (sign-in codes). `outbox` writes .eml files to a git-ignored
 // directory and is for local work and tests; `memory` keeps messages in the
 // process (integration tests). A production provider is not part of the
-// starter: add its adapter and transport when the project chooses one.
+// krajozbior: add its adapter and transport when the project chooses one.
 // The outbox directory must be a relative path inside `.data/` (git-ignored, not
 // served by Next.js): no absolute paths, no `..`, no `public/`.
 export function isSafeOutboxDir(value: string): boolean {
@@ -160,7 +160,7 @@ const emailEnvSchema = z.discriminatedUnion("EMAIL_TRANSPORT", [
 
 export type EmailEnv = z.infer<typeof emailEnvSchema>;
 
-export const DEV_EMAIL_FROM = "noreply@starter.local";
+export const DEV_EMAIL_FROM = "noreply@krajozbior.local";
 
 // The local transports may run in a production build only for the tests of the
 // built application: with the flag EMAIL_OUTBOX_TEST_ONLY=1 of its own AND a

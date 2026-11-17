@@ -8,10 +8,10 @@ import type { ClientBase } from "pg";
 // (`npm run db:roles`). Passwords come from the environment and are never
 // logged or stored in the repository.
 export const databaseRoles = [
-  "starter_owner",
-  "starter_app",
-  "starter_auth",
-  "starter_ops",
+  "krajozbior_owner",
+  "krajozbior_app",
+  "krajozbior_auth",
+  "krajozbior_ops",
 ] as const;
 
 export type DatabaseRole = (typeof databaseRoles)[number];
@@ -21,10 +21,10 @@ export type DatabaseRolePasswords = Record<DatabaseRole, string>;
 export const ROLE_PASSWORD_MIN_LENGTH = 16;
 
 export const rolePasswordVariables: Record<DatabaseRole, string> = {
-  starter_owner: "STARTER_OWNER_DB_PASSWORD",
-  starter_app: "STARTER_APP_DB_PASSWORD",
-  starter_auth: "STARTER_AUTH_DB_PASSWORD",
-  starter_ops: "STARTER_OPS_DB_PASSWORD",
+  krajozbior_owner: "KRAJOZBIOR_OWNER_DB_PASSWORD",
+  krajozbior_app: "KRAJOZBIOR_APP_DB_PASSWORD",
+  krajozbior_auth: "KRAJOZBIOR_AUTH_DB_PASSWORD",
+  krajozbior_ops: "KRAJOZBIOR_OPS_DB_PASSWORD",
 };
 
 // Printable ASCII only: PostgreSQL skips SASLprep for ASCII passwords, so the
@@ -76,7 +76,7 @@ type AdminClient = Pick<ClientBase, "query" | "escapeLiteral">;
 
 // Idempotent: creates missing roles, resets attributes and passwords of
 // existing ones, then prepares the current database for migrations run as
-// starter_owner. Requires a superuser connection to that database.
+// krajozbior_owner. Requires a superuser connection to that database.
 export async function provisionDatabaseRoles(
   client: AdminClient,
   passwords: DatabaseRolePasswords,
@@ -116,22 +116,22 @@ export async function provisionDatabaseRoles(
 
   await client.query(`do $$
     begin
-      execute format('grant create on database %I to starter_owner', current_database());
+      execute format('grant create on database %I to krajozbior_owner', current_database());
     end $$`);
   // PostgreSQL 15+ already denies PUBLIC this; revoking it explicitly, also
   // from the runtime roles, keeps them from creating objects on older or
   // hand-changed clusters. TEMPORARY stays: temp objects live only in the
   // session that creates them and cannot skip row policies.
   await client.query(
-    `revoke create on schema public from public, starter_app, starter_auth, starter_ops`,
+    `revoke create on schema public from public, krajozbior_app, krajozbior_auth, krajozbior_ops`,
   );
-  await client.query(`grant usage, create on schema public to starter_owner`);
+  await client.query(`grant usage, create on schema public to krajozbior_owner`);
 
   const { rows: creators } = await client.query<{ rolname: string }>(
     `select rolname from pg_roles
       where rolname = any($1) and has_schema_privilege(oid, 'public', 'CREATE')
       order by rolname`,
-    [["starter_app", "starter_auth", "starter_ops"]],
+    [["krajozbior_app", "krajozbior_auth", "krajozbior_ops"]],
   );
 
   if (creators.length > 0) {

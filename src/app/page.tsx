@@ -12,7 +12,7 @@ function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-// The neutral start page of the starter: replace it with the product's own.
+// The neutral start page of the krajozbior: replace it with the product's own.
 // It reads the session only to choose the action; a failed lookup shows the
 // guest version.
 export default async function HomePage({ searchParams }: { searchParams: SearchParams }) {

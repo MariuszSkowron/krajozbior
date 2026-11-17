@@ -12,28 +12,28 @@ Wymagane jest 100% statements, branches, functions i lines per file dla czystej 
 
 ## Integracja z PostgreSQL
 
-`npm run test:integration` łączy się tylko przez `TEST_DATABASE_URL`. Walidator wymaga hosta `localhost` lub `127.0.0.1` i bazy `starter_integration_test`; nie czyta ani nie używa awaryjnie `DATABASE_URL` czy `.env`. Połączenie musi mieć uprawnienia superużytkownika: służy wyłącznie do przygotowania baz i odczytu katalogu. GitHub Actions tworzy świeży PostgreSQL 17 jako service container.
+`npm run test:integration` łączy się tylko przez `TEST_DATABASE_URL`. Walidator wymaga hosta `localhost` lub `127.0.0.1` i bazy `krajozbior_integration_test`; nie czyta ani nie używa awaryjnie `DATABASE_URL` czy `.env`. Połączenie musi mieć uprawnienia superużytkownika: służy wyłącznie do przygotowania baz i odczytu katalogu. GitHub Actions tworzy świeży PostgreSQL 17 jako service container.
 
-**Harness ról.** `tests/support/database-harness.ts` tworzy dla każdego pliku własną bazę `starter_integration_*` (pliki nie zależą od kolejności), uruchamia logikę `npm run db:roles` z losowymi hasłami na czas przebiegu, migruje jako `starter_owner` i zwraca adresy połączeń LOGIN `starter_app`, `starter_auth`, `starter_ops` i `starter_owner`. Dowody odmowy wykonuj przez te połączenia, nie przez `SET ROLE` z superużytkownika. Role są globalne w klastrze, więc pliki działają sekwencyjnie, a pulę zamyka się przez `closePool()` z harnessu.
+**Harness ról.** `tests/support/database-harness.ts` tworzy dla każdego pliku własną bazę `krajozbior_integration_*` (pliki nie zależą od kolejności), uruchamia logikę `npm run db:roles` z losowymi hasłami na czas przebiegu, migruje jako `krajozbior_owner` i zwraca adresy połączeń LOGIN `krajozbior_app`, `krajozbior_auth`, `krajozbior_ops` i `krajozbior_owner`. Dowody odmowy wykonuj przez te połączenia, nie przez `SET ROLE` z superużytkownika. Role są globalne w klastrze, więc pliki działają sekwencyjnie, a pulę zamyka się przez `closePool()` z harnessu.
 
-**Nie kieruj `TEST_DATABASE_URL` na klaster z bazą deweloperską ani E2E** (np. z `compose.yaml`): przebieg zmienia hasła ról `starter_*` i aplikacja przestaje się łączyć do czasu ponownego `npm run db:roles`.
+**Nie kieruj `TEST_DATABASE_URL` na klaster z bazą deweloperską ani E2E** (np. z `compose.yaml`): przebieg zmienia hasła ról `krajozbior_*` i aplikacja przestaje się łączyć do czasu ponownego `npm run db:roles`.
 
 Testy szkieletu:
 
-- `postgres-migrations` — migracja pustej bazy jako `starter_owner`, wszystkie tabele należą do właściciela, transakcja z rollbackiem.
-- `database-roles` — atrybuty ról (bez superużytkownika, `BYPASSRLS`, dziedziczenia), brak dostępu `starter_app` do schematu `auth`, idempotentny `db:roles`.
+- `postgres-migrations` — migracja pustej bazy jako `krajozbior_owner`, wszystkie tabele należą do właściciela, transakcja z rollbackiem.
+- `database-roles` — atrybuty ról (bez superużytkownika, `BYPASSRLS`, dziedziczenia), brak dostępu `krajozbior_app` do schematu `auth`, idempotentny `db:roles`.
 - `rls-coverage` — po wszystkich migracjach każda tabela (zwykła i partycjonowana) poza schematem `auth` ma włączony i wymuszony RLS oraz co najmniej jedną politykę; wyjątki tylko z jawnej listy w teście (decyzja właściciela).
-- `auth-accounts-access` — `starter_auth` wstawia konto wyłącznie bez kolumny `role` (zawsze `user`) i nie zmienia roli; inną rolę ustawia `starter_owner` ze skryptu operatora.
+- `auth-accounts-access` — `krajozbior_auth` wstawia konto wyłącznie bez kolumny `role` (zawsze `user`) i nie zmienia roli; inną rolę ustawia `krajozbior_owner` ze skryptu operatora.
 - `otp-send-limiter` — dzienne limity próśb o kod (adres z aliasami liczonymi jako jeden adres, adres z jednego IP, IP, limit globalny); prośby o kod nie zużywają limitu logowania hasłem.
 - `private-data-isolation` — wzorzec PRIV na technicznej tabeli kontrolnej: brak kontekstu = zero wierszy i odrzucony zapis, izolacja A/B, `WITH CHECK` dla cudzego `user_id`, rollback, brak wycieku kontekstu na tym samym połączeniu, odmowa zagnieżdżonego kontekstu; strażnik katalogu `tests/support/rls-guard.ts`.
 
-Każda nowa tabela z danymi prywatnymi dodaje w swojej zmianie test na harnessie: `findRowLevelSecurityGaps` dla tabeli oraz odmowę odczytu i zapisu cudzych wierszy przez połączenie `starter_app`. Każda funkcja używająca danych prywatnych lub roli z zakresem wymaga testu integracyjnego potwierdzającego odmowę dostępu bez uprawnień (`docs/data-isolation.md`, sekcja 5).
+Każda nowa tabela z danymi prywatnymi dodaje w swojej zmianie test na harnessie: `findRowLevelSecurityGaps` dla tabeli oraz odmowę odczytu i zapisu cudzych wierszy przez połączenie `krajozbior_app`. Każda funkcja używająca danych prywatnych lub roli z zakresem wymaga testu integracyjnego potwierdzającego odmowę dostępu bez uprawnień (`docs/data-isolation.md`, sekcja 5).
 
 Gdy nie masz Dockera, **nie uruchamiaj** `npm run test:integration` lokalnie i zapisz `blocked` (zob. `docs/engineering.md`). `npm run check` nie uruchamia integracji: zmiana kształtu odpowiedzi przypadku użycia bez przebiegu `test:integration` nie jest gotowa.
 
 ## E2E
 
-`npm run test:e2e` uruchamia Playwright z headless Chromium przeciwko zbudowanej aplikacji produkcyjnej (`next start`), w jednym workerze, jak w CI. Smoke sprawdza stronę startową i nagłówki bezpieczeństwa; scenariusze logowania wymagają bazy po `db:roles`, `db:migrate` i `db:seed:demo` (seed tylko z flagą `ALLOW_DEMO_SEED=1`), flagi `DEMO_ACCOUNTS_TEST_ONLY=1` dla serwera (ustawia ją `playwright.config.ts`; bez niej build produkcyjny odmawia logowania kontom demo) oraz zmiennych `DATABASE_URL` (`starter_app`), `DATABASE_AUTH_URL` (`starter_auth`) i hasła kont demo; bez nich są pomijane. Przy błędzie Playwright zapisuje zrzut, trace i wideo, a CI publikuje `playwright-report/` i `test-results/` jako artefakt.
+`npm run test:e2e` uruchamia Playwright z headless Chromium przeciwko zbudowanej aplikacji produkcyjnej (`next start`), w jednym workerze, jak w CI. Smoke sprawdza stronę startową i nagłówki bezpieczeństwa; scenariusze logowania wymagają bazy po `db:roles`, `db:migrate` i `db:seed:demo` (seed tylko z flagą `ALLOW_DEMO_SEED=1`), flagi `DEMO_ACCOUNTS_TEST_ONLY=1` dla serwera (ustawia ją `playwright.config.ts`; bez niej build produkcyjny odmawia logowania kontom demo) oraz zmiennych `DATABASE_URL` (`krajozbior_app`), `DATABASE_AUTH_URL` (`krajozbior_auth`) i hasła kont demo; bez nich są pomijane. Przy błędzie Playwright zapisuje zrzut, trace i wideo, a CI publikuje `playwright-report/` i `test-results/` jako artefakt.
 
 Zasady: spece dzielące konto demo i fikstury nie mogą zużywać tych samych zasobów; testy niczego nie zapisujące uruchamiaj przed zużywającymi. Nagłówki bezpieczeństwa sprawdzaj w E2E na buildzie produkcyjnym, nie tylko jednostkowo. axe nie działa przy wyłączonym JavaScripcie (zob. `<docs>/.ai/lessons.md`).
 

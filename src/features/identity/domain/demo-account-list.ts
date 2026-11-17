@@ -8,7 +8,7 @@ export function shouldListDemoAccounts(nodeEnv: string | undefined): boolean {
 // sign-in routes refuse it in production (isDemoSignInAllowed in
 // src/lib/config/env.ts), so a demo admin with the shared demo password cannot
 // sign in on a real deployment even if somebody seeded it there.
-export const DEMO_EMAIL_DOMAIN = "demo.starter.local";
+export const DEMO_EMAIL_DOMAIN = "demo.krajozbior.local";
 
 export function isDemoEmail(email: string): boolean {
   const address = email.trim().toLowerCase();

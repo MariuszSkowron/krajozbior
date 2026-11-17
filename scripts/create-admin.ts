@@ -1,7 +1,7 @@
 // Creates an administrator account, or resets its password and role. The web
-// application cannot do this: its identity role (starter_auth) may not write
-// the `role` column. The account and its password are written as starter_auth
-// (DATABASE_AUTH_URL), the role as starter_owner (DATABASE_MIGRATION_URL).
+// application cannot do this: its identity role (krajozbior_auth) may not write
+// the `role` column. The account and its password are written as krajozbior_auth
+// (DATABASE_AUTH_URL), the role as krajozbior_owner (DATABASE_MIGRATION_URL).
 // Existing sessions of the account end.
 //
 // The password comes from ADMIN_PASSWORD (min. 16 characters) and is never

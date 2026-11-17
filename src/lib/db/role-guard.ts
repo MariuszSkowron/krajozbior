@@ -1,4 +1,4 @@
-// Raised when a runtime connection (starter_app or starter_auth) reaches a role
+// Raised when a runtime connection (krajozbior_app or krajozbior_auth) reaches a role
 // that could skip row policies (issues #42, #44), e.g. an old local `.env`
 // with the administrator. The message names the reason only, never the
 // connection string or the role's password.

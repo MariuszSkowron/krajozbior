@@ -21,7 +21,7 @@ const getActor = getRequestActor;
 
 // The title names the view a signed-in user actually sees (WCAG 2.4.2).
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getActor()) === null ? "Logowanie — Starter" : "Konto — Starter" };
+  return { title: (await getActor()) === null ? "Logowanie — Krajozbiór" : "Konto — Krajozbiór" };
 }
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
