@@ -87,6 +87,9 @@ export class Migration20261117150000_album extends Migration {
     })) {
       this.addSql(statement);
     }
+    // INSERT only on the columns the application may supply; timestamps and the id come from defaults (D1).
+    this.addSql(`revoke insert on saved_collections from krajozbior_app;`);
+    this.addSql(`grant insert (user_id, collection_id) on saved_collections to krajozbior_app;`);
     this.addSql(`revoke all on saved_collections from krajozbior_auth, krajozbior_ops;`);
     this.addSql(`
       create policy saved_collections_published_insert on saved_collections
@@ -108,6 +111,9 @@ export class Migration20261117150000_album extends Migration {
     })) {
       this.addSql(statement);
     }
+    // INSERT only on the columns the application may supply; timestamps and the id come from defaults (D1).
+    this.addSql(`revoke insert on want_to_see_places from krajozbior_app;`);
+    this.addSql(`grant insert (user_id, place_id) on want_to_see_places to krajozbior_app;`);
     this.addSql(`revoke all on want_to_see_places from krajozbior_auth, krajozbior_ops;`);
     this.addSql(`
       create policy want_to_see_places_published_insert on want_to_see_places
@@ -146,6 +152,11 @@ export class Migration20261117150000_album extends Migration {
     })) {
       this.addSql(statement);
     }
+    // INSERT only on the columns the application may supply; timestamps and the id come from defaults (D1).
+    this.addSql(`revoke insert on visits from krajozbior_app;`);
+    this.addSql(
+      `grant insert (user_id, place_id, kind, visited_on, date_precision, client_visit_id) on visits to krajozbior_app;`,
+    );
     this.addSql(`revoke all on visits from krajozbior_auth, krajozbior_ops;`);
     this.addSql(`
       create policy visits_past_insert on visits

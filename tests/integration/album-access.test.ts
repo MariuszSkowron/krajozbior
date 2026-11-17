@@ -80,8 +80,8 @@ describe("saved collections and the want-to-see list", () => {
     for (const table of ["saved_collections", "want_to_see_places"]) {
       const [p] = await admin$<Record<string, boolean>>(
         `select
-           has_table_privilege('krajozbior_app', $1, 'select, insert, delete') as app_ok,
-           has_table_privilege('krajozbior_app', $1, 'update, truncate, references, trigger') as app_bad,
+           has_table_privilege('krajozbior_app', $1, 'select, delete') as app_ok,
+           has_table_privilege('krajozbior_app', $1, 'insert, update, truncate, references, trigger') as app_bad,
            has_any_column_privilege('krajozbior_app', $1, 'update') as app_update,
            has_any_column_privilege('krajozbior_auth', $1, 'select, insert, update') as auth_any,
            has_any_column_privilege('krajozbior_ops', $1, 'select, insert, update') as ops_any`,
@@ -95,6 +95,72 @@ describe("saved collections and the want-to-see list", () => {
         auth_any: false,
         ops_any: false,
       });
+    }
+  });
+
+  it("lets krajozbior_app insert only the owner and target columns, so a timestamp comes from the database (D1)", async () => {
+    const { collectionId, placeIds } = await f.publishedCollection(curA, orgA);
+    const permissionDenied = /permission denied/;
+
+    for (const [table, allowed] of [
+      ["saved_collections", ["user_id", "collection_id"]],
+      ["want_to_see_places", ["user_id", "place_id"]],
+    ] as const) {
+      const columns = await admin$<{ column_name: string; ok: boolean }>(
+        `select column_name,
+                has_column_privilege('krajozbior_app', $1, column_name, 'insert') as ok
+           from information_schema.columns
+          where table_schema = 'public' and table_name = $2`,
+        [`public.${table}`, table],
+      );
+
+      expect(
+        columns
+          .filter(({ ok }) => ok)
+          .map(({ column_name }) => column_name)
+          .sort(),
+      ).toEqual([...allowed].sort());
+    }
+
+    await expect(
+      as(
+        explorerA,
+        `insert into public.saved_collections (user_id, collection_id, saved_at)
+         values (app_current_user_id(), ?, '2001-01-01')`,
+        [collectionId],
+      ),
+    ).rejects.toThrow(permissionDenied);
+    await expect(
+      as(
+        explorerA,
+        `insert into public.want_to_see_places (user_id, place_id, saved_at)
+         values (app_current_user_id(), ?, '2001-01-01')`,
+        [placeIds[0]],
+      ),
+    ).rejects.toThrow(permissionDenied);
+  });
+
+  it("deletes the saves of an account with the account and leaves other people's saves (D2)", async () => {
+    const leaving = newUser("explorer-leaving");
+    const { collectionId, placeIds } = await f.publishedCollection(curA, orgA);
+
+    const staying = newUser("explorer-staying");
+
+    await f.insertUsers([leaving, staying]);
+    await save(leaving, collectionId);
+    await want(leaving, placeIds[0]!);
+    await save(staying, collectionId);
+    await want(staying, placeIds[0]!);
+
+    await admin$(`delete from auth.users where id = $1`, [leaving.id]);
+
+    for (const table of ["saved_collections", "want_to_see_places"]) {
+      expect(
+        await admin$(`select 1 from public.${table} where user_id = $1`, [leaving.id]),
+      ).toEqual([]);
+      expect(
+        await admin$(`select 1 from public.${table} where user_id = $1`, [staying.id]),
+      ).not.toEqual([]);
     }
   });
 

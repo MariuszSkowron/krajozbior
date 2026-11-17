@@ -115,8 +115,8 @@ describe("visits and the visit function", () => {
     it("gives krajozbior_app select, insert and delete only, and no other role anything", async () => {
       const [p] = await admin$<Record<string, boolean>>(
         `select
-           has_table_privilege('krajozbior_app', 'visits', 'select, insert, delete') as app_ok,
-           has_table_privilege('krajozbior_app', 'visits', 'update, truncate, references, trigger') as app_bad,
+           has_table_privilege('krajozbior_app', 'visits', 'select, delete') as app_ok,
+           has_table_privilege('krajozbior_app', 'visits', 'insert, update, truncate, references, trigger') as app_bad,
            has_any_column_privilege('krajozbior_app', 'visits', 'update') as app_update,
            has_any_column_privilege('krajozbior_auth', 'visits', 'select, insert, update') as auth_any,
            has_any_column_privilege('krajozbior_ops', 'visits', 'select, insert, update') as ops_any`,
@@ -129,6 +129,49 @@ describe("visits and the visit function", () => {
         auth_any: false,
         ops_any: false,
       });
+    });
+
+    it("lets krajozbior_app insert only the columns it may supply, so no timestamp or id comes from outside (D1)", async () => {
+      const columns = await admin$<{ column_name: string }>(
+        `select column_name from information_schema.columns
+          where table_schema = 'public' and table_name = 'visits'
+            and has_column_privilege('krajozbior_app', 'public.visits', column_name, 'insert')
+          order by column_name`,
+      );
+
+      expect(columns.map(({ column_name }) => column_name)).toEqual([
+        "client_visit_id",
+        "date_precision",
+        "kind",
+        "place_id",
+        "user_id",
+        "visited_on",
+      ]);
+      for (const column of ["visited_at", "created_at"]) {
+        await expect(
+          as(
+            explorerA,
+            `insert into public.visits (user_id, place_id, kind, date_precision, ${column})
+             values (app_current_user_id(), ?, 'past', 'unknown', '2001-01-01')`,
+            [place],
+          ),
+        ).rejects.toThrow(/permission denied/);
+      }
+    });
+
+    it("deletes the visits of an account with the account and leaves other people's visits (D2)", async () => {
+      const leaving = newUser("explorer-leaving");
+
+      await f.insertUsers([leaving]);
+      await markPast(leaving, place);
+      await record(leaving, place);
+      const before = await visitCount(explorerB.id, place);
+      await markPast(explorerB, place);
+
+      await admin$(`delete from auth.users where id = $1`, [leaving.id]);
+
+      expect(await visitCount(leaving.id)).toBe(0);
+      expect(await visitCount(explorerB.id, place)).toBe(before + 1);
     });
 
     it("stores no position and no accuracy, only the place, the server time and the kind (D-14)", async () => {
