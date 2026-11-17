@@ -63,6 +63,7 @@ const north = (metres: number) => LAT + ((metres / EARTH_RADIUS_M) * 180) / Math
 
 let route: typeof import("@/app/api/places/[placeId]/visits/route");
 let collectionId = "";
+let organizationId = "";
 let place = "";
 let draftPlace = "";
 
@@ -108,6 +109,8 @@ describe("POST /api/places/[placeId]/visits", () => {
     });
     state.app = app;
     route = await import("@/app/api/places/[placeId]/visits/route");
+
+    organizationId = orgId;
 
     const published = await f.publishedCollection(curActor, orgId, 2);
 
@@ -193,6 +196,45 @@ describe("POST /api/places/[placeId]/visits", () => {
     expect(await far.json()).toEqual({ result: "out_of_range", distanceM: 6200 });
     expect(poor.status).toBe(200);
     expect(await poor.json()).toEqual({ result: "inaccurate", accuracyM: 481 });
+  });
+
+  it("answers inaccurate, not 400, for a reading worse than 100 km, and shows the real value", async () => {
+    state.session = b;
+
+    const response = await post(place, reading({ accuracy: 150_000 }));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ result: "inaccurate", accuracyM: 150_000 });
+  });
+
+  it("answers a retry as recorded when the place was unpublished after the first answer was lost, and never shows another user's visit", async () => {
+    const made = await f.publishedCollection(curActor, organizationId, 1);
+    const target = made.placeIds[0]!;
+    const body = reading();
+
+    state.session = a;
+    expect((await post(target, body)).status).toBe(201);
+    expect(await visitCount(explorerA.id, target)).toBe(1);
+
+    await f.setStatus(curActor, made.collectionId, "draft");
+    try {
+      // Without the check the function would answer not_found (404).
+      expect((await post(target, body)).status).toBe(201);
+      expect(await visitCount(explorerA.id, target)).toBe(1);
+
+      // The same client visit id of another user: the unpublished place stays
+      // invisible, and nothing of the visit of A is shown or created.
+      state.session = b;
+      expect((await post(target, body)).status).toBe(404);
+      expect(await visitCount(explorerB.id, target)).toBe(0);
+    } finally {
+      await f.setStatus(curActor, made.collectionId, "published");
+    }
+
+    // After publishing again B records an own visit with the same id (the id is per user).
+    expect((await post(target, body)).status).toBe(201);
+    expect(await visitCount(explorerB.id, target)).toBe(1);
+    expect(await visitCount(explorerA.id, target)).toBe(1);
   });
 
   it("answers 404 for a place that is only in a draft, for an explorer and for the curator of the organization", async () => {

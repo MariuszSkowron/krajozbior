@@ -125,6 +125,8 @@ test.describe("confirming a visit on site", () => {
 
     await a.getByRole("button", { name: "Potwierdź wizytę" }).click();
     await expect(a.getByText("Wizyta potwierdzona.")).toBeVisible();
+    // The focus is on the success message (a status region), not lost with the button.
+    await expect(a.getByRole("status").filter({ hasText: "Wizyta potwierdzona." })).toBeFocused();
     await expect(a.getByRole("list", { name: "Twój postęp po tej wizycie" })).toContainText("1/3");
     await expectNoAccessibilityViolations(a);
     expect(await visitCount(EXPLORER_A)).toBe(1);

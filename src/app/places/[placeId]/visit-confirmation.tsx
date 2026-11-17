@@ -55,6 +55,13 @@ function readPosition(): Promise<Reading> {
   });
 }
 
+// The button with the focus disappears after a saved visit; the focus moves to
+// the success message, so that a screen reader reads it and the keyboard user
+// does not fall back to the top of the page (docs/design/accessibility.md).
+function focusOnMount(element: HTMLElement | null): void {
+  element?.focus();
+}
+
 function feedbackText(state: State): string {
   switch (state.kind) {
     case "locating":
@@ -170,7 +177,7 @@ export function VisitConfirmation({ placeId }: Props) {
   if (state.kind === "recorded") {
     return (
       <div className={styles.box}>
-        <p className={styles.success} role="status">
+        <p className={styles.success} role="status" tabIndex={-1} ref={focusOnMount}>
           Wizyta potwierdzona.
         </p>
         {state.collections.length === 0 ? null : (

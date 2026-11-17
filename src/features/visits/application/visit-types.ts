@@ -16,6 +16,8 @@ export interface VisitRepository {
     placeId: string,
     request: VisitRequest,
   ): Promise<VisitFunctionRow>;
+  /** The place of the actor's own visit with this client id, or null (the row policies show only their own). */
+  findOwnVisitPlaceId(tx: TransactionContext, clientVisitId: string): Promise<string | null>;
   /** Whether the actor has any visit of the place (the row policies show only their own). */
   hasVisitedPlace(tx: TransactionContext, placeId: string): Promise<boolean>;
 }

@@ -21,6 +21,17 @@ export const postgresVisitRepository: VisitRepository = {
     return row;
   },
 
+  async findOwnVisitPlaceId(tx, clientVisitId) {
+    const rows = await tx.em.execute<{ place_id: string }[]>(
+      `select place_id from public.visits
+        where user_id = app_current_user_id() and client_visit_id = ?::uuid
+        limit 1`,
+      [clientVisitId],
+    );
+
+    return rows[0]?.place_id ?? null;
+  },
+
   async hasVisitedPlace(tx, placeId) {
     const rows = await tx.em.execute<{ ok: boolean }[]>(
       `select true as ok from public.visits

@@ -19,7 +19,12 @@ const body = {
   clientVisitId: "55555555-5555-4555-8555-555555555555",
 };
 
-function makeDeps(row: VisitFunctionRow | Error, allowed = true, visited = false) {
+function makeDeps(
+  row: VisitFunctionRow | Error,
+  allowed = true,
+  visited = false,
+  ownVisitPlaceId: string | null = null,
+) {
   const withUserContext = vi.fn(async (_actor: unknown, work: (tx: never) => Promise<unknown>) =>
     work({} as never),
   );
@@ -33,10 +38,15 @@ function makeDeps(row: VisitFunctionRow | Error, allowed = true, visited = false
 
     return row;
   });
+  const findOwnVisitPlaceId = vi.fn(async () => ownVisitPlaceId);
   const deps = {
     withUserContext,
     limiter: { reserve },
-    repository: { recordOnSiteVisit, hasVisitedPlace: async () => visited },
+    repository: {
+      recordOnSiteVisit,
+      hasVisitedPlace: async () => visited,
+      findOwnVisitPlaceId,
+    },
     album: {
       listSavedCollections: async () => [
         { id: COLLECTION, slug: "a", title: "A", region: "pomorskie" },
@@ -51,7 +61,7 @@ function makeDeps(row: VisitFunctionRow | Error, allowed = true, visited = false
     },
   } as unknown as VisitDeps;
 
-  return { deps, withUserContext, reserve, recordOnSiteVisit };
+  return { deps, withUserContext, reserve, recordOnSiteVisit, findOwnVisitPlaceId };
 }
 
 describe("confirmOnSiteVisit", () => {
@@ -98,6 +108,53 @@ describe("confirmOnSiteVisit", () => {
       status: "ok",
       value: { result: "inaccurate", accuracyM: 481 },
     });
+  });
+
+  it("passes at most 100 km of accuracy to the function and shows the real value", async () => {
+    const { deps, recordOnSiteVisit } = makeDeps({ result: "inaccurate", distance_m: null });
+
+    expect(await confirmOnSiteVisit(actor, PLACE, { ...body, accuracy: 150_000.4 }, deps)).toEqual({
+      status: "ok",
+      value: { result: "inaccurate", accuracyM: 150_000 },
+    });
+    expect(recordOnSiteVisit).toHaveBeenCalledWith(
+      expect.anything(),
+      PLACE,
+      expect.objectContaining({ accuracyM: 100_000 }),
+    );
+  });
+
+  it("answers recorded without calling the function when the own visit with this id is already saved for the place", async () => {
+    const { deps, recordOnSiteVisit, findOwnVisitPlaceId } = makeDeps(
+      { result: "not_found", distance_m: null },
+      true,
+      false,
+      PLACE,
+    );
+
+    expect(await confirmOnSiteVisit(actor, PLACE, body, deps)).toEqual({
+      status: "ok",
+      value: {
+        result: "recorded",
+        collections: [
+          { slug: "a", title: "A", progress: { kind: "progress", visited: 1, total: 2 } },
+        ],
+      },
+    });
+    expect(findOwnVisitPlaceId).toHaveBeenCalledWith(expect.anything(), body.clientVisitId);
+    expect(recordOnSiteVisit).not.toHaveBeenCalled();
+  });
+
+  it("answers invalid when the id belongs to the own visit of another place", async () => {
+    const { deps, recordOnSiteVisit } = makeDeps(
+      { result: "recorded", distance_m: 1 },
+      true,
+      false,
+      OTHER_PLACE,
+    );
+
+    expect(await confirmOnSiteVisit(actor, PLACE, body, deps)).toEqual({ status: "invalid" });
+    expect(recordOnSiteVisit).not.toHaveBeenCalled();
   });
 
   it("answers not_found for a place the database does not show, and for a malformed id", async () => {

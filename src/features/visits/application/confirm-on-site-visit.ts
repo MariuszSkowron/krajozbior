@@ -23,6 +23,9 @@ import type { VisitDeps, VisitResponse, VisitUseCaseOutcome } from "./visit-type
 // for another place, or for a value outside its own checks.
 const INVALID_PARAMETER = "22023";
 
+// The function accepts an accuracy up to 100 km (p_accuracy_m between 0 and 100000).
+const MAX_ACCURACY_ARGUMENT_M = 100_000;
+
 const isInvalidParameter = (error: unknown): boolean =>
   typeof error === "object" &&
   error !== null &&
@@ -63,8 +66,50 @@ export async function confirmOnSiteVisit(
 
   try {
     return await deps.withUserContext(signedIn, async (tx) => {
+      const recordedProgress = async () => {
+        const collections = await deps.album.listSavedCollections(tx);
+        const links = await deps.album.listSavedCollectionPlaces(tx);
+        const visited = await deps.album.listVisitedPlaceIds(tx);
+
+        return {
+          status: "ok",
+          value: {
+            result: "recorded",
+            collections: collections
+              .filter((collection) =>
+                links.some((l) => l.collectionId === collection.id && l.placeId === placeId),
+              )
+              .map((collection) => ({
+                slug: collection.slug,
+                title: collection.title,
+                progress: computeProgress(
+                  links.filter((l) => l.collectionId === collection.id).map((l) => l.placeId),
+                  visited,
+                ),
+              })),
+          },
+        } as const;
+      };
+
+      // A retry after a lost answer: the own visit with this id (the row
+      // policies show only the actor's own) is already saved, even when the
+      // place has meanwhile been unpublished. The function is not called then.
+      const existingPlaceId = await deps.repository.findOwnVisitPlaceId(tx, request.clientVisitId);
+
+      if (existingPlaceId !== null) {
+        return existingPlaceId === placeId
+          ? await recordedProgress()
+          : ({ status: "invalid" } as const);
+      }
+
+      // A reading worse than the limit of the function is passed as the limit,
+      // so that the database still answers "inaccurate" and not an error; the
+      // person is shown the real value.
       const outcome = toVisitOutcome(
-        await deps.repository.recordOnSiteVisit(tx, placeId, request),
+        await deps.repository.recordOnSiteVisit(tx, placeId, {
+          ...request,
+          accuracyM: Math.min(request.accuracyM, MAX_ACCURACY_ARGUMENT_M),
+        }),
         request.accuracyM,
       );
 
@@ -81,30 +126,8 @@ export async function confirmOnSiteVisit(
             status: "ok",
             value: { result: "inaccurate", accuracyM: outcome.accuracyM },
           } as const;
-        case "recorded": {
-          const collections = await deps.album.listSavedCollections(tx);
-          const links = await deps.album.listSavedCollectionPlaces(tx);
-          const visited = await deps.album.listVisitedPlaceIds(tx);
-
-          return {
-            status: "ok",
-            value: {
-              result: "recorded",
-              collections: collections
-                .filter((collection) =>
-                  links.some((l) => l.collectionId === collection.id && l.placeId === placeId),
-                )
-                .map((collection) => ({
-                  slug: collection.slug,
-                  title: collection.title,
-                  progress: computeProgress(
-                    links.filter((l) => l.collectionId === collection.id).map((l) => l.placeId),
-                    visited,
-                  ),
-                })),
-            },
-          } as const;
-        }
+        case "recorded":
+          return await recordedProgress();
       }
     });
   } catch (error) {
