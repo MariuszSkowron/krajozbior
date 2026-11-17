@@ -5,10 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 import { provisionDatabaseRoles, readRolePasswords, scramSha256Verifier } from "@/lib/db/roles";
 
 const validSource = {
-  STARTER_OWNER_DB_PASSWORD: "owner-password-0123",
-  STARTER_APP_DB_PASSWORD: "app-password-012345",
-  STARTER_AUTH_DB_PASSWORD: "auth-password-01234",
-  STARTER_OPS_DB_PASSWORD: "ops-password-012345",
+  KRAJOZBIOR_OWNER_DB_PASSWORD: "owner-password-0123",
+  KRAJOZBIOR_APP_DB_PASSWORD: "app-password-012345",
+  KRAJOZBIOR_AUTH_DB_PASSWORD: "auth-password-01234",
+  KRAJOZBIOR_OPS_DB_PASSWORD: "ops-password-012345",
 };
 
 function fakeClient(unsafeRoles: string[] = [], creatorRoles: string[] = []) {
@@ -32,10 +32,10 @@ function fakeClient(unsafeRoles: string[] = [], creatorRoles: string[] = []) {
 describe("readRolePasswords", () => {
   it("maps each role to its password variable", () => {
     expect(readRolePasswords(validSource)).toEqual({
-      starter_owner: "owner-password-0123",
-      starter_app: "app-password-012345",
-      starter_auth: "auth-password-01234",
-      starter_ops: "ops-password-012345",
+      krajozbior_owner: "owner-password-0123",
+      krajozbior_app: "app-password-012345",
+      krajozbior_auth: "auth-password-01234",
+      krajozbior_ops: "ops-password-012345",
     });
   });
 
@@ -43,21 +43,23 @@ describe("readRolePasswords", () => {
     const action = () =>
       readRolePasswords({
         ...validSource,
-        STARTER_APP_DB_PASSWORD: "tiny-secret",
-        STARTER_OPS_DB_PASSWORD: undefined,
+        KRAJOZBIOR_APP_DB_PASSWORD: "tiny-secret",
+        KRAJOZBIOR_OPS_DB_PASSWORD: undefined,
       });
 
     expect(action).toThrow(
-      "Missing or too short (min. 16 characters): STARTER_APP_DB_PASSWORD, STARTER_OPS_DB_PASSWORD",
+      "Missing or too short (min. 16 characters): KRAJOZBIOR_APP_DB_PASSWORD, KRAJOZBIOR_OPS_DB_PASSWORD",
     );
     expect(action).not.toThrow(/tiny-secret/);
   });
 
   it("names passwords outside printable ASCII without their values", () => {
     const action = () =>
-      readRolePasswords({ ...validSource, STARTER_AUTH_DB_PASSWORD: "zażółć-gęślą-jaźń" });
+      readRolePasswords({ ...validSource, KRAJOZBIOR_AUTH_DB_PASSWORD: "zażółć-gęślą-jaźń" });
 
-    expect(action).toThrow("Only printable ASCII characters are allowed: STARTER_AUTH_DB_PASSWORD");
+    expect(action).toThrow(
+      "Only printable ASCII characters are allowed: KRAJOZBIOR_AUTH_DB_PASSWORD",
+    );
     expect(action).not.toThrow(/jaźń/);
   });
 });
@@ -104,7 +106,12 @@ describe("provisionDatabaseRoles", () => {
 
     await provisionDatabaseRoles(client as never, passwords);
 
-    for (const role of ["starter_owner", "starter_app", "starter_auth", "starter_ops"]) {
+    for (const role of [
+      "krajozbior_owner",
+      "krajozbior_app",
+      "krajozbior_auth",
+      "krajozbior_ops",
+    ]) {
       expect(queries.some((sql) => sql.includes(`create role ${role};`))).toBe(true);
     }
     const alters = queries.filter((query) => query.startsWith("alter role"));
@@ -112,7 +119,7 @@ describe("provisionDatabaseRoles", () => {
     expect(alters).toHaveLength(4);
     for (const sql of alters) {
       expect(sql).toMatch(
-        /^alter role starter_\w+ with login noinherit nocreaterole nocreatedb password 'SCRAM-SHA-256\$4096:[^']+'$/,
+        /^alter role krajozbior_\w+ with login noinherit nocreaterole nocreatedb password 'SCRAM-SHA-256\$4096:[^']+'$/,
       );
     }
     for (const password of Object.values(passwords)) {
@@ -134,28 +141,28 @@ describe("provisionDatabaseRoles", () => {
     await provisionDatabaseRoles(client as never, readRolePasswords(validSource));
 
     const revoke = queries.indexOf(
-      "revoke create on schema public from public, starter_app, starter_auth, starter_ops",
+      "revoke create on schema public from public, krajozbior_app, krajozbior_auth, krajozbior_ops",
     );
 
     expect(revoke).toBeGreaterThan(-1);
     expect(revoke).toBeLessThan(
-      queries.indexOf("grant usage, create on schema public to starter_owner"),
+      queries.indexOf("grant usage, create on schema public to krajozbior_owner"),
     );
   });
 
   it("refuses roles that were given superuser or BYPASSRLS by hand", async () => {
-    const { client } = fakeClient(["starter_app"]);
+    const { client } = fakeClient(["krajozbior_app"]);
 
     await expect(
       provisionDatabaseRoles(client as never, readRolePasswords(validSource)),
-    ).rejects.toThrow("Roles must not be superuser, bypass RLS or replicate: starter_app");
+    ).rejects.toThrow("Roles must not be superuser, bypass RLS or replicate: krajozbior_app");
   });
 
   it("refuses runtime roles that can still create objects in the public schema", async () => {
-    const { client } = fakeClient([], ["starter_ops"]);
+    const { client } = fakeClient([], ["krajozbior_ops"]);
 
     await expect(
       provisionDatabaseRoles(client as never, readRolePasswords(validSource)),
-    ).rejects.toThrow("Roles must not create objects in the public schema: starter_ops");
+    ).rejects.toThrow("Roles must not create objects in the public schema: krajozbior_ops");
   });
 });

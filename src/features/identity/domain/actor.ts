@@ -1,4 +1,4 @@
-// Roles of the starter: every signed-in account is a `user`; `admin` exists so
+// Roles of the krajozbior: every signed-in account is a `user`; `admin` exists so
 // that the role checks (403 for a signed-in actor without the role) have a
 // real case. Add product roles here and in the auth.users check constraint.
 export const roles = ["user", "admin"] as const;

@@ -7,7 +7,7 @@ import { ErrorIcon } from "@/design-system/patterns/error-icon";
 import { wasRestoredFromCache } from "./login-state";
 import styles from "./login.module.css";
 
-const EMAIL_KEY = "starter.login-email";
+const EMAIL_KEY = "krajozbior.login-email";
 
 type LoginFormProps = Readonly<{
   returnTo?: string;

@@ -21,17 +21,17 @@ describe("parseEmailEnv ", () => {
       parseEmailEnv({
         EMAIL_TRANSPORT: "outbox",
         EMAIL_OUTBOX_DIR: ".data/tmp-outbox",
-        EMAIL_FROM: "a@starter.local",
+        EMAIL_FROM: "a@krajozbior.local",
         BETTER_AUTH_URL: "http://localhost:3000",
       }),
     ).toEqual({
       EMAIL_TRANSPORT: "outbox",
       EMAIL_OUTBOX_DIR: ".data/tmp-outbox",
-      EMAIL_FROM: "a@starter.local",
+      EMAIL_FROM: "a@krajozbior.local",
     });
   });
 
-  it.each(["https://starter.example", "http://192.168.1.10:3000", "http://staging.example"])(
+  it.each(["https://krajozbior.example", "http://192.168.1.10:3000", "http://staging.example"])(
     "refuses the outbox for the non-local address %s",
     (url) => {
       const error = getError(() =>
@@ -58,7 +58,7 @@ describe("parseEmailEnv ", () => {
       parseEmailEnv({
         NODE_ENV: "production",
         EMAIL_TRANSPORT: "outbox",
-        EMAIL_FROM: "a@starter.local",
+        EMAIL_FROM: "a@krajozbior.local",
         BETTER_AUTH_URL: "http://127.0.0.1:3100",
       }),
     ).toThrow(ServerConfigError);
@@ -68,12 +68,12 @@ describe("parseEmailEnv ", () => {
     const base = {
       NODE_ENV: "production",
       EMAIL_TRANSPORT: "outbox",
-      EMAIL_FROM: "a@starter.local",
+      EMAIL_FROM: "a@krajozbior.local",
       EMAIL_OUTBOX_TEST_ONLY: "1",
     };
 
     expect(() => parseEmailEnv(base)).toThrow(ServerConfigError);
-    expect(() => parseEmailEnv({ ...base, BETTER_AUTH_URL: "https://starter.example" })).toThrow(
+    expect(() => parseEmailEnv({ ...base, BETTER_AUTH_URL: "https://krajozbior.example" })).toThrow(
       ServerConfigError,
     );
   });
@@ -83,7 +83,7 @@ describe("parseEmailEnv ", () => {
       parseEmailEnv({
         NODE_ENV: "production",
         EMAIL_TRANSPORT: "outbox",
-        EMAIL_FROM: "a@starter.local",
+        EMAIL_FROM: "a@krajozbior.local",
         EMAIL_OUTBOX_TEST_ONLY: "1",
         BETTER_AUTH_URL: "http://127.0.0.1:3100",
       }).EMAIL_TRANSPORT,
@@ -129,7 +129,7 @@ describe("EMAIL_OUTBOX_DIR", () => {
 });
 
 describe("EMAIL_TRANSPORT=memory", () => {
-  const base = { EMAIL_TRANSPORT: "memory", EMAIL_FROM: "a@starter.local" };
+  const base = { EMAIL_TRANSPORT: "memory", EMAIL_FROM: "a@krajozbior.local" };
 
   it("is accepted outside production and on a loopback address", () => {
     expect(parseEmailEnv(base).EMAIL_TRANSPORT).toBe("memory");
@@ -139,7 +139,7 @@ describe("EMAIL_TRANSPORT=memory", () => {
   });
 
   it("is refused for a non-local address", () => {
-    expect(() => parseEmailEnv({ ...base, BETTER_AUTH_URL: "https://starter.example" })).toThrow(
+    expect(() => parseEmailEnv({ ...base, BETTER_AUTH_URL: "https://krajozbior.example" })).toThrow(
       ServerConfigError,
     );
   });

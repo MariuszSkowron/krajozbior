@@ -1,4 +1,4 @@
-# Local disposable test environment of the starter (Windows PowerShell 5.1+).
+# Local disposable test environment of the krajozbior (Windows PowerShell 5.1+).
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'

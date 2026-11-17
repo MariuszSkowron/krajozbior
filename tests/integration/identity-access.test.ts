@@ -6,8 +6,8 @@ import { createOrmConfig } from "@/lib/db/config";
 import { createScratchDatabase, type ScratchDatabase } from "../support/database-harness";
 
 // Runs on its own scratch database so it does not depend on the order of the
-// other integration files. Better Auth connects as starter_auth and the
-// application as starter_app, like in production; `orm` is the superuser
+// other integration files. Better Auth connects as krajozbior_auth and the
+// application as krajozbior_app, like in production; `orm` is the superuser
 // connection used only to inspect and change test data.
 const PASSWORD = "integration-only-password";
 
@@ -36,11 +36,11 @@ function cookieOf(response: Response) {
     .join("; ");
 }
 
-// The seed sets roles as starter_owner, like `npm run db:seed:demo`.
-const asOwner = () => ownerRoleAssigner(db.urls.starter_owner);
+// The seed sets roles as krajozbior_owner, like `npm run db:seed:demo`.
+const asOwner = () => ownerRoleAssigner(db.urls.krajozbior_owner);
 
 async function signIn(role: "user" | "admin") {
-  const response = await login(jsonLogin(`${role}@demo.starter.local`, PASSWORD));
+  const response = await login(jsonLogin(`${role}@demo.krajozbior.local`, PASSWORD));
 
   return { response, cookie: cookieOf(response) };
 }
@@ -54,12 +54,12 @@ function withCookie(path: string, cookie?: string, init: RequestInit = {}) {
 
 describe("local demo login and role enforcement", () => {
   beforeAll(async () => {
-    db = await createScratchDatabase("starter_integration_identity");
+    db = await createScratchDatabase("krajozbior_integration_identity");
     await db.migrate();
     orm = await MikroORM.init(createOrmConfig(db.adminUrl));
 
-    process.env.DATABASE_URL = db.urls.starter_app;
-    process.env.DATABASE_AUTH_URL = db.urls.starter_auth;
+    process.env.DATABASE_URL = db.urls.krajozbior_app;
+    process.env.DATABASE_AUTH_URL = db.urls.krajozbior_auth;
     process.env.BETTER_AUTH_SECRET = "integration-only-secret-0123456789abcdef";
     delete process.env.BETTER_AUTH_URL;
 
@@ -94,9 +94,9 @@ describe("local demo login and role enforcement", () => {
     );
 
     expect(rows).toEqual([
-      { email: "admin@demo.starter.local", role: "admin", hasHash: true },
-      { email: "user2@demo.starter.local", role: "user", hasHash: true },
-      { email: "user@demo.starter.local", role: "user", hasHash: true },
+      { email: "admin@demo.krajozbior.local", role: "admin", hasHash: true },
+      { email: "user2@demo.krajozbior.local", role: "user", hasHash: true },
+      { email: "user@demo.krajozbior.local", role: "user", hasHash: true },
     ]);
     await expect(
       orm.em.execute(`update auth.users set role = 'root' where email like 'user@%'`),
@@ -107,7 +107,7 @@ describe("local demo login and role enforcement", () => {
     const { seedDemoAccounts } = await import("@/features/identity/infrastructure/demo-accounts");
 
     await orm.em.execute(
-      `delete from auth.accounts where user_id = (select id from auth.users where email = 'user@demo.starter.local')`,
+      `delete from auth.accounts where user_id = (select id from auth.users where email = 'user@demo.krajozbior.local')`,
     );
     expect((await signIn("user")).response.status).toBe(401);
 
@@ -133,13 +133,13 @@ describe("local demo login and role enforcement", () => {
 
     try {
       await orm.em.execute(
-        `update auth.users set role = 'admin', name = 'Changed' where email like '%@demo.starter.local'`,
+        `update auth.users set role = 'admin', name = 'Changed' where email like '%@demo.krajozbior.local'`,
       );
 
       await seedDemoAccounts(otherPassword, asOwner());
 
       const rows = await orm.em.execute<{ email: string; role: string; name: string }[]>(
-        `select email, role, name from auth.users where email like '%@demo.starter.local'`,
+        `select email, role, name from auth.users where email like '%@demo.krajozbior.local'`,
       );
 
       expect(rows).toHaveLength(demoAccounts.length);
@@ -166,7 +166,7 @@ describe("local demo login and role enforcement", () => {
       new Request("http://localhost/api/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json", cookie: first.cookie },
-        body: JSON.stringify({ email: "admin@demo.starter.local", password: PASSWORD }),
+        body: JSON.stringify({ email: "admin@demo.krajozbior.local", password: PASSWORD }),
       }),
     );
 
@@ -181,7 +181,10 @@ describe("local demo login and role enforcement", () => {
       new Request("http://localhost/api/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json", cookie },
-        body: JSON.stringify({ email: "admin@demo.starter.local", password: "not-the-password" }),
+        body: JSON.stringify({
+          email: "admin@demo.krajozbior.local",
+          password: "not-the-password",
+        }),
       }),
     );
 
@@ -194,15 +197,15 @@ describe("local demo login and role enforcement", () => {
       await import("@/features/identity/infrastructure/demo-accounts");
 
     expect(await findSeededDemoAccounts()).toEqual([
-      { email: "user@demo.starter.local", role: "user" },
-      { email: "user2@demo.starter.local", role: "user" },
-      { email: "admin@demo.starter.local", role: "admin" },
+      { email: "user@demo.krajozbior.local", role: "user" },
+      { email: "user2@demo.krajozbior.local", role: "user" },
+      { email: "admin@demo.krajozbior.local", role: "admin" },
     ]);
   });
 
   it("gives the second user an own session, distinct from the first", async () => {
     const first = await signIn("user");
-    const second = await login(jsonLogin("user2@demo.starter.local", PASSWORD));
+    const second = await login(jsonLogin("user2@demo.krajozbior.local", PASSWORD));
     const secondCookie = cookieOf(second);
 
     expect(second.status).toBe(200);
@@ -258,8 +261,8 @@ describe("local demo login and role enforcement", () => {
   });
 
   it("rejects wrong password and unknown account with the same answer", async () => {
-    const wrongPassword = await login(jsonLogin("user@demo.starter.local", "not-the-password"));
-    const unknownAccount = await login(jsonLogin("nobody@demo.starter.local", PASSWORD));
+    const wrongPassword = await login(jsonLogin("user@demo.krajozbior.local", "not-the-password"));
+    const unknownAccount = await login(jsonLogin("nobody@demo.krajozbior.local", PASSWORD));
 
     expect(wrongPassword.status).toBe(401);
     expect(unknownAccount.status).toBe(401);
@@ -268,7 +271,7 @@ describe("local demo login and role enforcement", () => {
   });
 
   it("treats a forged session cookie as no session", async () => {
-    const response = await me(withCookie("/api/me", "starter.session_token=forged"));
+    const response = await me(withCookie("/api/me", "krajozbior.session_token=forged"));
 
     expect(response.status).toBe(401);
   });
@@ -306,7 +309,7 @@ describe("local demo login and role enforcement", () => {
           origin: "https://evil.example",
           host: "localhost",
         },
-        body: JSON.stringify({ email: "user@demo.starter.local", password: PASSWORD }),
+        body: JSON.stringify({ email: "user@demo.krajozbior.local", password: PASSWORD }),
       }),
     );
 
@@ -362,7 +365,7 @@ describe("local demo login and role enforcement", () => {
     try {
       const [cookie] = (await signIn("user")).response.headers.getSetCookie();
 
-      expect(cookie).toMatch(/^__Secure-starter\.session_token=/);
+      expect(cookie).toMatch(/^__Secure-krajozbior\.session_token=/);
       expect(cookie).toMatch(/; Secure/i);
     } finally {
       await closeAuth();
@@ -371,7 +374,7 @@ describe("local demo login and role enforcement", () => {
   });
 
   describe("sign-in limit (issue #39)", () => {
-    const USER = "user@demo.starter.local";
+    const USER = "user@demo.krajozbior.local";
     const fromIp = (ip: string) => ({ "x-real-ip": ip });
 
     async function failTimes(times: number, email: string, headers: Record<string, string> = {}) {
@@ -404,9 +407,9 @@ describe("local demo login and role enforcement", () => {
     });
 
     it("limits an unknown account exactly like an existing one", async () => {
-      await failTimes(5, "nobody@demo.starter.local");
+      await failTimes(5, "nobody@demo.krajozbior.local");
 
-      const response = await login(jsonLogin("nobody@demo.starter.local", PASSWORD));
+      const response = await login(jsonLogin("nobody@demo.krajozbior.local", PASSWORD));
 
       expect(response.status).toBe(429);
     });
@@ -451,7 +454,7 @@ describe("local demo login and role enforcement", () => {
       withIpHeader(async () => {
         for (let i = 0; i < 20; i += 1) {
           await login(
-            jsonLogin(`guess${i}@demo.starter.local`, "not-the-password", fromIp("203.0.113.9")),
+            jsonLogin(`guess${i}@demo.krajozbior.local`, "not-the-password", fromIp("203.0.113.9")),
           );
         }
 
@@ -503,7 +506,7 @@ describe("local demo login and role enforcement", () => {
         name: "UnsafeDatabaseRoleError",
       });
 
-      const response = await login(jsonLogin("user@demo.starter.local", PASSWORD));
+      const response = await login(jsonLogin("user@demo.krajozbior.local", PASSWORD));
 
       expect(response.status).toBe(503);
       expect(response.headers.getSetCookie()).toEqual([]);

@@ -4,7 +4,7 @@
 //
 // Rule: docs/data-isolation.md, sections 3 and 5 — every table is created in the
 // same migration as its row security; "add RLS later" is not allowed. The `auth`
-// schema is exempt: starter_app has no privileges there at all (section 3).
+// schema is exempt: krajozbior_app has no privileges there at all (section 3).
 //
 // Recognised: `create [global|local] [temp|temporary|unlogged] table [if not
 // exists] <name>` (also `... as select` and `partition of`), `select ... into

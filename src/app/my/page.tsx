@@ -8,7 +8,7 @@ import styles from "../home.module.css";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Moje konto — Starter" };
+export const metadata: Metadata = { title: "Moje konto — Krajozbiór" };
 
 // The pattern of a private page: the session is checked on the server, a guest
 // is sent to /login and returns here afterwards. Replace the content with the

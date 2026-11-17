@@ -10,10 +10,10 @@ describe("privateTableSecuritySql", () => {
       "alter table public.notes enable row level security;",
       "alter table public.notes force row level security;",
       "revoke all on public.notes from public;",
-      "grant select, insert, update on public.notes to starter_app;",
-      "create policy notes_owner_select on public.notes for select to starter_app using (user_id = (select app_current_user_id()));",
-      "create policy notes_owner_insert on public.notes for insert to starter_app with check (user_id = (select app_current_user_id()));",
-      "create policy notes_owner_update on public.notes for update to starter_app using (user_id = (select app_current_user_id())) with check (user_id = (select app_current_user_id()));",
+      "grant select, insert, update on public.notes to krajozbior_app;",
+      "create policy notes_owner_select on public.notes for select to krajozbior_app using (user_id = (select app_current_user_id()));",
+      "create policy notes_owner_insert on public.notes for insert to krajozbior_app with check (user_id = (select app_current_user_id()));",
+      "create policy notes_owner_update on public.notes for update to krajozbior_app using (user_id = (select app_current_user_id())) with check (user_id = (select app_current_user_id()));",
     ]);
   });
 
@@ -24,7 +24,7 @@ describe("privateTableSecuritySql", () => {
         operations: ["delete"],
       }),
     ).toContain(
-      "create policy shared_notes_owner_delete on app.shared_notes for delete to starter_app using (owner_id = (select app_current_user_id()));",
+      "create policy shared_notes_owner_delete on app.shared_notes for delete to krajozbior_app using (owner_id = (select app_current_user_id()));",
     );
   });
 
@@ -38,7 +38,7 @@ describe("privateTableSecuritySql", () => {
 
   it("refuses a table with no operation for the application", () => {
     expect(() => privateTableSecuritySql("notes", { operations: [] })).toThrow(
-      "A PRIV table needs at least one operation for starter_app",
+      "A PRIV table needs at least one operation for krajozbior_app",
     );
   });
 });

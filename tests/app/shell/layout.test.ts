@@ -49,7 +49,7 @@ describe("app shell", () => {
   });
 
   it("links the application name to the start page", async () => {
-    expect(header(await shell())).toMatch(/^<a class="[^"]*brand[^"]*" href="\/">Starter<\/a>/);
+    expect(header(await shell())).toMatch(/^<a class="[^"]*brand[^"]*" href="\/">Krajozbiór<\/a>/);
   });
 
   it("gives a guest a login link back to the current page", async () => {
