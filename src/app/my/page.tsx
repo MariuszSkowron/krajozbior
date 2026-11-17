@@ -31,6 +31,9 @@ export default async function MyPage() {
         <p>
           <Link href="/my/collections">Moje kolekcje</Link>
         </p>
+        <p>
+          <Link href="/my/want-to-see">Chcę zobaczyć</Link>
+        </p>
       </section>
     </div>
   );

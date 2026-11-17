@@ -10,8 +10,9 @@ import {
 } from "@/features/visits/domain/visit-outcome";
 
 import styles from "./visit-confirmation.module.css";
+import { WantToSeeButton } from "./want-to-see-button";
 
-type Props = { placeId: string };
+type Props = { placeId: string; initialWanted: boolean };
 
 type Reading = { latitude: number; longitude: number; accuracy: number };
 type Attempt = { clientVisitId: string; reading: Reading };
@@ -88,7 +89,7 @@ function feedbackText(state: State): string {
 // server error) sends the same client visit id and the same body, so the
 // server records one visit at most; a fresh check ("Sprawdź ponownie") reads
 // the position again and uses a new id.
-export function VisitConfirmation({ placeId }: Props) {
+export function VisitConfirmation({ placeId, initialWanted }: Props) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const attempt = useRef<Attempt | null>(null);
 
@@ -224,6 +225,7 @@ export function VisitConfirmation({ placeId }: Props) {
       >
         {feedbackText(state)}
       </p>
+      <WantToSeeButton placeId={placeId} initialWanted={initialWanted} />
     </div>
   );
 }

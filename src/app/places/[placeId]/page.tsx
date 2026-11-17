@@ -8,6 +8,8 @@ import { getPublishedPlace } from "@/features/catalog/application/public-catalog
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import { hasVisitedPlace } from "@/features/visits/application/confirm-on-site-visit";
 import { getVisitDeps } from "@/features/visits/infrastructure/visit-deps";
+import { isWantedPlace } from "@/features/want-to-see/application/want-to-see";
+import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-see-deps";
 
 import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
@@ -41,9 +43,14 @@ async function loadVisit(placeId: string) {
     }
 
     const state = await hasVisitedPlace(actor, placeId, getVisitDeps());
+    const wanted = await isWantedPlace(actor, placeId, getWantToSeeDeps());
 
-    return state.status === "ok"
-      ? ({ kind: "explorer", visited: state.value.visited } as const)
+    return state.status === "ok" && wanted.status === "ok"
+      ? ({
+          kind: "explorer",
+          visited: state.value.visited,
+          wanted: wanted.value.wanted,
+        } as const)
       : ({ kind: "none" } as const);
   } catch (error) {
     logReadFailure("Place visit read", error);
@@ -107,12 +114,18 @@ export default async function PlacePage({ params }: { params: Params }) {
               Zaloguj się, aby potwierdzić wizytę
             </Link>
             <p className={albumStyles.feedback}>Po zalogowaniu wrócisz na tę stronę.</p>
+            <Link
+              className={`${albumStyles.action} ${albumStyles.secondary}`}
+              href={visit.loginHref}
+            >
+              Zaloguj się, aby zapisać na Chcę zobaczyć
+            </Link>
           </div>
         ) : visit.kind === "explorer" ? (
           visit.visited ? (
             <p>Masz już zapisaną wizytę w tym miejscu.</p>
           ) : (
-            <VisitConfirmation placeId={place.id} />
+            <VisitConfirmation placeId={place.id} initialWanted={visit.wanted} />
           )
         ) : visit.kind === "unavailable" ? (
           <p className={albumStyles.feedback}>

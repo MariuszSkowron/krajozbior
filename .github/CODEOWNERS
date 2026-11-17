@@ -52,6 +52,11 @@
 /tests/support/album-fixtures.ts   @MariuszSkowron
 /e2e/album-access.spec.ts          @MariuszSkowron
 
+# Lista „Chcę zobaczyć” odkrywcy (dane PRIV) i jej testy dostępu
+/src/features/want-to-see/         @MariuszSkowron
+/tests/features/want-to-see/       @MariuszSkowron
+/e2e/want-to-see.spec.ts           @MariuszSkowron
+
 # Publiczne strony kolekcji i miejsc (dziś treść publiczna, w kolejnych krokach
 # także prywatny postęp odkrywcy) oraz ich wspólne style
 /src/app/collections/              @MariuszSkowron
