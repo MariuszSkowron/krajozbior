@@ -1,0 +1,192 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
+
+import {
+  COLLECTION_SUMMARY_MAX_LENGTH,
+  COLLECTION_TITLE_MAX_LENGTH,
+  REGIONS,
+  REGION_LABELS,
+  type Region,
+} from "@/features/catalog/domain/collection";
+
+import { callApi } from "./curator-api";
+import { failed, Field, FeedbackRegion, type Feedback } from "./curator-ui";
+import styles from "./curator.module.css";
+import { fieldHints } from "./failure-message";
+
+type CollectionValues = Readonly<{ title: string; summary: string; region: Region }>;
+
+type CollectionFormProps = Readonly<
+  | { mode: "create"; organizationId: string }
+  | {
+      mode: "edit";
+      collection: CollectionValues & { id: string; version: number };
+    }
+>;
+
+const FIELDS = {
+  title: ["collection-title", "Nazwa"],
+  summary: ["collection-summary", "Opis"],
+  region: ["collection-region", "Województwo"],
+} as const;
+
+// Name, short description and voivodeship of a collection. The outer part keeps
+// the message of the last save; the fields are keyed by the version, so after
+// a reload they show what is stored now (and a stale version is never resent).
+export function CollectionForm(props: CollectionFormProps) {
+  const router = useRouter();
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const key = props.mode === "edit" ? props.collection.version : "new";
+
+  return (
+    <div>
+      <FeedbackRegion
+        feedback={feedback}
+        fields={FIELDS}
+        onReload={() => {
+          setFeedback({ kind: "info", message: "Wczytano aktualną wersję kolekcji." });
+          router.refresh();
+        }}
+      />
+      <CollectionFields key={key} {...props} feedback={feedback} onFeedback={setFeedback} />
+    </div>
+  );
+}
+
+function CollectionFields({
+  feedback,
+  onFeedback,
+  ...props
+}: CollectionFormProps &
+  Readonly<{ feedback: Feedback | null; onFeedback: (f: Feedback) => void }>) {
+  const router = useRouter();
+  const initial: CollectionValues =
+    props.mode === "edit" ? props.collection : { title: "", summary: "", region: "pomorskie" };
+  const [summaryLength, setSummaryLength] = useState(initial.summary.length);
+  const [pending, setPending] = useState(false);
+  const refused = feedback?.kind === "error" ? feedback.fields : [];
+  const hint = (name: keyof typeof FIELDS) =>
+    refused.includes(name) ? fieldHints[name] : undefined;
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (pending) {
+      return;
+    }
+
+    const data = new FormData(event.currentTarget);
+    const values = {
+      title: String(data.get("title") ?? ""),
+      summary: String(data.get("summary") ?? ""),
+      region: String(data.get("region") ?? ""),
+    };
+
+    setPending(true);
+
+    if (props.mode === "create") {
+      const result = await callApi<{ id: string }>(
+        "POST",
+        "/api/curator/collections",
+        "collection",
+        { organizationId: props.organizationId, ...values },
+      );
+
+      if (result.ok) {
+        router.push(`/curator/collections/${result.value.id}`);
+
+        return;
+      }
+
+      onFeedback(failed(result.failure));
+      setPending(false);
+
+      return;
+    }
+
+    const result = await callApi(
+      "PATCH",
+      `/api/curator/collections/${props.collection.id}`,
+      "collection",
+      { version: props.collection.version, ...values },
+    );
+
+    setPending(false);
+
+    if (result.ok) {
+      onFeedback({ kind: "success", message: "Zapisano zmiany." });
+      router.refresh();
+    } else {
+      onFeedback(failed(result.failure));
+    }
+  }
+
+  return (
+    <form className={styles.form} onSubmit={submit} noValidate>
+      <Field id={FIELDS.title[0]} label="Nazwa" invalidHint={hint("title")}>
+        {(aria) => (
+          <input
+            {...aria}
+            name="title"
+            type="text"
+            maxLength={COLLECTION_TITLE_MAX_LENGTH * 2}
+            defaultValue={initial.title}
+            required
+            autoComplete="off"
+          />
+        )}
+      </Field>
+      <Field
+        id={FIELDS.summary[0]}
+        label="Krótki opis"
+        help={`${summaryLength} / ${COLLECTION_SUMMARY_MAX_LENGTH} znaków`}
+        invalidHint={hint("summary")}
+      >
+        {(aria) => (
+          <textarea
+            {...aria}
+            name="summary"
+            rows={4}
+            defaultValue={initial.summary}
+            onChange={(event) =>
+              setSummaryLength(event.currentTarget.value.replace(/\r\n?/g, "\n").length)
+            }
+          />
+        )}
+      </Field>
+      <Field id={FIELDS.region[0]} label="Województwo" invalidHint={hint("region")}>
+        {(aria) => (
+          <select {...aria} name="region" defaultValue={initial.region} required>
+            {REGIONS.map((region) => (
+              <option key={region} value={region}>
+                {REGION_LABELS[region]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+      <div className={styles.actions}>
+        <button
+          type="submit"
+          className={styles.primary}
+          aria-disabled={pending}
+          onClick={(event) => {
+            if (pending) {
+              event.preventDefault();
+            }
+          }}
+        >
+          {props.mode === "create"
+            ? pending
+              ? "Tworzenie…"
+              : "Utwórz szkic kolekcji"
+            : pending
+              ? "Zapisywanie…"
+              : "Zapisz zmiany"}
+        </button>
+      </div>
+    </form>
+  );
+}

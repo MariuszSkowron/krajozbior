@@ -22,6 +22,27 @@ export type PlaceRow = Readonly<
   PlaceInput & { id: string; organizationId: string; version: number }
 >;
 
+// Panel read models (PR3): a list row, and an editor with the places in order.
+export type CuratorCollectionSummary = Readonly<{
+  id: string;
+  title: string;
+  region: Region;
+  status: CollectionStatus;
+  placeCount: number;
+  updatedAt: Date;
+}>;
+
+export type CuratorPlaceItem = Readonly<PlaceRow & { position: number }>;
+
+export type CuratorOwnPlace = Readonly<{ id: string; name: string; address: string }>;
+
+export type CuratorCollectionDetail = Readonly<{
+  collection: CollectionRow;
+  places: readonly CuratorPlaceItem[];
+  /** Places of the same organization that are not in this collection yet. */
+  otherPlaces: readonly CuratorOwnPlace[];
+}>;
+
 // What a guest sees: public content only, no organization id, no version.
 export type PublishedPlaceSummary = Readonly<{
   id: string;
@@ -84,6 +105,22 @@ export interface CatalogRepository {
     status: CollectionStatus,
   ): Promise<CollectionRow | null>;
   deleteCollection(tx: TransactionContext, id: string): Promise<boolean>;
+  /** Collections of one organization, newest change first (curator list). */
+  listOrganizationCollections(
+    tx: TransactionContext,
+    organizationId: string,
+  ): Promise<readonly CuratorCollectionSummary[]>;
+  /** Places of a collection with their positions, in order. */
+  listCollectionPlaces(
+    tx: TransactionContext,
+    collectionId: string,
+  ): Promise<readonly CuratorPlaceItem[]>;
+  /** Places of the organization that are not in the collection. */
+  listPlacesOutsideCollection(
+    tx: TransactionContext,
+    organizationId: string,
+    collectionId: string,
+  ): Promise<readonly CuratorOwnPlace[]>;
   /** Place ids of a collection in order. */
   listCollectionPlaceIds(tx: TransactionContext, collectionId: string): Promise<readonly string[]>;
   listCollectionPositions(tx: TransactionContext, collectionId: string): Promise<readonly number[]>;

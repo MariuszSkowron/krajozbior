@@ -2,7 +2,11 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ getActor: vi.fn(), pathname: "/" }));
+const mocks = vi.hoisted(() => ({
+  getActor: vi.fn(),
+  listMemberships: vi.fn(),
+  pathname: "/",
+}));
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("next/navigation", async (importOriginal) => ({
@@ -11,6 +15,13 @@ vi.mock("next/navigation", async (importOriginal) => ({
 }));
 vi.mock("@/features/identity/infrastructure", () => ({
   getIdentityProvider: () => ({ getActor: mocks.getActor }),
+}));
+
+vi.mock("@/features/organizations/infrastructure/postgres-organization-reader", () => ({
+  listMyOrganizationsDeps: {
+    withUserContext: async (_actor: unknown, work: (tx: unknown) => Promise<unknown>) => work({}),
+    listMemberships: mocks.listMemberships,
+  },
 }));
 
 const { default: RootLayout, viewport } = await import("@/app/layout");
@@ -31,6 +42,7 @@ beforeEach(() => {
     .mockClear()
     .mockImplementation(() => undefined);
   mocks.getActor.mockReset().mockResolvedValue(null);
+  mocks.listMemberships.mockReset().mockResolvedValue([]);
   mocks.pathname = "/";
 });
 
@@ -74,6 +86,48 @@ describe("app shell", () => {
       /<form action="\/api\/auth\/logout" method="post"><button [^>]*type="submit">Wyloguj<\/button><\/form>/,
     );
     expect(html).not.toContain("Zaloguj się");
+  });
+
+  const organization = (status: "approved" | "suspended") => ({
+    id: "22222222-2222-4222-8222-222222222222",
+    name: "Gmina",
+    slug: "gmina",
+    kind: "municipality",
+    status,
+  });
+
+  it("shows the link to the curator panel for a member of an approved organization", async () => {
+    mocks.getActor.mockResolvedValue(as("user"));
+    mocks.listMemberships.mockResolvedValue([organization("approved")]);
+
+    expect(header(await shell())).toContain('href="/curator">Panel kuratora</a>');
+  });
+
+  it.each([
+    ["has no organization", []],
+    ["has only a suspended organization", [organization("suspended")]],
+  ])("shows no panel link for an account that %s", async (_name, memberships) => {
+    mocks.getActor.mockResolvedValue(as("user"));
+    mocks.listMemberships.mockResolvedValue(memberships);
+
+    expect(await shell()).not.toContain("Panel kuratora");
+  });
+
+  it("shows no panel link to a guest and does not look organizations up", async () => {
+    expect(await shell()).not.toContain("Panel kuratora");
+    expect(mocks.listMemberships).not.toHaveBeenCalled();
+  });
+
+  it("draws the shell without the link and logs the error class when the lookup fails", async () => {
+    mocks.getActor.mockResolvedValue(as("user"));
+    mocks.listMemberships.mockRejectedValue(new Error("db down: secret"));
+
+    const html = await shell();
+
+    expect(html).not.toContain("Panel kuratora");
+    expect(html).toContain("Wyloguj");
+    expect(console.error).toHaveBeenCalledWith("Curator link lookup failed:", "Error");
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
   });
 
   it("draws the guest shell and logs only the error class when the session lookup fails", async () => {

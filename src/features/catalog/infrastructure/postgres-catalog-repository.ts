@@ -5,6 +5,9 @@ import type { TransactionContext } from "@/lib/db/user-context";
 import type {
   CatalogRepository,
   CollectionRow,
+  CuratorCollectionSummary,
+  CuratorOwnPlace,
+  CuratorPlaceItem,
   PlaceRow,
   PublishedCollection,
   PublishedPlace,
@@ -92,6 +95,51 @@ export const postgresCatalogRepository: CatalogRepository = {
     );
 
     return rows.length > 0;
+  },
+
+  async listOrganizationCollections(tx, organizationId) {
+    // The driver returns timestamptz as text here.
+    const rows = await tx.em.execute<
+      (Omit<CuratorCollectionSummary, "updatedAt"> & { updatedAt: string | Date })[]
+    >(
+      `select c.id, c.title, c.region, c.status,
+              (select count(*)::int from public.collection_places cp where cp.collection_id = c.id)
+                as "placeCount",
+              to_char(c.updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "updatedAt"
+         from public.collections c
+        where c.organization_id = ? and app_org_permission(c.organization_id) = 'full_edit'
+        order by c.updated_at desc, c.id`,
+      [organizationId],
+    );
+
+    return rows.map((row) => ({ ...row, updatedAt: new Date(row.updatedAt) }));
+  },
+
+  async listCollectionPlaces(tx, collectionId) {
+    return tx.em.execute<CuratorPlaceItem[]>(
+      `select p.id, p.organization_id as "organizationId", p.name, p.description, p.address,
+              p.access_info as "accessInfo", p.latitude, p.longitude,
+              p.visit_radius_m as "visitRadiusM", p.version, cp.position
+         from public.collection_places cp
+         join public.places p on p.id = cp.place_id
+        where cp.collection_id = ? and app_org_permission(p.organization_id) = 'full_edit'
+        order by cp.position`,
+      [collectionId],
+    );
+  },
+
+  async listPlacesOutsideCollection(tx, organizationId, collectionId) {
+    return tx.em.execute<CuratorOwnPlace[]>(
+      `select p.id, p.name, p.address
+         from public.places p
+        where p.organization_id = ? and app_org_permission(p.organization_id) = 'full_edit'
+          and not exists (
+            select from public.collection_places cp
+             where cp.collection_id = ? and cp.place_id = p.id
+          )
+        order by p.name, p.id`,
+      [organizationId, collectionId],
+    );
   },
 
   async listCollectionPlaceIds(tx, collectionId) {

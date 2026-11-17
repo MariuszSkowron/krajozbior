@@ -40,6 +40,21 @@ export async function admitCurator(
 }
 
 /**
+ * Reads (the panel screens) need the actor but no write limit: nothing changes.
+ * The same refusal as `admitCurator` for a guest.
+ */
+export function admitCuratorRead(actor: Actor | null): { actor: Actor } | { refusal: Refusal } {
+  try {
+    return { actor: requireActor(actor) };
+  } catch (error) {
+    if (error instanceof AuthenticationRequiredError) {
+      return { refusal: { status: "unauthenticated" } };
+    }
+    throw error;
+  }
+}
+
+/**
  * Runs `work` in the user context of the actor. A caller without a membership
  * in an approved organization gets `forbidden` before anything else; which
  * organizations count is decided by the database (app_org_permission).
