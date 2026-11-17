@@ -50,6 +50,7 @@
 /src/features/visits/              @MariuszSkowron
 /tests/features/visits/            @MariuszSkowron
 /tests/support/album-fixtures.ts   @MariuszSkowron
+/e2e/album-access.spec.ts          @MariuszSkowron
 
 # Publiczne strony kolekcji i miejsc (dziś treść publiczna, w kolejnych krokach
 # także prywatny postęp odkrywcy) oraz ich wspólne style

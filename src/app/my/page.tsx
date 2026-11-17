@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getRequestActor, loginHref } from "@/app/request-actor";
@@ -26,6 +27,9 @@ export default async function MyPage() {
         <h1 id="my-title">Moje konto</h1>
         <p className={styles.lead}>
           Twoja rola: <strong>{roleLabels[actor.role]}</strong>.
+        </p>
+        <p>
+          <Link href="/my/collections">Moje kolekcje</Link>
         </p>
       </section>
     </div>
