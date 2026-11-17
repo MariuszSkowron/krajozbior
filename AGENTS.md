@@ -132,6 +132,7 @@ Nie scalaj PR z czerwonymi wymaganymi checkami ani przy wszystkich checkach pomi
 ## Styl tekstów (PR, issue, komentarze, specyfikacje)
 
 - PR, zadania i komentarze czyta właściciel produktu, nie programista. Zacznij od 1–3 zdań prostą polszczyzną: co zmienia się dla użytkownika lub projektu i dlaczego. Szczegóły techniczne daj niżej, w sekcji „Szczegóły techniczne”.
+- **Wprowadzenie PR jest obowiązkowe i odpowiada na trzy pytania:** co robi ten PR (w skutkach dla użytkownika lub projektu, nie w nazwach plików), dlaczego jest potrzebny i z czego wynika (zadanie `docs#N`, decyzja `D-NN`, specyfikacja, błąd albo prośba właściciela; w repozytorium publicznym podajesz sam identyfikator, bez treści prywatnej). Ma je zrozumieć osoba bez wiedzy technicznej. Przed utworzeniem PR przeczytaj wprowadzenie jeszcze raz pod kątem gramatyki, interpunkcji i kalek z angielskiego. Recenzent sprawdza wprowadzenie razem z kodem: niezrozumiałe albo niegramatyczne to uwaga do poprawy, tak jak błąd w kodzie.
 - Pisz po polsku, nie kalką z angielskiego: pełne zdania z czasownikiem zamiast ciągów rzeczowników, naturalny szyk, bez spolszczonego żargonu (np. „fail closed” → „przy awarii blokuje zapis”, „zaadresować” → „rozwiązać”, „deliverable” → „rezultat”). Angielski termin tylko wtedy, gdy nie ma dobrego polskiego odpowiednika.
 - Nazwy plików, klas i poleceń dawaj w nawiasie lub w sekcji technicznej, nie jako podmiot zdania. Kody i skróty wyjaśnij przy pierwszym użyciu.
 - Komentarz mówi krótko: co zrobiono, co z tego wynika i czego potrzeba od człowieka.
