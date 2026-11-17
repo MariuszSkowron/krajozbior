@@ -13,6 +13,7 @@ import { connectOpsCurator } from "@/features/organizations/infrastructure/postg
 import { listMyOrganizationsDeps } from "@/features/organizations/infrastructure/postgres-organization-reader";
 import {
   demoOrganizations,
+  assertDemoOrganizationsSeeded,
   seedDemoOrganizations,
 } from "@/features/organizations/infrastructure/seed-demo-organizations";
 import { createOrmConfig } from "@/lib/db/config";
@@ -31,7 +32,6 @@ import { findApplicationRoleGaps, findRowLevelSecurityGaps } from "../support/rl
 // krajozbior_owner like `npm run ops:curator`; the superuser connection only
 // prepares accounts and reads the catalog.
 const TABLES = ["public.organizations", "public.organization_members", "public.operations_audit"];
-const rejectedByPolicy = /row-level security/;
 
 let db: ScratchDatabase;
 let app: MikroORM;
@@ -41,6 +41,8 @@ const accounts = {
   ewa: { id: randomUUID(), email: "ewa@example.com" },
   jan: { id: randomUUID(), email: "jan@example.com" },
   kasia: { id: randomUUID(), email: "kasia@example.com" },
+  olek: { id: randomUUID(), email: "olek@example.com" },
+  zosia: { id: randomUUID(), email: "zosia@example.com" },
 };
 const demoA = { id: randomUUID(), email: "curator-a@demo.krajozbior.local" };
 const demoB = { id: randomUUID(), email: "curator-b@demo.krajozbior.local" };
@@ -396,6 +398,39 @@ describe("organizations, membership and operator command", () => {
     ).toBe(1);
   });
 
+  it("lets only one of two parallel grants into an existing empty person organization", async () => {
+    const slug = "osoba-rownolegle";
+
+    await grant(slug, accounts.ewa.email, "--name", "Osoba Rownolegla", "--kind", "person");
+    await ops("revoke", "--org-slug", slug, "--email", accounts.ewa.email, "--reason", "Koniec");
+
+    const results = await Promise.all([
+      grant(slug, accounts.olek.email),
+      grant(slug, accounts.zosia.email),
+    ]);
+
+    expect(results.map((result) => result.exitCode).sort()).toEqual([0, 3]);
+    expect(results.filter((result) => result.json.outcome === "applied").length).toBe(1);
+    expect(results.filter((result) => result.json.code === "person_member_limit").length).toBe(1);
+    expect(
+      (
+        await admin$<{ n: number }>(
+          `select count(*)::int as n from public.organization_members where organization_id = $1`,
+          [await orgId(slug)],
+        )
+      )[0]!.n,
+    ).toBe(1);
+    expect(
+      (
+        await admin$<{ n: number }>(
+          `select count(*)::int as n from public.operations_audit
+           where organization_id = $1 and outcome = 'rejected' and error_code = 'person_member_limit'`,
+          [await orgId(slug)],
+        )
+      )[0]!.n,
+    ).toBe(1);
+  });
+
   it("revokes a membership once and repeats revoke as noop", async () => {
     const revoke = () =>
       ops(
@@ -584,6 +619,21 @@ describe("organizations, membership and operator command", () => {
     expect(await runInUserContext(app.em, demoB, ({ em }) => permission(em, idB))).toEqual({
       p: "full_edit",
     });
+  });
+
+  it("fails the demo seed when a curator grant is refused", () => {
+    expect(() =>
+      assertDemoOrganizationsSeeded([
+        { outcome: "applied", organizationSlug: "gmina-a" },
+        { outcome: "rejected", code: "user_not_found", organizationSlug: "pttk-b" },
+      ]),
+    ).toThrow(/pttk-b \(user_not_found\)/);
+    expect(() =>
+      assertDemoOrganizationsSeeded([
+        { outcome: "applied", organizationSlug: "gmina-a" },
+        { outcome: "noop", organizationSlug: "pttk-b" },
+      ]),
+    ).not.toThrow();
   });
 
   it("does not carry a user context to the next transaction on the same connection", async () => {

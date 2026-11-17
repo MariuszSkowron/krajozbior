@@ -34,6 +34,19 @@ export const demoOrganizations: readonly {
 const SEED_OPERATOR = "seed-demo";
 const SEED_REASON = "Konto demo lokalnego środowiska";
 
+/** Fails when any demo membership was refused, so the seed does not end with partial data. */
+export function assertDemoOrganizationsSeeded(results: readonly OpsCuratorResult[]): void {
+  const rejected = results.filter(({ outcome }) => outcome === "rejected");
+
+  if (rejected.length > 0) {
+    throw new Error(
+      `Demo organizations were refused: ${rejected
+        .map(({ organizationSlug, code }) => `${organizationSlug} (${code ?? "unknown"})`)
+        .join(", ")}`,
+    );
+  }
+}
+
 /** Grants the demo memberships as krajozbior_owner (`connectionString`). */
 export async function seedDemoOrganizations(connectionString: string): Promise<OpsCuratorResult[]> {
   const connection = await connectOpsCurator(connectionString);

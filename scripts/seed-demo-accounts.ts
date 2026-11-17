@@ -1,4 +1,5 @@
-// Creates or resets the local demo accounts (two users and an admin).
+// Creates or resets the local demo accounts (two users, an admin and two
+// curators) and the demo organizations the curators belong to.
 // Local use only: refuses to run without the explicit flag ALLOW_DEMO_SEED=1,
 // in production, or against a database that is not on localhost. The shared
 // password comes from DEMO_ACCOUNT_PASSWORD and is never written to the
@@ -13,7 +14,10 @@
 import { closeAuth } from "../src/features/identity/infrastructure/better-auth";
 import { seedDemoAccounts } from "../src/features/identity/infrastructure/demo-accounts";
 import { ownerRoleAssigner } from "../src/features/identity/infrastructure/user-role";
-import { seedDemoOrganizations } from "../src/features/organizations/infrastructure/seed-demo-organizations";
+import {
+  assertDemoOrganizationsSeeded,
+  seedDemoOrganizations,
+} from "../src/features/organizations/infrastructure/seed-demo-organizations";
 import { assertLocalDatabaseUrl } from "../src/lib/config/loopback";
 
 async function main() {
@@ -40,11 +44,14 @@ async function main() {
     }
 
     // The identity area does not import organizations; the script wires them.
-    for (const { organizationSlug, outcome } of await seedDemoOrganizations(
-      process.env.DATABASE_MIGRATION_URL as string,
-    )) {
+    const organizations = await seedDemoOrganizations(process.env.DATABASE_MIGRATION_URL as string);
+
+    for (const { organizationSlug, outcome } of organizations) {
       console.log(`Demo organization ${organizationSlug}: ${outcome}`);
     }
+
+    // A refused grant ends the script with a non-zero code (main's catch).
+    assertDemoOrganizationsSeeded(organizations);
   } finally {
     await closeAuth();
   }
