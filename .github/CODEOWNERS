@@ -44,6 +44,13 @@
 /src/features/catalog/             @MariuszSkowron
 /tests/features/catalog/           @MariuszSkowron
 
+# Album odkrywcy: zapisane kolekcje, wizyty (dane PRIV; wizytę na miejscu tworzy funkcja bazy)
+/src/features/album/               @MariuszSkowron
+/tests/features/album/             @MariuszSkowron
+/src/features/visits/              @MariuszSkowron
+/tests/features/visits/            @MariuszSkowron
+/tests/support/album-fixtures.ts   @MariuszSkowron
+
 # Uprawnienia bazy, reguły dostępu do danych (RLS) i wszystkie migracje
 /src/lib/db/                       @MariuszSkowron
 /mikro-orm.config.ts               @MariuszSkowron
