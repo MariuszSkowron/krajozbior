@@ -148,7 +148,11 @@ export type CuratorOutcome<T> =
   | Readonly<{ status: "invalid"; errors: readonly string[] }>
   | Readonly<{
       status: "conflict";
-      reason: "stale_version" | "was_published" | "already_in_collection";
+      reason:
+        | "stale_version"
+        | "was_published"
+        | "already_in_collection"
+        | "last_place_of_published_collection";
     }>
   | Readonly<{
       status: "unprocessable";

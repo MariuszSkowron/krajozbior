@@ -63,11 +63,16 @@ export function validateCollectionInput(input: {
         ? normalizeLineBreaks(input.summary).trim()
         : null;
 
-  if (title.length < 1 || title.length > COLLECTION_TITLE_MAX_LENGTH) {
+  // PostgreSQL cannot store a NUL character: reject it as invalid input.
+  if (title.length < 1 || title.length > COLLECTION_TITLE_MAX_LENGTH || title.includes("\u0000")) {
     errors.push("title");
   }
 
-  if (summary === null || summary.length > COLLECTION_SUMMARY_MAX_LENGTH) {
+  if (
+    summary === null ||
+    summary.length > COLLECTION_SUMMARY_MAX_LENGTH ||
+    summary.includes("\u0000")
+  ) {
     errors.push("summary");
   }
 

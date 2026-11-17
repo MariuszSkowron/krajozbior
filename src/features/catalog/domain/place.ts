@@ -34,6 +34,11 @@ function text(value: unknown, max: number, required: boolean): string | null {
     return null;
   }
 
+  // PostgreSQL cannot store a NUL character: reject it as invalid input.
+  if (value.includes("\u0000")) {
+    return null;
+  }
+
   const normalized = value.replace(/\r\n?/g, "\n").trim();
 
   return normalized.length <= max && (!required || normalized.length >= 1) ? normalized : null;

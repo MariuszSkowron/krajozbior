@@ -237,6 +237,7 @@ describe("collections, places and their links", () => {
          has_column_privilege('krajozbior_app', 'collection_places', 'collection_id', 'update') as l_coll_update,
          has_column_privilege('krajozbior_app', 'collection_places', 'place_id', 'update') as l_place_update,
          has_any_column_privilege('krajozbior_auth', 'collections', 'select, insert, update') as auth_c,
+         has_any_column_privilege('krajozbior_ops', 'collections', 'select, insert, update') as ops_c,
          has_any_column_privilege('krajozbior_ops', 'places', 'select, insert, update') as ops_p,
          has_any_column_privilege('krajozbior_ops', 'collection_places', 'select, insert, update') as ops_l`,
     );
@@ -263,6 +264,7 @@ describe("collections, places and their links", () => {
       l_coll_update: false,
       l_place_update: false,
       auth_c: false,
+      ops_c: false,
       ops_p: false,
       ops_l: false,
     });
@@ -789,6 +791,56 @@ describe("collections, places and their links", () => {
     ).rejects.toThrow(/missing/);
   });
 
+  it("repairs a demo collection left half-made by an earlier run (found by slug, not by title)", async () => {
+    const half = user("seed-half");
+
+    await admin$(`insert into auth.users (id, name, email) values ($1, 'seed-half', $2)`, [
+      half.id,
+      half.email,
+    ]);
+    const [{ id: orgId }] = await admin$<{ id: string }>(
+      `insert into public.organizations (name, slug, kind) values ('Seed half', 'seed-half', 'municipality') returning id`,
+    );
+
+    await admin$(
+      `insert into public.organization_members (organization_id, user_id) values ($1, $2)`,
+      [orgId, half.id],
+    );
+    // The slug is unique in the whole database: clear the sample made by the previous test.
+    await admin$(
+      `delete from public.collection_places where collection_id in
+         (select id from public.collections where slug = 'demo-mosty-i-zamki-nad-wisla')`,
+    );
+    await admin$(`delete from public.collections where slug = 'demo-mosty-i-zamki-nad-wisla'`);
+    // A draft with one place only, as if the run failed after the first place.
+    await as(
+      half,
+      `insert into public.collections (slug, organization_id, title, region)
+       values ('demo-mosty-i-zamki-nad-wisla', ?, 'Inny tytuł', 'pomorskie')`,
+      [orgId],
+    );
+    const [{ id: collectionId }] = await admin$<{ id: string }>(
+      `select id from public.collections where slug = 'demo-mosty-i-zamki-nad-wisla'`,
+    );
+    const placeId = await newPlace(half, orgId, "Most Tczewski");
+
+    await link(half, collectionId, placeId, orgId, 1);
+
+    expect(
+      await seedDemoCatalog(db.urls.krajozbior_app, db.urls.krajozbior_owner, half.email),
+    ).toBe("created");
+    expect(
+      await admin$(
+        `select c.status, (select count(*)::int from public.collection_places cp where cp.collection_id = c.id) as places
+           from public.collections c where c.id = $1`,
+        [collectionId],
+      ),
+    ).toEqual([{ status: "published", places: 3 }]);
+    expect(
+      await seedDemoCatalog(db.urls.krajozbior_app, db.urls.krajozbior_owner, half.email),
+    ).toBe("noop");
+  });
+
   it("does not carry a user context to the next transaction on the same connection", async () => {
     const inside = await as(curA, "select pg_backend_pid() as pid");
     const after = await asGuest("select pg_backend_pid() as pid");
@@ -1090,6 +1142,58 @@ describe("collections, places and their links", () => {
       });
     });
 
+    it("keeps the last place of a published collection and answers a NUL character with invalid input", async () => {
+      const created = await createCollection(
+        asActor(curA),
+        { title: "Z jednym miejscem", region: "slaskie" },
+        deps,
+      );
+
+      if (created.status !== "ok") throw new Error("setup");
+      const { id } = created.value;
+      const added = await addPlace(
+        asActor(curA),
+        id,
+        { name: "Jedyne", latitude: 50, longitude: 19 },
+        deps,
+      );
+
+      if (added.status !== "ok") throw new Error("setup");
+      expect(
+        await publishCollection(asActor(curA), id, { version: created.value.version }, deps),
+      ).toMatchObject({ status: "ok" });
+
+      expect(await removePlaceFromCollection(asActor(curA), id, added.value.placeId, deps)).toEqual(
+        { status: "conflict", reason: "last_place_of_published_collection" },
+      );
+      expect(
+        await admin$(`select 1 from public.collection_places where collection_id = $1`, [id]),
+      ).toHaveLength(1);
+
+      // A second place makes the first removable; the last one stays again.
+      const second = await addPlace(
+        asActor(curA),
+        id,
+        { name: "Drugie", latitude: 50.1, longitude: 19.1 },
+        deps,
+      );
+
+      if (second.status !== "ok") throw new Error("setup");
+      expect(
+        await removePlaceFromCollection(asActor(curA), id, added.value.placeId, deps),
+      ).toMatchObject({ status: "ok" });
+      expect(
+        await removePlaceFromCollection(asActor(curA), id, second.value.placeId, deps),
+      ).toEqual({ status: "conflict", reason: "last_place_of_published_collection" });
+
+      expect(
+        await createCollection(asActor(curA), { title: "a\u0000b", region: "slaskie" }, deps),
+      ).toEqual({ status: "invalid", errors: ["title"] });
+      expect(
+        await addPlace(asActor(curA), id, { name: "a\u0000b", latitude: 1, longitude: 1 }, deps),
+      ).toEqual({ status: "invalid", errors: ["name"] });
+    });
+
     it("shows a guest the same answer for a draft and for a collection that does not exist", async () => {
       const created = await createCollection(
         asActor(curA),
@@ -1109,7 +1213,7 @@ describe("collections, places and their links", () => {
 // The curator routes through the real route modules: the session and the
 // database come from the test, everything else is the shipped code.
 const routeState = vi.hoisted(() => ({
-  session: null as { id: string; role: "user" } | null,
+  session: null as { id: string; role: "user" | "admin" } | null,
   allow: true,
   app: null as unknown as import("@mikro-orm/postgresql").MikroORM,
 }));
@@ -1138,7 +1242,12 @@ describe("curator routes", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const route = {} as Record<string, Record<string, any>>;
 
-  const routeUsers = { a: user("route-a"), b: user("route-b"), plain: user("route-plain") };
+  const routeUsers = {
+    a: user("route-a"),
+    b: user("route-b"),
+    plain: user("route-plain"),
+    admin: user("route-admin"),
+  };
   let routeOrgA = "";
 
   const request = (
@@ -1230,6 +1339,52 @@ describe("curator routes", () => {
     routeState.session = { id: routeUsers.plain.id, role: "user" };
 
     expect((await post({ title: "T", region: "pomorskie" })).status).toBe(403);
+  });
+
+  it("gives an administrator without a membership no curator access: 403 on the routes, no rows in the database", async () => {
+    const { id, version } = await makeCollection();
+    const params = ctx({ collectionId: id });
+
+    routeState.session = { id: routeUsers.admin.id, role: "admin" };
+
+    expect((await post({ title: "T", region: "pomorskie" })).status).toBe(403);
+    expect(
+      (
+        await route.collection.PATCH!(
+          request("PATCH", `/api/curator/collections/${id}`, { title: "Hak", version }),
+          params,
+        )
+      ).status,
+    ).toBe(403);
+    expect(
+      (
+        await route.publish.POST!(
+          request("POST", `/api/curator/collections/${id}/publish`, { version }),
+          params,
+        )
+      ).status,
+    ).toBe(403);
+
+    // The same account straight in the database (krajozbior_app, admin user context).
+    const draftsSeen = await runInUserContext(routeState.app.em, routeUsers.admin, ({ em }) =>
+      em.execute<{ id: string }[]>(`select id from public.collections where id = ?`, [id]),
+    );
+
+    expect(draftsSeen).toEqual([]);
+    await expect(
+      runInUserContext(routeState.app.em, routeUsers.admin, ({ em }) =>
+        em.execute(
+          `insert into public.collections (slug, organization_id, title, region)
+           values ('admin-hak-1', ?, 'Hak', 'pomorskie')`,
+          [routeOrgA],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    await expect(
+      runInUserContext(routeState.app.em, routeUsers.admin, ({ em }) =>
+        em.execute(`update public.collections set title = 'Hak' where id = ? returning id`, [id]),
+      ),
+    ).resolves.toEqual([]);
   });
 
   it("refuses a request from another origin (403) and an oversized body (413)", async () => {
@@ -1374,14 +1529,17 @@ describe("curator routes", () => {
       (await route.collection.DELETE!(request("DELETE", `/api/curator/collections/${id}`), params))
         .status,
     ).toBe(409);
-    expect(
-      (
-        await route.link.DELETE!(
-          request("DELETE", `/api/curator/collections/${id}/places/${placeId}`),
-          ctx({ collectionId: id, placeId }),
-        )
-      ).status,
-    ).toBe(204);
+    // The last place of a published collection stays (409).
+    const lastPlace = await route.link.DELETE!(
+      request("DELETE", `/api/curator/collections/${id}/places/${placeId}`),
+      ctx({ collectionId: id, placeId }),
+    );
+
+    expect(lastPlace.status).toBe(409);
+    expect(await lastPlace.json()).toMatchObject({
+      error: "conflict",
+      reason: "last_place_of_published_collection",
+    });
 
     const fresh = await post({ title: "Do usunięcia", region: "pomorskie" });
     const freshId = ((await fresh.json()) as { id: string }).id;
