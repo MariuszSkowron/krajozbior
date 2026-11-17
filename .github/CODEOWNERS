@@ -59,6 +59,14 @@
 /src/app/catalog.module.css        @MariuszSkowron
 /e2e/public-catalog.spec.ts        @MariuszSkowron
 
+# Panel kuratora (ekrany zapisujące dane CUR przez trasy API), lista organizacji
+# konta w żądaniu i test dwóch kuratorów (kurator B nie widzi szkiców A)
+/src/app/curator/                  @MariuszSkowron
+/src/app/request-organizations.ts  @MariuszSkowron
+/e2e/catalog-access.spec.ts        @MariuszSkowron
+/e2e/competition-path.spec.ts      @MariuszSkowron
+/e2e/on-site-visit.spec.ts         @MariuszSkowron
+
 # Uprawnienia bazy, reguły dostępu do danych (RLS) i wszystkie migracje
 /src/lib/db/                       @MariuszSkowron
 /mikro-orm.config.ts               @MariuszSkowron
