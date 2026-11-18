@@ -52,6 +52,11 @@
 /tests/support/album-fixtures.ts   @MariuszSkowron
 /e2e/album-access.spec.ts          @MariuszSkowron
 
+# Lista „Chcę zobaczyć” odkrywcy (dane PRIV) i jej testy dostępu
+/src/features/want-to-see/         @MariuszSkowron
+/tests/features/want-to-see/       @MariuszSkowron
+/e2e/want-to-see.spec.ts           @MariuszSkowron
+
 # Panel kuratora (ekrany zapisujące dane CUR przez trasy API), lista organizacji
 # konta w żądaniu i test dwóch kuratorów (kurator B nie widzi szkiców A)
 /src/app/curator/                  @MariuszSkowron

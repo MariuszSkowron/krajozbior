@@ -54,6 +54,10 @@ async function cleanUp() {
     `delete from public.saved_collections where user_id in (select id from auth.users where email = $1)`,
     [EXPLORER],
   );
+  await adminQuery(
+    `delete from public.want_to_see_places where user_id in (select id from auth.users where email = $1)`,
+    [EXPLORER],
+  );
 
   if (created.collectionId === "") {
     return;
@@ -151,7 +155,9 @@ test.describe("the competition path", () => {
     await guest.getByRole("link", { name: /Most ze ścieżki/ }).click();
     await expect(guest.getByRole("heading", { level: 1, name: "Most ze ścieżki" })).toBeVisible();
     await expect(
-      guest.getByRole("link", { name: "Zaloguj się, aby potwierdzić wizytę" }),
+      guest.getByRole("link", {
+        name: "Zaloguj się, aby potwierdzić wizytę lub zapisać na Chcę zobaczyć",
+      }),
     ).toBeVisible();
 
     // The explorer saves it, sees 0/1, confirms the visit on site and sees 1/1.
@@ -163,6 +169,18 @@ test.describe("the competition path", () => {
     await expect(explorer.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
     await explorer.goto("/my/collections");
     await expect(explorer.getByRole("link", { name: title })).toContainText("0/1 odwiedzone");
+
+    // "Chcę zobaczyć" (PR8): the explorer puts the place on the list and finds it there.
+    await explorer.goto(`/places/${placeId}`);
+    await explorer.waitForLoadState("networkidle");
+    await explorer.getByRole("button", { name: "Chcę zobaczyć", exact: true }).click();
+    await expect(
+      explorer.getByText("To miejsce jest na Twojej liście „Chcę zobaczyć”."),
+    ).toBeVisible();
+    await explorer.goto("/my/want-to-see");
+    await expect(explorer.getByRole("link", { name: /Most ze ścieżki/ })).toContainText(
+      "Zapisano:",
+    );
 
     await explorer.goto(`/places/${placeId}`);
     await explorer.waitForLoadState("networkidle");

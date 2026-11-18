@@ -2,14 +2,32 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ collection: vi.fn(), place: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  collection: vi.fn(),
+  place: vi.fn(),
+  actor: vi.fn(),
+  visited: vi.fn(),
+  wanted: vi.fn(),
+}));
 
 vi.mock("@/features/catalog/application/public-catalog", () => ({
   getPublishedCollection: mocks.collection,
   getPublishedPlace: mocks.place,
 }));
 vi.mock("@/features/catalog/infrastructure/catalog-deps", () => ({ getCatalogDeps: () => ({}) }));
-vi.mock("@/app/request-actor", () => ({ logReadFailure: vi.fn() }));
+vi.mock("@/app/request-actor", () => ({
+  logReadFailure: vi.fn(),
+  getRequestActor: mocks.actor,
+  loginHref: (path: string) => `/login?returnTo=${encodeURIComponent(path)}`,
+}));
+vi.mock("@/features/visits/application/confirm-on-site-visit", () => ({
+  hasVisitedPlace: mocks.visited,
+}));
+vi.mock("@/features/visits/infrastructure/visit-deps", () => ({ getVisitDeps: () => ({}) }));
+vi.mock("@/features/want-to-see/application/want-to-see", () => ({ isWantedPlace: mocks.wanted }));
+vi.mock("@/features/want-to-see/infrastructure/want-to-see-deps", () => ({
+  getWantToSeeDeps: () => ({}),
+}));
 
 const { CatalogError } = await import("@/app/catalog-error");
 const collectionPage = await import("@/app/collections/[slug]/page");
@@ -48,6 +66,10 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   mocks.collection.mockReset();
   mocks.place.mockReset();
+  mocks.visited.mockReset();
+  mocks.wanted.mockReset();
+  // Default: the session lookup fails, so the page shows only the public part.
+  mocks.actor.mockReset().mockRejectedValue(new Error("no session"));
 });
 
 describe("public catalog pages", () => {
@@ -163,6 +185,71 @@ describe("public catalog pages", () => {
     expect(
       await placePage.generateMetadata({ params: Promise.resolve({ placeId: next() }) }),
     ).toEqual({ title: "Most Tczewski — Krajozbiór" });
+  });
+
+  describe("the visit part of a place page", () => {
+    const explorer = { id: "u1", role: "user" };
+    const render = async () =>
+      renderToStaticMarkup(
+        await placePage.default({ params: Promise.resolve({ placeId: next() }) }),
+      );
+
+    beforeEach(() => {
+      mocks.place.mockResolvedValue({ status: "ok", value: place });
+      mocks.actor.mockResolvedValue(explorer);
+    });
+
+    it("gives a guest one sign-in link with the note about coming back", async () => {
+      mocks.actor.mockResolvedValue(null);
+
+      const html = await render();
+
+      expect(html.match(/Zaloguj się, aby/g)).toHaveLength(1);
+      expect(html).toContain("Zaloguj się, aby potwierdzić wizytę lub zapisać na Chcę zobaczyć");
+      expect(html).toContain("Po zalogowaniu wrócisz na tę stronę.");
+    });
+
+    it("lets an explorer remove a visited place from the list (W1)", async () => {
+      mocks.visited.mockResolvedValue({ status: "ok", value: { visited: true } });
+      mocks.wanted.mockResolvedValue({ status: "ok", value: { wanted: true } });
+
+      const html = await render();
+
+      expect(html).toContain("Masz już zapisaną wizytę w tym miejscu.");
+      expect(html).toContain("Usuń z Chcę zobaczyć");
+      expect(html).not.toContain("Potwierdź wizytę");
+    });
+
+    it("shows nothing about the list for a visited place that is not on it", async () => {
+      mocks.visited.mockResolvedValue({ status: "ok", value: { visited: true } });
+      mocks.wanted.mockResolvedValue({ status: "ok", value: { wanted: false } });
+
+      const html = await render();
+
+      expect(html).toContain("Masz już zapisaną wizytę w tym miejscu.");
+      expect(html).not.toContain("Chcę zobaczyć");
+    });
+
+    it("keeps the visit button when only the read of the list fails (D1)", async () => {
+      mocks.visited.mockResolvedValue({ status: "ok", value: { visited: false } });
+      mocks.wanted.mockRejectedValue(new Error("db down"));
+
+      const html = await render();
+
+      expect(html).toContain("Potwierdź wizytę");
+      expect(html).toContain("Lista „Chcę zobaczyć” jest chwilowo niedostępna.");
+      expect(html).not.toContain(">Chcę zobaczyć<");
+    });
+
+    it("keeps the visit button when the list answers with a refusal", async () => {
+      mocks.visited.mockResolvedValue({ status: "ok", value: { visited: false } });
+      mocks.wanted.mockResolvedValue({ status: "unauthenticated" });
+
+      const html = await render();
+
+      expect(html).toContain("Potwierdź wizytę");
+      expect(html).toContain("chwilowo niedostępna");
+    });
   });
 
   it("leave out empty optional fields", async () => {

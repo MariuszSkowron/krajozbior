@@ -44,7 +44,9 @@ describe("VisitConfirmation after a saved visit", () => {
   it("moves the focus to the success message, which is a live status region", () => {
     store.values = [{ kind: "recorded", collections: [] }];
 
-    const root = VisitConfirmation({ placeId: "p1" }) as ReactElement<{ children: Node[] }>;
+    const root = VisitConfirmation({ placeId: "p1", initialWanted: false }) as ReactElement<{
+      children: Node[];
+    }>;
     const message = (root.props.children as unknown as Node[])[0]!;
     let focused = 0;
 
@@ -59,7 +61,9 @@ describe("VisitConfirmation after a saved visit", () => {
   it("keeps the focus on the button before the visit is saved", () => {
     store.values = [{ kind: "idle" }];
 
-    const root = VisitConfirmation({ placeId: "p1" }) as ReactElement<{ children: Node[] }>;
+    const root = VisitConfirmation({ placeId: "p1", initialWanted: false }) as ReactElement<{
+      children: Node[];
+    }>;
     const children = root.props.children as unknown as Node[];
 
     expect(children.some((child) => child?.props?.ref !== undefined)).toBe(false);

@@ -8,10 +8,13 @@ import { getPublishedPlace } from "@/features/catalog/application/public-catalog
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import { hasVisitedPlace } from "@/features/visits/application/confirm-on-site-visit";
 import { getVisitDeps } from "@/features/visits/infrastructure/visit-deps";
+import { isWantedPlace } from "@/features/want-to-see/application/want-to-see";
+import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-see-deps";
 
 import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
 import { VisitConfirmation } from "./visit-confirmation";
+import { WantToSeeButton } from "./want-to-see-button";
 
 // Same rules as the collection page: dynamic, never in a shared cache (the
 // visit state of a signed-in explorer must not reach anyone else).
@@ -42,9 +45,23 @@ async function loadVisit(placeId: string) {
 
     const state = await hasVisitedPlace(actor, placeId, getVisitDeps());
 
-    return state.status === "ok"
-      ? ({ kind: "explorer", visited: state.value.visited } as const)
-      : ({ kind: "none" } as const);
+    if (state.status !== "ok") {
+      return { kind: "none" } as const;
+    }
+
+    // A failed read of the list hides only the list button (wanted: null); the
+    // visit button of the main function stays.
+    let wanted: boolean | null = null;
+
+    try {
+      const answer = await isWantedPlace(actor, placeId, getWantToSeeDeps());
+
+      wanted = answer.status === "ok" ? answer.value.wanted : null;
+    } catch (error) {
+      logReadFailure("Place want-to-see read", error);
+    }
+
+    return { kind: "explorer", visited: state.value.visited, wanted } as const;
   } catch (error) {
     logReadFailure("Place visit read", error);
 
@@ -104,15 +121,18 @@ export default async function PlacePage({ params }: { params: Params }) {
         {visit.kind === "guest" ? (
           <div>
             <Link className={albumStyles.action} href={visit.loginHref}>
-              Zaloguj się, aby potwierdzić wizytę
+              Zaloguj się, aby potwierdzić wizytę lub zapisać na Chcę zobaczyć
             </Link>
             <p className={albumStyles.feedback}>Po zalogowaniu wrócisz na tę stronę.</p>
           </div>
         ) : visit.kind === "explorer" ? (
           visit.visited ? (
-            <p>Masz już zapisaną wizytę w tym miejscu.</p>
+            <>
+              <p>Masz już zapisaną wizytę w tym miejscu.</p>
+              {visit.wanted === true ? <WantToSeeButton placeId={place.id} initialWanted /> : null}
+            </>
           ) : (
-            <VisitConfirmation placeId={place.id} />
+            <VisitConfirmation placeId={place.id} initialWanted={visit.wanted} />
           )
         ) : visit.kind === "unavailable" ? (
           <p className={albumStyles.feedback}>
