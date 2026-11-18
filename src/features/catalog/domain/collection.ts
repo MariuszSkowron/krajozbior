@@ -23,9 +23,35 @@ export const REGIONS = [
 
 export type Region = (typeof REGIONS)[number];
 
+// Polish names of the voivodeships for screens (the stored value is the key).
+export const REGION_LABELS: Readonly<Record<Region, string>> = {
+  dolnoslaskie: "Dolnośląskie",
+  kujawsko_pomorskie: "Kujawsko-pomorskie",
+  lubelskie: "Lubelskie",
+  lubuskie: "Lubuskie",
+  lodzkie: "Łódzkie",
+  malopolskie: "Małopolskie",
+  mazowieckie: "Mazowieckie",
+  opolskie: "Opolskie",
+  podkarpackie: "Podkarpackie",
+  podlaskie: "Podlaskie",
+  pomorskie: "Pomorskie",
+  slaskie: "Śląskie",
+  swietokrzyskie: "Świętokrzyskie",
+  warminsko_mazurskie: "Warmińsko-mazurskie",
+  wielkopolskie: "Wielkopolskie",
+  zachodniopomorskie: "Zachodniopomorskie",
+};
+
 export const COLLECTION_STATUSES = ["draft", "published"] as const;
 
 export type CollectionStatus = (typeof COLLECTION_STATUSES)[number];
+
+// Polish names of the states shown to a curator (the panel never shows the key).
+export const COLLECTION_STATUS_LABELS: Readonly<Record<CollectionStatus, string>> = {
+  draft: "Szkic",
+  published: "Opublikowana",
+};
 
 export const COLLECTION_TITLE_MAX_LENGTH = 120;
 export const COLLECTION_SUMMARY_MAX_LENGTH = 280;

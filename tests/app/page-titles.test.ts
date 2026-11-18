@@ -6,16 +6,28 @@ vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 // The shell role (identity, database driver, session library) is a cold import
 // and has nothing to do with the title.
 vi.mock("@/app/shell/shell-role", () => ({ shellRole: async () => null }));
+vi.mock("@/app/shell/shell-curator", () => ({ shellCuratorLink: async () => false }));
 vi.mock("@/app/request-actor", () => ({
   getRequestActor: async () => null,
   loginHref: () => "/login",
 }));
+
+vi.mock("@/app/request-organizations", () => ({ getApprovedOrganizations: async () => [] }));
+vi.mock("@/features/catalog/infrastructure/catalog-deps", () => ({ getCatalogDeps: () => ({}) }));
 
 describe("tab titles", () => {
   it.each([
     ["@/app/layout", "Krajozbiór"],
     ["@/app/not-found", "Nie znaleziono — Krajozbiór"],
     ["@/app/my/page", "Moje konto — Krajozbiór"],
+    ["@/app/curator/page", "Panel kuratora — Krajozbiór"],
+    ["@/app/curator/collections/new/page", "Nowa kolekcja — Krajozbiór"],
+    ["@/app/curator/collections/[collectionId]/page", "Edycja kolekcji — Krajozbiór"],
+    ["@/app/curator/collections/[collectionId]/places/new/page", "Nowe miejsce — Krajozbiór"],
+    [
+      "@/app/curator/collections/[collectionId]/places/[placeId]/page",
+      "Edycja miejsca — Krajozbiór",
+    ],
   ])(
     "%s has the title „%s”",
     async (path, title) => {
