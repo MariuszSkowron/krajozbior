@@ -11,6 +11,7 @@ import type {
   PlaceRow,
   PublishedCollection,
   PublishedPlace,
+  RecentCollection,
 } from "../application/catalog-types";
 import type { CollectionStatus } from "../domain/collection";
 import { MAX_COLLECTIONS_PER_LIST, MAX_PLACES_PER_COLLECTION } from "../domain/limits";
@@ -366,6 +367,34 @@ export const postgresCatalogRepository: CatalogRepository = {
     const { organizationName, organizationSlug, ...rest } = collection;
 
     return { ...rest, organization: { name: organizationName, slug: organizationSlug }, places };
+  },
+
+  async listRecentlyPublishedCollections(tx: TransactionContext, limit) {
+    const rows = await tx.em.execute<
+      {
+        id: string;
+        slug: string;
+        title: string;
+        region: RecentCollection["region"];
+        organizationName: string;
+        placeCount: number;
+      }[]
+    >(
+      `select c.id, c.slug, c.title, c.region, o.name as "organizationName",
+              (select count(*)::int from public.collection_places cp
+                where cp.collection_id = c.id) as "placeCount"
+         from public.collections c
+         join public.organizations o on o.id = c.organization_id
+        where c.status = 'published' and o.status = 'approved'
+        order by c.first_published_at desc, c.id
+        limit ?`,
+      [limit],
+    );
+
+    return rows.map(({ organizationName, ...rest }) => ({
+      ...rest,
+      organization: { name: organizationName },
+    }));
   },
 
   async findPublishedPlace(tx: TransactionContext, id) {

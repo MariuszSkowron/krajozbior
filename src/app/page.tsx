@@ -1,10 +1,22 @@
 import Link from "next/link";
 
-import { getRequestActor, logActorFailure } from "@/app/request-actor";
+import { getRequestActor, logActorFailure, logReadFailure } from "@/app/request-actor";
+import { getHomeAlbum } from "@/features/album/application/home-album";
+import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
+import { listRecentlyPublishedCollections } from "@/features/catalog/application/public-catalog";
+import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
+import type { Actor } from "@/features/identity/domain/actor";
 
+import { AlbumSummary } from "./home/album-summary";
+import { CollectionsToDiscover } from "./home/collections-to-discover";
+import { FavoriteCollections } from "./home/favorite-collections";
+import { RecentVisits } from "./home/recent-visits";
 import styles from "./home.module.css";
 
 export const dynamic = "force-dynamic";
+
+// Kolekcje do odkrycia na stronie głównej.
+const DISCOVER_LIMIT = 6;
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -12,9 +24,35 @@ function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-// The neutral start page of the krajozbior: replace it with the product's own.
-// It reads the session only to choose the action; a failed lookup shows the
-// guest version.
+// The public part: a guest read, the same for everyone (a curator included). A failure
+// leaves the section with a message and the rest of the page whole.
+async function loadDiscover() {
+  try {
+    return await listRecentlyPublishedCollections(DISCOVER_LIMIT, getCatalogDeps());
+  } catch (error) {
+    logReadFailure("Home collections read", error);
+
+    return null;
+  }
+}
+
+// The personal part: only for a signed-in explorer. A failure leaves the page without
+// the personal sections and is logged by class only.
+async function loadAlbum(actor: Actor) {
+  try {
+    const result = await getHomeAlbum(actor, getAlbumDeps());
+
+    return result.status === "ok" ? result.value : null;
+  } catch (error) {
+    logReadFailure("Home album read", error);
+
+    return null;
+  }
+}
+
+// The home page (E12-1). A guest sees the introduction and the collections to discover; a
+// signed-in explorer sees their album first. It reads the session only to choose the
+// version; a failed lookup shows the guest version.
 export default async function HomePage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const actor = await getRequestActor().catch((error: unknown) => {
@@ -25,6 +63,10 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const signOutFailed = first(params.wylogowanie) === "blad";
   // Only a signal for the message after deleting the account (E9-5).
   const accountDeleted = first(params.konto) === "usuniete";
+  const [discover, album] = await Promise.all([
+    loadDiscover(),
+    actor === null ? Promise.resolve(null) : loadAlbum(actor),
+  ]);
 
   return (
     <div className={`content-width ${styles.page}`}>
@@ -44,23 +86,42 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         </p>
       ) : null}
       <section className={styles.hero} aria-labelledby="start-title">
-        <h1 id="start-title">Witaj w aplikacji</h1>
-        <p className={styles.lead}>
-          To pusta strona startowa szkieletu. Logowanie, sesje i reguły dostępu do danych już
-          działają; treść produktu powstaje w kolejnych zadaniach.
-        </p>
-        <div className={styles.actions}>
-          {actor === null ? (
-            <Link className="button button--primary" href="/login">
-              Zaloguj się
-            </Link>
-          ) : (
-            <Link className="button button--primary" href="/my">
-              Profil
-            </Link>
-          )}
-        </div>
+        {actor === null ? (
+          <>
+            <h1 id="start-title">Odkrywaj miejsca i zbieraj je w swoim albumie</h1>
+            <p className={styles.lead}>
+              Krajozbiór to kolekcje ciekawych miejsc w Polsce. Przeglądaj je bez konta; po
+              zalogowaniu zapiszesz kolekcję i zaznaczysz miejsca, w których już byłeś.
+            </p>
+            <div className={styles.actions}>
+              <Link className="button button--primary" href="/login">
+                Zaloguj się
+              </Link>
+              <Link className="button button--outline" href="#do-odkrycia">
+                Zobacz kolekcje
+              </Link>
+            </div>
+          </>
+        ) : (
+          <>
+            <h1 id="start-title">Dzień dobry</h1>
+            <p className={styles.lead}>Oto Twój album i kolekcje, które warto odkryć.</p>
+            <div className={styles.actions}>
+              <Link className="button button--outline" href="/my">
+                Profil
+              </Link>
+            </div>
+          </>
+        )}
       </section>
+      {album === null ? null : (
+        <>
+          <AlbumSummary summary={album.summary} />
+          <FavoriteCollections collections={album.favorites} />
+        </>
+      )}
+      {album === null ? null : <RecentVisits visits={album.recentVisits} />}
+      <CollectionsToDiscover collections={discover} />
     </div>
   );
 }
