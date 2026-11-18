@@ -191,6 +191,44 @@ describe("app shell", () => {
     expect(await generateViewport()).toMatchObject({ themeColor: "#F4F2EC", colorScheme: "light" });
   });
 
+  const nav = (html: string) => html.match(/<nav[^>]*>.*?<\/nav>/)?.[0] ?? "";
+
+  it("gives a guest no main navigation and no bar space in the body", async () => {
+    const html = await shell();
+
+    expect(html).not.toContain("<nav");
+    expect(html).not.toMatch(/<body class="[^"]*withNav/);
+  });
+
+  it("gives a signed-in explorer the main navigation between the header and the content", async () => {
+    mocks.getActor.mockResolvedValue(as("user"));
+    mocks.pathname = "/my/collections";
+
+    const html = await shell();
+
+    expect(html).toMatch(/<body class="[^"]*withNav/);
+    expect(html).toMatch(/<\/header><nav [^>]*aria-label="Główna"[\s\S]*<\/nav><main id="tresc"/);
+    expect(nav(html).match(/<li>/g)).toHaveLength(4);
+    for (const label of ["Start", "Moje kolekcje", "Chcę zobaczyć", "Konto"]) {
+      expect(nav(html)).toContain(`>${label}</span>`);
+    }
+    // Tylko bieżąca pozycja ma aria-current i kropkę akcentu.
+    expect(nav(html).match(/aria-current="page"/g)).toHaveLength(1);
+    expect(nav(html)).toMatch(/aria-current="page" href="\/my\/collections"/);
+    expect(nav(html).match(/navDot/g)).toHaveLength(1);
+    expect(nav(html)).not.toContain("data-area");
+  });
+
+  it("marks the navigation of the curator panel so the side menu can give way to it", async () => {
+    mocks.getActor.mockResolvedValue(as("user"));
+    mocks.pathname = "/curator/collections/new";
+
+    const html = await shell();
+
+    expect(nav(html)).toContain('data-area="curator"');
+    expect(nav(html)).not.toContain("aria-current");
+  });
+
   it("offers the switch to the other theme in the header, also for a guest", async () => {
     expect(header(await shell())).toMatch(
       /<form [^>]+><button [^>]*type="submit"[^>]*value="light"[^>]*>.+Jasny motyw<\/span><\/button><\/form>/,

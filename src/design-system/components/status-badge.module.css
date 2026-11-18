@@ -1,0 +1,39 @@
+/* Pigułka mono 11 px; kolor stanu na tle stanu z tokenów (pary sprawdza tokens.test.ts). */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
+  letter-spacing: var(--font-tracking-label);
+  line-height: var(--line-height-body);
+  text-transform: uppercase;
+  border-radius: var(--radius-pill);
+}
+
+.success {
+  color: var(--color-feedback-success);
+  background: var(--color-feedback-success-bg);
+}
+
+.warning {
+  color: var(--color-feedback-warning);
+  background: var(--color-feedback-warning-bg);
+}
+
+.danger {
+  color: var(--color-feedback-danger);
+  background: var(--color-feedback-danger-bg);
+}
+
+.info {
+  color: var(--color-feedback-info);
+  background: var(--color-feedback-info-bg);
+}
+
+/* Stan bez znaczenia ostrzegawczego (np. Szkic): tekst drugorzędny na tle wyróżnionym. */
+.neutral {
+  color: var(--color-text-secondary);
+  background: var(--color-surface-tint);
+}

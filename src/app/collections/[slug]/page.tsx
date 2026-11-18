@@ -4,13 +4,14 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { getRequestActor, logReadFailure, loginHref } from "@/app/request-actor";
+import { CollectionProgress } from "@/design-system/components/collection-progress";
 import { getCollectionProgress } from "@/features/album/application/saved-collections";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
+import { progressCounts } from "@/features/album/domain/progress";
 import { getPublishedCollection } from "@/features/catalog/application/public-catalog";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 
-import { CollectionProgress } from "../../my/collections/collection-progress";
 import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
 import { SaveCollectionButton } from "./save-collection-button";
@@ -101,7 +102,7 @@ export default async function CollectionPage({ params }: { params: Params }) {
           <>
             <SaveCollectionButton collectionId={collection.id} initialSaved={album.saved} />
             <CollectionProgress
-              progress={album.progress}
+              {...progressCounts(album.progress)}
               label={`Twój postęp w kolekcji ${collection.title}`}
             />
           </>
