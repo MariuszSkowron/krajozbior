@@ -35,6 +35,9 @@ Numery to publiczne numery PR-ów w tym repozytorium. Uwagi drobne i kosmetyczne
 - **#18, „Chcę zobaczyć”** (poziom B): najpierw do poprawy (1 uwaga ważna: odwiedzonego miejsca nie dało się usunąć z listy), po poprawce zatwierdzony.
 - **#22, dziennik operacji** (poziom A, Opus): zatwierdzony; tylko uwagi drobne i kosmetyczne.
 - **#25, tokeny, kroje i przełącznik motywu** (poziom B, Sonnet): zatwierdzony; uwagi drobne poprawione, a słabą asercję testu fokusu wzmocniono z dowodem, że wykrywa błąd.
+- **#27, limity list i zapisu oraz bezpieczniejszy zapis do albumu** (poziom A): zatwierdzony; poprawki sprawdził niezależnie kolejny agent.
+- **#28, nocny album: nawigacja, menu kuratora i wspólne elementy (E3-2a)** (poziom B): zatwierdzony; poprawki sprawdził niezależnie kolejny agent.
+- **#29, adres kolekcji z aktualnego tytułu przy pierwszej publikacji** (poziom A): zatwierdzony; poprawki sprawdził niezależnie kolejny agent.
 
 ## Przegląd bezpieczeństwa ścieżki konkursowej
 
@@ -43,5 +46,7 @@ Po zakończeniu ośmiu PR-ów ścieżki konkursowej (#10–#18) osobny agent wyk
 - **0 krytycznych i 0 wysokich.**
 - **1 średnie:** dotyczyło tego, że wiarygodność dziennika operacji da się poprawić. Właściciel zdecydował o poprawce przed konkursem; poprawka powstała według osobnej specyfikacji i weszła w PR #22.
 - **5 drobnych i 3 informacyjne:** zaplanowane do poprawy albo świadomie zaakceptowane przez właściciela.
+
+Część uwag drobnych została już poprawiona. PR #27 wprowadził górne limity długości list i liczby zapisów oraz bezpieczniejszy zapis do albumu (zapis z warunkiem w jednym poleceniu bazy). PR #29 sprawia, że adres kolekcji powstaje z jej aktualnego tytułu przy pierwszej publikacji.
 
 Recenzent sprawdził m.in. obejście reguł dostępu w bazie, funkcje działające z wyższymi uprawnieniami, wyliczanie cudzych identyfikatorów, masowe przypisanie pól, sesję i ochronę przed fałszywymi żądaniami, przekierowania, wycieki w komunikatach błędów, nagłówki, ochronę danych lokalizacji, konta demonstracyjne na produkcji i sekrety w kodzie. Raport z ustaleniami jest prywatny; publikujemy tylko wynik, żeby nie ujawniać szczegółów uwag, które mogą być jeszcze otwarte.
