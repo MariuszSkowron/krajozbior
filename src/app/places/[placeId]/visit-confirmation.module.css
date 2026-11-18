@@ -23,6 +23,65 @@
   justify-self: start;
 }
 
+/*
+ * Przypięty przycisk główny (telefon, poniżej 48rem): dolny pasek z przyciskiem i komunikatem
+ * stanu nad nim (komunikat `role="status"` jest cały czas widoczny, nie ucieka z przewijaną
+ * treścią). Tło pełne (`canvas`, bez rozmycia: kontrast i lekkość na słabszych telefonach).
+ * Od 48rem opakowanie nie istnieje w układzie.
+ */
+.dock {
+  display: contents;
+}
+
+/* Na komputerze (opakowanie przezroczyste) znacznik stoi na górze karty, jak w stanie po odświeżeniu. */
+.visitedMark {
+  order: -1;
+}
+
+@media (max-width: 47.99rem) {
+  /*
+   * Sekcja z przypiętym przyciskiem wchodzi samą przezroczystością. Wejście sekcji (theme.css,
+   * `section-enter`) przesuwa ją o 12 px (`transform`), a element z `transform` staje się
+   * blokiem zawierającym dla potomków `position: fixed`: przez czas animacji przycisk leżałby
+   * na dole sekcji, nie okna, i potem przeskoczył. Sama `opacity` takiego bloku nie tworzy.
+   * Specyficzność (0,2,0) wygrywa z `:where` w theme.css; opóźnienie i czas zostają z motywu,
+   * a przy `prefers-reduced-motion` animacje i tak wyłącza reguła globalna.
+   */
+  :global(.content-width) > :has([data-pinned-action]) {
+    animation-name: pinned-section-enter;
+  }
+
+  .dock {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 1;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column-reverse;
+    padding: var(--space-sm) var(--space-page-inline);
+    padding-block-end: calc(var(--space-sm) + env(safe-area-inset-bottom));
+    background: var(--color-surface-canvas);
+    border-top: 1px solid var(--color-border-subtle);
+  }
+
+  .dock > .action {
+    width: 100%;
+  }
+
+  /* Pusty komunikat zostaje w drzewie (region live musi istnieć przed zmianą), ale nie zajmuje miejsca. */
+  .dock > .feedback:not(:empty) {
+    margin-block-end: var(--space-sm);
+  }
+
+  .visitedMark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--size-touch-primary);
+  }
+}
+
 .action:disabled {
   cursor: progress;
 }
@@ -76,6 +135,12 @@
   animation:
     visit-mark var(--motion-duration-enter) var(--motion-easing-standard) backwards,
     visit-ring var(--motion-duration-enter) var(--motion-easing-standard) backwards;
+}
+
+@keyframes pinned-section-enter {
+  from {
+    opacity: 0;
+  }
 }
 
 @keyframes visit-mark {
