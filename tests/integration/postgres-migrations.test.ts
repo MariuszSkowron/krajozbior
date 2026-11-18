@@ -238,9 +238,9 @@ describe("PostgreSQL migrations and transactions", () => {
       expect(await objects()).toEqual({
         find: "ops_find_user(text)",
         setter: "ops_set_user_role(uuid,text)",
-        // The two role triggers and the deletion trigger of E9-5 (the down above
-        // passes through that migration too and removes it).
-        triggers: 3,
+        // The two role triggers and the deletion and last-member triggers of
+        // E9-5 (the down above passes through those migrations too).
+        triggers: 4,
         columns: 2,
       });
     } finally {

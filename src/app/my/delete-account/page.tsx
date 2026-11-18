@@ -24,6 +24,7 @@ const messages: Record<string, string> = {
   managed_account:
     "Tego konta nie usuniesz samodzielnie: jesteś jedynym członkiem organizacji. Napisz do zespołu, a ustalimy, co zrobić z treściami organizacji.",
   invalid_confirmation: `Wpisz dokładnie słowo ${DELETE_CONFIRMATION_WORD}, aby potwierdzić usunięcie.`,
+  stale_session: "Minęło ponad 15 minut od logowania. Zaloguj się ponownie, aby usunąć konto.",
   invalid_request: "Nie udało się odczytać formularza. Spróbuj jeszcze raz.",
   unavailable:
     "Nie udało się usunąć konta. Konto zostało bez zmian, spróbuj jeszcze raz za chwilę.",
@@ -94,7 +95,7 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
       </section>
 
       {message === undefined ? null : (
-        <p role="alert" className={styles.error}>
+        <p id="deletion-error" role="alert" className={styles.error}>
           <span className={styles.errorPrefix}>Błąd:</span> {message}
         </p>
       )}
@@ -114,6 +115,7 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
               autoCapitalize="characters"
               spellCheck={false}
               aria-invalid={code === "invalid_confirmation" ? "true" : undefined}
+              aria-describedby={code === "invalid_confirmation" ? "deletion-error" : undefined}
             />
           </div>
           <button className="button button--danger" type="submit">

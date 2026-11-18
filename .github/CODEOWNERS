@@ -65,6 +65,7 @@
 /src/features/account/             @MariuszSkowron
 /tests/features/account/           @MariuszSkowron
 /src/app/my/settings/              @MariuszSkowron
+/src/app/my/delete-account/        @MariuszSkowron
 /e2e/account-deletion.spec.ts      @MariuszSkowron
 
 # Panel kuratora (ekrany zapisujące dane CUR przez trasy API), lista organizacji

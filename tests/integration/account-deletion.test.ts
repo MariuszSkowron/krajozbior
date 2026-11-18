@@ -4,6 +4,7 @@ import { MikroORM } from "@mikro-orm/postgresql";
 import { Pool, type Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { SoleOrganizationMemberError } from "@/features/identity/domain/identity-provider";
 import { deleteAccountRows } from "@/features/identity/infrastructure/delete-account-rows";
 import { AUDIT_OPERATIONS } from "@/lib/db/operations-audit";
 import { createOrmConfig } from "@/lib/db/config";
@@ -618,6 +619,38 @@ describe("account deletion on the real database", () => {
           role,
         ).rejects.toMatchObject(denied);
       }
+    });
+
+    it("never leaves an organization empty when its last two members are deleted at the same time (m1)", async () => {
+      const one = await newExplorer("last-one");
+      const two = await newExplorer("last-two");
+      const shared = await f.newOrganization("Gmina D", "gmina-d", [one, two]);
+
+      const results = await Promise.allSettled([
+        deleteAccountRows(authPool, one.id),
+        deleteAccountRows(authPool, two.id),
+      ]);
+      const refused = results.filter(
+        (result) =>
+          result.status === "rejected" && result.reason instanceof SoleOrganizationMemberError,
+      );
+
+      expect(
+        results.filter((result) => result.status === "fulfilled" && result.value),
+      ).toHaveLength(1);
+      expect(refused).toHaveLength(1);
+      expect(await rowsOf("public.organization_members", "organization_id", shared)).toBe(1);
+    });
+
+    it("refuses to delete the only member directly, and leaves the account and membership intact", async () => {
+      const alone = await newExplorer("alone");
+      const org = await f.newOrganization("Gmina E", "gmina-e", [alone]);
+
+      await expect(deleteAccountRows(authPool, alone.id)).rejects.toBeInstanceOf(
+        SoleOrganizationMemberError,
+      );
+      expect(await rowsOf("auth.users", "id", alone.id)).toBe(1);
+      expect(await rowsOf("public.organization_members", "organization_id", org)).toBe(1);
     });
 
     it("keeps the organization and its content when a curator with a colleague is deleted", async () => {

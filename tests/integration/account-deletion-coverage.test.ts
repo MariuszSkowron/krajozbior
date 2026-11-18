@@ -43,7 +43,7 @@ const columnsWithoutForeignKey: Record<string, string> = {
     "the audit is append-only and keeps the bare account id, never an address or a name (Q9, D-20, D-21)",
 };
 
-const NAME_PATTERN = "(^user_id$|_user_id$|author|actor|owner|member)";
+const NAME_PATTERN = "(^user_id$|_user_id$|author|actor|owner|member|_by$)";
 
 let db: ScratchDatabase;
 

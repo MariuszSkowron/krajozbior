@@ -50,7 +50,11 @@ function failure(code: Failure, isForm: boolean): Response {
 
 async function readBody(request: Request, isForm: boolean): Promise<unknown> {
   if (isForm) {
-    return Object.fromEntries((await request.formData()).entries());
+    // A damaged form body is a bad request, not an outage.
+    return request
+      .formData()
+      .then((data) => Object.fromEntries(data.entries()))
+      .catch(() => null);
   }
 
   return request.json().catch(() => null);

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { DeleteAccountDeps } from "@/features/account/application/delete-account-types";
 import { deleteOwnAccount } from "@/features/account/application/delete-own-account";
 import type { Actor } from "@/features/identity/domain/actor";
+import { SoleOrganizationMemberError } from "@/features/identity/domain/identity-provider";
 
 const actor: Actor = { id: "11111111-1111-4111-8111-111111111111", role: "user" };
 const NOW = new Date("2026-11-18T12:00:00Z");
@@ -87,6 +88,16 @@ describe("deleteOwnAccount", () => {
       ).toEqual({ status: "stale_session" });
     }
     expect(deleteAccount).not.toHaveBeenCalled();
+  });
+
+  it("answers managed_account when the database refuses to leave an organization empty (race, Q8)", async () => {
+    const { deps, deleteAccount } = makeDeps();
+
+    deleteAccount.mockRejectedValue(new SoleOrganizationMemberError());
+
+    expect(
+      await deleteOwnAccount(actor, { confirmation: "USUŃ", sessionCreatedAt: FRESH }, deps),
+    ).toEqual({ status: "managed_account" });
   });
 
   it("passes on an unexpected failure of the deletion instead of reporting success", async () => {

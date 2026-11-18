@@ -521,13 +521,15 @@ describe("operations audit: the writing role cannot change it", () => {
 
       expect(rows.map(({ tgname }) => tgname)).toEqual([
         "auth_users_deletion_audited",
+        "auth_users_last_member_guarded",
         "auth_users_role_audited_insert",
         "auth_users_role_audited_update",
       ]);
       expect(rows[0]!.def).toMatch(/AFTER DELETE ON auth\.users FOR EACH ROW/);
-      expect(rows[1]!.def).toMatch(/WHEN \(\(new\.role <> 'user'::text\)\)/);
-      expect(rows[2]!.def).toMatch(/UPDATE OF role/);
-      expect(rows[2]!.def).toMatch(/WHEN \(\(old\.role IS DISTINCT FROM new\.role\)\)/);
+      expect(rows[1]!.def).toMatch(/BEFORE DELETE ON auth\.users FOR EACH ROW/);
+      expect(rows[2]!.def).toMatch(/WHEN \(\(new\.role <> 'user'::text\)\)/);
+      expect(rows[3]!.def).toMatch(/UPDATE OF role/);
+      expect(rows[3]!.def).toMatch(/WHEN \(\(old\.role IS DISTINCT FROM new\.role\)\)/);
     });
   });
 });

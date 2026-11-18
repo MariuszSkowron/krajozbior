@@ -3,6 +3,7 @@ import {
   requireActor,
   type Actor,
 } from "@/features/identity/domain/actor";
+import { SoleOrganizationMemberError } from "@/features/identity/domain/identity-provider";
 
 import { isDeletionConfirmed, isSignInFresh } from "../domain/deletion";
 import type { DeleteAccountDeps, DeleteAccountOutcome } from "./delete-account-types";
@@ -51,7 +52,16 @@ export async function deleteOwnAccount(
     return { status: "stale_session" };
   }
 
-  await deps.deleteAccount(signedIn.id);
+  // The check above gives an early, friendly refusal; the database trigger
+  // decides atomically with the deletion (two last members deleting at once).
+  try {
+    await deps.deleteAccount(signedIn.id);
+  } catch (error) {
+    if (error instanceof SoleOrganizationMemberError) {
+      return { status: "managed_account" };
+    }
+    throw error;
+  }
 
   return { status: "deleted" };
 }

@@ -2,6 +2,8 @@ import "server-only";
 
 import type { Pool } from "pg";
 
+import { SoleOrganizationMemberError } from "../domain/identity-provider";
+
 // Identifiers Better Auth's e-mail code plugin stores in `auth.verifications`
 // for an address: `<type>-otp-<e-mail>` (and `change-email-otp-<id>:<new e-mail>`).
 const CODE_TYPES = ["sign-in", "email-verification", "forget-password"] as const;
@@ -22,6 +24,8 @@ const CODE_TYPES = ["sign-in", "email-verification", "forget-password"] as const
  * (D-E9-3). Returns false when the account was already gone (idempotent). A
  * visit saved concurrently either commits first (and is cascaded away) or fails
  * on the foreign key: the row lock conflicts with the key-share lock of the check.
+ * Throws SoleOrganizationMemberError when the BEFORE DELETE trigger refuses to
+ * leave an organization without a member (Q8; atomic with the deletion).
  */
 export async function deleteAccountRows(pool: Pool, accountId: string): Promise<boolean> {
   const client = await pool.connect();
@@ -57,6 +61,12 @@ export async function deleteAccountRows(pool: Pool, accountId: string): Promise<
     return true;
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
+
+    // The guard trigger refused to leave an organization without a member.
+    if (error instanceof Error && error.message === "sole_organization_member") {
+      throw new SoleOrganizationMemberError();
+    }
+
     throw error;
   } finally {
     client.release();

@@ -109,6 +109,7 @@ describe("deletion screen", () => {
     for (const [code, text] of [
       ["managed_account", "jesteś jedynym członkiem organizacji"],
       ["invalid_confirmation", "Wpisz dokładnie słowo USUŃ"],
+      ["stale_session", "Minęło ponad 15 minut od logowania"],
       ["invalid_request", "Nie udało się odczytać formularza"],
       ["unavailable", "Konto zostało bez zmian"],
     ]) {
@@ -117,11 +118,15 @@ describe("deletion screen", () => {
       expect(html, code).toContain('role="alert"');
       expect(html, code).toContain(text);
     }
-    expect(await render({ blad: "stale_session" })).not.toContain('role="alert"');
     expect(await render({ blad: "nieznany" })).not.toContain('role="alert"');
   });
 
-  it("marks the field invalid after a wrong word", async () => {
-    expect(await render({ blad: "invalid_confirmation" })).toContain('aria-invalid="true"');
+  it("marks the field invalid after a wrong word and ties it to the error message", async () => {
+    const html = await render({ blad: "invalid_confirmation" });
+
+    expect(html).toContain('aria-invalid="true"');
+    expect(html).toContain('aria-describedby="deletion-error"');
+    expect(html).toContain('id="deletion-error"');
+    expect(await render()).not.toContain("aria-describedby");
   });
 });
