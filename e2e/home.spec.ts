@@ -166,7 +166,8 @@ test.describe("home page with the catalog", () => {
       page.getByRole("heading", { level: 2, name: "Kolekcje do odkrycia" }),
     ).toBeVisible();
 
-    const card = page.getByRole("link", { name: new RegExp(DEMO_TITLE.replace(/[()]/g, "\\$&")) });
+    // A plain string matches a substring of the accessible name, so no regular expression is needed.
+    const card = page.getByRole("link", { name: DEMO_TITLE });
 
     await expect(card).toHaveAttribute("href", `/collections/${DEMO_SLUG}`);
     await expect(page.getByText("3 miejsca · ")).toBeVisible();
