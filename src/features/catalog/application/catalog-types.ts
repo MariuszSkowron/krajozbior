@@ -1,0 +1,160 @@
+import type { ActionRateLimiter } from "@/features/identity/domain/action-rate-limit";
+import type { Actor } from "@/features/identity/domain/actor";
+import type { TransactionContext } from "@/lib/db/user-context";
+
+import type { CollectionInput, CollectionStatus, Region } from "../domain/collection";
+import type { PlaceInput } from "../domain/place";
+
+// What a curator sees of a collection and a place of the own organization.
+export type CollectionRow = Readonly<{
+  id: string;
+  slug: string;
+  organizationId: string;
+  title: string;
+  summary: string;
+  region: Region;
+  status: CollectionStatus;
+  firstPublishedAt: Date | null;
+  version: number;
+}>;
+
+export type PlaceRow = Readonly<
+  PlaceInput & { id: string; organizationId: string; version: number }
+>;
+
+// What a guest sees: public content only, no organization id, no version.
+export type PublishedPlaceSummary = Readonly<{
+  id: string;
+  name: string;
+  address: string;
+  position: number;
+}>;
+
+export type PublishedCollection = Readonly<{
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  region: Region;
+  organization: Readonly<{ name: string; slug: string }>;
+  places: readonly PublishedPlaceSummary[];
+}>;
+
+export type PublishedPlace = Readonly<{
+  id: string;
+  name: string;
+  description: string;
+  address: string;
+  accessInfo: string;
+  latitude: number;
+  longitude: number;
+  visitRadiusM: number;
+  organization: Readonly<{ name: string; slug: string }>;
+  collections: readonly Readonly<{ slug: string; title: string }>[];
+}>;
+
+export type CollectionChanges = Partial<CollectionInput>;
+
+// All database access of the catalog. Every method runs inside the context the
+// use case opened (user or guest), so the row policies decide what it sees.
+export interface CatalogRepository {
+  /** Ids of approved organizations of which the actor is a member (full_edit). */
+  permittedOrganizationIds(tx: TransactionContext): Promise<readonly string[]>;
+  findEditableCollection(
+    tx: TransactionContext,
+    id: string,
+    options?: { lock?: boolean },
+  ): Promise<CollectionRow | null>;
+  /** `null` when the slug is taken: the caller draws another suffix. */
+  insertCollection(
+    tx: TransactionContext,
+    values: CollectionInput & { organizationId: string; slug: string },
+  ): Promise<CollectionRow | null>;
+  /** `null` when no row has this id and version (or the row is not the actor's). */
+  updateCollection(
+    tx: TransactionContext,
+    id: string,
+    version: number,
+    values: CollectionInput,
+  ): Promise<CollectionRow | null>;
+  setCollectionStatus(
+    tx: TransactionContext,
+    id: string,
+    version: number,
+    status: CollectionStatus,
+  ): Promise<CollectionRow | null>;
+  deleteCollection(tx: TransactionContext, id: string): Promise<boolean>;
+  /** Place ids of a collection in order. */
+  listCollectionPlaceIds(tx: TransactionContext, collectionId: string): Promise<readonly string[]>;
+  listCollectionPositions(tx: TransactionContext, collectionId: string): Promise<readonly number[]>;
+  insertPlace(
+    tx: TransactionContext,
+    organizationId: string,
+    values: PlaceInput,
+  ): Promise<PlaceRow>;
+  findEditablePlace(tx: TransactionContext, id: string): Promise<PlaceRow | null>;
+  /** True when the place exists in the organization and the actor may edit it. */
+  placeInOrganization(
+    tx: TransactionContext,
+    placeId: string,
+    organizationId: string,
+  ): Promise<boolean>;
+  updatePlace(
+    tx: TransactionContext,
+    id: string,
+    version: number,
+    values: PlaceInput,
+  ): Promise<PlaceRow | null>;
+  /** `false` when the place is already in the collection. */
+  linkPlace(
+    tx: TransactionContext,
+    collectionId: string,
+    placeId: string,
+    organizationId: string,
+    position: number,
+  ): Promise<boolean>;
+  unlinkPlace(tx: TransactionContext, collectionId: string, placeId: string): Promise<boolean>;
+  reorderPlaces(
+    tx: TransactionContext,
+    collectionId: string,
+    placeIds: readonly string[],
+  ): Promise<void>;
+  findPublishedCollection(
+    tx: TransactionContext,
+    slug: string,
+  ): Promise<PublishedCollection | null>;
+  findPublishedPlace(tx: TransactionContext, id: string): Promise<PublishedPlace | null>;
+}
+
+export type CatalogDeps = Readonly<{
+  withUserContext: <T>(
+    actor: Pick<Actor, "id">,
+    work: (tx: TransactionContext) => Promise<T>,
+  ) => Promise<T>;
+  withGuestContext: <T>(work: (tx: TransactionContext) => Promise<T>) => Promise<T>;
+  limiter: ActionRateLimiter;
+  repository: CatalogRepository;
+  /** Integer in [0, max): slug suffixes. */
+  random: (max: number) => number;
+}>;
+
+// The answer of every curator use case; a handler maps it to a status code.
+export type CuratorOutcome<T> =
+  | Readonly<{ status: "ok"; value: T }>
+  | Readonly<{ status: "unauthenticated" }>
+  | Readonly<{ status: "forbidden" }>
+  | Readonly<{ status: "not_found" }>
+  | Readonly<{ status: "rate_limited"; retryAfterSeconds: number }>
+  | Readonly<{ status: "invalid"; errors: readonly string[] }>
+  | Readonly<{
+      status: "conflict";
+      reason:
+        | "stale_version"
+        | "was_published"
+        | "already_in_collection"
+        | "last_place_of_published_collection";
+    }>
+  | Readonly<{
+      status: "unprocessable";
+      reason: "no_places" | "already_published" | "not_published";
+    }>;

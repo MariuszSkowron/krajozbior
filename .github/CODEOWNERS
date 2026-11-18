@@ -40,6 +40,10 @@
 /src/features/organizations/       @MariuszSkowron
 /tests/features/organizations/     @MariuszSkowron
 
+# Katalog kolekcji i miejsc kuratorów (dane CUR zapisywane bezpośrednio przez RLS)
+/src/features/catalog/             @MariuszSkowron
+/tests/features/catalog/           @MariuszSkowron
+
 # Uprawnienia bazy, reguły dostępu do danych (RLS) i wszystkie migracje
 /src/lib/db/                       @MariuszSkowron
 /mikro-orm.config.ts               @MariuszSkowron

@@ -15,7 +15,12 @@ import { closeAuth } from "../src/features/identity/infrastructure/better-auth";
 import { seedDemoAccounts } from "../src/features/identity/infrastructure/demo-accounts";
 import { ownerRoleAssigner } from "../src/features/identity/infrastructure/user-role";
 import {
+  DEMO_COLLECTION_TITLE,
+  seedDemoCatalog,
+} from "../src/features/catalog/infrastructure/seed-demo-catalog";
+import {
   assertDemoOrganizationsSeeded,
+  demoOrganizations,
   seedDemoOrganizations,
 } from "../src/features/organizations/infrastructure/seed-demo-organizations";
 import { assertLocalDatabaseUrl } from "../src/lib/config/loopback";
@@ -32,6 +37,7 @@ async function main() {
   // Before any connection: NODE_ENV alone does not say where the database is.
   assertLocalDatabaseUrl(process.env.DATABASE_AUTH_URL);
   assertLocalDatabaseUrl(process.env.DATABASE_MIGRATION_URL);
+  assertLocalDatabaseUrl(process.env.DATABASE_URL);
 
   try {
     const accounts = await seedDemoAccounts(
@@ -52,6 +58,17 @@ async function main() {
 
     // A refused grant ends the script with a non-zero code (main's catch).
     assertDemoOrganizationsSeeded(organizations);
+
+    // One published sample collection of the first demo organization, made
+    // through the curator use cases as krajozbior_app (needs DATABASE_URL).
+    const sampleCurator = demoOrganizations[0]!.curatorEmail;
+    const sample = await seedDemoCatalog(
+      process.env.DATABASE_URL as string,
+      process.env.DATABASE_MIGRATION_URL as string,
+      sampleCurator,
+    );
+
+    console.log(`Demo collection "${DEMO_COLLECTION_TITLE}": ${sample}`);
   } finally {
     await closeAuth();
   }

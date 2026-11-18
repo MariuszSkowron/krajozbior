@@ -58,7 +58,34 @@ export async function runInUserContext<T>(
   });
 }
 
-// Guests have no actor and never call this; use cases check the session and
+// Public reads for a guest (D-T4): a read-only transaction on krajozbior_app
+// with no `app.user_id`, so app_current_user_id() is NULL. Public policies
+// (published collection of an approved organization) match without an actor,
+// private ones match nothing. There is no read path that skips row security.
+export async function runInGuestContext<T>(
+  em: EntityManager,
+  work: (tx: TransactionContext) => Promise<T>,
+): Promise<T> {
+  if (em.isInTransaction()) {
+    throw new NestedUserContextError();
+  }
+
+  return em.transactional(async (tx) => {
+    await tx.execute("set transaction read only", [], "run");
+
+    return work({ em: tx });
+  });
+}
+
+export async function withGuestContext<T>(
+  work: (tx: TransactionContext) => Promise<T>,
+): Promise<T> {
+  const orm = await getOrm();
+
+  return runInGuestContext(orm.em, work);
+}
+
+// Guests have no actor and never call withUserContext; use cases check the session and
 // role first (requireActor/requireRole), then open the context.
 export async function withUserContext<T>(
   actor: ContextActor,
