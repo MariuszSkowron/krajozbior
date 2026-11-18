@@ -16,42 +16,42 @@ import { Migration } from "@mikro-orm/migrations";
 //   draws another suffix).
 
 const publicationFunction = (keepSlugRule: string) => `
-  create or replace function collections_publication() returns trigger
-  language plpgsql
-  set search_path = pg_catalog, public, pg_temp
-  as $$
-  declare
-    v_old_status text;
-    v_old_first timestamptz;
-    v_old_published timestamptz;
-  begin
-    if tg_op = 'UPDATE' then
-      v_old_status := old.status;
-      v_old_first := old.first_published_at;
-      v_old_published := old.published_at;
+      create or replace function collections_publication() returns trigger
+      language plpgsql
+      set search_path = pg_catalog, public, pg_temp
+      as $$
+      declare
+        v_old_status text;
+        v_old_first timestamptz;
+        v_old_published timestamptz;
+      begin
+        if tg_op = 'UPDATE' then
+          v_old_status := old.status;
+          v_old_first := old.first_published_at;
+          v_old_published := old.published_at;
 ${keepSlugRule}
-    end if;
+        end if;
 
-    if new.status = 'published' and v_old_status is distinct from 'published' then
-      new.first_published_at := coalesce(v_old_first, now());
-      new.published_at := now();
-    else
-      new.first_published_at := v_old_first;
-      new.published_at := v_old_published;
-    end if;
+        if new.status = 'published' and v_old_status is distinct from 'published' then
+          new.first_published_at := coalesce(v_old_first, now());
+          new.published_at := now();
+        else
+          new.first_published_at := v_old_first;
+          new.published_at := v_old_published;
+        end if;
 
-    return new;
-  end
-  $$;
+        return new;
+      end
+      $$;
 `;
 
 const keepSlugAfterFirstPublication = `
-      -- The address may change only in the update of the first publication.
-      if v_old_first is not null
-         or new.status is distinct from 'published'
-         or v_old_status = 'published' then
-        new.slug := old.slug;
-      end if;
+          -- The address may change only in the update of the first publication.
+          if v_old_first is not null
+             or new.status is distinct from 'published'
+             or v_old_status = 'published' then
+            new.slug := old.slug;
+          end if;
 `;
 
 export class Migration20261118130000_collection_slug_first_publish extends Migration {

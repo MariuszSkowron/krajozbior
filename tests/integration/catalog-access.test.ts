@@ -1333,6 +1333,45 @@ describe("collections, places and their links", () => {
         });
       });
 
+      it("settles two parallel first publications of one collection: one wins, the address is one and stable, the other gets a controlled result", async () => {
+        const draft = await publishable("Wyścig publikacji");
+        // The shared pool has one connection; the race needs two.
+        const racing = await MikroORM.init({
+          ...createOrmConfig(db.urls.krajozbior_app),
+          pool: { min: 2, max: 4 },
+        });
+
+        try {
+          const racingDeps: CatalogDeps = {
+            ...deps,
+            withUserContext: (actor, work) => runInUserContext(racing.em, actor, work),
+          };
+          const results = await Promise.all(
+            [0, 1].map(() =>
+              publishCollection(asActor(curA), draft.id, { version: draft.version }, racingDeps),
+            ),
+          );
+          const won = results.filter((result) => result.status === "ok");
+          const lost = results.filter((result) => result.status !== "ok");
+
+          expect(won).toHaveLength(1);
+          expect(lost).toEqual([{ status: "conflict", reason: "stale_version" }]);
+          const winner = won[0];
+
+          if (winner?.status !== "ok") throw new Error("setup");
+          expect(winner.value.slug).toMatch(/^wyscig-publikacji-[a-z0-9]{6}$/);
+          // The stored address is the winner's and stays after the loser finished.
+          const stored = await rowOf(draft.id);
+
+          expect(stored).toMatchObject({ slug: winner.value.slug, status: "published" });
+          expect(await getPublishedCollection(winner.value.slug, deps)).toMatchObject({
+            status: "ok",
+          });
+        } finally {
+          await racing.close(true);
+        }
+      });
+
       it("lets the database reject any other change of the address by the application role", async () => {
         const draft = await publishable("Adres w bazie");
 

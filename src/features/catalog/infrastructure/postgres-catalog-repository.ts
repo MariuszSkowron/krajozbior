@@ -28,12 +28,21 @@ const placeColumns = `id, organization_id as "organizationId", name, description
 
 const first = <T>(rows: readonly T[]): T | null => rows[0] ?? null;
 
-// PostgreSQL error 23505 on the address index (the driver error may be wrapped).
-function isUniqueViolation(error: unknown): boolean {
-  const code = (error as { code?: unknown } | null)?.code;
-  const cause = (error as { cause?: unknown } | null)?.cause;
+const SLUG_CONSTRAINT = "collections_slug_key";
 
-  return code === "23505" || (cause !== undefined && isUniqueViolation(cause));
+// PostgreSQL error 23505 on the address index only (the driver error may be
+// wrapped); another unique violation is a real failure, not a taken address.
+export function isSlugTaken(error: unknown): boolean {
+  const { code, constraint, cause } = (error ?? {}) as {
+    code?: unknown;
+    constraint?: unknown;
+    cause?: unknown;
+  };
+
+  return (
+    (code === "23505" && constraint === SLUG_CONSTRAINT) ||
+    (cause !== undefined && isSlugTaken(cause))
+  );
 }
 
 export const postgresCatalogRepository: CatalogRepository = {
@@ -117,7 +126,7 @@ export const postgresCatalogRepository: CatalogRepository = {
 
       return row;
     } catch (error) {
-      if (isUniqueViolation(error)) {
+      if (isSlugTaken(error)) {
         await tx.em.execute(`rollback to savepoint first_publication_slug`);
 
         return "slug_taken";

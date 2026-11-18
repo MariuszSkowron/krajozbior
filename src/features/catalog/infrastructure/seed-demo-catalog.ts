@@ -10,6 +10,8 @@ import { runInGuestContext, runInUserContext } from "@/lib/db/user-context";
 
 import type { CatalogDeps } from "../application/catalog-types";
 import { addPlace } from "../application/curator-places";
+import type { CollectionStatus } from "../domain/collection";
+import { canPublish } from "../domain/publication";
 import { postgresCatalogRepository } from "./postgres-catalog-repository";
 
 // One published sample collection for the demo (E1, PR2). It goes through the
@@ -117,6 +119,18 @@ export async function seedDemoCatalog(
     }
 
     if (state.status !== "published") {
+      // The same rule as `publishCollection`: never publish an empty demo.
+      const placeCount = await runInUserContext(
+        orm.em,
+        actor,
+        async (tx) => (await repository.listCollectionPlaceIds(tx, state.id)).length,
+      );
+      const decision = canPublish(state.status as CollectionStatus, placeCount);
+
+      if (!decision.ok) {
+        throw new Error(`Demo collection cannot be published: ${decision.reason}`);
+      }
+
       // The demo keeps its fixed address (links of the demo and tests use it),
       // so it publishes with that address instead of one drawn from the title
       // (D-27); the places were added above, as `publishCollection` requires.
