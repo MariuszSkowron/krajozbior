@@ -11,9 +11,12 @@ import { progressCounts } from "@/features/album/domain/progress";
 import { getPublishedCollection } from "@/features/catalog/application/public-catalog";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
+import { listMyVisitKindsOfCollection } from "@/features/visits/application/mark-past-visits";
+import { getVisitDeps } from "@/features/visits/infrastructure/visit-deps";
 
 import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
+import { CollectionPlaces } from "./collection-places";
 import { SaveCollectionButton } from "./save-collection-button";
 
 // Rendered on every request and never cached by a shared cache (src/proxy.ts
@@ -50,9 +53,31 @@ async function loadAlbum(collectionId: string, slug: string) {
 
     const view = await getCollectionProgress(actor, collectionId, getAlbumDeps());
 
-    return view.status === "ok"
-      ? ({ kind: "explorer", saved: view.value.saved, progress: view.value.progress } as const)
-      : ({ kind: "none" } as const);
+    if (view.status !== "ok") {
+      return { kind: "none" } as const;
+    }
+
+    // The kinds of the explorer's visits mark the places in the list. A failed
+    // read leaves the plain list (kinds: null), like the failures above.
+    let kinds: Map<string, "on_site" | "past"> | null = null;
+
+    try {
+      const answer = await listMyVisitKindsOfCollection(actor, collectionId, getVisitDeps());
+
+      kinds =
+        answer.status === "ok"
+          ? new Map(answer.value.map((visit) => [visit.placeId, visit.kind]))
+          : null;
+    } catch (error) {
+      logReadFailure("Collection visit kinds read", error);
+    }
+
+    return {
+      kind: "explorer",
+      saved: view.value.saved,
+      progress: view.value.progress,
+      kinds,
+    } as const;
   } catch (error) {
     logReadFailure("Collection album read", error);
 
@@ -121,6 +146,16 @@ export default async function CollectionPage({ params }: { params: Params }) {
         </h2>
         {collection.places.length === 0 ? (
           <p>Ta kolekcja nie ma jeszcze miejsc.</p>
+        ) : album.kind === "explorer" && album.kinds !== null ? (
+          <CollectionPlaces
+            places={collection.places.map((place) => ({
+              id: place.id,
+              name: place.name,
+              address: place.address,
+              position: place.position,
+              kind: album.kinds?.get(place.id) ?? null,
+            }))}
+          />
         ) : (
           <ol className={styles.list}>
             {collection.places.map((place) => (

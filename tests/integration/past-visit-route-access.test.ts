@@ -486,8 +486,15 @@ describe("/api/me/visits/past", () => {
       `select count(*)::int as n from public.visits`,
     );
 
+    // No session-level advisory lock is left either (the batch uses a transaction-level one).
+    const locks = await connection.execute<{ n: number }[]>(
+      `select count(*)::int as n from pg_locks
+        where pid = pg_backend_pid() and locktype = 'advisory'`,
+    );
+
     expect(setting[0]!.u).toBeNull();
     expect(visible[0]!.n).toBe(0);
+    expect(locks[0]!.n).toBe(0);
   });
 
   it("a batch waits for the advisory lock of the explorer and then adds nothing for a place recorded meanwhile", async () => {
@@ -518,7 +525,9 @@ describe("/api/me/visits/past", () => {
           Number(
             (
               await f.admin$<{ n: string }>(
-                `select count(*) as n from pg_locks where locktype = 'advisory' and not granted`,
+                `select count(*) as n from pg_locks
+                  where locktype = 'advisory' and not granted
+                    and database = (select oid from pg_database where datname = current_database())`,
               )
             )[0]!.n,
           ) > 0;
