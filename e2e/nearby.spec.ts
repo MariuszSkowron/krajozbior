@@ -17,7 +17,7 @@ const DEMO_SLUG = "demo-mosty-i-zamki-nad-wisla";
 const DEMO_TITLE = "Mosty i zamki nad Wisłą (demo)";
 const EXPLORER_A = "user@demo.krajozbior.local";
 const THEME_COOKIE = "krajozbior-theme";
-// About 9 km from the centre of the demo places (Tczew, Gniew, Malbork). The digits are
+// About 2 km from the centre of the demo places (Tczew, Gniew, Malbork). The digits are
 // distinctive, so a leak in an address or a body is found by a plain substring search.
 const NEAR = { latitude: 54.00123, longitude: 18.90456, accuracy: 25 };
 const SECRETS = ["54.00123", "18.90456", "54.001", "18.904"];
@@ -165,8 +165,6 @@ test.describe("W okolicy on the home page", () => {
       await shot(page, `idle-${theme}`);
     });
 
-    const trafficBeforeClick = traffic.length;
-
     await button.click();
 
     const card = section(page).getByRole("link", {
@@ -193,8 +191,8 @@ test.describe("W okolicy on the home page", () => {
     });
 
     // Nothing the page sent (address, body, headers; RSC requests included) or logged holds the
-    // position, and the click itself made no request.
-    expect(traffic.slice(trafficBeforeClick).filter((line) => !/theme/.test(line))).toEqual([]);
+    // position. Whether the click made a request is not asserted: a card link may be prefetched
+    // by Next, and that is harmless as long as no coordinate is in it.
     for (const secret of SECRETS) {
       expect(traffic.join("\n")).not.toContain(secret);
       expect(logs.join("\n")).not.toContain(secret);
@@ -289,7 +287,6 @@ test.describe("W okolicy on the home page", () => {
     const { context, page } = await contextAt(browser, null);
 
     await page.addInitScript(() => {
-      Object.defineProperty(Navigator.prototype, "geolocation", { get: () => undefined });
       Reflect.deleteProperty(Navigator.prototype, "geolocation");
     });
     await page.goto("/");

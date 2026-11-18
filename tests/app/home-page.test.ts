@@ -153,6 +153,8 @@ describe("home page of a guest", () => {
     // Nothing of the sign-out in the default page (the "W okolicy" status region is empty).
     const plain = await render();
 
+    expect(plain.match(/role="status"/g)).toHaveLength(1);
+    expect(plain).toMatch(/<p role="status"><\/p>/);
     expect(plain).not.toContain("Wylogowano.");
     expect(plain).not.toContain("Nie udało się wylogować");
   });

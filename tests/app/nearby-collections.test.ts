@@ -201,6 +201,42 @@ describe("NearbyCollections", () => {
     },
   );
 
+  it("gives up after its own time limit when the browser never answers, and ignores a late answer", () => {
+    vi.useFakeTimers();
+
+    try {
+      let late: (p: unknown) => void = () => undefined;
+      const geolocation = stubGeolocation((success) => {
+        late = success;
+      });
+
+      click();
+      vi.advanceTimersByTime(11_999);
+      expect(html()).toContain("Ustalam Twoje położenie…");
+
+      vi.advanceTimersByTime(1);
+
+      const markup = html();
+
+      expect(markup).toContain(
+        '<p role="status">Ustalanie położenia trwało zbyt długo. Spróbuj ponownie.</p>',
+      );
+      expect(markup).toContain("Sprawdź ponownie");
+      expect(markup).not.toContain('aria-disabled="true"');
+
+      // The answer that comes after the limit changes nothing.
+      late(reading(54, 18));
+      expect(html()).toContain("Ustalanie położenia trwało zbyt długo");
+      expect(html()).not.toContain("/collections/");
+
+      // And the explorer can try again.
+      click();
+      expect(geolocation.getCurrentPosition).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("can try again after a refusal", () => {
     const geolocation = stubGeolocation((_success, fail) => fail({ code: 1 }));
 

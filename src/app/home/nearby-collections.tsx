@@ -41,6 +41,9 @@ function problemOf(error: GeolocationPositionError): NearbyProblem {
   return error.code === 1 ? "denied" : error.code === 3 ? "timeout" : "unavailable";
 }
 
+// A little more than the 10 s timeout passed to the geolocation API.
+const NEARBY_CLIENT_TIMEOUT_MS = 12_000;
+
 const noSubscription = () => () => undefined;
 const hasGeolocation = () => typeof navigator !== "undefined" && "geolocation" in navigator;
 
@@ -54,10 +57,7 @@ export function NearbyCollections({
   // The server renders the button; a browser without geolocation drops it after hydration.
   const supported = useSyncExternalStore(noSubscription, hasGeolocation, () => true);
 
-  function show(next: State) {
-    busy.current = false;
-    setState(next);
-  }
+  const attempt = useRef(0);
 
   function locate() {
     // aria-disabled keeps the focus on the button, so a click while locating is ignored here.
@@ -66,6 +66,26 @@ export function NearbyCollections({
     }
 
     busy.current = true;
+
+    const mine = ++attempt.current;
+    // The first result of this attempt wins; a late one (after our own time limit) is ignored.
+    const show = (next: State) => {
+      if (attempt.current !== mine) {
+        return;
+      }
+
+      attempt.current += 1;
+      clearTimeout(timer);
+      busy.current = false;
+      setState(next);
+    };
+    // The timeout of the API starts only after the permission is given; when the prompt is
+    // closed without an answer no callback ever comes, so the section has its own limit.
+    const timer = setTimeout(
+      () => show({ kind: "problem", problem: "timeout" }),
+      NEARBY_CLIENT_TIMEOUT_MS,
+    );
+
     setState({ kind: "locating" });
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {

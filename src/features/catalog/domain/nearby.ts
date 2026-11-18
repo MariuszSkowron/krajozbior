@@ -1,7 +1,7 @@
 // "W okolicy" (E12-3, D-E12-9): the distance is counted in the browser, so the position of
 // the device never reaches the server. Pure functions, no I/O.
 
-/** The radius of "W okolicy" and the most collections shown (E12-Q4, [P]). */
+/** The radius of "W okolicy" and the most collections shown (E12-Q4, [Z]). */
 export const NEARBY_RADIUS_KM = 50;
 export const NEARBY_LIMIT = 6;
 /** Above this accuracy of a reading (in metres) the distances are said to be approximate. */
