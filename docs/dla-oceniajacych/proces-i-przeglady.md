@@ -2,7 +2,7 @@
 
 ## W skrócie
 
-Kod piszą agenci AI (Claude Code), a właściciel projektu podejmuje decyzje produktowe i zatwierdza zmiany wrażliwe. Każda zmiana przechodzi przez PR z automatycznymi testami i przeglądem innego agenta niż autor; zmiany dotyczące danych prywatnych, uprawnień i bazy przegląda najmocniejszy model, osobno pod kątem jakości i bezpieczeństwa. Granicą bezpieczeństwa nie jest dobra wola agenta, tylko ustawienia GitHuba: zmian wrażliwych nie da się scalić bez kliknięcia właściciela.
+Kod piszą agenci AI (Claude Code), a właściciel projektu podejmuje decyzje produktowe i zatwierdza zmiany wrażliwe. Każda zmiana przechodzi przez PR (propozycję zmiany w kodzie, którą ktoś sprawdza przed scaleniem) z automatycznymi testami i przeglądem innego agenta niż autor; zmiany dotyczące danych prywatnych, uprawnień i bazy przegląda najmocniejszy model, osobno pod kątem jakości i bezpieczeństwa. Granicą bezpieczeństwa nie jest dobra wola agenta, tylko ustawienia GitHuba: zmian wrażliwych nie da się scalić bez kliknięcia właściciela.
 
 Pełny opis: [docs/agent-workflow.md](../agent-workflow.md) i [SDLC.md](../../SDLC.md).
 
@@ -17,7 +17,7 @@ Pełny opis: [docs/agent-workflow.md](../agent-workflow.md) i [SDLC.md](../../SD
 ## Zabezpieczenia procesu
 
 - **Osobna tożsamość agentów.** Agenci działają na GitHubie jako aplikacja projektu z wąskimi uprawnieniami, z tokenem ważnym godzinę. Nie mogą zatwierdzać PR-ów ani zmieniać ustawień repozytorium.
-- **Właściciel kodu.** Plik `.github/CODEOWNERS` wskazuje ścieżki wrażliwe; zmiana w nich czeka na zatwierdzenie właściciela, a każdy nowy commit to zatwierdzenie unieważnia.
+- **Właściciel kodu.** Plik `.github/CODEOWNERS` wskazuje ścieżki wrażliwe; zmiana w nich czeka na zatwierdzenie właściciela, a każdy nowy commit w PR unieważnia to zatwierdzenie.
 - **Czystość repozytorium publicznego.** Osobny job CI (`guard`) odrzuca PR, gdy trafia do niego plik prywatny albo odwołanie do prywatnego repozytorium. Skan sekretów obejmuje całą historię.
 - **Hooki agenta.** Lokalne reguły blokują agentowi m.in. czytanie plików z sekretami, zmianę własnych ustawień i scalanie PR-ów.
 
@@ -41,7 +41,7 @@ Numery to publiczne numery PR-ów w tym repozytorium. Uwagi drobne i kosmetyczne
 Po zakończeniu ośmiu PR-ów ścieżki konkursowej (#10–#18) osobny agent wykonał przegląd bezpieczeństwa całości według kategorii OWASP. Wynik:
 
 - **0 krytycznych i 0 wysokich.**
-- **1 średnie:** dotyczyło wiarygodności dziennika operacji. Właściciel zdecydował o poprawce przed konkursem; poprawka powstała według osobnej specyfikacji i weszła w PR #22.
+- **1 średnie:** pokazało, że wiarygodność dziennika operacji da się poprawić. Właściciel zdecydował o poprawce przed konkursem; poprawka powstała według osobnej specyfikacji i weszła w PR #22.
 - **5 drobnych i 3 informacyjne:** zaplanowane do poprawy albo świadomie zaakceptowane przez właściciela.
 
 Recenzent sprawdził m.in. obejście reguł dostępu w bazie, funkcje działające z wyższymi uprawnieniami, wyliczanie cudzych identyfikatorów, masowe przypisanie pól, sesję i ochronę przed fałszywymi żądaniami, przekierowania, wycieki w komunikatach błędów, nagłówki, ochronę danych lokalizacji, konta demonstracyjne na produkcji i sekrety w kodzie. Raport z ustaleniami jest prywatny; publikujemy tylko wynik, żeby nie ujawniać szczegółów uwag, które mogą być jeszcze otwarte.

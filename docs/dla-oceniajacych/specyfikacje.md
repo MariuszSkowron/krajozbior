@@ -2,7 +2,7 @@
 
 ## W skrócie
 
-Każda większa zmiana zaczyna się od specyfikacji: opisu celu, wymagań, rozwiązania, testów i podziału pracy na małe PR-y. Specyfikację pisze jeden model AI, a przegląda inny; pytania otwarte rozstrzyga właściciel, zanim powstanie kod. Do dziś powstały trzy specyfikacje. Poniżej są ich streszczenia; pełne wersje są w prywatnym repozytorium dokumentacji, bo zawierają decyzje i plany właściciela.
+Każda większa zmiana zaczyna się od specyfikacji: opisu celu, wymagań, rozwiązania, testów i podziału pracy na małe PR-y (propozycje zmian w kodzie). Specyfikację pisze jeden model AI, a przegląda inny; pytania otwarte rozstrzyga właściciel, zanim powstanie kod. Do dziś powstały trzy specyfikacje. Poniżej są ich streszczenia; pełne wersje są w prywatnym repozytorium dokumentacji, bo zawierają decyzje i plany właściciela.
 
 Oznaczenia z pełnych specyfikacji: wymaganie właściciela, propozycja agenta (czeka na akceptację) i decyzja techniczna są zawsze rozdzielone.
 
@@ -35,7 +35,7 @@ Oznaczenia z pełnych specyfikacji: wymaganie właściciela, propozycja agenta (
 
 ## 2. Dziennik operacji odporny na rolę, która do niego zapisuje
 
-**Cel.** Dziennik operacji to zapis tego, kto i dlaczego nadał komuś uprawnienia kuratora albo zawiesił organizację. Przegląd bezpieczeństwa wykazał, że dziennik zapisywało konto, które jest też właścicielem tabeli, więc nie był twardym dowodem. Właściciel zdecydował, że trzeba to poprawić przed konkursem.
+**Cel.** Dziennik operacji to zapis tego, kto i dlaczego nadał komuś uprawnienia kuratora albo zawiesił organizację. Przegląd bezpieczeństwa wykazał, że wiarygodność dziennika da się poprawić. Właściciel zdecydował, że trzeba to zrobić przed konkursem.
 
 **Rozwiązanie.** Codzienne polecenia administracyjne pracują na osobnym, słabszym koncie bazy: może ono tylko dopisywać wpisy. Czas wpisu i konto, które go zapisało, wypełnia baza. Nadanie albo odebranie roli administratora wymaga podania powodu i zostawia wpis; baza odrzuca zmianę roli bez takiego wpisu w tej samej transakcji. Pozostałe ryzyko (osoba z poświadczeniem migracji może świadomie zmienić schemat) jest opisane w [docs/data-isolation.md](../data-isolation.md) i zaakceptowane przez właściciela.
 

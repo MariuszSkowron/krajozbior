@@ -40,11 +40,11 @@ Aplikacja łączy się z bazą jako rola bez uprawnień administracyjnych i bez 
 - **Kurator zmienia tylko swoje.** Reguły bazy pozwalają kuratorowi zmieniać kolekcje i miejsca jego organizacji i tylko wybrane pola; daty publikacji wylicza baza.
 - **Dziennik operacji tylko do dopisywania.** Dziennik zapisuje osobna rola, która może dodawać wpisy, ale nie może ich zmienić ani wyłączyć ochrony. Zmiana roli konta na administratora bez wpisu w dzienniku jest odrzucana przez bazę.
 - **Bez pamięci podręcznej dla danych prywatnych.** Strony i odpowiedzi z danymi odkrywcy mają nagłówek zakazujący zapisu w pamięci podręcznej, a zapisy sprawdzają pochodzenie żądania.
-- **Nagłówki bezpieczeństwa** (polityka treści, HSTS i inne) ustawia jedno miejsce w kodzie, a test E2E sprawdza, że są obecne.
+- **Nagłówki bezpieczeństwa** (polityka treści, HSTS i inne) ustawia jedno miejsce w kodzie, a test E2E (w prawdziwej przeglądarce) sprawdza, że są obecne.
 
 ## Jak to jest sprawdzane
 
 - Testy integracyjne na prawdziwej bazie PostgreSQL w katalogu `tests/integration/` sprawdzają odmowy dostępu: kurator organizacji B kontra szkic organizacji A, odkrywca B kontra dane odkrywcy A, gość kontra treści nieopublikowane, kurator kontra wizyty odkrywców.
 - `tests/integration/rls-coverage.test.ts` po wszystkich migracjach sprawdza, że każda tabela ma włączone i wymuszone reguły dostępu.
 - Testy E2E w przeglądarce (`e2e/`) przechodzą ścieżki z dwoma kontami i automatyczny test dostępności.
-- CI uruchamia przy każdej zmianie formatowanie, lint, typy, testy jednostkowe z progiem pokrycia, build, testy integracyjne, E2E, skan sekretów i analizę kodu (CodeQL). Opis: [docs/testing.md](../testing.md).
+- CI (automatyczne kontrole po każdej zmianie) uruchamia formatowanie, lint, typy, testy jednostkowe z progiem pokrycia, build, testy integracyjne, E2E, skan sekretów i analizę kodu CodeQL (narzędzie GitHuba szukające podatności). Opis: [docs/testing.md](../testing.md).

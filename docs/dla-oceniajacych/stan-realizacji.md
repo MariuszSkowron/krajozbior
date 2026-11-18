@@ -2,7 +2,7 @@
 
 ## W skrócie
 
-Działa pierwsza pełna ścieżka: kurator tworzy i publikuje kolekcję, gość ją ogląda, odkrywca zapisuje ją u siebie, potwierdza wizytę lokalizacją i widzi postęp, a test sprawdza, że kurator innej organizacji dostaje odmowę. W toku jest docelowy wygląd „nocnego albumu”. Pozostałe części pierwszej wersji (zdjęcia, karty legendarne, aktualności, profil i inne) przyjdą po konkursie. Stan na 18 listopada 2026 roku; aktualny stan pokazuje historia PR-ów.
+Działa pierwsza pełna ścieżka: kurator tworzy i publikuje kolekcję, gość ją ogląda, odkrywca zapisuje ją u siebie, potwierdza wizytę lokalizacją i widzi postęp, a test sprawdza, że kurator innej organizacji dostaje odmowę. W toku jest docelowy wygląd „nocnego albumu”. Pozostałe części pierwszej wersji (zdjęcia, karty legendarne, aktualności, profil i inne) są w planie. Stan na 18 listopada 2026 roku; aktualny stan pokazuje historia PR-ów (propozycji zmian w kodzie).
 
 ## Działa (scalone do `main`)
 
@@ -21,13 +21,13 @@ Działa pierwsza pełna ścieżka: kurator tworzy i publikuje kolekcję, gość 
 
 - Pozostałe dwa kroki wyglądu „nocny album”: nawigacja i wspólne elementy, potem przeniesienie wszystkich ekranów ścieżki z testem dostępności.
 - Ta dokumentacja dla oceniających.
-- Wizyta z przeszłości (zaznaczenie miejsc odwiedzonych przed założeniem konta, także wielu naraz) — po wyglądzie i dokumentacji, jeśli starczy czasu przed konkursem.
+- Wizyta z przeszłości (zaznaczenie miejsc odwiedzonych przed założeniem konta, także wielu naraz) — po wyglądzie i dokumentacji.
 
-## Po konkursie (zakres pierwszej wersji)
+## Planowane (zakres pierwszej wersji)
 
 Plan dzieli pierwszą wersję na epiki:
 
-- **E1–E2:** organizacje, katalog i album odkrywcy (ścieżka konkursowa, zrobiona; po konkursie m.in. współzarządzanie kolekcją przez kilka organizacji i historia zmian miejsca).
+- **E1–E2:** organizacje, katalog i album odkrywcy (ścieżka konkursowa, zrobiona; w planie m.in. współzarządzanie kolekcją przez kilka organizacji i historia zmian miejsca).
 - **E3:** wygląd „nocny album” (w toku).
 - **E4:** zdjęcia oficjalne, okładki, zdjęcia odkrywców z moderacją kuratora.
 - **E5:** zgłoszenia poprawek i problemów z miejscem, kolejka zgłoszeń kuratora.

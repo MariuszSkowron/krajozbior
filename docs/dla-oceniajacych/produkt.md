@@ -2,11 +2,11 @@
 
 ## W skrócie
 
-Krajozbiór to album odwiedzonych miejsc. Odkrywca zbiera miejsca w tematycznych kolekcjach (np. „Wieże ciśnień Pomorza”), potwierdza wizytę lokalizacją telefonu i widzi postęp jako liczbę zebranych miejsc, np. 9/24. Gotowe kolekcje przygotowują kuratorzy: gminy, oddziały PTTK, organizacje turystyczne i lokalni przewodnicy. Pierwsza wersja działa w przeglądarce na telefonie i komputerze.
+Krajozbiór to album odwiedzonych miejsc. Odkrywca zbiera miejsca w tematycznych kolekcjach (np. „Wieże ciśnień Pomorza”), potwierdza wizytę lokalizacją telefonu i widzi postęp jako liczbę zebranych miejsc, np. 9/24. Gotowe kolekcje przygotowują kuratorzy: gminy, PTTK, organizacje turystyczne i lokalni przewodnicy. Pierwsza wersja działa w przeglądarce na telefonie i komputerze.
 
 ## Jaki problem rozwiązuje
 
-Listy zapisanych miejsc w popularnych mapach służą tylko do nawigacji. Krajozbiór traktuje zbieranie miejsc jak osobisty dziennik: co odwiedziłem, kiedy i ile zostało mi do skończenia kolekcji. Kolekcje kuratorów prowadzą do mało znanych obiektów w małych miejscowościach, takich jak wieże ciśnień, kapliczki czy stare dworce.
+Krajozbiór traktuje zbieranie miejsc jak osobisty dziennik: co odwiedziłem, kiedy i ile zostało mi do skończenia kolekcji. Kolekcje kuratorów prowadzą do mało znanych obiektów w małych miejscowościach, takich jak wieże ciśnień, kapliczki czy stare dworce.
 
 ## Kto korzysta
 
@@ -19,12 +19,13 @@ Listy zapisanych miejsc w popularnych mapach służą tylko do nawigacji. Krajoz
 
 - **Dwa rodzaje wizyty.** Wizyta na miejscu jest potwierdzana lokalizacją urządzenia: liczy się, gdy odkrywca jest w promieniu ustawionym przez kuratora (od 50 m do 2 km, domyślnie 200 m), a odczyt lokalizacji jest dokładny co najmniej do 150 m. Wizytę z przeszłości odkrywca zaznacza sam, także z laptopa (ta część jest jeszcze w planie). Oba rodzaje liczą się do postępu.
 - **Poza promieniem** aplikacja nie potwierdza wizyty, tylko pokazuje odległość („Jesteś 6,2 km od miejsca”) i proponuje ponowne sprawdzenie albo zapis na liście „Chcę zobaczyć”. Przy zbyt niedokładnym odczycie prosi o próbę na zewnątrz.
-- **Prywatność lokalizacji.** Aplikacja nie zapisuje położenia telefonu ani dokładności odczytu, tylko to, które miejsce odwiedzono, kiedy (czas serwera) i jakim rodzajem wizyty. Współrzędne nie trafiają do logów.
+- **Prywatność lokalizacji.** Aplikacja nie zapisuje położenia telefonu ani dokładności odczytu, tylko to, które miejsce odwiedzono, kiedy (czas serwera) i jakim rodzajem wizyty. Współrzędne nie trafiają do logów. Zgoda przeglądarki na lokalizację obejmuje całą aplikację, a nie pojedynczą funkcję. To świadomy kompromis na rzecz prostej konfiguracji; lokalizacja jest używana tylko przy potwierdzaniu wizyty i nie jest zapisywana.
+- **Świadomie przyjęte ryzyko.** Lokalizację zgłaszaną przez urządzenie da się podrobić, więc potwierdzenie wizyty opiera się na zaufaniu do odkrywcy. Przyjęliśmy to ryzyko świadomie: Krajozbiór to osobisty album, a nie ranking, w którym ktoś rywalizuje punktami.
 - **Postęp** pokazujemy jako liczbę odwiedzonych z liczby wszystkich (9/24), nie procentem. Liczą się miejsca, które są obecnie w kolekcji.
 - **Jedno miejsce w wielu kolekcjach.** Jedna wizyta zalicza miejsce we wszystkich kolekcjach, w których ono jest.
 - **Wizyty nie znikają.** Gdy kurator usunie miejsce z kolekcji albo wycofa publikację, wizyty i zapisy odkrywców zostają. Kolekcji, która była kiedykolwiek opublikowana, nie da się usunąć.
 - **Zdjęcia odkrywców** (w planie): można je dodać dopiero po wizycie, a inni widzą je po akceptacji kuratora. Zdjęcia na licencjach Creative Commons mają przy sobie autora, źródło i licencję.
-- **Karty legendarne** (w planie): wizyta na miejscu w czasie wydarzenia ustawionego przez kuratora daje kartę, którą odkrywca otwiera w swojej skrytce.
+- **Karty legendarne** (w planie): za udział w wydarzeniu zorganizowanym przez kuratora odkrywca dostaje wyjątkową kartę, którą ogląda w swojej skrytce.
 
 ## Zakres pierwszej wersji
 
@@ -36,8 +37,6 @@ Później przyjdzie m.in. aplikacja na Androida.
 
 - Ocen miejsc gwiazdkami ani punktami.
 - Emoji w treściach i interfejsie.
-- Fizycznych skrytek i pojemników, które trzeba serwisować w terenie.
-- Opisów miejsc generowanych przez AI bez redakcji człowieka.
 
 ## Wygląd i dostępność
 
