@@ -2,6 +2,8 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import axe from "axe-core";
 import { Client } from "pg";
 
+import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+
 // E2, PR6: saving a collection and "Moje kolekcje" with two explorers (demo
 // accounts user@ and user2@). Needs a migrated, seeded database like the other
 // specs that sign in; without it the spec is skipped.
@@ -54,7 +56,9 @@ async function signedInPage(browser: Browser, email: string): Promise<Page> {
 // (admin connection, like the other specs), before and after each test, so a
 // failed run leaves no trace and the next one starts from "no saves".
 async function removeSaves() {
-  const client = new Client({ connectionString: process.env.DATABASE_ADMIN_URL });
+  const client = new Client({
+    connectionString: parseE2eAdminDatabaseUrl(process.env.DATABASE_ADMIN_URL),
+  });
 
   await client.connect();
   try {
@@ -69,7 +73,9 @@ async function removeSaves() {
 }
 
 async function demoId(): Promise<string> {
-  const client = new Client({ connectionString: process.env.DATABASE_ADMIN_URL });
+  const client = new Client({
+    connectionString: parseE2eAdminDatabaseUrl(process.env.DATABASE_ADMIN_URL),
+  });
 
   await client.connect();
   try {
