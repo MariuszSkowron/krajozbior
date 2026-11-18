@@ -2,6 +2,8 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import axe from "axe-core";
 import { Client } from "pg";
 
+import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+
 // E2-S2 / E2-S3, PR7: "Potwierdź wizytę" on the place page, with the position
 // of the device set by Playwright (setGeolocation). Most Tczewski of the demo
 // collection is at 54.0928, 18.7919 with the default radius of 200 m. Needs a
@@ -54,7 +56,9 @@ async function signedInPage(browser: Browser, email: string, geolocation = true)
 }
 
 async function adminQuery<T>(sql: string, params: unknown[] = []): Promise<T[]> {
-  const client = new Client({ connectionString: process.env.DATABASE_ADMIN_URL });
+  const client = new Client({
+    connectionString: parseE2eAdminDatabaseUrl(process.env.DATABASE_ADMIN_URL),
+  });
 
   await client.connect();
   try {
