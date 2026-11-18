@@ -52,13 +52,6 @@
 /tests/support/album-fixtures.ts   @MariuszSkowron
 /e2e/album-access.spec.ts          @MariuszSkowron
 
-# Publiczne strony kolekcji i miejsc (dziś treść publiczna, w kolejnych krokach
-# także prywatny postęp odkrywcy) oraz ich wspólne style
-/src/app/collections/              @MariuszSkowron
-/src/app/places/                   @MariuszSkowron
-/src/app/catalog.module.css        @MariuszSkowron
-/e2e/public-catalog.spec.ts        @MariuszSkowron
-
 # Panel kuratora (ekrany zapisujące dane CUR przez trasy API), lista organizacji
 # konta w żądaniu i test dwóch kuratorów (kurator B nie widzi szkiców A)
 /src/app/curator/                  @MariuszSkowron
@@ -66,6 +59,13 @@
 /e2e/catalog-access.spec.ts        @MariuszSkowron
 /e2e/competition-path.spec.ts      @MariuszSkowron
 /e2e/on-site-visit.spec.ts         @MariuszSkowron
+
+# Publiczne strony kolekcji i miejsc (dziś treść publiczna, w kolejnych krokach
+# także prywatny postęp odkrywcy) oraz ich wspólne style
+/src/app/collections/              @MariuszSkowron
+/src/app/places/                   @MariuszSkowron
+/src/app/catalog.module.css        @MariuszSkowron
+/e2e/public-catalog.spec.ts        @MariuszSkowron
 
 # Uprawnienia bazy, reguły dostępu do danych (RLS) i wszystkie migracje
 /src/lib/db/                       @MariuszSkowron
