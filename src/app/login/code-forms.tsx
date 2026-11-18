@@ -39,7 +39,7 @@ export function CodeForms({ returnTo, codeSent, errorMessage }: CodeFormsProps) 
           <label htmlFor="code-request-email">E-mail</label>
           <input id="code-request-email" name="email" type="email" autoComplete="email" required />
         </div>
-        <button type="submit" className={styles.submit}>
+        <button type="submit" className={`button button--primary ${styles.submit}`}>
           Wyślij kod
         </button>
       </form>
@@ -61,7 +61,7 @@ export function CodeForms({ returnTo, codeSent, errorMessage }: CodeFormsProps) 
             required
           />
         </div>
-        <button type="submit" className={styles.submit}>
+        <button type="submit" className={`button button--primary ${styles.submit}`}>
           Zaloguj się kodem
         </button>
       </form>

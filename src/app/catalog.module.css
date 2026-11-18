@@ -1,3 +1,8 @@
+/*
+ * Ekrany katalogu (E3-2b): strona kolekcji, miejsca, lista „Chcę zobaczyć” i błędy. Tylko tokeny.
+ * Wiersze listy są linkami rozpoznawalnymi po kształcie (bez podkreślenia, własna klasa); po
+ * najechaniu zmienia się obrys, nie tło (reguła tła: wiersze z odznaką lub tekstem akcentem).
+ */
 .page {
   display: grid;
   gap: var(--space-lg);
@@ -14,12 +19,29 @@
   margin: 0;
 }
 
+/* Tytuł kolekcji: szeryf, na komputerze większy (5xl) z lekkim ściśnięciem liter. */
+.collectionTitle {
+  letter-spacing: var(--font-tracking-display);
+}
+
+@media (min-width: 48rem) {
+  .page {
+    gap: var(--space-xl);
+    padding-block: var(--space-xl);
+  }
+
+  .collectionTitle {
+    font-size: var(--font-size-5xl);
+  }
+}
+
 .meta {
   color: var(--color-text-secondary);
 }
 
 .summary {
   max-width: 40rem;
+  color: var(--color-text-secondary);
 }
 
 .section {
@@ -29,7 +51,6 @@
 
 .section h2 {
   margin: 0;
-  font-size: var(--font-size-lg);
 }
 
 .list {
@@ -43,30 +64,42 @@
 .item {
   background: var(--color-surface-card);
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition:
+    border-color var(--motion-duration-short) var(--motion-easing-standard),
+    box-shadow var(--motion-duration-short) var(--motion-easing-standard);
+}
+
+@media (hover: hover) {
+  .item:hover {
+    border-color: var(--color-border-strong);
+    box-shadow: var(--shadow-card-hover);
+  }
 }
 
 .itemLink {
   display: grid;
   gap: var(--space-xs);
-  min-height: var(--size-touch-min);
+  align-content: center;
+  box-sizing: border-box;
+  min-height: 56px;
   padding: var(--space-md);
   color: inherit;
   text-decoration: none;
-  border-radius: var(--radius-md);
-}
-
-.itemLink:hover {
-  background: var(--color-surface-tint);
-}
-
-.itemLink:focus-visible {
-  outline: var(--focus-ring-width) solid var(--color-border-focus);
-  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-lg);
 }
 
 .itemTitle {
+  color: var(--color-text-strong);
   font-weight: var(--font-weight-strong);
+}
+
+/* Tytuł pozycji listy, w której numer miejsca stoi przed nazwą (mono, cyfry tabelaryczne). */
+.itemNumber {
+  color: var(--color-text-label);
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .itemMeta {
@@ -74,20 +107,61 @@
   font-size: var(--font-size-sm);
 }
 
+.itemMetaMono {
+  color: var(--color-text-meta);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
+}
+
+.itemFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .facts {
   display: grid;
   gap: var(--space-md);
   margin: 0;
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
 
 .facts dt {
-  font-weight: var(--font-weight-strong);
+  color: var(--color-text-label);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
 }
 
 .facts dd {
   margin: 0;
   max-width: 40rem;
   white-space: pre-line;
+}
+
+/* Karta z treścią ekranu (np. stan wizyty); odznaka stanu stoi tylko na karcie (reguła tła). */
+.card {
+  display: grid;
+  gap: var(--space-sm);
+  justify-items: start;
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.card p {
+  margin: 0;
 }
 
 .status {
@@ -101,18 +175,4 @@
 
 .retry {
   justify-self: start;
-  min-height: var(--size-touch-min);
-  padding-inline: var(--space-lg);
-  background: var(--color-brand-accent);
-  color: var(--color-text-on-accent);
-  border: 0;
-  border-radius: var(--radius-pill);
-  font: inherit;
-  font-weight: var(--font-weight-strong);
-  cursor: pointer;
-}
-
-.retry:focus-visible {
-  outline: var(--focus-ring-width) solid var(--color-border-focus);
-  outline-offset: var(--focus-ring-offset);
 }

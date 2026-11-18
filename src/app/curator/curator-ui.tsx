@@ -67,7 +67,7 @@ export function FeedbackRegion({ feedback, fields = {}, onReload }: FeedbackRegi
             </ul>
           ) : null}
           {feedback.stale && onReload !== undefined ? (
-            <button type="button" className={styles.secondary} onClick={onReload}>
+            <button type="button" className="button button--outline" onClick={onReload}>
               Wczytaj aktualną wersję
             </button>
           ) : null}

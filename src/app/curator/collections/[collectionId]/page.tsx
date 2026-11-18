@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { StatusBadge } from "@/design-system/components/status-badge";
 import { getCuratorCollection } from "@/features/catalog/application/curator-queries";
 import { COLLECTION_STATUS_LABELS, REGION_LABELS } from "@/features/catalog/domain/collection";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
@@ -45,12 +46,10 @@ export default async function CollectionEditorPage({
           <p className="eyebrow">Edycja kolekcji</p>
           <h1>{collection.title}</h1>
           <p>
-            <span
-              className={`${styles.badge} ${
-                collection.status === "published" ? styles.badgePublished : styles.badgeDraft
-              }`}
-            >
-              {COLLECTION_STATUS_LABELS[collection.status]}
+            <span className={styles.onCard}>
+              <StatusBadge tone={collection.status === "published" ? "success" : "neutral"}>
+                {COLLECTION_STATUS_LABELS[collection.status]}
+              </StatusBadge>
             </span>{" "}
             <span className={styles.muted}>{REGION_LABELS[collection.region]}</span>
           </p>

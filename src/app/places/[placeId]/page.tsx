@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { getRequestActor, logReadFailure, loginHref } from "@/app/request-actor";
+import { StatusBadge } from "@/design-system/components/status-badge";
 import { getPublishedPlace } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import { hasVisitedPlace } from "@/features/visits/application/confirm-on-site-visit";
@@ -119,18 +120,21 @@ export default async function PlacePage({ params }: { params: Params }) {
       <section className={styles.section} aria-labelledby="wizyta">
         <h2 id="wizyta">Wizyta</h2>
         {visit.kind === "guest" ? (
-          <div>
-            <Link className={albumStyles.action} href={visit.loginHref}>
+          <div className={albumStyles.guestAction}>
+            <Link className="button button--primary" href={visit.loginHref}>
               Zaloguj się, aby potwierdzić wizytę lub zapisać na Chcę zobaczyć
             </Link>
             <p className={albumStyles.feedback}>Po zalogowaniu wrócisz na tę stronę.</p>
           </div>
         ) : visit.kind === "explorer" ? (
           visit.visited ? (
-            <>
+            <div className={styles.card}>
+              <p>
+                <StatusBadge tone="success">Odwiedzone</StatusBadge>
+              </p>
               <p>Masz już zapisaną wizytę w tym miejscu.</p>
               {visit.wanted === true ? <WantToSeeButton placeId={place.id} initialWanted /> : null}
-            </>
+            </div>
           ) : (
             <VisitConfirmation placeId={place.id} initialWanted={visit.wanted} />
           )

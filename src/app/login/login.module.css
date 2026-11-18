@@ -1,3 +1,7 @@
+/*
+ * Logowanie (E3-2b): formularze w karcie na tle strony. Pola i przyciski dostają wygląd z theme.css
+ * (obrys pola w kolorze meta, przycisk główny `button button--primary`); tu tylko układ i stany.
+ */
 .form {
   display: grid;
   gap: var(--space-lg);
@@ -13,15 +17,7 @@
 }
 
 .field input {
-  box-sizing: border-box;
   width: 100%;
-  min-height: var(--size-touch-min);
-  padding: var(--space-sm) var(--space-md);
-  color: var(--color-text-primary);
-  font: inherit;
-  background: var(--color-surface-canvas);
-  border: 1px solid var(--color-text-meta);
-  border-radius: var(--radius-sm);
 }
 
 .field input[aria-invalid="true"] {
@@ -29,9 +25,7 @@
   border-width: 2px;
 }
 
-.field input:focus-visible,
 .error:focus-visible,
-.submit:focus-visible,
 .link:focus-visible {
   outline: var(--focus-ring-width) solid var(--color-border-focus);
   outline-offset: var(--focus-ring-offset);
@@ -53,15 +47,6 @@
 
 .submit {
   justify-self: start;
-  min-height: var(--size-touch-min);
-  padding: var(--space-sm) var(--space-lg);
-  color: var(--color-text-on-accent);
-  font: inherit;
-  font-weight: var(--font-weight-strong);
-  background: var(--color-brand-accent);
-  border: 0;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
 }
 
 .submit[aria-disabled="true"] {
@@ -89,9 +74,15 @@
   margin: 0;
 }
 
+/* Sekcja logowania to karta na tle strony; pola w niej mają tło strony (obrys meta ≥ 3:1). */
 .section {
   display: grid;
   gap: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
 
 .status {

@@ -233,6 +233,39 @@ textarea:focus-visible {
 }
 
 /*
+ * Wejście sekcji (E3-2b): przezroczystość i przesunięcie 12 px, kolejne sekcje co 60 ms. Bez
+ * rozmycia z makiety (8 px): filtr obciąża główny wątek i opóźniał hydratację formularzy w E2E.
+ * Reguła bazowa ma stan końcowy; klatka kluczowa opisuje tylko początek (D-E3-6), a `backwards`
+ * ukrywa sekcję na czas opóźnienia. Nie zmienia treści ani kolejności fokusu.
+ */
+@keyframes section-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+:where(.content-width, .content-width-wide) > * {
+  animation: section-enter var(--motion-duration-enter) var(--motion-easing-standard) backwards;
+}
+
+:where(.content-width, .content-width-wide) > :nth-child(2) {
+  animation-delay: 60ms;
+}
+
+:where(.content-width, .content-width-wide) > :nth-child(3) {
+  animation-delay: 120ms;
+}
+
+:where(.content-width, .content-width-wide) > :nth-child(4) {
+  animation-delay: 180ms;
+}
+
+:where(.content-width, .content-width-wide) > :nth-child(n + 5) {
+  animation-delay: 240ms;
+}
+
+/*
  * Redukcja ruchu (D-E3-6): jedna reguła wyłącza animacje i przejścia wszędzie. `!important`,
  * bo reguły z modułów CSS wygrywają specyficznością; ekran od razu pokazuje stan końcowy.
  */

@@ -65,7 +65,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
             Przejdź do swojego konta
           </Link>
         </p>
-        <LogoutForm className={styles.submit}>Wyloguj</LogoutForm>
+        <LogoutForm className={`button button--outline ${styles.submit}`}>Wyloguj</LogoutForm>
       </div>
     );
   }

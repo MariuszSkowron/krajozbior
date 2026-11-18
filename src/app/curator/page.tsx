@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { StatusBadge } from "@/design-system/components/status-badge";
 import { listCuratorCollections } from "@/features/catalog/application/curator-queries";
 import { COLLECTION_STATUS_LABELS, REGION_LABELS } from "@/features/catalog/domain/collection";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
@@ -40,7 +41,7 @@ export default async function CuratorHome({
           </p>
         </div>
         <Link
-          className={styles.primaryLink}
+          className="button button--primary"
           href={`/curator/collections/new?organization=${organization.id}`}
         >
           Nowa kolekcja
@@ -59,7 +60,7 @@ export default async function CuratorHome({
               ))}
             </select>
           </div>
-          <button type="submit" className={styles.secondary}>
+          <button type="submit" className="button button--outline">
             Pokaż
           </button>
         </form>
@@ -70,41 +71,39 @@ export default async function CuratorHome({
           Ta organizacja nie ma jeszcze kolekcji. Utwórz pierwszą przyciskiem „Nowa kolekcja”.
         </p>
       ) : (
-        <table className={styles.table}>
-          <caption className={styles.visuallyHidden}>
-            Kolekcje organizacji {organization.name}
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Nazwa</th>
-              <th scope="col">Stan</th>
-              <th scope="col">Województwo</th>
-              <th scope="col">Miejsca</th>
-              <th scope="col">Zmieniono</th>
-            </tr>
-          </thead>
-          <tbody>
-            {collections.map((collection) => (
-              <tr key={collection.id}>
-                <th scope="row" className={styles.title}>
-                  <Link href={`/curator/collections/${collection.id}`}>{collection.title}</Link>
-                </th>
-                <td>
-                  <span
-                    className={`${styles.badge} ${
-                      collection.status === "published" ? styles.badgePublished : styles.badgeDraft
-                    }`}
-                  >
-                    {COLLECTION_STATUS_LABELS[collection.status]}
-                  </span>
-                </td>
-                <td>{REGION_LABELS[collection.region]}</td>
-                <td>{collection.placeCount}</td>
-                <td>{formatDate(collection.updatedAt)}</td>
+        <div className={styles.tableCard}>
+          <table className={styles.table}>
+            <caption className={styles.visuallyHidden}>
+              Kolekcje organizacji {organization.name}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Nazwa</th>
+                <th scope="col">Stan</th>
+                <th scope="col">Województwo</th>
+                <th scope="col">Miejsca</th>
+                <th scope="col">Zmieniono</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {collections.map((collection) => (
+                <tr key={collection.id}>
+                  <th scope="row" className={styles.title}>
+                    <Link href={`/curator/collections/${collection.id}`}>{collection.title}</Link>
+                  </th>
+                  <td>
+                    <StatusBadge tone={collection.status === "published" ? "success" : "neutral"}>
+                      {COLLECTION_STATUS_LABELS[collection.status]}
+                    </StatusBadge>
+                  </td>
+                  <td>{REGION_LABELS[collection.region]}</td>
+                  <td>{collection.placeCount}</td>
+                  <td>{formatDate(collection.updatedAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </>
   );

@@ -54,7 +54,7 @@ export function WantToSeeButton({ placeId, initialWanted }: Props) {
     <div className={styles.wantToSee}>
       <button
         type="button"
-        className={styles.secondary}
+        className="button button--outline"
         disabled={pending}
         aria-busy={pending}
         onClick={() => void toggle()}

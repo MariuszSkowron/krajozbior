@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import axe from "axe-core";
+import { Client } from "pg";
 
 // E3-1: motyw (nocny domyślny, jasny z ciasteczka), przełącznik w nagłówku (także bez JavaScriptu),
 // kroje z polskimi znakami i podkreślenie linków w tekście. Nie potrzebuje bazy danych.
@@ -210,4 +212,248 @@ test.describe("kroje i linki", () => {
       expect(await underline("header a")).toBe("none");
     });
   }
+});
+
+// E3-2b: test dostępności (axe) wszystkich ekranów ścieżki w obu motywach, ruch i reguła tła.
+// Potrzebuje bazy po `db:seed:demo` (kolekcja demo, konta demo); bez niej jest pomijany.
+// Axe działa z `reducedMotion: "reduce"` (stan końcowy animacji jest ten sam, a środek animacji
+// dawałby fałszywe naruszenia kontrastu); osobny test sprawdza, że animacje kończą się stanem końcowym.
+const password = process.env.DEMO_ACCOUNT_PASSWORD;
+const DEMO_SLUG = "demo-mosty-i-zamki-nad-wisla";
+const DEMO_TITLE = "Mosty i zamki nad Wisłą (demo)";
+const EXPLORER = "user2@demo.krajozbior.local";
+const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"];
+
+const PHONE = { width: 390, height: 844 };
+const DESKTOP = { width: 1280, height: 800 };
+
+type StorageState = Awaited<ReturnType<BrowserContext["storageState"]>>;
+type Who = "guest" | "explorer" | "curator";
+
+const states: { explorer?: StorageState; curator?: StorageState } = {};
+const paths = { place: "", editor: "", placeEditor: "" };
+
+async function signIn(browser: Browser, name: string): Promise<StorageState> {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  await page.goto("/login");
+  const form = page.locator("form", { has: page.getByLabel("Hasło") });
+  await form.getByLabel("E-mail").fill(`${name}@demo.krajozbior.local`);
+  await form.getByLabel("Hasło").fill(password ?? "");
+  await form.getByRole("button", { name: "Zaloguj się" }).click();
+  await expect(page).toHaveURL(/\/my$/);
+  const state = await context.storageState();
+
+  await context.close();
+
+  return state;
+}
+
+async function adminQuery(sql: string, params: unknown[] = []) {
+  const client = new Client({ connectionString: process.env.DATABASE_ADMIN_URL });
+
+  await client.connect();
+  try {
+    await client.query(sql, params);
+  } finally {
+    await client.end();
+  }
+}
+
+// Co test zapisał dla konta user2 (zapisana kolekcja, miejsce na liście), kasuje po sobie.
+async function cleanUpExplorer() {
+  for (const table of ["visits", "saved_collections", "want_to_see_places"]) {
+    await adminQuery(
+      `delete from public.${table} where user_id in (select id from auth.users where email = $1)`,
+      [EXPLORER],
+    );
+  }
+}
+
+async function openScreen(
+  browser: Browser,
+  who: Who,
+  theme: string,
+  viewport: { width: number; height: number },
+  path: string,
+  reducedMotion: "reduce" | "no-preference" = "reduce",
+) {
+  const context = await browser.newContext({
+    viewport,
+    reducedMotion,
+    storageState: who === "guest" ? undefined : states[who],
+  });
+
+  await context.addCookies([{ name: COOKIE, value: theme, url: "http://127.0.0.1" }]);
+  const page = await context.newPage();
+
+  await page.goto(path);
+  await page.waitForLoadState("networkidle");
+
+  return { context, page };
+}
+
+async function axeViolations(page: Page) {
+  await page.addScriptTag({ content: axe.source });
+
+  return page.evaluate(async (tags) => {
+    const result = await (window as unknown as { axe: typeof axe }).axe.run(document, {
+      runOnly: { type: "tag", values: tags },
+    });
+
+    return result.violations.map((violation) => ({
+      id: violation.id,
+      nodes: violation.nodes.map((node) => `${node.target.join(" ")}: ${node.failureSummary}`),
+    }));
+  }, AXE_TAGS);
+}
+
+test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
+  test.skip(!password, "DEMO_ACCOUNT_PASSWORD i zasiana baza są wymagane");
+
+  test.beforeAll(async ({ browser }) => {
+    await cleanUpExplorer();
+    states.explorer = await signIn(browser, "user2");
+    states.curator = await signIn(browser, "curator-a");
+
+    // Odkrywca zapisuje kolekcję demo i pierwsze miejsce na liście „Chcę zobaczyć”,
+    // żeby ekrany „Moje kolekcje” i „Chcę zobaczyć” miały zawartość.
+    const { context, page } = await openScreen(
+      browser,
+      "explorer",
+      "dark",
+      PHONE,
+      `/collections/${DEMO_SLUG}`,
+    );
+    const placeHref = await page.locator("ol li a").first().getAttribute("href");
+
+    paths.place = placeHref ?? "";
+    await page.getByRole("button", { name: "Zapisz kolekcję" }).click();
+    await expect(page.getByText("Ta kolekcja jest w Twoich zapisanych.")).toBeVisible();
+    await page.goto(paths.place);
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("button", { name: "Chcę zobaczyć", exact: true }).click();
+    await expect(page.getByText("To miejsce jest na Twojej liście")).toBeVisible();
+    await context.close();
+
+    const curator = await openScreen(browser, "curator", "dark", DESKTOP, "/curator");
+
+    paths.editor =
+      (await curator.page.getByRole("link", { name: DEMO_TITLE }).first().getAttribute("href")) ??
+      "";
+    await curator.page.goto(paths.editor);
+    paths.placeEditor =
+      (await curator.page
+        .locator('a[href*="/places/"]:not([href$="/new"])')
+        .first()
+        .getAttribute("href")) ?? "";
+    await curator.context.close();
+  });
+
+  test.afterAll(cleanUpExplorer);
+
+  const screens: { name: string; who: Who; path: () => string; widths: (typeof PHONE)[] }[] = [
+    { name: "strona startowa", who: "guest", path: () => "/", widths: [PHONE, DESKTOP] },
+    { name: "logowanie", who: "guest", path: () => "/login", widths: [PHONE] },
+    {
+      name: "kolekcja",
+      who: "explorer",
+      path: () => `/collections/${DEMO_SLUG}`,
+      widths: [PHONE, DESKTOP],
+    },
+    { name: "miejsce", who: "explorer", path: () => paths.place, widths: [PHONE, DESKTOP] },
+    {
+      name: "Moje kolekcje",
+      who: "explorer",
+      path: () => "/my/collections",
+      widths: [PHONE, DESKTOP],
+    },
+    { name: "Chcę zobaczyć", who: "explorer", path: () => "/my/want-to-see", widths: [PHONE] },
+    { name: "panel kuratora", who: "curator", path: () => "/curator", widths: [DESKTOP] },
+    { name: "edytor kolekcji", who: "curator", path: () => paths.editor, widths: [DESKTOP] },
+    { name: "edytor miejsca", who: "curator", path: () => paths.placeEditor, widths: [DESKTOP] },
+  ];
+
+  for (const screen of screens) {
+    for (const viewport of screen.widths) {
+      for (const theme of ["dark", "light"]) {
+        test(`${screen.name}, ${viewport.width} px, motyw ${theme}: axe bez naruszeń, bez animacji`, async ({
+          browser,
+        }) => {
+          const { context, page } = await openScreen(
+            browser,
+            screen.who,
+            theme,
+            viewport,
+            screen.path(),
+          );
+
+          await expect(page.locator("html")).toHaveClass(new RegExp(`theme-${theme}`));
+          expect(await axeViolations(page)).toEqual([]);
+
+          // Przy reducedMotion: reduce nic nie jest animowane, a przycisk główny nie ma przejścia.
+          expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+          const primary = page.locator("main .button--primary").first();
+
+          if ((await primary.count()) > 0) {
+            expect(await primary.evaluate((el) => getComputedStyle(el).transitionDuration)).toBe(
+              "0s",
+            );
+          }
+          await context.close();
+        });
+      }
+    }
+  }
+
+  test("bez redukcji ruchu wejście sekcji kończy się stanem końcowym", async ({ browser }) => {
+    const { context, page } = await openScreen(
+      browser,
+      "guest",
+      "dark",
+      PHONE,
+      "/",
+      "no-preference",
+    );
+
+    await page.evaluate(() =>
+      Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+    );
+    const style = await page.evaluate(() => {
+      const section = document.querySelector("main section")!;
+      const computed = getComputedStyle(section);
+
+      return { opacity: computed.opacity, transform: computed.transform };
+    });
+
+    expect(style).toEqual({ opacity: "1", transform: "none" });
+    await context.close();
+  });
+
+  test("wiersz listy z linkiem nie zmienia tła po najechaniu (reguła tła)", async ({ browser }) => {
+    for (const theme of ["dark", "light"]) {
+      const { context, page } = await openScreen(
+        browser,
+        "explorer",
+        theme,
+        DESKTOP,
+        "/my/want-to-see",
+      );
+      const row = page.locator("ul li").first();
+      const link = row.getByRole("link");
+      const backgrounds = () =>
+        page.evaluate(() => {
+          const li = document.querySelector("main ul li")!;
+
+          return [li, li.querySelector("a")!].map((el) => getComputedStyle(el).backgroundColor);
+        });
+      const before = await backgrounds();
+
+      await link.hover();
+      await page.waitForTimeout(500);
+      expect(await backgrounds()).toEqual(before);
+      await context.close();
+    }
+  });
 });

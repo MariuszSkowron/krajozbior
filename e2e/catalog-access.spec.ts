@@ -30,6 +30,10 @@ async function signedInPage(browser: Browser, name: string): Promise<Page> {
 }
 
 async function expectNoAccessibilityViolations(page: Page) {
+  // Wejście sekcji (E3-2b) przygasza treść; axe liczy kontrast dopiero po końcu animacji.
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+  );
   await page.addScriptTag({ content: axe.source });
 
   const violations = await page.evaluate(async () => {
@@ -64,6 +68,9 @@ async function createDraft(page: Page, title: string): Promise<string> {
 async function addPlace(page: Page, editorPath: string, name: string) {
   await page.goto(editorPath);
   await page.getByRole("link", { name: "Dodaj nowe miejsce" }).click();
+  // Przejście na formularz jest po stronie klienta: bez tego `fill` mógłby trafić w pole „Nazwa”
+  // starej strony (formularz kolekcji), zanim nowa się pokaże.
+  await expect(page).toHaveURL(/\/places\/new$/);
   await waitForHydration(page);
   await page.getByLabel("Nazwa", { exact: true }).fill(name);
   await page.getByLabel("Adres", { exact: true }).fill("Tczew");

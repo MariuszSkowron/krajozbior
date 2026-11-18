@@ -150,7 +150,7 @@ export function PlaceList({ collectionId, places, otherPlaces }: PlaceListProps)
           Miejsca w kolekcji <span className={styles.count}>({places.length})</span>
         </h2>
         <Link
-          className={styles.primaryLink}
+          className="button button--primary"
           href={`/curator/collections/${collectionId}/places/new`}
         >
           Dodaj nowe miejsce
@@ -187,7 +187,7 @@ export function PlaceList({ collectionId, places, otherPlaces }: PlaceListProps)
                   <button
                     id={`up-${place.id}`}
                     type="button"
-                    className={styles.secondary}
+                    className={`button button--outline ${styles.pending}`}
                     aria-disabled={disabled || index === 0}
                     aria-label={`Przesuń wyżej: ${place.name}`}
                     onClick={() => (index === 0 ? undefined : move(index, -1))}
@@ -197,7 +197,7 @@ export function PlaceList({ collectionId, places, otherPlaces }: PlaceListProps)
                   <button
                     id={`down-${place.id}`}
                     type="button"
-                    className={styles.secondary}
+                    className={`button button--outline ${styles.pending}`}
                     aria-disabled={disabled || index === places.length - 1}
                     aria-label={`Przesuń niżej: ${place.name}`}
                     onClick={() => (index === places.length - 1 ? undefined : move(index, 1))}
@@ -206,7 +206,7 @@ export function PlaceList({ collectionId, places, otherPlaces }: PlaceListProps)
                   </button>
                   <button
                     type="button"
-                    className={styles.danger}
+                    className={`button button--danger ${styles.pending}`}
                     aria-disabled={disabled}
                     aria-label={`Usuń z kolekcji: ${place.name}`}
                     onClick={() => remove(place)}
@@ -233,7 +233,11 @@ export function PlaceList({ collectionId, places, otherPlaces }: PlaceListProps)
               </select>
             )}
           </Field>
-          <button type="submit" className={styles.secondary} aria-disabled={disabled}>
+          <button
+            type="submit"
+            className={`button button--outline ${styles.pending}`}
+            aria-disabled={disabled}
+          >
             Dodaj do kolekcji
           </button>
         </form>

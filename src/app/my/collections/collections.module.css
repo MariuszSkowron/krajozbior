@@ -1,51 +1,46 @@
+/*
+ * „Moje kolekcje” i „Chcę zobaczyć” (E3-2b): lista kart na telefonie, siatka kart na komputerze.
+ * Przyciski to klasy motywu (`button`, `button--primary`, `button--outline`, theme.css).
+ */
 .empty {
   display: grid;
   gap: var(--space-md);
+  justify-items: start;
   padding: var(--space-lg);
   background: var(--color-surface-card);
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
 
 .empty p {
   margin: 0;
 }
 
-.action {
-  justify-self: start;
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--size-touch-min);
-  padding-inline: var(--space-lg);
-  background: var(--color-brand-accent);
-  color: var(--color-text-on-accent);
-  border: 0;
-  border-radius: var(--radius-pill);
-  font: inherit;
-  font-weight: var(--font-weight-strong);
-  text-decoration: none;
-  cursor: pointer;
+/* Siatka kart: kolumny co najmniej 260 px, na telefonie jedna kolumna. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.action:focus-visible {
-  outline: var(--focus-ring-width) solid var(--color-border-focus);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.action[aria-disabled="true"],
-.action:disabled {
-  opacity: 0.6;
-  cursor: progress;
-}
-
-.secondary {
-  background: transparent;
-  color: var(--color-text-accent);
-  border: 1px solid var(--color-text-accent);
+@media (min-width: 48rem) {
+  .grid {
+    gap: var(--space-lg);
+  }
 }
 
 .feedback {
   margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
+}
+
+.guestAction {
+  display: grid;
+  gap: var(--space-sm);
+  justify-items: start;
 }

@@ -11,6 +11,10 @@ const DEMO_SLUG = "demo-mosty-i-zamki-nad-wisla";
 const DEMO_TITLE = "Mosty i zamki nad Wisłą (demo)";
 
 async function expectNoAccessibilityViolations(page: Page) {
+  // Wejście sekcji (E3-2b) przygasza treść; axe liczy kontrast dopiero po końcu animacji.
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+  );
   await page.addScriptTag({ content: axe.source });
 
   const violations = await page.evaluate(async () => {

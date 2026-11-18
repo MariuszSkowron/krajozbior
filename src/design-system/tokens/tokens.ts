@@ -62,12 +62,16 @@ export const tokenNames = [
   "font.size.2xl",
   "font.size.3xl",
   "font.size.4xl",
+  "font.size.5xl",
   "line.height.body",
   "line.height.heading",
   "font.tracking.label",
+  "font.tracking.display",
   "focus.ring.width",
   "focus.ring.offset",
   "motion.duration.short",
+  "motion.duration.medium",
+  "motion.duration.enter",
   "motion.easing.standard",
 ] as const;
 

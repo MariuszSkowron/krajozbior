@@ -147,9 +147,12 @@
   --font-size-2xl: 2.125rem;
   --font-size-3xl: 2.5rem;
   --font-size-4xl: 3.25rem;
+  /* Tytuł kolekcji na komputerze */
+  --font-size-5xl: 3.5rem;
   --line-height-body: 1.5;
   --line-height-heading: 1.05;
   --font-tracking-label: 0.14em;
+  --font-tracking-display: -0.015em;
 
   /* Fokus: kolor wskaźnika to --color-border-focus */
   --focus-ring-width: 2px;
@@ -157,6 +160,10 @@
 
   /* Ruch */
   --motion-duration-short: 150ms;
+  /* Uniesienie karty */
+  --motion-duration-medium: 350ms;
+  /* Wejście sekcji i potwierdzenie wizyty */
+  --motion-duration-enter: 800ms;
   --motion-easing-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -170,5 +177,7 @@
 @media (prefers-reduced-motion: reduce) {
   :root {
     --motion-duration-short: 0ms;
+    --motion-duration-medium: 0ms;
+    --motion-duration-enter: 0ms;
   }
 }

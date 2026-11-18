@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getRequestActor, logReadFailure, loginHref } from "@/app/request-actor";
-import { CollectionProgress } from "@/design-system/components/collection-progress";
+import { CollectionCard } from "@/design-system/components/collection-card";
 import { listMyCollectionsWithProgress } from "@/features/album/application/saved-collections";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import { progressCounts } from "@/features/album/domain/progress";
@@ -50,24 +50,22 @@ export default async function MyCollectionsPage() {
         <section className={styles.empty} aria-labelledby="pusto">
           <h2 id="pusto">Nie masz jeszcze zapisanych kolekcji</h2>
           <p>Otwórz kolekcję i wybierz „Zapisz kolekcję”, a pojawi się tutaj.</p>
-          <Link className={styles.action} href="/">
+          <Link className="button button--primary" href="/">
             Przejdź do katalogu
           </Link>
         </section>
       ) : (
         <section className={catalog.section} aria-labelledby="zapisane">
           <h2 id="zapisane">{`Zapisane kolekcje (${collections.length})`}</h2>
-          <ul className={catalog.list}>
+          <ul className={styles.grid}>
             {collections.map((collection) => (
-              <li key={collection.id} className={catalog.item}>
-                <Link className={catalog.itemLink} href={`/collections/${collection.slug}`}>
-                  <span className={catalog.itemTitle}>{collection.title}</span>
-                  <span className={catalog.itemMeta}>{REGION_LABELS[collection.region]}</span>
-                  <CollectionProgress
-                    {...progressCounts(collection.progress)}
-                    label={`Postęp w kolekcji ${collection.title}`}
-                  />
-                </Link>
+              <li key={collection.id}>
+                <CollectionCard
+                  href={`/collections/${collection.slug}`}
+                  title={collection.title}
+                  regionLabel={REGION_LABELS[collection.region]}
+                  progress={progressCounts(collection.progress)}
+                />
               </li>
             ))}
           </ul>

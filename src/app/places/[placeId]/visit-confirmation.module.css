@@ -1,10 +1,17 @@
+/*
+ * Potwierdzenie wizyty na miejscu (E3-2b). Przyciski to klasy motywu (theme.css). Komunikaty
+ * stanu mają kolorową krawędź (ostrzeżenie: za daleko, błąd: awaria) i zawsze tekst; stan
+ * „Odwiedzone” dostaje znacznik z krótką animacją (pierścienie i wyskoczenie, 0,8 s),
+ * wyłączaną przy `prefers-reduced-motion`.
+ */
 .box {
   display: grid;
   gap: var(--space-sm);
   padding: var(--space-md);
   background: var(--color-surface-card);
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
 
 .box p,
@@ -14,57 +21,16 @@
 
 .action {
   justify-self: start;
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--size-touch-min);
-  padding-inline: var(--space-lg);
-  background: var(--color-brand-accent);
-  color: var(--color-text-on-accent);
-  border: 0;
-  border-radius: var(--radius-pill);
-  font: inherit;
-  font-weight: var(--font-weight-strong);
-  cursor: pointer;
-}
-
-.action:focus-visible {
-  outline: var(--focus-ring-width) solid var(--color-border-focus);
-  outline-offset: var(--focus-ring-offset);
 }
 
 .action:disabled {
-  opacity: 0.6;
   cursor: progress;
 }
 
 .wantToSee {
   display: grid;
   gap: var(--space-xs);
-}
-
-.secondary {
-  justify-self: start;
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--size-touch-min);
-  padding-inline: var(--space-lg);
-  background: transparent;
-  color: var(--color-text-accent);
-  border: 1px solid var(--color-text-accent);
-  border-radius: var(--radius-pill);
-  font: inherit;
-  font-weight: var(--font-weight-strong);
-  cursor: pointer;
-}
-
-.secondary:focus-visible {
-  outline: var(--focus-ring-width) solid var(--color-border-focus);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.secondary:disabled {
-  opacity: 0.6;
-  cursor: progress;
+  justify-items: start;
 }
 
 .hint,
@@ -73,8 +39,60 @@
   font-size: var(--font-size-sm);
 }
 
+/* Komunikat ze stanem: tło karty, krawędź w kolorze stanu; pusty komunikat nie zajmuje miejsca. */
+.feedbackWarning:not(:empty),
+.feedbackDanger:not(:empty) {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-inline-start: var(--space-xs) solid var(--color-feedback-warning);
+  border-radius: var(--radius-md);
+}
+
+.feedbackDanger:not(:empty) {
+  border-inline-start-color: var(--color-feedback-danger);
+}
+
 .success {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   font-weight: var(--font-weight-strong);
+}
+
+/* Znacznik potwierdzenia: tekst alternatywny pusty, więc czytnik ekranu go pomija. */
+.success::before {
+  content: "✓" / "";
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--size-touch-min);
+  height: var(--size-touch-min);
+  box-sizing: border-box;
+  color: var(--color-text-on-accent);
+  font-size: var(--font-size-lg);
+  background: var(--color-brand-accent);
+  border-radius: var(--radius-pill);
+  animation:
+    visit-mark var(--motion-duration-enter) var(--motion-easing-standard) backwards,
+    visit-ring var(--motion-duration-enter) var(--motion-easing-standard) backwards;
+}
+
+@keyframes visit-mark {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+}
+
+@keyframes visit-ring {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand-accent) 45%, transparent);
+  }
+
+  to {
+    box-shadow: 0 0 0 16px color-mix(in srgb, var(--color-brand-accent) 0%, transparent);
+  }
 }
 
 .progress {
@@ -82,4 +100,9 @@
   gap: var(--space-xs);
   padding: 0;
   list-style: none;
+}
+
+.progress strong {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
 }
