@@ -12,7 +12,7 @@ const icons = [
   ["Start", HomeIcon],
   ["Moje kolekcje", CardsIcon],
   ["Chcę zobaczyć", BookmarkIcon],
-  ["Konto", ProfileIcon],
+  ["Profil", ProfileIcon],
   ["Miejsce", PinIcon],
 ] as const;
 

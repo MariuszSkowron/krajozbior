@@ -1,5 +1,5 @@
 // Pozycje głównej nawigacji zalogowanego odkrywcy (E3-S2, Q7): tylko istniejące ekrany.
-// Aktualności i Profil dochodzą razem ze swoimi ekranami (E7, E9).
+// Aktualności dochodzą razem ze swoim ekranem (E7); Profil to ekran „Profil” (E9-1).
 export type NavIconName = "home" | "cards" | "bookmark" | "profile";
 
 export type NavItem = Readonly<{ href: string; label: string; icon: NavIconName }>;
@@ -8,7 +8,7 @@ export const navItems: readonly NavItem[] = [
   { href: "/", label: "Start", icon: "home" },
   { href: "/my/collections", label: "Moje kolekcje", icon: "cards" },
   { href: "/my/want-to-see", label: "Chcę zobaczyć", icon: "bookmark" },
-  { href: "/my", label: "Konto", icon: "profile" },
+  { href: "/my", label: "Profil", icon: "profile" },
 ];
 
 const within = (pathname: string, base: string) =>

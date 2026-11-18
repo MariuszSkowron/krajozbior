@@ -29,15 +29,15 @@ describe("start page", () => {
 
     expect(html).toMatch(/<h1[^>]*>Witaj w aplikacji<\/h1>/);
     expect(html).toMatch(/<a [^>]*href="\/login"[^>]*>Zaloguj się<\/a>/);
-    expect(html).not.toContain("Moje konto");
+    expect(html).not.toMatch(/href="\/my"/);
   });
 
-  it("offers a signed-in user the account page", async () => {
+  it("offers a signed-in user the profile page", async () => {
     mocks.getActor.mockResolvedValue({ id, role: "user" });
 
     const html = await render();
 
-    expect(html).toMatch(/<a [^>]*href="\/my"[^>]*>Moje konto<\/a>/);
+    expect(html).toMatch(/<a [^>]*href="\/my"[^>]*>Profil<\/a>/);
     expect(html).not.toContain("Zaloguj się");
   });
 

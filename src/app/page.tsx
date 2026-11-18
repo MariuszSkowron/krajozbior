@@ -49,7 +49,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
             </Link>
           ) : (
             <Link className="button button--primary" href="/my">
-              Moje konto
+              Profil
             </Link>
           )}
         </div>
