@@ -25,7 +25,7 @@ function makeDeps(over: Partial<WantToSeeRepository> = {}, allowed = true) {
   const repository: WantToSeeRepository = {
     listPlaces: async () => [],
     isPubliclyVisiblePlace: async () => true,
-    addPlace: vi.fn(async () => undefined),
+    addPlace: vi.fn(async () => "added" as const),
     removePlace: vi.fn(async () => undefined),
     isPlaceWanted: async () => false,
     ...over,
@@ -77,6 +77,21 @@ describe("addToWantToSee", () => {
     });
     expect(await addToWantToSee(actor, PLACE, hidden.deps)).toEqual({ status: "not_found" });
     expect(hidden.repository.addPlace).not.toHaveBeenCalled();
+  });
+
+  it("answers not_found when the place stops being public between the check and the add", async () => {
+    const { deps } = makeDeps({ addPlace: vi.fn(async () => "not_found" as const) });
+
+    expect(await addToWantToSee(actor, PLACE, deps)).toEqual({ status: "not_found" });
+  });
+
+  it("answers conflict when the list already has the largest number of places (D-28)", async () => {
+    const { deps } = makeDeps({ addPlace: vi.fn(async () => "too_many" as const) });
+
+    expect(await addToWantToSee(actor, PLACE, deps)).toEqual({
+      status: "conflict",
+      reason: "too_many_wanted",
+    });
   });
 
   it("does not hide a database failure", async () => {

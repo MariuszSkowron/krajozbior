@@ -33,6 +33,12 @@ describe("describeFailure", () => {
     expect(describeFailure(409, { reason: "already_in_collection" }, "place").message).toBe(
       "To miejsce jest już w kolekcji.",
     );
+    expect(describeFailure(409, { reason: "too_many_places" }, "place").message).toBe(
+      "Kolekcja ma już 500 miejsc, to najwięcej. Usuń któreś, by dodać nowe.",
+    );
+    expect(describeFailure(409, { reason: "too_many_collections" }, "collection").message).toBe(
+      "Organizacja ma już 200 kolekcji, to najwięcej. Nie da się utworzyć kolejnej.",
+    );
     expect(describeFailure(409, { reason: "other" }, "place").message).toContain(
       "Spróbuj ponownie",
     );

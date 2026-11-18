@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { safeReturnTo } from "@/features/identity/domain/return-to";
+import { MAX_WANT_TO_SEE_LISTED } from "@/features/want-to-see/domain/limits";
 
 import styles from "./visit-confirmation.module.css";
 
@@ -12,6 +13,7 @@ type Props = { placeId: string; initialWanted: boolean };
 const MESSAGES: Record<number, string> = {
   401: "Sesja wygasła.",
   404: "To miejsce nie jest już dostępne.",
+  409: `Na liście „Chcę zobaczyć” jest już ${MAX_WANT_TO_SEE_LISTED} miejsc, to najwięcej. Usuń któreś, by dodać nowe.`,
   429: "Za dużo prób. Spróbuj za chwilę.",
 };
 
