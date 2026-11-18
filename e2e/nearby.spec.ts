@@ -155,9 +155,8 @@ test.describe("W okolicy on the home page", () => {
     const button = section(page).getByRole("button", { name: "Pokaż kolekcje w okolicy" });
 
     await expect(button).toBeVisible();
-    await expect(
-      section(page).getByRole("link", { name: new RegExp(DEMO_TITLE.replace(/[()]/g, "\\$&")) }),
-    ).toHaveCount(0);
+    // A plain string matches a substring of the accessible name, so no regular expression is needed.
+    await expect(section(page).getByRole("link", { name: DEMO_TITLE })).toHaveCount(0);
     expect(await geoCalls(page)).toEqual([]);
     await shot(page, "idle");
     await inBothThemes(page, async (theme) => {
@@ -167,9 +166,7 @@ test.describe("W okolicy on the home page", () => {
 
     await button.click();
 
-    const card = section(page).getByRole("link", {
-      name: new RegExp(DEMO_TITLE.replace(/[()]/g, "\\$&")),
-    });
+    const card = section(page).getByRole("link", { name: DEMO_TITLE });
 
     await expect(card).toHaveAttribute("href", `/collections/${DEMO_SLUG}`);
     await expect(section(page).getByRole("status")).toContainText(
