@@ -18,14 +18,14 @@ import type { HomeRecentVisit } from "../domain/home-album";
 // curator also show their own drafts, so a withdrawn collection of the member
 // must not appear in the album (spec 7, withdrawal).
 
-const publishedCollection = `c.status = 'published' and o.status = 'approved'`;
+export const publishedCollection = `c.status = 'published' and o.status = 'approved'`;
 
 // "The place lies in a public collection" (E12-1, D-E12-1a): spelled out wherever the home
 // page shows data of a place, whatever the role of the actor. The place must also belong to
 // an approved organization, as getPublishedPlace demands, so no link leads to a 404.
 // RLS is the second barrier only: a curator's policies would show them more.
 // The place is the row aliased `p`.
-const placeInPublicCollection = `
+export const placeInPublicCollection = `
   exists (
     select
       from public.collection_places pcp

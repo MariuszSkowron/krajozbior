@@ -1,5 +1,9 @@
 import "server-only";
 
+import {
+  placeInPublicCollection,
+  publishedCollection,
+} from "@/features/album/infrastructure/postgres-album-repository";
 import type { TransactionContext } from "@/lib/db/user-context";
 
 import type {
@@ -12,9 +16,11 @@ import type {
   PublishedCollection,
   PublishedPlace,
   RecentCollection,
+  SearchPlaceHit,
 } from "../application/catalog-types";
-import type { CollectionStatus } from "../domain/collection";
+import type { CollectionStatus, Region } from "../domain/collection";
 import { MAX_COLLECTIONS_PER_LIST, MAX_PLACES_PER_COLLECTION } from "../domain/limits";
+import { SEARCH_STATEMENT_TIMEOUT, foldSql } from "../domain/search";
 
 // Raw SQL on the transaction of the use case (user or guest context), so the
 // row policies decide what each statement sees or changes. No statement names
@@ -46,6 +52,37 @@ export function isSlugTaken(error: unknown): boolean {
     (cause !== undefined && isSlugTaken(cause))
   );
 }
+
+// PostgreSQL error 57014: the statement was cancelled (the time limit of the search).
+export function isQueryCancelled(error: unknown): boolean {
+  const { code, cause } = (error ?? {}) as { code?: unknown; cause?: unknown };
+
+  return code === "57014" || (cause !== undefined && isQueryCancelled(cause));
+}
+
+type CollectionCardRow = {
+  id: string;
+  slug: string;
+  title: string;
+  region: Region;
+  organizationName: string;
+  placeCount: number;
+};
+
+const toRecentCollection = ({
+  organizationName,
+  ...rest
+}: CollectionCardRow): RecentCollection => ({
+  ...rest,
+  organization: { name: organizationName },
+});
+
+// The columns of a collection card (public fields only); the collection is `c`, its organization `o`.
+const collectionCardColumns = `c.id, c.slug, c.title, c.region, o.name as "organizationName",
+  (select count(*)::int from public.collection_places cp
+    where cp.collection_id = c.id) as "placeCount"`;
+
+const LIKE = `like ? escape '\\'`;
 
 export const postgresCatalogRepository: CatalogRepository = {
   async permittedOrganizationIds(tx) {
@@ -444,4 +481,81 @@ export const postgresCatalogRepository: CatalogRepository = {
       collections,
     };
   },
+
+  async listAllPublishedCollections(tx, region, limit) {
+    const rows = await tx.em.execute<CollectionCardRow[]>(
+      `select ${collectionCardColumns}
+         from public.collections c
+         join public.organizations o on o.id = c.organization_id
+        where ${publishedCollection} ${region === null ? "" : "and c.region = ?"}
+        order by c.title, c.id
+        limit ?`,
+      region === null ? [limit] : [region, limit],
+    );
+
+    return rows.map(toRecentCollection);
+  },
+
+  async searchPublicCatalog(tx, criteria, limit) {
+    // The scan has no index (D-E12-10): the time limit protects the database, and the
+    // transaction is read only. `set local` ends with the transaction.
+    await tx.em.execute(`set local statement_timeout = '${SEARCH_STATEMENT_TIMEOUT}'`);
+
+    const region = criteria.region;
+    const regionFilter = region === null ? [] : [region];
+    // One more than shown: the extra row only says "there is more".
+    const take = limit + 1;
+    const collections = await tx.em.execute<CollectionCardRow[]>(
+      `select ${collectionCardColumns}
+         from public.collections c
+         join public.organizations o on o.id = c.organization_id
+        where ${publishedCollection} ${region === null ? "" : "and c.region = ?"}
+          and (${foldSql("c.title")} ${LIKE}
+            or ${foldSql("c.summary")} ${LIKE}
+            or c.region in (select jsonb_array_elements_text(?::jsonb)))
+        order by (${foldSql("c.title")} ${LIKE}) desc, c.title, c.id
+        limit ?`,
+      [
+        ...regionFilter,
+        criteria.contains,
+        criteria.contains,
+        JSON.stringify(criteria.namedRegions),
+        criteria.prefix,
+        take,
+      ],
+    );
+    // The place counts in its first public collection (by title); with a region filter,
+    // in the first one of that region. The guard of the place is the same as in the album.
+    const places = await tx.em.execute<
+      (Omit<SearchPlaceHit, "collection"> & { collectionSlug: string; collectionTitle: string })[]
+    >(
+      `select p.id, p.name, p.address, pc.slug as "collectionSlug", pc.title as "collectionTitle"
+         from public.places p
+        cross join lateral (
+          select c.slug, c.title
+            from public.collection_places cp
+            join public.collections c on c.id = cp.collection_id
+            join public.organizations o on o.id = c.organization_id
+           where cp.place_id = p.id and ${publishedCollection}
+             ${region === null ? "" : "and c.region = ?"}
+           order by c.title, c.slug
+           limit 1
+        ) pc
+        where ${placeInPublicCollection}
+          and (${foldSql("p.name")} ${LIKE} or ${foldSql("p.address")} ${LIKE})
+        order by (${foldSql("p.name")} ${LIKE}) desc, p.name, p.id
+        limit ?`,
+      [...regionFilter, criteria.contains, criteria.contains, criteria.prefix, take],
+    );
+
+    return {
+      collections: collections.map(toRecentCollection),
+      places: places.map(({ collectionSlug, collectionTitle, ...rest }) => ({
+        ...rest,
+        collection: { slug: collectionSlug, title: collectionTitle },
+      })),
+    };
+  },
+
+  isSearchTimeout: isQueryCancelled,
 };
