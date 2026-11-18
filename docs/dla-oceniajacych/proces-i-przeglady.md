@@ -19,7 +19,7 @@ Pełny opis: [docs/agent-workflow.md](../agent-workflow.md) i [SDLC.md](../../SD
 - **Osobna tożsamość agentów.** Agenci działają na GitHubie jako aplikacja projektu z wąskimi uprawnieniami, z tokenem ważnym godzinę. Nie mogą zatwierdzać PR-ów ani zmieniać ustawień repozytorium.
 - **Właściciel kodu.** Plik `.github/CODEOWNERS` wskazuje ścieżki wrażliwe; zmiana w nich czeka na zatwierdzenie właściciela, a każdy nowy commit w PR unieważnia to zatwierdzenie.
 - **Czystość repozytorium publicznego.** Osobne zadanie CI (automatycznych kontroli GitHuba uruchamianych przy każdym PR; zadanie `guard`) odrzuca PR, gdy trafia do niego plik prywatny albo odwołanie do prywatnego repozytorium. Skan sekretów obejmuje całą historię.
-- **Hooki agenta.** Lokalne reguły blokują agentowi m.in. czytanie plików z sekretami, zmianę własnych ustawień i scalanie PR-ów.
+- **Hooki agenta.** Lokalne reguły blokują agentowi m.in. czytanie plików z sekretami, zmianę własnych ustawień i scalanie PR-ów. Od PR #33 blokują też zmianę plików projektu poleceniami terminala (np. dopisywanie tekstu przekierowaniem), bo agenci kilka razy złamali ten zakaz mimo zapisu w zasadach; zostają im zwykłe narzędzia edycji, których pilnują pozostałe zabezpieczenia. Hook chroni przed pomyłką, nie przed zdeterminowanym obejściem; granicą pozostaje ustawienie GitHuba.
 
 ## Wyniki przeglądów kodu
 
@@ -38,6 +38,10 @@ Numery to publiczne numery PR-ów w tym repozytorium. Uwagi drobne i kosmetyczne
 - **#27, limity list i zapisu oraz bezpieczniejszy zapis do albumu** (poziom A): zatwierdzony; poprawki sprawdził niezależnie kolejny agent.
 - **#28, nocny album: nawigacja, menu kuratora i wspólne elementy (E3-2a)** (poziom B): zatwierdzony; poprawki sprawdził niezależnie kolejny agent.
 - **#29, adres kolekcji z aktualnego tytułu przy pierwszej publikacji** (poziom A): zatwierdzony; poprawki sprawdził niezależnie kolejny agent.
+- **#31, nocny album: ekrany ścieżki i test dostępności (E3-2b)** (poziom B): zatwierdzony.
+- **#32, przypięty przycisk wizyty na telefonie** (poziom B, Sonnet): uwagi poprawione i sprawdzone niezależnie; zatwierdzony. Zmiana tylko w warstwie wyglądu.
+- **#33, hook blokujący zapis plików z terminala**: trzy rundy poprawek, każda z niezależną weryfikacją; zatwierdzony.
+- **#34, wizyta z przeszłości** (poziom A, Opus, plus przegląd bezpieczeństwa): poprawki sprawdził niezależnie kolejny agent; zatwierdzony.
 
 ## Przegląd bezpieczeństwa ścieżki konkursowej
 
@@ -50,3 +54,7 @@ Po zakończeniu ośmiu PR-ów ścieżki konkursowej (#10–#18) osobny agent wyk
 Część uwag drobnych została już poprawiona. PR #27 wprowadził górne limity długości list i liczby zapisów oraz bezpieczniejszy zapis do albumu (zapis z warunkiem w jednym poleceniu bazy). PR #29 sprawia, że adres kolekcji powstaje z jej aktualnego tytułu przy pierwszej publikacji.
 
 Recenzent sprawdził m.in. obejście reguł dostępu w bazie, funkcje działające z wyższymi uprawnieniami, wyliczanie cudzych identyfikatorów, masowe przypisanie pól, sesję i ochronę przed fałszywymi żądaniami, przekierowania, wycieki w komunikatach błędów, nagłówki, ochronę danych lokalizacji, konta demonstracyjne na produkcji i sekrety w kodzie. Raport z ustaleniami jest prywatny; publikujemy tylko wynik, żeby nie ujawniać szczegółów uwag, które mogą być jeszcze otwarte.
+
+## Zbiorczy przegląd bezpieczeństwa PR #10–#32
+
+Później osobny agent przejrzał pod kątem bezpieczeństwa wszystkie zmiany scalone w PR-ach #10–#32. Wynik ogólny: **brak ustaleń krytycznych, wysokich i średnich**; zostały pojedyncze uwagi drobne i informacyjne, zaplanowane albo świadomie przyjęte. Raport jest prywatny z tego samego powodu co poprzedni.
