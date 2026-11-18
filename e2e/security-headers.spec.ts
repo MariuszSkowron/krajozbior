@@ -10,7 +10,7 @@ function expectSecurityHeaders(response: APIResponse) {
   expect(headers["x-frame-options"]).toBe("DENY");
   expect(headers["x-content-type-options"]).toBe("nosniff");
   expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
-  expect(headers["permissions-policy"]).toContain("geolocation=()");
+  expect(headers["permissions-policy"]).toContain("geolocation=(self)");
   expect(headers["strict-transport-security"]).toBe("max-age=31536000");
 }
 

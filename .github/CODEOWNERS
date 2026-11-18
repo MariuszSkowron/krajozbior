@@ -57,6 +57,8 @@
 /src/app/curator/                  @MariuszSkowron
 /src/app/request-organizations.ts  @MariuszSkowron
 /e2e/catalog-access.spec.ts        @MariuszSkowron
+/e2e/competition-path.spec.ts      @MariuszSkowron
+/e2e/on-site-visit.spec.ts         @MariuszSkowron
 
 # Publiczne strony kolekcji i miejsc (dziś treść publiczna, w kolejnych krokach
 # także prywatny postęp odkrywcy) oraz ich wspólne style
