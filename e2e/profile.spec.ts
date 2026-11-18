@@ -107,6 +107,15 @@ test.describe("profile and logout", () => {
     await page.getByRole("main").getByRole("button", { name: "Wyloguj" }).click();
     await expect(page).toHaveURL(/\/\?wylogowano=1$/);
 
+    // Real "back": the previous history entry is the profile the user just left.
+    // The page is sent with `Cache-Control: private, no-store` (src/proxy.ts), so
+    // the browser neither reuses it from the HTTP cache nor restores it from the
+    // back/forward cache; the request reaches the server and the guest is sent to
+    // the login screen.
+    await page.goBack();
+    await expect(page).toHaveURL(`/login?returnTo=${encodeURIComponent("/my")}`);
+    await expect(page.getByRole("heading", { level: 1, name: "Profil" })).toHaveCount(0);
+
     expect((await page.request.get("/api/me")).status()).toBe(401);
 
     for (const path of PRIVATE_PATHS) {
@@ -114,13 +123,6 @@ test.describe("profile and logout", () => {
       await expect(page).toHaveURL(`/login?returnTo=${encodeURIComponent(path)}`);
       await expect(page.getByRole("heading", { level: 1, name: "Profil" })).toHaveCount(0);
     }
-
-    // "Back" from the start page must not bring the profile back from a cache.
-    await page.goto("/my");
-    await page.goto("/");
-    await page.goBack();
-    await expect(page).toHaveURL(/\/login\?returnTo=%2Fmy$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Profil" })).toHaveCount(0);
 
     await page.context().close();
   });
