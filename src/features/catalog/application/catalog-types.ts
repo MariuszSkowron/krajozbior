@@ -117,17 +117,23 @@ export interface CatalogRepository {
     slug: string,
   ): Promise<CollectionRow | null | "slug_taken">;
   deleteCollection(tx: TransactionContext, id: string): Promise<boolean>;
-  /** Collections of one organization, newest change first (curator list). */
+  /** Collections of one organization, newest change first, at most MAX_COLLECTIONS_PER_LIST (curator list). */
   listOrganizationCollections(
     tx: TransactionContext,
     organizationId: string,
   ): Promise<readonly CuratorCollectionSummary[]>;
+  /**
+   * How many collections the curator list of the organization shows. Takes a
+   * transaction lock on the organization first (held to the end of the
+   * transaction), so two simultaneous creations cannot both take the last place.
+   */
+  countOrganizationCollections(tx: TransactionContext, organizationId: string): Promise<number>;
   /** Places of a collection with their positions, in order. */
   listCollectionPlaces(
     tx: TransactionContext,
     collectionId: string,
   ): Promise<readonly CuratorPlaceItem[]>;
-  /** Places of the organization that are not in the collection. */
+  /** Places of the organization that are not in the collection, at most MAX_PLACES_PER_COLLECTION (the picker of the editor). */
   listPlacesOutsideCollection(
     tx: TransactionContext,
     organizationId: string,
@@ -201,6 +207,8 @@ export type CuratorOutcome<T> =
         | "stale_version"
         | "was_published"
         | "already_in_collection"
+        | "too_many_places"
+        | "too_many_collections"
         | "last_place_of_published_collection";
     }>
   | Readonly<{

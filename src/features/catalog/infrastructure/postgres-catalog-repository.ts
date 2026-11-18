@@ -13,6 +13,7 @@ import type {
   PublishedPlace,
 } from "../application/catalog-types";
 import type { CollectionStatus } from "../domain/collection";
+import { MAX_COLLECTIONS_PER_LIST, MAX_PLACES_PER_COLLECTION } from "../domain/limits";
 
 // Raw SQL on the transaction of the use case (user or guest context), so the
 // row policies decide what each statement sees or changes. No statement names
@@ -156,11 +157,29 @@ export const postgresCatalogRepository: CatalogRepository = {
               to_char(c.updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "updatedAt"
          from public.collections c
         where c.organization_id = ? and app_org_permission(c.organization_id) = 'full_edit'
-        order by c.updated_at desc, c.id`,
-      [organizationId],
+        order by c.updated_at desc, c.id
+        limit ?`,
+      [organizationId, MAX_COLLECTIONS_PER_LIST],
     );
 
     return rows.map((row) => ({ ...row, updatedAt: new Date(row.updatedAt) }));
+  },
+
+  async countOrganizationCollections(tx, organizationId) {
+    // The lock is a statement of its own: the count below then takes its
+    // snapshot after the lock is held, so it sees every creation that finished.
+    await tx.em.execute(`select pg_advisory_xact_lock(hashtextextended(?::text, 0))`, [
+      `organization_collections:${organizationId}`,
+    ]);
+
+    const rows = await tx.em.execute<{ total: number }[]>(
+      `select count(*)::int as total
+         from public.collections c
+        where c.organization_id = ? and app_org_permission(c.organization_id) = 'full_edit'`,
+      [organizationId],
+    );
+
+    return rows[0]?.total ?? 0;
   },
 
   async listCollectionPlaces(tx, collectionId) {
@@ -185,8 +204,9 @@ export const postgresCatalogRepository: CatalogRepository = {
             select from public.collection_places cp
              where cp.collection_id = ? and cp.place_id = p.id
           )
-        order by p.name, p.id`,
-      [organizationId, collectionId],
+        order by p.name, p.id
+        limit ?`,
+      [organizationId, collectionId, MAX_PLACES_PER_COLLECTION],
     );
   },
 

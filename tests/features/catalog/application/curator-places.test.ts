@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { CatalogDeps } from "@/features/catalog/application/catalog-types";
-import { removePlaceFromCollection } from "@/features/catalog/application/curator-places";
+import { addPlace, removePlaceFromCollection } from "@/features/catalog/application/curator-places";
 
 // The rule "a published collection keeps at least one place" without a database.
 const actor = { id: "11111111-1111-4111-8111-111111111111", role: "user" as const };
@@ -24,6 +24,54 @@ function setup(status: "draft" | "published", placeIds: string[]) {
 
   return { deps, unlinkPlace };
 }
+
+describe("addPlace and the limit of places in one collection", () => {
+  function setupAdd(placeCount: number) {
+    const insertPlace = vi.fn(async () => ({ id: placeA }));
+    const linkPlace = vi.fn(async () => true);
+    const deps = {
+      withUserContext: (_who: unknown, work: (tx: unknown) => Promise<unknown>) => work({}),
+      limiter: { reserve: async () => ({ allowed: true }) },
+      repository: {
+        permittedOrganizationIds: async () => ["org"],
+        findEditableCollection: async () => ({ id: collectionId, organizationId: "org" }),
+        listCollectionPositions: async () => Array.from({ length: placeCount }, (_, i) => i + 1),
+        placeInOrganization: async () => true,
+        insertPlace,
+        linkPlace,
+      },
+    } as unknown as CatalogDeps;
+
+    return { deps, insertPlace, linkPlace };
+  }
+
+  const newPlaceInput = { name: "Nowe miejsce", latitude: 54.1, longitude: 18.7 };
+
+  it("refuses the 501st place without creating or linking anything", async () => {
+    const { deps, insertPlace, linkPlace } = setupAdd(500);
+
+    expect(await addPlace(actor, collectionId, newPlaceInput, deps)).toEqual({
+      status: "conflict",
+      reason: "too_many_places",
+    });
+    expect(await addPlace(actor, collectionId, { placeId: placeB }, deps)).toEqual({
+      status: "conflict",
+      reason: "too_many_places",
+    });
+    expect(insertPlace).not.toHaveBeenCalled();
+    expect(linkPlace).not.toHaveBeenCalled();
+  });
+
+  it("accepts the 500th place", async () => {
+    const { deps, linkPlace } = setupAdd(499);
+
+    expect(await addPlace(actor, collectionId, newPlaceInput, deps)).toEqual({
+      status: "ok",
+      value: { placeId: placeA, position: 500 },
+    });
+    expect(linkPlace).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe("removePlaceFromCollection and published collections", () => {
   it("refuses to remove the last place of a published collection", async () => {

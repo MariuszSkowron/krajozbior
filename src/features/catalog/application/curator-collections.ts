@@ -2,6 +2,7 @@ import type { Actor } from "@/features/identity/domain/actor";
 
 import { generateCollectionSlug } from "../domain/collection-slug";
 import { validateCollectionInput } from "../domain/collection";
+import { MAX_COLLECTIONS_PER_LIST } from "../domain/limits";
 import { canDeleteDraft, canPublish, canUnpublish } from "../domain/publication";
 import type { CatalogDeps, CollectionRow, CuratorOutcome } from "./catalog-types";
 import { admitCurator, inCuratorContext } from "./curator-runner";
@@ -57,6 +58,15 @@ export async function createCollection(
       organizationId = input.organizationId;
     } else {
       return { status: "forbidden" } as const;
+    }
+
+    // Counts what the curator list shows, under a lock of the organization: the
+    // list never hides a collection that was created (D-28).
+    if (
+      (await deps.repository.countOrganizationCollections(tx, organizationId)) >=
+      MAX_COLLECTIONS_PER_LIST
+    ) {
+      return { status: "conflict", reason: "too_many_collections" } as const;
     }
 
     for (let attempt = 0; attempt < SLUG_ATTEMPTS; attempt += 1) {

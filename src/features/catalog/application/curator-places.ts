@@ -1,5 +1,6 @@
 import type { Actor } from "@/features/identity/domain/actor";
 
+import { MAX_PLACES_PER_COLLECTION } from "../domain/limits";
 import { nextPosition, validateReorder } from "../domain/order";
 import { validatePlaceInput } from "../domain/place";
 import { isUuid } from "../domain/uuid";
@@ -55,6 +56,13 @@ export async function addPlace(
         return { status: "not_found" } as const;
       }
 
+      // Checked before anything is written, under the same lock as the position.
+      const positions = await deps.repository.listCollectionPositions(tx, collectionId);
+
+      if (positions.length >= MAX_PLACES_PER_COLLECTION) {
+        return { status: "conflict", reason: "too_many_places" } as const;
+      }
+
       let placeId: string;
 
       if (existingId === undefined) {
@@ -73,9 +81,7 @@ export async function addPlace(
         return { status: "not_found" } as const;
       }
 
-      const position = nextPosition(
-        await deps.repository.listCollectionPositions(tx, collectionId),
-      );
+      const position = nextPosition(positions);
       const linked = await deps.repository.linkPlace(
         tx,
         collectionId,
