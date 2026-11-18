@@ -1,6 +1,15 @@
-import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Browser,
+  type BrowserContext,
+  type BrowserContextOptions,
+  type Page,
+} from "@playwright/test";
 import axe from "axe-core";
 import { Client } from "pg";
+
+import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 
 // E3-1: motyw (nocny domyślny, jasny z ciasteczka), przełącznik w nagłówku (także bez JavaScriptu),
 // kroje z polskimi znakami i podkreślenie linków w tekście. Nie potrzebuje bazy danych.
@@ -251,7 +260,10 @@ async function signIn(browser: Browser, name: string): Promise<StorageState> {
 }
 
 async function adminQuery(sql: string, params: unknown[] = []) {
-  const client = new Client({ connectionString: process.env.DATABASE_ADMIN_URL });
+  // Kasuje wiersze konta demo, więc działa tylko na jednorazowej bazie testowej (nigdy na deweloperskiej).
+  const client = new Client({
+    connectionString: parseE2eAdminDatabaseUrl(process.env.DATABASE_ADMIN_URL),
+  });
 
   await client.connect();
   try {
@@ -278,8 +290,10 @@ async function openScreen(
   viewport: { width: number; height: number },
   path: string,
   reducedMotion: "reduce" | "no-preference" = "reduce",
+  options: BrowserContextOptions = {},
 ) {
   const context = await browser.newContext({
+    ...options,
     viewport,
     reducedMotion,
     storageState: who === "guest" ? undefined : states[who],
@@ -326,7 +340,11 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
       PHONE,
       `/collections/${DEMO_SLUG}`,
     );
-    const placeHref = await page.locator("ol li a").first().getAttribute("href");
+    // Most Tczewski: znane położenie, potrzebne w stanach potwierdzenia wizyty niżej.
+    const placeHref = await page
+      .getByRole("link", { name: /Most Tczewski/ })
+      .first()
+      .getAttribute("href");
 
     paths.place = placeHref ?? "";
     await page.getByRole("button", { name: "Zapisz kolekcję" }).click();
@@ -455,5 +473,119 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
       expect(await backgrounds()).toEqual(before);
       await context.close();
     }
+  });
+
+  test("panel kuratora: odznaka stoi na karcie, a wiersz tabeli nie zmienia tła po najechaniu", async ({
+    browser,
+  }) => {
+    for (const theme of ["dark", "light"]) {
+      const { context, page } = await openScreen(browser, "curator", theme, DESKTOP, "/curator");
+      const badge = page.locator("main table tbody tr td:nth-child(2) > *").first();
+      const row = page.locator("main table tbody tr").first();
+      const cardColor = await page.evaluate(() => {
+        const probe = document.createElement("span");
+
+        probe.style.backgroundColor = "var(--color-surface-card)";
+        document.body.append(probe);
+        const color = getComputedStyle(probe).backgroundColor;
+
+        probe.remove();
+
+        return color;
+      });
+      // Pierwsze nieprzezroczyste tło w górę drzewa od odznaki (tło, na którym odznaka faktycznie stoi).
+      const surfaceUnderBadge = () =>
+        badge.evaluate((el) => {
+          for (let node: Element | null = el.parentElement; node; node = node.parentElement) {
+            const color = getComputedStyle(node).backgroundColor;
+
+            if (color !== "rgba(0, 0, 0, 0)" && color !== "transparent") {
+              return color;
+            }
+          }
+
+          return "none";
+        });
+      const rowBackgrounds = () =>
+        row.evaluate((tr) =>
+          [tr, ...tr.querySelectorAll("th, td")].map((el) => getComputedStyle(el).backgroundColor),
+        );
+
+      expect(await surfaceUnderBadge()).toBe(cardColor);
+      const before = await rowBackgrounds();
+
+      await row.hover();
+      await page.waitForTimeout(500);
+      expect(await rowBackgrounds()).toEqual(before);
+      expect(await surfaceUnderBadge()).toBe(cardColor);
+      await context.close();
+    }
+  });
+
+  // Stany z nowymi kolorami (ostrzeżenie, błąd, sukces, odznaka „Odwiedzone”, 404): axe, motyw
+  // nocny, telefon. Lokalizacja jest ustawiana w kontekście; wizyta konta user2 jest sprzątana po teście.
+  const BRIDGE = { latitude: 54.0928, longitude: 18.7919, accuracy: 20 };
+  const FAR = { latitude: 54.1468, longitude: 18.7919, accuracy: 20 };
+
+  async function placeWithLocation(
+    browser: Browser,
+    location: { latitude: number; longitude: number; accuracy: number } | null,
+  ) {
+    const opened = await openScreen(browser, "explorer", "dark", PHONE, paths.place, "reduce", {
+      permissions: location ? ["geolocation"] : [],
+      geolocation: location ?? undefined,
+    });
+
+    await opened.page.getByRole("button", { name: "Potwierdź wizytę" }).click();
+
+    return opened;
+  }
+
+  test("miejsce: komunikat „za daleko” (ostrzeżenie), axe bez naruszeń", async ({ browser }) => {
+    const { context, page } = await placeWithLocation(browser, FAR);
+
+    await expect(
+      page.getByRole("status").filter({ hasText: /Jesteś .* km od miejsca\./ }),
+    ).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+    await context.close();
+  });
+
+  test("miejsce: błąd lokalizacji (alert), axe bez naruszeń", async ({ browser }) => {
+    const { context, page } = await placeWithLocation(browser, null);
+
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Nie mamy zgody na lokalizację." }),
+    ).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+    await context.close();
+  });
+
+  test("miejsce: wizyta potwierdzona, odznaka „Odwiedzone” i lista „Chcę zobaczyć”, axe bez naruszeń", async ({
+    browser,
+  }) => {
+    const { context, page } = await placeWithLocation(browser, BRIDGE);
+
+    await expect(page.getByText("Wizyta potwierdzona.")).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByText("Masz już zapisaną wizytę w tym miejscu.")).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+
+    await page.goto("/my/want-to-see");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByText("Odwiedzone", { exact: true }).first()).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+    await context.close();
+  });
+
+  test("not-found (404): axe bez naruszeń", async ({ browser }) => {
+    const { context, page } = await openScreen(browser, "guest", "dark", PHONE, "/nie-ma-takiej");
+
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+    await context.close();
   });
 });

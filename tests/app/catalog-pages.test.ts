@@ -86,7 +86,7 @@ describe("public catalog pages", () => {
     );
 
     expect(html).toContain("Wieże &lt;Tczewa&gt;");
-    expect(html).toContain("Pomorskie · Prowadzi: Gmina A");
+    expect(html).toMatch(/>Pomorskie<\/span> · Prowadzi: Gmina A/);
     expect(html).toContain(`href="/places/${placeId}"`);
     expect(html).toContain("Miejsca w kolekcji (1)");
   });

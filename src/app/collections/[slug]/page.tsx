@@ -86,7 +86,8 @@ export default async function CollectionPage({ params }: { params: Params }) {
       <header className={styles.header}>
         <h1 className={styles.collectionTitle}>{collection.title}</h1>
         <p className={styles.meta}>
-          {REGION_LABELS[collection.region]} · Prowadzi: {collection.organization.name}
+          <span className={styles.itemMetaMono}>{REGION_LABELS[collection.region]}</span> ·
+          Prowadzi: {collection.organization.name}
         </p>
         {collection.summary === "" ? null : <p className={styles.summary}>{collection.summary}</p>}
         {album.kind === "guest" ? (

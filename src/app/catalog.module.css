@@ -83,7 +83,7 @@
   gap: var(--space-xs);
   align-content: center;
   box-sizing: border-box;
-  min-height: 56px;
+  min-height: var(--size-row-min);
   padding: var(--space-md);
   color: inherit;
   text-decoration: none;

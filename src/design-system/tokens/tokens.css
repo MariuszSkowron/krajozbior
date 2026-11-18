@@ -126,6 +126,12 @@
   --size-touch-min: 44px;
   /* Główna akcja ekranu terenowego (np. Zapisz): większa niż minimum */
   --size-touch-primary: 48px;
+  /* Minimalna wysokość wiersza listy z linkiem (miejsca, „Chcę zobaczyć”) */
+  --size-row-min: 56px;
+  /* Okrągły znacznik stanu (np. potwierdzona wizyta); nie jest celem dotykowym */
+  --size-mark: 44px;
+  /* Grubość krawędzi w kolorze stanu (komunikat ostrzeżenia lub błędu) */
+  --border-width-accent: 4px;
 
   /*
    * Kroje ładowane z plików w repozytorium (next/font/local; w Storybooku @font-face z fonts.css),
