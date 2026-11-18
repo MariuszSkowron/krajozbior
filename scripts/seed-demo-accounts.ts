@@ -5,8 +5,8 @@
 // repository or printed. Even when seeded somewhere by mistake, the demo
 // accounts do not sign in on a production deployment (isDemoSignInAllowed).
 //
-// The accounts are created as starter_auth (DATABASE_AUTH_URL); the admin role
-// is set as starter_owner (DATABASE_MIGRATION_URL), because starter_auth may
+// The accounts are created as krajozbior_auth (DATABASE_AUTH_URL); the admin role
+// is set as krajozbior_owner (DATABASE_MIGRATION_URL), because krajozbior_auth may
 // not write the `role` column.
 //
 // Run with: ALLOW_DEMO_SEED=1 npm run db:seed:demo

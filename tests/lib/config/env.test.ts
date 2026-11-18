@@ -10,10 +10,10 @@ import {
 describe("parseServerEnv", () => {
   it("accepts a PostgreSQL connection URL", () => {
     const env = parseServerEnv({
-      DATABASE_URL: "postgres://starter:secret@localhost:5432/starter",
+      DATABASE_URL: "postgres://krajozbior:secret@localhost:5432/krajozbior",
     });
 
-    expect(env.DATABASE_URL).toBe("postgres://starter:secret@localhost:5432/starter");
+    expect(env.DATABASE_URL).toBe("postgres://krajozbior:secret@localhost:5432/krajozbior");
   });
 
   it("names the missing variable without echoing any value", () => {
@@ -24,7 +24,7 @@ describe("parseServerEnv", () => {
   });
 
   it("rejects a non-PostgreSQL URL and does not include it in the message", () => {
-    const value = "mysql://user:hunter2@db.internal/starter";
+    const value = "mysql://user:hunter2@db.internal/krajozbior";
     const error = getError(() => parseServerEnv({ DATABASE_URL: value }));
 
     expect(error).toBeInstanceOf(ServerConfigError);
@@ -35,7 +35,7 @@ describe("parseServerEnv", () => {
 
 describe("parseAuthEnv", () => {
   const secret = "s".repeat(32);
-  const DATABASE_AUTH_URL = "postgres://starter_auth:secret@localhost:5432/starter";
+  const DATABASE_AUTH_URL = "postgres://krajozbior_auth:secret@localhost:5432/krajozbior";
 
   it("reads the global daily limit of sign-in codes as a positive whole number", () => {
     const base = { DATABASE_AUTH_URL, BETTER_AUTH_SECRET: secret };
@@ -60,15 +60,15 @@ describe("parseAuthEnv", () => {
       parseAuthEnv({
         DATABASE_AUTH_URL,
         BETTER_AUTH_SECRET: secret,
-        BETTER_AUTH_URL: "https://starter.example",
+        BETTER_AUTH_URL: "https://krajozbior.example",
       }),
-    ).toMatchObject({ BETTER_AUTH_URL: "https://starter.example" });
+    ).toMatchObject({ BETTER_AUTH_URL: "https://krajozbior.example" });
   });
 
   it("requires its own auth connection instead of falling back to DATABASE_URL", () => {
     const error = getError(() =>
       parseAuthEnv({
-        DATABASE_URL: "postgres://starter_app:secret@localhost:5432/starter",
+        DATABASE_URL: "postgres://krajozbior_app:secret@localhost:5432/krajozbior",
         BETTER_AUTH_SECRET: secret,
       }),
     );
@@ -92,7 +92,7 @@ describe("parseAuthEnv", () => {
       parseAuthEnv({
         DATABASE_AUTH_URL,
         BETTER_AUTH_SECRET: secret,
-        BETTER_AUTH_URL: "ftp://starter.example",
+        BETTER_AUTH_URL: "ftp://krajozbior.example",
       }),
     );
 
@@ -103,7 +103,7 @@ describe("parseAuthEnv", () => {
 describe("parseAuthEnv in production (issue #39)", () => {
   const base = {
     NODE_ENV: "production",
-    DATABASE_AUTH_URL: "postgres://starter_auth:secret@db.internal:5432/starter",
+    DATABASE_AUTH_URL: "postgres://krajozbior_auth:secret@db.internal:5432/krajozbior",
     BETTER_AUTH_SECRET: "s".repeat(32),
   };
 
@@ -111,7 +111,7 @@ describe("parseAuthEnv in production (issue #39)", () => {
     const error = getError(() =>
       parseAuthEnv({
         ...base,
-        BETTER_AUTH_URL: "http://starter.example",
+        BETTER_AUTH_URL: "http://krajozbior.example",
         AUTH_CLIENT_IP_HEADER: "x-real-ip",
       }),
     );
@@ -128,7 +128,7 @@ describe("parseAuthEnv in production (issue #39)", () => {
 
   it("requires the client-IP header for a public address", () => {
     const error = getError(() =>
-      parseAuthEnv({ ...base, BETTER_AUTH_URL: "https://starter.example" }),
+      parseAuthEnv({ ...base, BETTER_AUTH_URL: "https://krajozbior.example" }),
     );
 
     expect(error.message).toBe("Invalid server configuration: AUTH_CLIENT_IP_HEADER");
@@ -138,11 +138,11 @@ describe("parseAuthEnv in production (issue #39)", () => {
     expect(
       parseAuthEnv({
         ...base,
-        BETTER_AUTH_URL: "https://starter.example",
+        BETTER_AUTH_URL: "https://krajozbior.example",
         AUTH_CLIENT_IP_HEADER: "cf-connecting-ip",
       }),
     ).toMatchObject({
-      BETTER_AUTH_URL: "https://starter.example",
+      BETTER_AUTH_URL: "https://krajozbior.example",
       AUTH_CLIENT_IP_HEADER: "cf-connecting-ip",
     });
   });
@@ -158,15 +158,19 @@ describe("parseAuthEnv in production (issue #39)", () => {
 
   it("keeps http allowed outside production", () => {
     expect(
-      parseAuthEnv({ ...base, NODE_ENV: "development", BETTER_AUTH_URL: "http://starter.example" }),
-    ).toMatchObject({ BETTER_AUTH_URL: "http://starter.example" });
+      parseAuthEnv({
+        ...base,
+        NODE_ENV: "development",
+        BETTER_AUTH_URL: "http://krajozbior.example",
+      }),
+    ).toMatchObject({ BETTER_AUTH_URL: "http://krajozbior.example" });
   });
 
   it("rejects an unsupported client-IP header", () => {
     const error = getError(() =>
       parseAuthEnv({
         ...base,
-        BETTER_AUTH_URL: "https://starter.example",
+        BETTER_AUTH_URL: "https://krajozbior.example",
         AUTH_CLIENT_IP_HEADER: "forwarded",
       }),
     );
@@ -177,7 +181,7 @@ describe("parseAuthEnv in production (issue #39)", () => {
 
 describe("parseMigrationEnv", () => {
   it("reads only the migration connection", () => {
-    const url = "postgres://starter_owner:secret@localhost:5432/starter";
+    const url = "postgres://krajozbior_owner:secret@localhost:5432/krajozbior";
 
     expect(parseMigrationEnv({ DATABASE_MIGRATION_URL: url })).toEqual({
       DATABASE_MIGRATION_URL: url,

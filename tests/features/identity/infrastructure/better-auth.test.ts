@@ -24,7 +24,7 @@ function signInResponse(status: number, body: unknown, cookies: string[] = []) {
 describe("BetterAuthIdentityProvider.getActor", () => {
   it("maps the session user to an actor", async () => {
     const getSession = vi.fn().mockResolvedValue({ user: { id: userId, role: "admin" } });
-    const headers = new Headers({ cookie: "starter.session_token=x" });
+    const headers = new Headers({ cookie: "krajozbior.session_token=x" });
 
     expect(await providerWith({ getSession }).getActor(headers)).toEqual({
       id: userId,
@@ -49,20 +49,22 @@ describe("BetterAuthIdentityProvider.getActor", () => {
 });
 
 describe("BetterAuthIdentityProvider.signIn", () => {
-  const credentials = { email: "user@demo.starter.local", password: "secret-password" };
+  const credentials = { email: "user@demo.krajozbior.local", password: "secret-password" };
 
   it("returns the actor and the session cookies", async () => {
     const signInEmail = vi
       .fn()
       .mockResolvedValue(
-        signInResponse(200, { user: { id: userId, role: "user" } }, ["starter.session_token=abc"]),
+        signInResponse(200, { user: { id: userId, role: "user" } }, [
+          "krajozbior.session_token=abc",
+        ]),
       );
 
     const result = await providerWith({ signInEmail }).signIn(credentials, new Headers());
 
     expect(result).toEqual({
       actor: { id: userId, role: "user" },
-      setCookies: ["starter.session_token=abc"],
+      setCookies: ["krajozbior.session_token=abc"],
     });
   });
 
@@ -107,11 +109,11 @@ describe("BetterAuthIdentityProvider.signOut", () => {
     const signOut = vi
       .fn()
       .mockResolvedValue(
-        signInResponse(200, { success: true }, ["starter.session_token=; Max-Age=0"]),
+        signInResponse(200, { success: true }, ["krajozbior.session_token=; Max-Age=0"]),
       );
 
     expect(await providerWith({ getSession, signOut }).signOut(new Headers())).toEqual([
-      "starter.session_token=; Max-Age=0",
+      "krajozbior.session_token=; Max-Age=0",
     ]);
   });
 

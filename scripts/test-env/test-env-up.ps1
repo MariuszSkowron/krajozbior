@@ -1,4 +1,4 @@
-# Local disposable test environment of the starter (Windows PowerShell 5.1+).
+# Local disposable test environment of the krajozbior (Windows PowerShell 5.1+).
 #
 # Brings up two disposable postgres:17 containers (app + E2E on 55433, integration tests on
 # 55432 when free), runs db:roles -> db:migrate -> db:seed:demo, builds (cached) and starts
@@ -15,17 +15,17 @@ $ErrorActionPreference = 'Stop'
 
 # ---------------------------------------------------------------- variables
 $PgImage          = 'postgres:17'
-$E2eContainer     = 'starter-testenv-e2e-pg'
+$E2eContainer     = 'krajozbior-testenv-e2e-pg'
 $E2ePreferredPort = 55433
-$E2eDatabase      = 'starter_e2e'
-$E2eAdminUser     = 'starter_e2e'
-$IntContainer     = 'starter-testenv-int-pg'
+$E2eDatabase      = 'krajozbior_e2e'
+$E2eAdminUser     = 'krajozbior_e2e'
+$IntContainer     = 'krajozbior-testenv-int-pg'
 $IntPreferredPort = 55432
-$IntDatabase      = 'starter_integration_test'
-$IntAdminUser     = 'starter_test'
+$IntDatabase      = 'krajozbior_integration_test'
+$IntAdminUser     = 'krajozbior_test'
 $AppPreferredPort = 3100
 $HealthPath       = '/api/health'
-$DemoAccounts     = @('user', 'user2', 'admin')   # <role>@demo.starter.local
+$DemoAccounts     = @('user', 'user2', 'admin')   # <role>@demo.krajozbior.local
 $PrepCommands     = @('db:roles', 'db:migrate', 'db:seed:demo')      # npm scripts, in order
 $BuildInputs      = @('src', 'public', 'package.json', 'package-lock.json', 'next.config.ts', 'tsconfig.json')
 $BuildEnvVars     = @()                                              # no env var shapes the build output today
@@ -291,13 +291,13 @@ try {
   # so the developer's .env cannot redirect this environment.
   $vars = [ordered]@{
     DATABASE_ADMIN_URL      = "postgres://${E2eAdminUser}:$($s.E2eAdmin)@$pgE2e"
-    STARTER_OWNER_DB_PASSWORD = $s.Owner
-    STARTER_APP_DB_PASSWORD   = $s.App
-    STARTER_AUTH_DB_PASSWORD  = $s.Auth
-    STARTER_OPS_DB_PASSWORD   = $s.Ops
-    DATABASE_MIGRATION_URL  = "postgres://starter_owner:$($s.Owner)@$pgE2e"
-    DATABASE_URL            = "postgres://starter_app:$($s.App)@$pgE2e"
-    DATABASE_AUTH_URL       = "postgres://starter_auth:$($s.Auth)@$pgE2e"
+    KRAJOZBIOR_OWNER_DB_PASSWORD = $s.Owner
+    KRAJOZBIOR_APP_DB_PASSWORD   = $s.App
+    KRAJOZBIOR_AUTH_DB_PASSWORD  = $s.Auth
+    KRAJOZBIOR_OPS_DB_PASSWORD   = $s.Ops
+    DATABASE_MIGRATION_URL  = "postgres://krajozbior_owner:$($s.Owner)@$pgE2e"
+    DATABASE_URL            = "postgres://krajozbior_app:$($s.App)@$pgE2e"
+    DATABASE_AUTH_URL       = "postgres://krajozbior_auth:$($s.Auth)@$pgE2e"
     BETTER_AUTH_SECRET      = $s.Session
     BETTER_AUTH_URL         = $baseUrl
     DEMO_ACCOUNT_PASSWORD   = $s.Demo
@@ -393,7 +393,7 @@ try {
       [ordered]@{ type = 'postgres'; purpose = 'app + e2e'; host = '127.0.0.1'; port = $e2ePort; container = $E2eContainer; database = $E2eDatabase; env = @('DATABASE_URL', 'DATABASE_AUTH_URL', 'DATABASE_MIGRATION_URL', 'DATABASE_ADMIN_URL') },
       [ordered]@{ type = 'postgres'; purpose = 'integration tests'; host = '127.0.0.1'; port = $intPort; container = $IntContainer; database = $IntDatabase; env = @('TEST_DATABASE_URL') }
     )
-    credentials = @($DemoAccounts | ForEach-Object { [ordered]@{ role = $_; username = "$_@demo.starter.local"; passwordEnv = "TEST_$($_.ToUpper())_PASSWORD" } })
+    credentials = @($DemoAccounts | ForEach-Object { [ordered]@{ role = $_; username = "$_@demo.krajozbior.local"; passwordEnv = "TEST_$($_.ToUpper())_PASSWORD" } })
     credentialsFile = $EnvFile
     browser = [ordered]@{ provider = 'playwright'; installed = [bool]$browserInstalled; command = 'npx playwright'; version = $pwVersion; notes = '' }
     playwright = [ordered]@{ runner = 'playwright'; installed = [bool]$browserInstalled; config = 'playwright.config.ts'; browsers = @('chromium') }

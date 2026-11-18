@@ -8,7 +8,7 @@ export type PrivateTableOperation = "select" | "insert" | "update" | "delete";
 export type PrivateTableOptions = {
   /** Column holding the owning user's id (uuid). */
   userColumn?: string;
-  /** Operations starter_app may run; anything else is not granted at all. */
+  /** Operations krajozbior_app may run; anything else is not granted at all. */
   operations: readonly PrivateTableOperation[];
 };
 
@@ -31,11 +31,11 @@ export function privateTableSecuritySql(
   const isOwner = `${assertIdentifier(userColumn)} = (select app_current_user_id())`;
 
   if (operations.length === 0) {
-    throw new Error("A PRIV table needs at least one operation for starter_app");
+    throw new Error("A PRIV table needs at least one operation for krajozbior_app");
   }
 
   const policy = (operation: PrivateTableOperation) => {
-    const create = `create policy ${name}_owner_${operation} on ${qualified} for ${operation} to starter_app`;
+    const create = `create policy ${name}_owner_${operation} on ${qualified} for ${operation} to krajozbior_app`;
 
     switch (operation) {
       case "insert":
@@ -53,7 +53,7 @@ export function privateTableSecuritySql(
     // FORCE: the table owner is bound by the policies too.
     `alter table ${qualified} force row level security;`,
     `revoke all on ${qualified} from public;`,
-    `grant ${operations.join(", ")} on ${qualified} to starter_app;`,
+    `grant ${operations.join(", ")} on ${qualified} to krajozbior_app;`,
     ...operations.map(policy),
   ];
 }

@@ -90,7 +90,7 @@ export const Scale: Story = {
               <br />
               <TokenValue name={name} />
             </div>
-            <span style={{ fontSize: tokenVar(name) }}>Starter: szkielet aplikacji</span>
+            <span style={{ fontSize: tokenVar(name) }}>Krajozbiór: szkielet aplikacji</span>
           </div>
         ))}
       </section>

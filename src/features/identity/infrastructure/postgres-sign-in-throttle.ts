@@ -22,7 +22,7 @@ const CLEANUP_BATCH = 100;
 // A key of its own for the account HMAC, derived from the session secret, so
 // the two never serve both purposes. Rotating the secret resets the counters.
 export function throttleHmacKey(secret: string): Buffer {
-  return Buffer.from(hkdfSync("sha256", secret, "", "starter-sign-in-throttle", 32));
+  return Buffer.from(hkdfSync("sha256", secret, "", "krajozbior-sign-in-throttle", 32));
 }
 
 export type ThrottleKey = { scope: ThrottleScope; key: string };

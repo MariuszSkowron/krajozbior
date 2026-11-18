@@ -29,7 +29,7 @@ const script = fileURLToPath(
 );
 const migrationsDir = fileURLToPath(new URL("../../src/lib/db/migrations/", import.meta.url));
 
-const scratch = mkdtempSync(join(tmpdir(), "starter-rls-hook-"));
+const scratch = mkdtempSync(join(tmpdir(), "krajozbior-rls-hook-"));
 const scratchMigrations = join(scratch, "src", "lib", "db", "migrations");
 mkdirSync(scratchMigrations, { recursive: true });
 const migrationPath = (name: string) => join(scratchMigrations, name);
@@ -128,7 +128,7 @@ describe("require-rls-in-migration hook", { timeout: 30_000 }, () => {
     ).toEqual([]);
   });
 
-  it("does not ask for RLS in the auth schema, where starter_app has no privileges", () => {
+  it("does not ask for RLS in the auth schema, where krajozbior_app has no privileges", () => {
     expect(findTablesWithoutRls("create table auth.sign_in_throttle (key text);")).toEqual([]);
   });
 

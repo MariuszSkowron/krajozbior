@@ -10,7 +10,7 @@ import { AccountArea } from "./shell/account-area";
 import { shellRole } from "./shell/shell-role";
 
 export const metadata: Metadata = {
-  title: "Starter",
+  title: "Krajozbiór",
   description: "Szkielet aplikacji: Next.js, PostgreSQL z regułami dostępu i logowanie.",
 };
 
@@ -38,7 +38,7 @@ export default async function RootLayout({
         </a>
         <header className={styles.header}>
           <Link className={styles.brand} href="/">
-            Starter
+            Krajozbiór
           </Link>
           <AccountArea role={role} />
         </header>

@@ -47,7 +47,7 @@ export function createDatabaseHooks(deps: AuthHookDeps = {}): DatabaseHooks {
         // An account created by a sign-in flow (the sign-in code) is always a
         // `user` with a verified address; name and image never come from the
         // client. The role is never written: the database default `user`
-        // applies, and starter_auth has no INSERT privilege on `role` anyway.
+        // applies, and krajozbior_auth has no INSERT privilege on `role` anyway.
         before: async (user, context) => {
           if (!context) {
             return;

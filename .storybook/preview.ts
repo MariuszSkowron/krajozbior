@@ -31,7 +31,7 @@ const preview: Preview = {
     a11y: { test: "todo" },
     options: {
       storySort: {
-        order: ["Foundation", "Primitives", "Starter Components", "Patterns"],
+        order: ["Foundation", "Primitives", "Krajozbiór Components", "Patterns"],
       },
     },
   },

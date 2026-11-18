@@ -14,14 +14,14 @@ import {
   type ScratchDatabase,
 } from "../support/database-harness";
 
-// The limiter's storage as starter_auth, on its own scratch database (issue #39).
+// The limiter's storage as krajozbior_auth, on its own scratch database (issue #39).
 let db: ScratchDatabase;
 let pool: Pool;
 let throttle: PostgresSignInThrottle;
 
 const hmacKey = throttleHmacKey("integration-only-secret-0123456789abcdef");
 
-const victim = { email: "user@demo.starter.local", ip: "203.0.113.7" };
+const victim = { email: "user@demo.krajozbior.local", ip: "203.0.113.7" };
 
 // Stored attempts per bucket of the victim; a missing row counts as none.
 async function attempts() {
@@ -47,9 +47,9 @@ async function rowCount() {
 
 describe("PostgresSignInThrottle", () => {
   beforeAll(async () => {
-    db = await createScratchDatabase("starter_integration_throttle");
+    db = await createScratchDatabase("krajozbior_integration_throttle");
     await db.migrate();
-    pool = new Pool({ connectionString: db.urls.starter_auth, max: 10 });
+    pool = new Pool({ connectionString: db.urls.krajozbior_auth, max: 10 });
     throttle = new PostgresSignInThrottle(async () => pool, hmacKey);
   }, 60_000);
 
