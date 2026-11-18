@@ -99,6 +99,11 @@
 /src/app/home/                     @MariuszSkowron
 /e2e/home.spec.ts                  @MariuszSkowron
 
+# Wyszukiwarka publiczna (E12-2): granica „tylko opublikowane” (kolekcje i miejsca z publicznych
+# kolekcji zatwierdzonych organizacji); test dostępu jest w /tests/integration/
+/src/app/search/                   @MariuszSkowron
+/e2e/search.spec.ts                @MariuszSkowron
+
 # Uprawnienia bazy, reguły dostępu do danych (RLS) i wszystkie migracje
 /src/lib/db/                       @MariuszSkowron
 /mikro-orm.config.ts               @MariuszSkowron
