@@ -6,7 +6,10 @@ import "@/design-system/tokens/tokens.css";
 import "@/design-system/theme/theme.css";
 
 import styles from "./app-shell.module.css";
+import { geist, geistMono, instrumentSerif } from "./fonts";
 import { AccountArea } from "./shell/account-area";
+import { requestTheme, themeColor } from "./shell/theme";
+import { ThemeSwitch } from "./shell/theme-switch";
 import { shellCuratorLink } from "./shell/shell-curator";
 import { shellRole } from "./shell/shell-role";
 
@@ -15,10 +18,17 @@ export const metadata: Metadata = {
   description: "Szkielet aplikacji: Next.js, PostgreSQL z regułami dostępu i logowanie.",
 };
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-};
+// The bar colour of the browser follows the theme cookie, so the viewport is dynamic.
+export async function generateViewport(): Promise<Viewport> {
+  const theme = await requestTheme();
+
+  return {
+    width: "device-width",
+    initialScale: 1,
+    themeColor: themeColor[theme],
+    colorScheme: theme,
+  };
+}
 
 // The app shell: skip link, header with the application name and the account
 // area, the page in <main id="tresc">. Reading the role makes every page render
@@ -31,9 +41,13 @@ export default async function RootLayout({
 }>) {
   const role = await shellRole();
   const curatorLink = await shellCuratorLink(role);
+  const theme = await requestTheme();
 
   return (
-    <html lang="pl">
+    <html
+      lang="pl"
+      className={`theme-${theme} ${geist.variable} ${geistMono.variable} ${instrumentSerif.variable}`}
+    >
       <body className={styles.shell}>
         <a className={styles.skipLink} href="#tresc">
           Przejdź do treści
@@ -42,7 +56,10 @@ export default async function RootLayout({
           <Link className={styles.brand} href="/">
             Krajozbiór
           </Link>
-          <AccountArea role={role} curatorLink={curatorLink} />
+          <div className={styles.headerEnd}>
+            <ThemeSwitch theme={theme} />
+            <AccountArea role={role} curatorLink={curatorLink} />
+          </div>
         </header>
         <main id="tresc" tabIndex={-1} className={styles.main}>
           {children}

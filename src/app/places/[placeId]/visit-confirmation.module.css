@@ -18,8 +18,8 @@
   align-items: center;
   min-height: var(--size-touch-min);
   padding-inline: var(--space-lg);
-  background: var(--color-brand-primary);
-  color: var(--color-text-inverse);
+  background: var(--color-brand-accent);
+  color: var(--color-text-on-accent);
   border: 0;
   border-radius: var(--radius-pill);
   font: inherit;
@@ -49,8 +49,8 @@
   min-height: var(--size-touch-min);
   padding-inline: var(--space-lg);
   background: transparent;
-  color: var(--color-brand-primary);
-  border: 1px solid var(--color-brand-primary);
+  color: var(--color-text-accent);
+  border: 1px solid var(--color-text-accent);
   border-radius: var(--radius-pill);
   font: inherit;
   font-weight: var(--font-weight-strong);

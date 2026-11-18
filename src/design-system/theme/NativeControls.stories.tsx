@@ -48,6 +48,29 @@ export const Unstyled: Story = {
         <progress id="n-progress" max={10} value={3} />
         <button type="button">Zapisz</button>
       </form>
+      <h2>Przyciski (klasy motywu)</h2>
+      <p
+        style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-md)", alignItems: "center" }}
+      >
+        <button className="button button--primary" type="button">
+          Główny
+        </button>
+        <button className="button button--outline" type="button">
+          Obrysowy
+        </button>
+        <button className="button button--quiet" type="button">
+          Cichy
+        </button>
+        <button className="button button--danger" type="button">
+          Ryzykowny
+        </button>
+        <button className="button button--primary" type="button" disabled>
+          Nieaktywny
+        </button>
+      </p>
+      <p>
+        Link w akapicie: <a href="#tekst">pełne odkrycie miejsca</a> ma stałe podkreślenie.
+      </p>
     </main>
   ),
 };

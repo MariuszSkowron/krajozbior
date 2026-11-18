@@ -103,8 +103,8 @@
   justify-self: start;
   min-height: var(--size-touch-min);
   padding-inline: var(--space-lg);
-  background: var(--color-brand-primary);
-  color: var(--color-text-inverse);
+  background: var(--color-brand-accent);
+  color: var(--color-text-on-accent);
   border: 0;
   border-radius: var(--radius-pill);
   font: inherit;

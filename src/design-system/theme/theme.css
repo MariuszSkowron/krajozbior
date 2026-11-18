@@ -1,6 +1,7 @@
 /*
- * Style bazowe szkieletu: tylko tokeny z ../tokens/tokens.css, bez wartości „na sztywno”.
- * Kontrolki natywne dziedziczą stąd krój, kolor i fokus; wygląd zmienia się przez tokeny.
+ * Style bazowe motywu „nocny album”: tylko tokeny z ../tokens/tokens.css, bez wartości „na sztywno”
+ * (jedyny wyjątek: color-mix z tokenem dla pierścieni z design systemu). Kontrolki natywne
+ * dziedziczą stąd krój, kolor i fokus; wygląd zmienia się przez tokeny.
  */
 
 body {
@@ -9,9 +10,11 @@ body {
   font-family: var(--font-family-base);
   font-size: var(--font-size-md);
   line-height: var(--line-height-body);
+  /* Instrument Serif ma jedną wagę: bez sztucznego pogrubienia i pochylenia. */
+  font-synthesis: none;
 }
 
-/* Kontrolki formularza domyślnie nie dziedziczą kroju ani koloru; 1rem chroni też przed powiększaniem pól na iOS. */
+/* Kontrolki formularza domyślnie nie dziedziczą kroju ani koloru; rozmiar ≥ 1rem chroni też przed powiększaniem pól na iOS. */
 button,
 input,
 select,
@@ -20,47 +23,84 @@ textarea {
   color: inherit;
 }
 
+/*
+ * Linki w tekście (WCAG 1.4.1): stałe podkreślenie 1 px, po najechaniu i przy fokusie 2 px.
+ * Podkreślenie wyłącza tylko klasa elementu, który rozpoznaje się po kształcie i położeniu
+ * (nawigacja, karta będąca linkiem, link stylowany jak przycisk), nigdy ogólna reguła.
+ */
+a {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+}
+
+a:hover,
+a:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
+/* Fokus przycisków i linków: obwódka 2 px w kolorze akcentu tekstu z odstępem 2 px (D-22, Q4). */
 :focus-visible {
   outline: var(--focus-ring-width) solid var(--color-border-focus);
   outline-offset: var(--focus-ring-offset);
 }
 
 /*
- * Nagłówki krojem display (warstwa wizualna szkieletu). Tytuł ekranu: waga 800,
- * 34 px na telefonie i 48 px od progu komputera. Moduły stron mogą jeszcze nadpisywać rozmiar
- * (przeniesienie ekranów: E06-S07).
+ * Nagłówki. Instrument Serif istnieje tylko w wadze 400 (D-E3-4): tytuł ekranu szeryfem 400
+ * (40 px na telefonie, 52 px od progu komputera), tytuł sekcji na telefonie krojem Geist 600,
+ * od progu komputera szeryfem 400. Moduły stron mogą nadpisywać rozmiar (przeniesienie ekranów: E3-2b).
  */
 h1,
 h2,
 h3 {
-  font-family: var(--font-family-display);
   line-height: var(--line-height-heading);
 }
 
 h1 {
-  font-size: var(--font-size-2xl);
-  font-weight: 800;
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-regular);
 }
 
 h2 {
+  font-family: var(--font-family-base);
   font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-strong);
+}
+
+h3 {
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-strong);
 }
 
 /* Próg komputera: breakpointy nie są tokenami (docs/design/tokens.md), wartość tylko w CSS. */
 @media (min-width: 48rem) {
   h1 {
-    font-size: var(--font-size-3xl);
+    font-size: var(--font-size-4xl);
+  }
+
+  h2 {
+    font-family: var(--font-family-display);
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-regular);
   }
 }
 
-/* Etykieta wersalikami nad tytułem. 12 px to jedyny rozmiar spoza tokenów (jedna reguła). */
+/* Kursywa szeryfu tylko dla fragmentu tytułu. */
+h1 em,
+h2 em {
+  font-style: italic;
+}
+
+/* Etykieta wersalikami (mono) nad tytułem. */
 .eyebrow {
   margin: 0;
-  color: var(--color-text-secondary);
-  font-size: 0.75rem;
+  color: var(--color-text-label);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--font-tracking-label);
   line-height: var(--line-height-body);
   text-transform: uppercase;
 }
@@ -71,7 +111,7 @@ h2 {
   box-sizing: border-box;
   width: 100%;
   margin-inline: auto;
-  padding-inline: var(--space-md);
+  padding-inline: var(--space-page-inline);
 }
 
 .content-width {
@@ -80,4 +120,124 @@ h2 {
 
 .content-width-wide {
   max-width: 72rem;
+}
+
+/*
+ * Przyciski (D-E3-5): natywne <button> lub <a> z klasą. Główny: pigułka w kolorze akcentu,
+ * 48 px. Obrysowy, cichy i ryzykowny mają 44 px. Wciśnięcie skaluje przycisk do 0,97.
+ */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  box-sizing: border-box;
+  min-width: var(--size-touch-min);
+  min-height: var(--size-touch-min);
+  padding-inline: var(--space-lg);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-weight: var(--font-weight-strong);
+  text-decoration: none;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition:
+    transform var(--motion-duration-short) var(--motion-easing-standard),
+    box-shadow var(--motion-duration-short) var(--motion-easing-standard),
+    border-color var(--motion-duration-short) var(--motion-easing-standard),
+    background-color var(--motion-duration-short) var(--motion-easing-standard);
+}
+
+.button:active {
+  transform: scale(0.97);
+}
+
+.button:disabled,
+.button[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.button--primary {
+  min-height: var(--size-touch-primary);
+  background: var(--color-brand-accent);
+  color: var(--color-text-on-accent);
+  border-color: transparent;
+}
+
+/* Pierścień 6 px w kolorze akcentu przy 18% (design system); obok obrys dla trybu wymuszonych kolorów. */
+.button--primary:hover:not(:disabled, [aria-disabled="true"]) {
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-brand-accent) 18%, transparent);
+  outline: 2px solid transparent;
+}
+
+.button--outline:hover:not(:disabled, [aria-disabled="true"]) {
+  border-color: var(--color-border-strong);
+}
+
+/* Cichy: bez obrysu; podświetlenie tłem po najechaniu. */
+.button--quiet {
+  border-color: transparent;
+}
+
+.button--quiet:hover:not(:disabled, [aria-disabled="true"]) {
+  background: var(--color-surface-hover);
+}
+
+.button--danger {
+  color: var(--color-feedback-danger);
+  border-color: var(--color-feedback-danger);
+}
+
+/*
+ * Pola formularzy (D-22, Q3; D-E3-8): obrys w kolorze meta (≥ 3:1 na tle pola i karty), tekst
+ * zastępczy w tym samym kolorze. Fokus: obrys akcentem i pierścień 3 px przy 15%; przezroczysty
+ * outline zostaje dla trybu wymuszonych kolorów.
+ */
+input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="submit"], [type="button"]),
+select,
+textarea {
+  box-sizing: border-box;
+  min-height: var(--size-touch-min);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface-canvas);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-text-meta);
+  border-radius: var(--radius-sm);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-meta);
+  opacity: 1;
+}
+
+input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"]
+  ):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--color-brand-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-accent) 15%, transparent);
+  outline: 2px solid transparent;
+}
+
+/*
+ * Redukcja ruchu (D-E3-6): jedna reguła wyłącza animacje i przejścia wszędzie. `!important`,
+ * bo reguły z modułów CSS wygrywają specyficznością; ekran od razu pokazuje stan końcowy.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }

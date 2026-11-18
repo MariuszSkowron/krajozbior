@@ -3,12 +3,27 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  themeCookie: undefined as string | undefined,
   getActor: vi.fn(),
   listMemberships: vi.fn(),
   pathname: "/",
 }));
 
-vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers(),
+  cookies: async () => ({
+    get: (name: string) =>
+      name === "krajozbior-theme" && mocks.themeCookie !== undefined
+        ? { name, value: mocks.themeCookie }
+        : undefined,
+  }),
+}));
+// next/font/local works only inside the Next.js compiler; the layout needs only the class names.
+vi.mock("@/app/fonts", () => ({
+  geist: { variable: "font-geist" },
+  geistMono: { variable: "font-geist-mono" },
+  instrumentSerif: { variable: "font-instrument-serif" },
+}));
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   usePathname: () => mocks.pathname,
@@ -24,7 +39,7 @@ vi.mock("@/features/organizations/infrastructure/postgres-organization-reader", 
   },
 }));
 
-const { default: RootLayout, viewport } = await import("@/app/layout");
+const { default: RootLayout, generateViewport } = await import("@/app/layout");
 
 const id = "11111111-1111-4111-8111-111111111111";
 const as = (role: "user" | "admin") => ({ id, role });
@@ -44,6 +59,7 @@ beforeEach(() => {
   mocks.getActor.mockReset().mockResolvedValue(null);
   mocks.listMemberships.mockReset().mockResolvedValue([]);
   mocks.pathname = "/";
+  mocks.themeCookie = undefined;
 });
 
 describe("app shell", () => {
@@ -152,7 +168,35 @@ describe("app shell", () => {
     expect(console.error).not.toHaveBeenCalled();
   });
 
-  it("sets the viewport for a phone", () => {
-    expect(viewport).toEqual({ width: "device-width", initialScale: 1 });
+  it("sets the viewport for a phone with the night theme colour by default", async () => {
+    expect(await generateViewport()).toEqual({
+      width: "device-width",
+      initialScale: 1,
+      themeColor: "#0B0D12",
+      colorScheme: "dark",
+    });
+  });
+
+  it("starts in the night theme without a cookie and for an unknown value", async () => {
+    expect(await shell()).toMatch(/^<html lang="pl" class="theme-dark /);
+
+    mocks.themeCookie = "xyz";
+    expect(await shell()).toMatch(/^<html lang="pl" class="theme-dark /);
+  });
+
+  it("uses the light theme and its bar colour for the light cookie", async () => {
+    mocks.themeCookie = "light";
+
+    expect(await shell()).toMatch(/^<html lang="pl" class="theme-light /);
+    expect(await generateViewport()).toMatchObject({ themeColor: "#F4F2EC", colorScheme: "light" });
+  });
+
+  it("offers the switch to the other theme in the header, also for a guest", async () => {
+    expect(header(await shell())).toMatch(
+      /<form [^>]+><button [^>]*type="submit"[^>]*value="light"[^>]*>.+Jasny motyw<\/span><\/button><\/form>/,
+    );
+
+    mocks.themeCookie = "light";
+    expect(header(await shell())).toMatch(/value="dark"[^>]*>.*Nocny motyw/);
   });
 });

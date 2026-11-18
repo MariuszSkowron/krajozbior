@@ -1,66 +1,137 @@
 /*
- * Semantic design tokens szkieletu (theme jasny). Źródło prawdy: docs/design/tokens.md.
+ * Semantic design tokens (motyw „nocny album”). Źródło prawdy: docs/design/tokens.md;
+ * wartości pochodzą z design systemu właściciela (D-08, D-22), mapowanie nazw w tokens.md.
  * Komponenty używają wyłącznie tych zmiennych, bez wartości „na sztywno”.
+ *
+ * Motyw to klasa na <html>: nocny (.theme-dark, a także brak klasy) i jasny (.theme-light).
+ * Oba bloki definiują dokładnie te same nazwy kolorów i cieni; zmiana motywu zmienia tylko wartości.
+ * Blok jasny stoi po nocnym, bo `:root` i `.theme-light` mają tę samą specyficzność.
  */
-:root {
-  /* Kolor */
-  --color-brand-primary: #176b5b;
-  --color-brand-accent: #b85a1a;
-  --color-surface-canvas: #f7f6f1;
-  --color-surface-card: #ffffff;
-  --color-surface-elevated: #ffffff;
-  --color-surface-tint: #efede3;
-  --color-text-primary: #172321;
-  --color-text-secondary: #5b6763;
-  --color-text-inverse: #ffffff;
-  --color-border-default: #7a8681;
-  --color-border-subtle: #e3e1d6;
-  --color-border-focus: #176b5b;
-  --color-feedback-danger: #b3261e;
+:root,
+.theme-dark {
+  color-scheme: dark;
 
-  /* Odstępy (moduł 4 px) */
+  /* Powierzchnie */
+  --color-surface-canvas: #0b0d12;
+  --color-surface-card: #10131b;
+  --color-surface-tint: #161a26;
+  --color-surface-hover: #151925;
+
+  /* Linie i fokus */
+  --color-border-subtle: #1d2130;
+  --color-border-default: #252a38;
+  --color-border-strong: #3a4152;
+  --color-border-focus: var(--color-text-accent);
+
+  /* Pasek postępu */
+  --color-progress-track: #232836;
+
+  /* Tekst */
+  --color-text-primary: #eceef4;
+  --color-text-strong: #ffffff;
+  --color-text-secondary: #b8becc;
+  --color-text-label: #a9afbf;
+  --color-text-meta: #8a91a3;
+  --color-text-accent: #ff7a3d;
+  --color-text-on-accent: #0b0d12;
+
+  /* Akcent */
+  --color-brand-accent: #ff6b2c;
+
+  /* Stany (kolor + tło odznaki) */
+  --color-feedback-success: #6fd3a4;
+  --color-feedback-success-bg: rgb(111 211 164 / 12%);
+  --color-feedback-warning: #f2c46b;
+  --color-feedback-warning-bg: rgb(242 196 107 / 12%);
+  --color-feedback-danger: #ff7a8a;
+  --color-feedback-danger-bg: rgb(255 122 138 / 12%);
+  --color-feedback-info: #a8e2ff;
+  --color-feedback-info-bg: rgb(168 226 255 / 10%);
+
+  /* Cienie: w motywie nocnym głębię daje obrys, nie cień */
+  --shadow-card: none;
+  --shadow-overlay: 0 16px 40px rgb(0 0 0 / 50%);
+}
+
+.theme-light {
+  color-scheme: light;
+
+  --color-surface-canvas: #f4f2ec;
+  --color-surface-card: #ffffff;
+  --color-surface-tint: #eae6dd;
+  --color-surface-hover: #eeebe4;
+
+  --color-border-subtle: #e3dfd5;
+  --color-border-default: #d3cec3;
+  --color-border-strong: #bcb6a9;
+  --color-border-focus: var(--color-text-accent);
+
+  --color-progress-track: #e6e2d9;
+
+  --color-text-primary: #16181f;
+  --color-text-strong: #0b0d12;
+  --color-text-secondary: #474c59;
+  --color-text-label: #525765;
+  --color-text-meta: #626777;
+  --color-text-accent: #c2410c;
+  --color-text-on-accent: #0b0d12;
+
+  --color-brand-accent: #f05a1a;
+
+  --color-feedback-success: #17784f;
+  --color-feedback-success-bg: rgb(23 120 79 / 10%);
+  --color-feedback-warning: #8a5a00;
+  --color-feedback-warning-bg: rgb(138 90 0 / 10%);
+  --color-feedback-danger: #b4233a;
+  --color-feedback-danger-bg: rgb(180 35 58 / 8%);
+  --color-feedback-info: #1f5f86;
+  --color-feedback-info-bg: rgb(31 95 134 / 8%);
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 4%), 0 8px 24px rgb(0 0 0 / 6%);
+  --shadow-overlay: 0 8px 24px rgb(0 0 0 / 12%);
+}
+
+/* Tokeny niezależne od motywu. */
+:root {
+  /* Odstępy (moduł 4 px); margines boczny strony rośnie od progu komputera (48rem) */
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
   --space-lg: 24px;
   --space-xl: 32px;
+  --space-page-inline: 16px;
 
-  /* Promienie i cienie (warstwa wizualna szkieletu) */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 16px;
+  /* Promienie */
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
   --radius-pill: 999px;
-  --shadow-card: 0 1px 2px rgb(23 35 33 / 6%), 0 6px 20px rgb(23 35 33 / 7%);
-  --shadow-overlay: 0 8px 24px rgb(23 35 33 / 16%);
 
   /* Minimalny cel dotykowy */
   --size-touch-min: 44px;
   /* Główna akcja ekranu terenowego (np. Zapisz): większa niż minimum */
   --size-touch-primary: 48px;
 
-  /* Typografia: tekst krojem systemowym (bez ładowania czcionek; działa offline w terenie). */
-  --font-family-base:
-    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  /* Nagłówki: krój z next/font/local (--font-display-face na <html>), bez niego stos systemowy. */
-  --font-family-display: var(
-    --font-display-face,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    "Helvetica Neue",
-    Arial,
-    sans-serif
-  );
+  /*
+   * Kroje ładowane z plików w repozytorium (next/font/local; w Storybooku @font-face z fonts.css),
+   * bez zapytań do Google. Bez nich działa zapas systemowy.
+   */
+  --font-family-base: var(--font-geist, system-ui, -apple-system, "Segoe UI", sans-serif);
+  --font-family-display: var(--font-instrument-serif, Georgia, serif);
+  --font-family-mono: var(--font-geist-mono, "Courier New", monospace);
+  --font-weight-regular: 400;
+  --font-weight-strong: 600;
+  --font-size-xs: 0.6875rem;
   --font-size-sm: 0.875rem;
-  --font-size-md: 1rem;
+  --font-size-md: 1.0625rem;
   --font-size-lg: 1.25rem;
   --font-size-xl: 1.75rem;
   --font-size-2xl: 2.125rem;
-  --font-size-3xl: 3rem;
-  --font-weight-strong: 600;
+  --font-size-3xl: 2.5rem;
+  --font-size-4xl: 3.25rem;
   --line-height-body: 1.5;
-  --line-height-heading: 1.25;
+  --line-height-heading: 1.05;
+  --font-tracking-label: 0.14em;
 
   /* Fokus: kolor wskaźnika to --color-border-focus */
   --focus-ring-width: 2px;
@@ -68,7 +139,13 @@
 
   /* Ruch */
   --motion-duration-short: 150ms;
-  --motion-easing-standard: ease-out;
+  --motion-easing-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --space-page-inline: clamp(20px, 3.5vw, 56px);
+  }
 }
 
 /* Jedno miejsce obsługi redukcji ruchu: komponenty używają tokenu i nic nie wiedzą o preferencji. */

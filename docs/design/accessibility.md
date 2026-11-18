@@ -61,6 +61,15 @@ Natywny element lub biblioteka dostarcza mechanikę (rola, stany, część klawi
 - **Ruch:** animacje wyłączane lub skracane przy `prefers-reduced-motion`.
 - **Responsywność:** poprawne działanie od 320 px i przy 200% tekstu, bez przewijania w poziomie.
 
+## 4a. Wygląd „nocny album”: reguły kontrastu, fokusu i linków
+
+- **Reguła tła (D-22, Q5).** W jasnym motywie tekst w kolorze akcentu (`color.text.accent`) i zieleń stanu (`color.feedback.success`) stoją tylko na `color.surface.canvas` lub `color.surface.card`, a odznaka `success` tylko na karcie. Na `surface.tint` i `surface.hover` mają poniżej 4,5:1. Wiersze i karty z odznaką stanu albo tekstem akcentem nie zmieniają tła po najechaniu (najechanie to obrys `color.border.strong` i cień); aktywna pozycja menu na `surface.tint` ma tekst `color.text.strong`. Pary dozwolone i niedozwolone są w `tests/design-system/tokens.test.ts`.
+- **Fokus (D-22, Q4).** Przyciski i linki: obwódka 2 px w kolorze `color.border.focus` (równa `color.text.accent`) z odstępem 2 px; nie kolorem `color.brand.accent` (2,73:1 na `surface.tint` w jasnym). Pola formularzy: obrys akcentem i pierścień 3 px przy 15% oraz przezroczysty `outline` dla trybu wymuszonych kolorów.
+- **Obrys pól (D-22, Q3).** Pola tekstowe, pola wyboru i listy mają obrys `color.text.meta` (co najmniej 3:1 na tle pola i karty); `color.border.default` ma poniżej 3:1 i służy tylko przyciskom, które rozpoznaje się po napisie. Tekst zastępczy ma kolor `color.text.meta`.
+- **Linki w tekście (WCAG 1.4.1).** Link w akapicie ma stałe podkreślenie 1 px (2 px po najechaniu i przy fokusie), bo sam kolor akcentu nie wystarcza (2,23:1 względem tekstu w nocnym). Podkreślenie wyłącza tylko klasa elementu rozpoznawalnego po kształcie i położeniu (nawigacja, karta będąca linkiem, link stylowany jak przycisk), nigdy ogólna reguła `a`.
+- **Fokus nie może być zasłonięty (WCAG 2.4.11).** Przypięty pasek lub przycisk przy dolnej krawędzi nie może zakryć elementu z fokusem: wysokość paska to zmienna CSS, a `html` ma `scroll-padding-bottom` równy tej wysokości tylko wtedy, gdy pasek jest widoczny; treść ma też dolny `padding`. Przypięty nagłówek wymagałby `scroll-padding-top` z tą samą zasadą. Sprawdza to test E2E (axe tego nie wykrywa); reguła zaczyna działać z dolnym paskiem (E3-2a).
+- **Ruch.** Przy `prefers-reduced-motion: reduce` jedna reguła w `theme.css` (`*, *::before, *::after` z `!important`) wyłącza animacje i przejścia, a token czasu spada do `0ms`.
+
 ## 5. Weryfikacja
 
 | Warstwa | Zakres |

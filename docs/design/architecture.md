@@ -58,7 +58,8 @@ Komponent przyjmuje proste dane, nie zawiera autoryzacji ani dostępu do danych.
 ```text
 src/design-system/
   tokens/       tokens.css (zmienne CSS), tokens.ts (lista nazw i tokenVar)
-  theme/        theme.css (style bazowe: krój, tło, fokus), historie kontrolek natywnych
+  theme/        theme.css (style bazowe: krój, tło, fokus, przyciski, pola), historie kontrolek natywnych
+  fonts/        pliki krojów (woff2) z licencjami OFL i README ze źródłami; fonts.css dla Storybooka
   components/   komponenty produktu (powstają z pierwszym realnym użyciem)
   patterns/     wzorce UX (powstają z pierwszym realnym użyciem)
   foundation/   wyłącznie strony Storybook „Foundation”; nie importować w aplikacji

@@ -10,12 +10,14 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const sizes: ReadonlyArray<TokenName> = [
+  "font.size.4xl",
   "font.size.3xl",
   "font.size.2xl",
   "font.size.xl",
   "font.size.lg",
   "font.size.md",
   "font.size.sm",
+  "font.size.xs",
 ];
 
 export const Scale: Story = {
@@ -24,9 +26,10 @@ export const Scale: Story = {
     <main className={styles.page}>
       <h1>Typografia</h1>
       <p className={styles.lead}>
-        Nagłówki krojem display (Bricolage Grotesque z <code>next/font/local</code>; bez pliku kroju
-        — krój systemowy), tekst krojem systemowym (bez ładowania czcionek, działa offline w
-        terenie). Rozmiary w <code>rem</code>, więc szanują ustawienia użytkownika.
+        Trzy kroje z plików w repozytorium (<code>next/font/local</code>, bez zapytań do Google):
+        Instrument Serif (tytuły, jedna waga 400), Geist (tekst, przyciski, formularze) i Geist Mono
+        (etykiety wersalikami, daty, liczniki). Rozmiary w <code>rem</code>, więc szanują ustawienia
+        użytkownika.
       </p>
       <section className={styles.group}>
         <h2>Krój</h2>
@@ -40,11 +43,11 @@ export const Scale: Story = {
             style={{
               fontFamily: tokenVar("font.family.display"),
               fontSize: tokenVar("font.size.2xl"),
-              fontWeight: 800,
+              fontWeight: tokenVar("font.weight.regular"),
               lineHeight: tokenVar("line.height.heading"),
             }}
           >
-            Nagłówek strony startowej
+            Żółć, Gdańsk, Łódź <em>(kursywa)</em>
           </span>
         </div>
         <div className={styles.row}>
@@ -53,7 +56,15 @@ export const Scale: Story = {
             <br />
             <TokenValue name="font.family.base" />
           </div>
-          <span>Zażółć gęślą jaźń — tekst główny krojem systemowym.</span>
+          <span>Zażółć gęślą jaźń — tekst główny krojem Geist.</span>
+        </div>
+        <div className={styles.row}>
+          <div className={styles.rowLabel}>
+            <span className={styles.name}>font.family.mono</span>
+            <br />
+            <TokenValue name="font.family.mono" />
+          </div>
+          <span style={{ fontFamily: tokenVar("font.family.mono") }}>ŻÓŁĆ · 12,4 KM · 9/24</span>
         </div>
       </section>
       <section className={styles.group}>
@@ -62,23 +73,23 @@ export const Scale: Story = {
         <p
           style={{
             fontFamily: tokenVar("font.family.display"),
-            fontSize: tokenVar("font.size.2xl"),
-            fontWeight: 800,
+            fontSize: tokenVar("font.size.3xl"),
+            fontWeight: tokenVar("font.weight.regular"),
             lineHeight: tokenVar("line.height.heading"),
             margin: 0,
           }}
         >
-          Tytuł ekranu (h1): 34 px na telefonie, 48 px na komputerze
+          Tytuł ekranu (h1): 40 px na telefonie, 52 px na komputerze
         </p>
         <p
           style={{
-            fontFamily: tokenVar("font.family.display"),
+            fontFamily: tokenVar("font.family.base"),
             fontSize: tokenVar("font.size.lg"),
             fontWeight: tokenVar("font.weight.strong"),
             margin: 0,
           }}
         >
-          Nagłówek sekcji (h2)
+          Nagłówek sekcji (h2) na telefonie: Geist 600
         </p>
       </section>
       <section className={styles.group}>

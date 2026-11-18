@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { tokenNames, tokenVar, type TokenName } from "../tokens/tokens";
+import { ContrastPair } from "./ContrastPair";
 import styles from "./foundation.module.css";
 import { TokenValue, tokenCssName } from "./TokenValue";
 
@@ -36,41 +37,49 @@ export const Semantic: Story = {
       <h1>Kolory semantyczne</h1>
       <p className={styles.lead}>
         Komponenty używają wyłącznie tokenów semantycznych z <code>tokens.css</code>, nigdy surowych
-        wartości. Dostępny jest tylko theme jasny.
+        wartości. Motyw nocny i jasny przełączasz w pasku narzędzi („Motyw”): te same nazwy, inne
+        wartości.
       </p>
       <Group title="Marka" prefix="color.brand" />
       <Group title="Powierzchnie" prefix="color.surface" />
       <Group title="Tekst" prefix="color.text" />
       <Group title="Obramowania" prefix="color.border" />
-      <Group title="Błędy" prefix="color.feedback" />
+      <Group title="Postęp" prefix="color.progress" />
+      <Group title="Stany" prefix="color.feedback" />
     </main>
   ),
 };
 
+// Pary dozwolone (tekst ≥ 4,5:1, element nietekstowy ≥ 3:1) w obu motywach; reguła tła: akcent
+// tekstem tylko na canvas i card (accessibility.md).
+const textPairs: ReadonlyArray<readonly [TokenName, TokenName]> = [
+  ["color.text.primary", "color.surface.canvas"],
+  ["color.text.primary", "color.surface.card"],
+  ["color.text.strong", "color.surface.canvas"],
+  ["color.text.secondary", "color.surface.card"],
+  ["color.text.label", "color.surface.card"],
+  ["color.text.meta", "color.surface.canvas"],
+  ["color.text.accent", "color.surface.canvas"],
+  ["color.text.accent", "color.surface.card"],
+  ["color.text.on-accent", "color.brand.accent"],
+  ["color.feedback.success", "color.surface.card"],
+  ["color.feedback.warning", "color.surface.card"],
+  ["color.feedback.danger", "color.surface.card"],
+  ["color.feedback.info", "color.surface.card"],
+];
+
 export const TextOnSurfaces: Story = {
-  name: "Tekst na powierzchniach",
+  name: "Tekst na powierzchniach (kontrast)",
   render: () => (
     <main className={styles.page}>
       <h1>Tekst na powierzchniach</h1>
       <p className={styles.lead}>
-        Zestawienia używane w aplikacji (kontrasty pilnuje test tokenów).
+        Zestawienia używane w aplikacji z kontrastem policzonym w bieżącym motywie (wzór WCAG 2.x).
+        Wymagane 4,5:1.
       </p>
       <ul className={styles.grid}>
-        {[
-          ["color.text.primary", "color.surface.canvas"],
-          ["color.text.primary", "color.surface.card"],
-          ["color.text.secondary", "color.surface.card"],
-          ["color.text.inverse", "color.brand.primary"],
-          ["color.feedback.danger", "color.surface.canvas"],
-          ["color.feedback.danger", "color.surface.card"],
-        ].map(([fg, bg]) => (
-          <li
-            className={styles.swatch}
-            key={`${fg}-${bg}`}
-            style={{ color: tokenVar(fg as TokenName), background: tokenVar(bg as TokenName) }}
-          >
-            {fg.replace("color.", "")} / {bg.replace("color.", "")}
-          </li>
+        {textPairs.map(([fg, bg]) => (
+          <ContrastPair key={`${fg}-${bg}`} foreground={fg} background={bg} minimum={4.5} />
         ))}
       </ul>
     </main>

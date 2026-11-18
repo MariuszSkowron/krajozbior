@@ -9,7 +9,7 @@
   padding: var(--space-md);
   background: var(--color-surface-card);
   border: 1px solid var(--color-border-default);
-  border-inline-start: var(--space-xs) solid var(--color-brand-primary);
+  border-inline-start: var(--space-xs) solid var(--color-brand-accent);
   border-radius: var(--radius-md);
 }
 
@@ -66,7 +66,7 @@
 .breadcrumb a,
 .placeName a,
 .table a {
-  color: var(--color-brand-primary);
+  color: var(--color-text-accent);
 }
 
 .visuallyHidden {
@@ -110,12 +110,12 @@
 
 .primary,
 .primaryLink {
-  color: var(--color-text-inverse);
-  background: var(--color-brand-primary);
+  color: var(--color-text-on-accent);
+  background: var(--color-brand-accent);
 }
 
 .secondary {
-  color: var(--color-brand-primary);
+  color: var(--color-text-accent);
   background: var(--color-surface-card);
   border-color: var(--color-border-default);
 }
@@ -159,8 +159,8 @@
   padding: var(--space-sm) var(--space-md);
   color: var(--color-text-primary);
   font: inherit;
-  background: var(--color-surface-card);
-  border: 1px solid var(--color-border-default);
+  background: var(--color-surface-canvas);
+  border: 1px solid var(--color-text-meta);
   border-radius: var(--radius-sm);
 }
 
@@ -222,7 +222,7 @@
   padding: var(--space-md);
   background: var(--color-surface-tint);
   border: 1px solid var(--color-border-subtle);
-  border-inline-start: var(--space-xs) solid var(--color-brand-primary);
+  border-inline-start: var(--space-xs) solid var(--color-brand-accent);
   border-radius: var(--radius-md);
 }
 
@@ -362,9 +362,9 @@
 }
 
 .badgePublished {
-  color: var(--color-text-inverse);
-  background: var(--color-brand-primary);
-  border-color: var(--color-brand-primary);
+  color: var(--color-text-on-accent);
+  background: var(--color-brand-accent);
+  border-color: var(--color-brand-accent);
 }
 
 .badgeDraft {
@@ -377,7 +377,7 @@
   max-inline-size: 32rem;
   padding: var(--space-lg);
   color: var(--color-text-primary);
-  background: var(--color-surface-elevated);
+  background: var(--color-surface-card);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-overlay);
