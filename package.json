@@ -33,7 +33,7 @@
     "@mikro-orm/core": "^7.2.8",
     "@mikro-orm/migrations": "^7.2.8",
     "@mikro-orm/postgresql": "^7.2.8",
-    "better-auth": "1.7.19",
+    "better-auth": "1.7.25",
     "kysely": "^0.29.8",
     "next": "16.4.6",
     "pg": "^8.23.1",
