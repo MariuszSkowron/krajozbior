@@ -109,7 +109,10 @@ test.describe("saved collections", () => {
 
     await page.getByRole("button", { name: "Usuń z zapisanych" }).click();
     await expect(page.getByRole("button", { name: "Zapisz kolekcję" })).toBeVisible();
-    await expect(page.getByRole("status")).toHaveText("Usunięto z zapisanych.");
+    // The page has more than one live region (the list of places has its own, empty one).
+    await expect(page.getByRole("status").filter({ hasText: "Usunięto z zapisanych." })).toHaveText(
+      "Usunięto z zapisanych.",
+    );
   });
 
   test("explorer A sees the saved collection with 0/3, explorer B does not and cannot remove it", async ({

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { PastVisitDateFields } from "@/app/past-visit-date-fields";
+import { PastVisitMessage } from "@/app/past-visit-message";
 import pastStyles from "@/app/past-visit.module.css";
 import { StatusBadge } from "@/design-system/components/status-badge";
 import {
@@ -12,6 +13,7 @@ import {
   INCOMPLETE_DATE_MESSAGE,
   pastVisitFailureMessage,
   pastVisitSavedMessage,
+  pickedCountMessage,
   toPastVisitDateBody,
   type PastVisitDateForm,
 } from "@/features/visits/domain/past-visit-form";
@@ -42,7 +44,8 @@ export function CollectionPlaces({ places }: { places: Place[] }) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
-  const status = useRef<HTMLParagraphElement>(null);
+  const statusRef = useRef<HTMLParagraphElement>(null);
+  const alertRef = useRef<HTMLParagraphElement>(null);
 
   const canPick = places.some((place) => place.kind === null);
   const full = chosen.length >= MAX_PAST_VISITS_PER_REQUEST;
@@ -51,7 +54,9 @@ export function CollectionPlaces({ places }: { places: Place[] }) {
     setMessage(text);
     setFailed(isFailure);
     setPending(false);
-    queueMicrotask(() => status.current?.focus());
+    // Both regions are in the page all the time, so the focus does not have to wait
+    // for the render that puts the text in (it comes after this microtask).
+    queueMicrotask(() => (isFailure ? alertRef : statusRef).current?.focus());
   }
 
   function toggle(placeId: string, checked: boolean) {
@@ -108,7 +113,7 @@ export function CollectionPlaces({ places }: { places: Place[] }) {
             type="button"
             className="button button--outline"
             aria-expanded={picking}
-            aria-controls="zaznacz-odwiedzone"
+            aria-controls={picking ? "zaznacz-odwiedzone" : undefined}
             disabled={pending}
             onClick={() => {
               setPicking(!picking);
@@ -122,36 +127,29 @@ export function CollectionPlaces({ places }: { places: Place[] }) {
           <form
             id="zaznacz-odwiedzone"
             className={pastStyles.form}
+            // See the form of the place page: the form checks the chosen field itself.
+            noValidate
             onSubmit={(event) => {
               event.preventDefault();
               void save();
             }}
           >
             <p className={pastStyles.note}>
-              Zaznacz miejsca, w których już byłeś (do {MAX_PAST_VISITS_PER_REQUEST} naraz).
-              Wybrane: {chosen.length}.
+              Zaznacz miejsca, w których już byłeś (do {MAX_PAST_VISITS_PER_REQUEST} naraz), a potem
+              zapisz je przyciskiem pod listą.
+            </p>
+            <p className={pastStyles.note} aria-live="polite" aria-atomic="true">
+              {pickedCountMessage(chosen.length, MAX_PAST_VISITS_PER_REQUEST)}
             </p>
             <PastVisitDateFields legend="Kiedy tam byłeś?" value={form} onChange={setForm} />
-            <div className={pastStyles.actions}>
-              <button
-                type="submit"
-                className="button button--primary"
-                disabled={pending}
-                aria-busy={pending}
-              >
-                Zapisz wizyty z przeszłości
-              </button>
-            </div>
           </form>
         ) : null}
-        <p
-          ref={status}
-          tabIndex={-1}
-          role={failed ? "alert" : "status"}
-          className={`${pastStyles.note} ${failed ? pastStyles.danger : ""}`}
-        >
-          {message}
-        </p>
+        <PastVisitMessage
+          message={message}
+          failed={failed}
+          statusRef={statusRef}
+          alertRef={alertRef}
+        />
       </div>
       <ol className={styles.list}>
         {places.map((place) => {
@@ -199,6 +197,21 @@ export function CollectionPlaces({ places }: { places: Place[] }) {
           );
         })}
       </ol>
+      {picking ? (
+        // Under the list, so that the keyboard reaches the checkboxes before the button;
+        // `form` joins it to the form above (date and Enter in a date field work as before).
+        <div className={pastStyles.listActions}>
+          <button
+            type="submit"
+            form="zaznacz-odwiedzone"
+            className="button button--primary"
+            disabled={pending}
+            aria-busy={pending}
+          >
+            Zapisz wizyty z przeszłości
+          </button>
+        </div>
+      ) : null}
     </>
   );
 }

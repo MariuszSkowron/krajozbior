@@ -103,6 +103,12 @@
   margin-block-end: var(--space-md);
 }
 
+/* Przycisk zapisu pod listą miejsc w trybie wyboru. */
+.listActions {
+  display: flex;
+  margin-block-start: var(--space-md);
+}
+
 .badgeRow {
   display: flex;
   flex-wrap: wrap;

@@ -106,7 +106,7 @@ async function saveDemoCollection(page: Page) {
 async function chooseMonth(page: Page, month: string, year: string) {
   await page.getByRole("radio", { name: "Miesiąc" }).check();
   await page.getByRole("combobox", { name: "Miesiąc" }).selectOption({ label: month });
-  await page.getByRole("textbox", { name: "Rok miesiąca" }).fill(year);
+  await page.getByRole("textbox", { name: "Którego roku?" }).fill(year);
 }
 
 async function setLightTheme(page: Page) {
@@ -154,7 +154,7 @@ test.describe("a visit from the past", () => {
 
     // Explorer B has no visit and sees the plain place page.
     await openBridge(b);
-    await expect(b.getByText("Z przeszłości", { exact: false })).toHaveCount(0);
+    await expect(b.getByText(/^Z przeszłości ·/)).toHaveCount(0);
     await expect(b.getByRole("button", { name: "Byłem tu wcześniej" })).toBeVisible();
     expect(await visitRows(EXPLORER_B)).toEqual([]);
 
@@ -180,6 +180,27 @@ test.describe("a visit from the past", () => {
     await page.getByRole("button", { name: "Zapisz wizytę z przeszłości" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Sprawdź datę" })).toBeVisible();
     expect(await visitRows(EXPLORER_A)).toEqual([]);
+    await page.context().close();
+  });
+
+  test("a day typed in the hidden date field does not block saving another precision", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, EXPLORER_A);
+
+    await openBridge(page);
+    await page.getByRole("button", { name: "Byłem tu wcześniej" }).click();
+    await page.getByRole("radio", { name: "Dzień" }).check();
+    await page.getByLabel("Data wizyty").fill("2999-01-01");
+    await page.getByRole("radio", { name: "Rok" }).check();
+    await page.getByRole("textbox", { name: "Rok", exact: true }).fill("2018");
+    await page.getByRole("button", { name: "Zapisz wizytę z przeszłości" }).click();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Zapisano 1 wizytę z przeszłości." }),
+    ).toBeVisible();
+    expect(await visitRows(EXPLORER_A)).toEqual([
+      { kind: "past", precision: "year", on: "2018-01-01" },
+    ]);
     await page.context().close();
   });
 
@@ -259,6 +280,16 @@ test.describe("a visit from the past", () => {
     await a.getByRole("button", { name: "Zaznacz odwiedzone" }).click();
     await a.getByRole("checkbox", { name: /Most Tczewski/ }).check();
     await a.getByRole("checkbox", { name: /Zamek w Gniewie/ }).check();
+    // The count is read out from a live region, and the save button comes after the
+    // checkboxes (the keyboard reaches the places before the button).
+    await expect(a.getByText("Wybrane: 2.")).toBeVisible();
+
+    const lastCheckbox = await a.getByRole("checkbox").last().boundingBox();
+    const saveButton = await a
+      .getByRole("button", { name: "Zapisz wizyty z przeszłości" })
+      .boundingBox();
+
+    expect(saveButton!.y).toBeGreaterThan(lastCheckbox!.y);
     await a.getByRole("button", { name: "Zapisz wizyty z przeszłości" }).click();
 
     const status = a.getByRole("status").filter({ hasText: "Zapisano 2 wizyty z przeszłości." });

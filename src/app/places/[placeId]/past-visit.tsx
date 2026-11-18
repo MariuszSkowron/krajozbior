@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { PastVisitDateFields } from "@/app/past-visit-date-fields";
+import { PastVisitMessage } from "@/app/past-visit-message";
 import styles from "@/app/past-visit.module.css";
 import { StatusBadge } from "@/design-system/components/status-badge";
 import {
@@ -34,14 +35,16 @@ export function PastVisit({ placeId, existing }: Props) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
-  const status = useRef<HTMLParagraphElement>(null);
+  const statusRef = useRef<HTMLParagraphElement>(null);
+  const alertRef = useRef<HTMLParagraphElement>(null);
 
   function finish(text: string, isFailure: boolean) {
     setMessage(text);
     setFailed(isFailure);
     setPending(false);
-    // The message is rendered in this commit; focus it after React has put the text in.
-    queueMicrotask(() => status.current?.focus());
+    // Both regions are in the page all the time, so the focus does not have to wait
+    // for the render that puts the text in (it comes after this microtask).
+    queueMicrotask(() => (isFailure ? alertRef : statusRef).current?.focus());
   }
 
   async function save() {
@@ -103,7 +106,7 @@ export function PastVisit({ placeId, existing }: Props) {
             type="button"
             className="button button--outline"
             aria-expanded={open}
-            aria-controls="wizyta-z-przeszlosci"
+            aria-controls={open ? "wizyta-z-przeszlosci" : undefined}
             disabled={pending}
             onClick={() => setOpen(!open)}
           >
@@ -113,6 +116,9 @@ export function PastVisit({ placeId, existing }: Props) {
             <form
               id="wizyta-z-przeszlosci"
               className={styles.form}
+              // The form checks the chosen field itself; native checks (`min`, `max`) would
+              // also stop the submit because of a hidden field, with no message.
+              noValidate
               onSubmit={(event) => {
                 event.preventDefault();
                 void save();
@@ -153,14 +159,12 @@ export function PastVisit({ placeId, existing }: Props) {
           </button>
         </>
       )}
-      <p
-        ref={status}
-        tabIndex={-1}
-        role={failed ? "alert" : "status"}
-        className={`${styles.note} ${failed ? styles.danger : ""}`}
-      >
-        {message}
-      </p>
+      <PastVisitMessage
+        message={message}
+        failed={failed}
+        statusRef={statusRef}
+        alertRef={alertRef}
+      />
     </div>
   );
 }

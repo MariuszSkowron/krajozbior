@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 
-import { type PastVisitDateForm } from "@/features/visits/domain/past-visit-form";
+import { localDateIso, type PastVisitDateForm } from "@/features/visits/domain/past-visit-form";
 import type { DatePrecision } from "@/features/visits/domain/past-visit-request";
 
 import styles from "./past-visit.module.css";
@@ -46,6 +46,9 @@ const MONTHS = [
 // precisions stay in the page but hidden (`hidden` on the wrapper, not
 // `disabled` on the field: a disabled field would lose what was typed when the
 // person switches back). The request is built only from the chosen precision.
+// The fields exist only after a click (never in the HTML of the server), so the
+// `max` of the date field, today of the device, cannot differ between the server
+// and the browser. It is a convenience only: the server refuses a future date.
 export function PastVisitDateFields({ legend, value, onChange, focusFirst = false }: Props) {
   const id = useId();
   const set = (patch: Partial<PastVisitDateForm>) => onChange({ ...value, ...patch });
@@ -74,6 +77,7 @@ export function PastVisitDateFields({ legend, value, onChange, focusFirst = fals
           <input
             type="date"
             min="1900-01-01"
+            max={localDateIso(new Date())}
             value={value.day}
             onChange={(event) => set({ day: event.target.value })}
           />
@@ -92,7 +96,7 @@ export function PastVisitDateFields({ legend, value, onChange, focusFirst = fals
           </select>
         </label>
         <label className={styles.field}>
-          Rok miesiąca
+          Którego roku?
           <input
             type="text"
             inputMode="numeric"

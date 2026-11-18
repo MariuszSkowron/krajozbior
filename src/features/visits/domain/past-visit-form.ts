@@ -103,6 +103,24 @@ export function pastVisitSavedMessage(recorded: number, alreadyVisited: number):
     : `${saved} Pominięto ${alreadyVisited} ${plural(alreadyVisited, "miejsce", "miejsca", "miejsc")} z wcześniej zapisaną wizytą.`;
 }
 
+/**
+ * The count of chosen places, read out when it changes. At the limit it says why
+ * the other places cannot be chosen any more.
+ */
+export function pickedCountMessage(count: number, max: number): string {
+  return count >= max
+    ? `Wybrane: ${count}. Zaznaczono ${max} miejsc — to najwięcej naraz.`
+    : `Wybrane: ${count}.`;
+}
+
+/** Today of the device clock as YYYY-MM-DD (not the UTC day), for the `max` of a date field. */
+export function localDateIso(now: Date): string {
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
 /** The note on the place page: "Z przeszłości · marzec 2019". */
 export function pastVisitBadgeText(dateText: string): string {
   return `Z przeszłości · ${dateText}`;

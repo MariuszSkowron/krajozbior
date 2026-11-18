@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   EMPTY_PAST_VISIT_DATE,
+  localDateIso,
   pastVisitBadgeText,
+  pickedCountMessage,
   pastVisitFailureMessage,
   pastVisitRemovalFailureMessage,
   pastVisitSavedMessage,
@@ -93,5 +95,21 @@ describe("messages", () => {
 
   it("writes the badge of the place page", () => {
     expect(pastVisitBadgeText("marzec 2019")).toBe("Z przeszłości · marzec 2019");
+  });
+
+  it("announces the number of chosen places and explains the limit once it is reached", () => {
+    expect(pickedCountMessage(0, 100)).toBe("Wybrane: 0.");
+    expect(pickedCountMessage(2, 100)).toBe("Wybrane: 2.");
+    expect(pickedCountMessage(99, 100)).toBe("Wybrane: 99.");
+    expect(pickedCountMessage(100, 100)).toBe(
+      "Wybrane: 100. Zaznaczono 100 miejsc — to najwięcej naraz.",
+    );
+  });
+});
+
+describe("localDateIso", () => {
+  it("writes the day of the device clock (not UTC) as YYYY-MM-DD, with zero padding", () => {
+    expect(localDateIso(new Date(2026, 10, 18, 23, 59))).toBe("2026-11-18");
+    expect(localDateIso(new Date(2026, 0, 5, 0, 1))).toBe("2026-01-05");
   });
 });
