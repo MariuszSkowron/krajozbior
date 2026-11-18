@@ -66,22 +66,47 @@ export const postgresWantToSeeRepository: WantToSeeRepository = {
   },
 
   async addPlace(tx, placeId) {
-    // One statement: the visibility test and the insert see the same snapshot,
-    // so a place withdrawn in between is answered with `false`, not with a
-    // refusal of the row policy. A repeated add conflicts and changes nothing.
-    const rows = await tx.em.execute<{ visible: number }[]>(
+    // The lock is a statement of its own: the statement below then takes its
+    // snapshot after the lock is held, so it counts every add that finished and
+    // two simultaneous adds of one actor cannot both take the last place.
+    await tx.em.execute(
+      `select pg_advisory_xact_lock(
+         hashtextextended('want_to_see_places:' || app_current_user_id()::text, 0))`,
+    );
+
+    // One statement: the visibility test, the count and the insert see the same
+    // snapshot, so a place withdrawn in between is answered with `not_found`, not
+    // with a refusal of the row policy. A repeated add conflicts and changes
+    // nothing, also when the actor is at the limit. The count is of the places
+    // the list shows (publicly visible ones).
+    const rows = await tx.em.execute<{ visible: number; allowed: boolean }[]>(
       `with target as (
          select p.id from public.places p where p.id = ?::uuid and ${publicPlace("p.id")}
+       ), held as (
+         select count(*)::int as total
+           from public.want_to_see_places w
+          where w.user_id = app_current_user_id() and ${publicPlace("w.place_id")}
+       ), allowed as (
+         select exists (
+                  select from public.want_to_see_places
+                   where user_id = app_current_user_id() and place_id = ?::uuid
+                ) or (select total from held) < ? as ok
        ), added as (
          insert into public.want_to_see_places (user_id, place_id)
          select app_current_user_id(), id from target
+          where (select ok from allowed)
          on conflict (user_id, place_id) do nothing
        )
-       select count(*)::int as visible from target`,
-      [placeId],
+       select (select count(*) from target)::int as visible,
+              (select ok from allowed) as allowed`,
+      [placeId, placeId, MAX_WANT_TO_SEE_LISTED],
     );
 
-    return (rows[0]?.visible ?? 0) > 0;
+    if ((rows[0]?.visible ?? 0) === 0) {
+      return "not_found";
+    }
+
+    return rows[0]?.allowed === true ? "added" : "too_many";
   },
 
   async removePlace(tx, placeId) {

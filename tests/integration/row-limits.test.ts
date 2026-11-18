@@ -10,6 +10,7 @@ import {
 } from "@/features/album/application/saved-collections";
 import { postgresAlbumRepository } from "@/features/album/infrastructure/postgres-album-repository";
 import type { CatalogDeps } from "@/features/catalog/application/catalog-types";
+import { createCollection } from "@/features/catalog/application/curator-collections";
 import { addPlace } from "@/features/catalog/application/curator-places";
 import { listCuratorCollections } from "@/features/catalog/application/curator-queries";
 import {
@@ -36,8 +37,18 @@ let app: MikroORM;
 const explorerA = newUser("explorer-a");
 const explorerB = newUser("explorer-b");
 const curator = newUser("curator");
+const explorerC = newUser("explorer-c");
+const explorerD = newUser("explorer-d");
+const explorerE = newUser("explorer-e");
+const explorerF = newUser("explorer-f");
+const explorerG = newUser("explorer-g");
+const explorerH = newUser("explorer-h");
+const curatorB = newUser("curator-b");
+const curatorC = newUser("curator-c");
 
 let org = "";
+// Second pool with two connections: the races below need two real transactions.
+let appWide: MikroORM;
 
 const f = albumFixtures({ db: () => db, app: () => app });
 const { admin$, as } = f;
@@ -48,6 +59,11 @@ const withUserContext = <T>(
   actor: { id: string },
   work: Parameters<typeof runInUserContext<T>>[2],
 ) => runInUserContext(app.em, actor, work);
+
+const wideUserContext = <T>(
+  actor: { id: string },
+  work: Parameters<typeof runInUserContext<T>>[2],
+) => runInUserContext(appWide.em, actor, work);
 
 const catalogDeps = (): CatalogDeps => ({
   withUserContext,
@@ -114,15 +130,32 @@ describe("row limits and idempotent saves", () => {
   beforeAll(async () => {
     db = await createScratchDatabase("krajozbior_integration_row_limits");
     await db.migrate();
-    await f.insertUsers([explorerA, explorerB, curator]);
+    await f.insertUsers([
+      explorerA,
+      explorerB,
+      explorerC,
+      explorerD,
+      explorerE,
+      explorerF,
+      explorerG,
+      explorerH,
+      curator,
+      curatorB,
+      curatorC,
+    ]);
     org = await f.newOrganization("Gmina Limitów", "gmina-limitow", [curator]);
     app = await MikroORM.init({
       ...createOrmConfig(db.urls.krajozbior_app),
       pool: { min: 1, max: 1 },
     });
+    appWide = await MikroORM.init({
+      ...createOrmConfig(db.urls.krajozbior_app),
+      pool: { min: 2, max: 2 },
+    });
   }, 60_000);
 
   afterAll(async () => {
+    await appWide?.close(true);
     await app?.close(true);
     await db?.drop();
   });
@@ -205,8 +238,8 @@ describe("row limits and idempotent saves", () => {
   it("saves a collection twice with the same answer and one row", async () => {
     const { collectionId } = await f.publishedCollection(curator, org);
 
-    const first = await saveCollection(asActor(explorerA), collectionId, albumDeps());
-    const second = await saveCollection(asActor(explorerA), collectionId, albumDeps());
+    const first = await saveCollection(asActor(explorerD), collectionId, albumDeps());
+    const second = await saveCollection(asActor(explorerD), collectionId, albumDeps());
 
     expect(first).toEqual({ status: "ok", value: { saved: true } });
     expect(second).toEqual(first);
@@ -241,8 +274,8 @@ describe("row limits and idempotent saves", () => {
     const placeId = placeIds[0]!;
     const draftPlaceId = draftPlaceIds[0]!;
 
-    const first = await addToWantToSee(asActor(explorerA), placeId, wantDeps());
-    const second = await addToWantToSee(asActor(explorerA), placeId, wantDeps());
+    const first = await addToWantToSee(asActor(explorerD), placeId, wantDeps());
+    const second = await addToWantToSee(asActor(explorerD), placeId, wantDeps());
 
     expect(first).toEqual({ status: "ok", value: { wanted: true } });
     expect(second).toEqual(first);
@@ -267,5 +300,227 @@ describe("row limits and idempotent saves", () => {
         placeId,
       ]),
     ).toEqual([]);
+  });
+
+  // D-28: the limit is also kept when writing, so nothing disappears from a list silently.
+  const newCollectionInput = (organizationId: string, title: string) => ({
+    organizationId,
+    title,
+    region: "pomorskie",
+  });
+
+  it("refuses the 201st collection of an organization and leaves other organizations alone", async () => {
+    const full = await f.newOrganization("Gmina Pełna", "gmina-pelna", [curatorB]);
+    const other = await f.newOrganization("Gmina Wolna", "gmina-wolna", [curatorC]);
+
+    await bulkCollections(full, MAX_COLLECTIONS_PER_LIST, "draft");
+
+    const refused = await createCollection(
+      asActor(curatorB),
+      newCollectionInput(full, "Dwieście pierwsza"),
+      catalogDeps(),
+    );
+
+    expect(refused).toEqual({ status: "conflict", reason: "too_many_collections" });
+    expect(
+      await admin$(`select 1 from public.collections where organization_id = $1`, [full]),
+    ).toHaveLength(MAX_COLLECTIONS_PER_LIST);
+    // Another organization is not affected; a curator of it cannot write into the full one.
+    const created = await createCollection(
+      asActor(curatorC),
+      newCollectionInput(other, "Pierwsza"),
+      catalogDeps(),
+    );
+
+    expect(created.status).toBe("ok");
+    expect(
+      await createCollection(asActor(curatorC), newCollectionInput(full, "Obca"), catalogDeps()),
+    ).toEqual({ status: "forbidden" });
+    expect(await createCollection(null, newCollectionInput(full, "Gość"), catalogDeps())).toEqual({
+      status: "unauthenticated",
+    });
+  });
+
+  it("lets only one of two simultaneous creations take the last place of an organization", async () => {
+    const racing = await f.newOrganization("Gmina Wyścigu", "gmina-wyscigu", [curatorB, curatorC]);
+    const wide: CatalogDeps = { ...catalogDeps(), withUserContext: wideUserContext };
+
+    await bulkCollections(racing, MAX_COLLECTIONS_PER_LIST - 1, "draft");
+
+    const results = await Promise.all(
+      [curatorB, curatorC].map((who) =>
+        createCollection(asActor(who), newCollectionInput(racing, "Wyścig"), wide),
+      ),
+    );
+
+    expect(results.map((result) => result.status).sort()).toEqual(["conflict", "ok"]);
+    expect(
+      await admin$(`select 1 from public.collections where organization_id = $1`, [racing]),
+    ).toHaveLength(MAX_COLLECTIONS_PER_LIST);
+  });
+
+  it("refuses the 201st saved collection, keeps a repeated save idempotent and spares others", async () => {
+    const ids = await bulkCollections(org, MAX_COLLECTIONS_PER_LIST, "published");
+    const [extra] = await bulkCollections(org, 1, "published");
+
+    await admin$(
+      `insert into public.saved_collections (user_id, collection_id)
+       select $1, unnest($2::uuid[])`,
+      [explorerC.id, ids],
+    );
+
+    expect(await saveCollection(asActor(explorerC), extra!, albumDeps())).toEqual({
+      status: "conflict",
+      reason: "too_many_saved",
+    });
+    expect(
+      await admin$(`select 1 from public.saved_collections where user_id = $1`, [explorerC.id]),
+    ).toHaveLength(MAX_COLLECTIONS_PER_LIST);
+    // A collection that is already saved stays saved, answer unchanged.
+    expect(await saveCollection(asActor(explorerC), ids[0]!, albumDeps())).toEqual({
+      status: "ok",
+      value: { saved: true },
+    });
+    // Another explorer and a guest.
+    expect(await saveCollection(asActor(explorerD), extra!, albumDeps())).toEqual({
+      status: "ok",
+      value: { saved: true },
+    });
+    expect(await saveCollection(null, extra!, albumDeps())).toEqual({ status: "unauthenticated" });
+  });
+
+  it("lets only one of two simultaneous saves take the last place of an explorer", async () => {
+    const ids = await bulkCollections(org, MAX_COLLECTIONS_PER_LIST + 1, "published");
+    const wide: AlbumDeps = { ...albumDeps(), withUserContext: wideUserContext };
+
+    await admin$(
+      `insert into public.saved_collections (user_id, collection_id)
+       select $1, unnest($2::uuid[])`,
+      [explorerE.id, ids.slice(0, MAX_COLLECTIONS_PER_LIST - 1)],
+    );
+
+    const results = await Promise.all(
+      ids
+        .slice(MAX_COLLECTIONS_PER_LIST - 1)
+        .map((id) => saveCollection(asActor(explorerE), id, wide)),
+    );
+
+    expect(results.map((result) => result.status).sort()).toEqual(["conflict", "ok"]);
+    expect(
+      await admin$(`select 1 from public.saved_collections where user_id = $1`, [explorerE.id]),
+    ).toHaveLength(MAX_COLLECTIONS_PER_LIST);
+  });
+
+  it("refuses the 201st place on the want-to-see list and keeps a repeated add idempotent", async () => {
+    const [collectionId] = await bulkCollections(org, 1, "published");
+    const placeIds = await bulkPlaces(org, collectionId!, MAX_WANT_TO_SEE_LISTED + 1);
+    const last = placeIds[MAX_WANT_TO_SEE_LISTED]!;
+
+    await admin$(
+      `insert into public.want_to_see_places (user_id, place_id)
+       select $1, unnest($2::uuid[])`,
+      [explorerF.id, placeIds.slice(0, MAX_WANT_TO_SEE_LISTED)],
+    );
+
+    expect(await addToWantToSee(asActor(explorerF), last, wantDeps())).toEqual({
+      status: "conflict",
+      reason: "too_many_wanted",
+    });
+    expect(
+      await admin$(`select 1 from public.want_to_see_places where user_id = $1`, [explorerF.id]),
+    ).toHaveLength(MAX_WANT_TO_SEE_LISTED);
+    expect(await addToWantToSee(asActor(explorerF), placeIds[0]!, wantDeps())).toEqual({
+      status: "ok",
+      value: { wanted: true },
+    });
+    expect(await addToWantToSee(asActor(explorerD), last, wantDeps())).toEqual({
+      status: "ok",
+      value: { wanted: true },
+    });
+    expect(await addToWantToSee(null, last, wantDeps())).toEqual({ status: "unauthenticated" });
+  });
+
+  it("lets only one of two simultaneous adds take the last place of the list", async () => {
+    const [collectionId] = await bulkCollections(org, 1, "published");
+    const placeIds = await bulkPlaces(org, collectionId!, MAX_WANT_TO_SEE_LISTED + 1);
+    const wide: WantToSeeDeps = { ...wantDeps(), withUserContext: wideUserContext };
+
+    await admin$(
+      `insert into public.want_to_see_places (user_id, place_id)
+       select $1, unnest($2::uuid[])`,
+      [explorerG.id, placeIds.slice(0, MAX_WANT_TO_SEE_LISTED - 1)],
+    );
+
+    const results = await Promise.all(
+      placeIds
+        .slice(MAX_WANT_TO_SEE_LISTED - 1)
+        .map((id) => addToWantToSee(asActor(explorerG), id, wide)),
+    );
+
+    expect(results.map((result) => result.status).sort()).toEqual(["conflict", "ok"]);
+    expect(
+      await admin$(`select 1 from public.want_to_see_places where user_id = $1`, [explorerG.id]),
+    ).toHaveLength(MAX_WANT_TO_SEE_LISTED);
+  });
+
+  it("lists at most 500 places outside a collection, and none of another organization", async () => {
+    const places = await f.newOrganization("Gmina Miejsc", "gmina-miejsc", [curatorC]);
+    const [collectionId] = await bulkCollections(places, 1, "draft");
+
+    await admin$(
+      `insert into public.places (organization_id, name, latitude, longitude)
+       select $1, 'Wolne ' || g, 54.0, 18.0 from generate_series(1, $2::int) g`,
+      [places, MAX_PLACES_PER_COLLECTION + 1],
+    );
+
+    const list = (who: { id: string }) =>
+      runInUserContext(app.em, who, (tx) =>
+        postgresCatalogRepository.listPlacesOutsideCollection(tx, places, collectionId!),
+      );
+
+    expect(await list(curatorC)).toHaveLength(MAX_PLACES_PER_COLLECTION);
+    expect(await list(curatorB)).toEqual([]);
+  });
+
+  it("keeps the places and visits of the album to the same 200 collections as the list", async () => {
+    const collectionIds = await bulkCollections(org, MAX_COLLECTIONS_PER_LIST + 1, "published");
+    const places = await admin$<{ id: string }>(
+      `insert into public.places (organization_id, name, latitude, longitude)
+       select $1, 'Album ' || g, 54.0, 18.0 from generate_series(1, $2::int) g
+       returning id`,
+      [org, collectionIds.length],
+    );
+    const placeIds = places.map((place) => place.id);
+
+    await admin$(
+      `insert into public.collection_places (collection_id, place_id, organization_id, position)
+       select c, p, $1, 1 from unnest($2::uuid[], $3::uuid[]) as t(c, p)`,
+      [org, collectionIds, placeIds],
+    );
+    // The first collection was saved last (newest), the 201st first (oldest, left out).
+    await admin$(
+      `insert into public.saved_collections (user_id, collection_id, saved_at)
+       select $1, c, now() - ord * interval '1 second'
+         from unnest($2::uuid[]) with ordinality as t(c, ord)`,
+      [explorerH.id, collectionIds],
+    );
+    await admin$(
+      `insert into public.visits (user_id, place_id, kind, date_precision)
+       select $1, unnest($2::uuid[]), 'past', 'unknown'`,
+      [explorerH.id, placeIds],
+    );
+
+    const read = await runInUserContext(app.em, explorerH, async (tx) => ({
+      collections: await postgresAlbumRepository.listSavedCollections(tx),
+      links: await postgresAlbumRepository.listSavedCollectionPlaces(tx),
+      visited: await postgresAlbumRepository.listVisitedPlaceIds(tx),
+    }));
+    const listed = new Set(read.collections.map((collection) => collection.id));
+
+    expect(listed.size).toBe(MAX_COLLECTIONS_PER_LIST);
+    expect(read.links).toHaveLength(MAX_COLLECTIONS_PER_LIST);
+    expect(read.links.every((link) => listed.has(link.collectionId))).toBe(true);
+    expect(read.visited).toHaveLength(MAX_COLLECTIONS_PER_LIST);
+    expect(read.visited).not.toContain(placeIds[MAX_COLLECTIONS_PER_LIST]);
   });
 });

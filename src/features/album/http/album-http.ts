@@ -28,6 +28,8 @@ export function respond<T>(outcome: AlbumOutcome<T>): Response {
       return json(401, { error: "unauthenticated" });
     case "not_found":
       return notFound();
+    case "conflict":
+      return json(409, { error: "conflict", reason: outcome.reason });
     case "rate_limited":
       return json(
         429,

@@ -13,6 +13,8 @@ export type WantToSeePlace = Readonly<{
   visited: boolean;
 }>;
 
+export type AddPlaceResult = "added" | "not_found" | "too_many";
+
 // All database access of the list. Every method runs inside the user context
 // the use case opened, so the row policies decide what it sees or changes; no
 // method takes a user id (the owner is app_current_user_id() in SQL).
@@ -23,9 +25,12 @@ export interface WantToSeeRepository {
   isPubliclyVisiblePlace(tx: TransactionContext, placeId: string): Promise<boolean>;
   /**
    * Adds the place for the actor if it is public in this very statement; a
-   * repeated add changes nothing. False means the place is not public (any more).
+   * repeated add changes nothing. `not_found`: the place is not public (any
+   * more). `too_many`: the actor already has MAX_WANT_TO_SEE_LISTED places that
+   * the list shows (D-28). The count is taken under a lock of the actor, so two
+   * simultaneous adds cannot both take the last place.
    */
-  addPlace(tx: TransactionContext, placeId: string): Promise<boolean>;
+  addPlace(tx: TransactionContext, placeId: string): Promise<AddPlaceResult>;
   /** Removes the actor's own entry, if any; the row of anybody else is never matched. */
   removePlace(tx: TransactionContext, placeId: string): Promise<void>;
   isPlaceWanted(tx: TransactionContext, placeId: string): Promise<boolean>;
@@ -45,4 +50,5 @@ export type WantToSeeOutcome<T> =
   | Readonly<{ status: "ok"; value: T }>
   | Readonly<{ status: "unauthenticated" }>
   | Readonly<{ status: "not_found" }>
+  | Readonly<{ status: "conflict"; reason: "too_many_wanted" }>
   | Readonly<{ status: "rate_limited"; retryAfterSeconds: number }>;

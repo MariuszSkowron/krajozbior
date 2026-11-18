@@ -2,6 +2,7 @@ import "server-only";
 
 import { MAX_COLLECTIONS_PER_LIST } from "@/features/catalog/domain/limits";
 
+import { MAX_PROGRESS_PLACES } from "../domain/limits";
 import type {
   AlbumRepository,
   CollectionPlaceLink,
@@ -16,6 +17,18 @@ import type {
 // must not appear in the album (spec 7, withdrawal).
 
 const publishedCollection = `c.status = 'published' and o.status = 'approved'`;
+
+// The collections of the list "Moje kolekcje" (one `?`: MAX_COLLECTIONS_PER_LIST).
+// Places and visits of the album are read only for these, so the progress never
+// counts a collection the list does not show.
+const listedCollectionIds = `
+  select sc.collection_id
+    from public.saved_collections sc
+    join public.collections c on c.id = sc.collection_id
+    join public.organizations o on o.id = c.organization_id
+   where sc.user_id = app_current_user_id() and ${publishedCollection}
+   order by sc.saved_at desc, sc.collection_id
+   limit ?`;
 
 export const postgresAlbumRepository: AlbumRepository = {
   async listSavedCollections(tx) {
@@ -34,21 +47,8 @@ export const postgresAlbumRepository: AlbumRepository = {
   async listSavedCollectionPlaces(tx) {
     return tx.em.execute<CollectionPlaceLink[]>(
       `select cp.collection_id as "collectionId", cp.place_id as "placeId"
-         from public.saved_collections sc
-         join public.collections c on c.id = sc.collection_id
-         join public.organizations o on o.id = c.organization_id
-         join public.collection_places cp on cp.collection_id = c.id
-        where sc.user_id = app_current_user_id() and ${publishedCollection}
-          and sc.collection_id in (
-            select s.collection_id
-              from public.saved_collections s
-              join public.collections sc2 on sc2.id = s.collection_id
-              join public.organizations so on so.id = sc2.organization_id
-             where s.user_id = app_current_user_id()
-               and sc2.status = 'published' and so.status = 'approved'
-             order by s.saved_at desc, s.collection_id
-             limit ?
-          )
+         from public.collection_places cp
+        where cp.collection_id in (${listedCollectionIds})
         order by cp.collection_id, cp.position`,
       [MAX_COLLECTIONS_PER_LIST],
     );
@@ -59,8 +59,11 @@ export const postgresAlbumRepository: AlbumRepository = {
       `select distinct v.place_id as "placeId"
          from public.visits v
          join public.collection_places cp on cp.place_id = v.place_id
-         join public.saved_collections sc on sc.collection_id = cp.collection_id
-        where v.user_id = app_current_user_id() and sc.user_id = app_current_user_id()`,
+        where v.user_id = app_current_user_id()
+          and cp.collection_id in (${listedCollectionIds})
+        order by v.place_id
+        limit ?`,
+      [MAX_COLLECTIONS_PER_LIST, MAX_PROGRESS_PLACES],
     );
 
     return rows.map((row) => row.placeId);
@@ -79,25 +82,52 @@ export const postgresAlbumRepository: AlbumRepository = {
   },
 
   async saveCollection(tx, collectionId) {
-    // One statement: the visibility test and the insert see the same snapshot,
-    // so a collection withdrawn in between is answered with `false`, not with a
-    // refusal of the row policy. A repeated save conflicts and changes nothing.
-    const rows = await tx.em.execute<{ visible: number }[]>(
+    // The lock is a statement of its own: the statement below then takes its
+    // snapshot after the lock is held, so it counts every save that finished and
+    // two simultaneous saves of one actor cannot both take the last place.
+    await tx.em.execute(
+      `select pg_advisory_xact_lock(
+         hashtextextended('saved_collections:' || app_current_user_id()::text, 0))`,
+    );
+
+    // One statement: the visibility test, the count and the insert see the same
+    // snapshot, so a collection withdrawn in between is answered with
+    // `not_found`, not with a refusal of the row policy. A repeated save
+    // conflicts and changes nothing, also when the actor is at the limit. The
+    // count is of the collections the list shows (published ones).
+    const rows = await tx.em.execute<{ visible: number; allowed: boolean }[]>(
       `with target as (
          select c.id
            from public.collections c
            join public.organizations o on o.id = c.organization_id
           where c.id = ? and ${publishedCollection}
+       ), held as (
+         select count(*)::int as total
+           from public.saved_collections sc
+           join public.collections c on c.id = sc.collection_id
+           join public.organizations o on o.id = c.organization_id
+          where sc.user_id = app_current_user_id() and ${publishedCollection}
+       ), allowed as (
+         select exists (
+                  select from public.saved_collections
+                   where user_id = app_current_user_id() and collection_id = ?
+                ) or (select total from held) < ? as ok
        ), saved as (
          insert into public.saved_collections (user_id, collection_id)
          select app_current_user_id(), id from target
+          where (select ok from allowed)
          on conflict (user_id, collection_id) do nothing
        )
-       select count(*)::int as visible from target`,
-      [collectionId],
+       select (select count(*) from target)::int as visible,
+              (select ok from allowed) as allowed`,
+      [collectionId, collectionId, MAX_COLLECTIONS_PER_LIST],
     );
 
-    return (rows[0]?.visible ?? 0) > 0;
+    if ((rows[0]?.visible ?? 0) === 0) {
+      return "not_found";
+    }
+
+    return rows[0]?.allowed === true ? "saved" : "too_many";
   },
 
   async unsaveCollection(tx, collectionId) {

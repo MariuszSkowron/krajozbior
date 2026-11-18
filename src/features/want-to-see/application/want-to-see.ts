@@ -73,8 +73,14 @@ export async function addToWantToSee(
 
     // The insert tests visibility itself: a place that stopped being public after
     // the check above is `not_found`, not a refusal of the row policy.
-    if (!(await deps.repository.addPlace(tx, placeId))) {
+    const added = await deps.repository.addPlace(tx, placeId);
+
+    if (added === "not_found") {
       return { status: "not_found" } as const;
+    }
+
+    if (added === "too_many") {
+      return { status: "conflict", reason: "too_many_wanted" } as const;
     }
 
     return { status: "ok", value: { wanted: true } } as const;
