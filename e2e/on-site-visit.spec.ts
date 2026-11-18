@@ -182,7 +182,9 @@ test.describe("confirming a visit on site", () => {
     await openBridge(page);
     await page.getByRole("button", { name: "Potwierdź wizytę" }).click();
     await expect(
-      page.getByText("Lokalizacja jest zbyt niedokładna (±500 m). Spróbuj na zewnątrz."),
+      page.getByText(
+        "Lokalizacja jest zbyt niedokładna (±500 m). Spróbuj na zewnątrz albo zaznacz wizytę z przeszłości.",
+      ),
     ).toBeVisible();
     expect(await visitCount(EXPLORER_A)).toBe(0);
     await page.context().close();

@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   place: vi.fn(),
   actor: vi.fn(),
   visited: vi.fn(),
+  kinds: vi.fn(),
+  progress: vi.fn(),
   wanted: vi.fn(),
 }));
 
@@ -20,8 +22,18 @@ vi.mock("@/app/request-actor", () => ({
   getRequestActor: mocks.actor,
   loginHref: (path: string) => `/login?returnTo=${encodeURIComponent(path)}`,
 }));
-vi.mock("@/features/visits/application/confirm-on-site-visit", () => ({
-  hasVisitedPlace: mocks.visited,
+vi.mock("@/features/visits/application/mark-past-visits", () => ({
+  getMyVisitOfPlace: mocks.visited,
+  listMyVisitKindsOfCollection: mocks.kinds,
+}));
+vi.mock("@/features/album/application/saved-collections", () => ({
+  getCollectionProgress: mocks.progress,
+}));
+vi.mock("@/features/album/infrastructure/album-deps", () => ({ getAlbumDeps: () => ({}) }));
+// The client parts need an app router only for `router.refresh()` after a click.
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh: () => undefined }),
 }));
 vi.mock("@/features/visits/infrastructure/visit-deps", () => ({ getVisitDeps: () => ({}) }));
 vi.mock("@/features/want-to-see/application/want-to-see", () => ({ isWantedPlace: mocks.wanted }));
@@ -67,6 +79,8 @@ beforeEach(() => {
   mocks.collection.mockReset();
   mocks.place.mockReset();
   mocks.visited.mockReset();
+  mocks.kinds.mockReset();
+  mocks.progress.mockReset();
   mocks.wanted.mockReset();
   // Default: the session lookup fails, so the page shows only the public part.
   mocks.actor.mockReset().mockRejectedValue(new Error("no session"));
@@ -189,6 +203,8 @@ describe("public catalog pages", () => {
 
   describe("the visit part of a place page", () => {
     const explorer = { id: "u1", role: "user" };
+    const none = { onSite: false, past: null };
+    const onSite = { onSite: true, past: null };
     const render = async () =>
       renderToStaticMarkup(
         await placePage.default({ params: Promise.resolve({ placeId: next() }) }),
@@ -210,7 +226,7 @@ describe("public catalog pages", () => {
     });
 
     it("lets an explorer remove a visited place from the list (W1)", async () => {
-      mocks.visited.mockResolvedValue({ status: "ok", value: { visited: true } });
+      mocks.visited.mockResolvedValue({ status: "ok", value: onSite });
       mocks.wanted.mockResolvedValue({ status: "ok", value: { wanted: true } });
 
       const html = await render();
@@ -221,7 +237,7 @@ describe("public catalog pages", () => {
     });
 
     it("shows nothing about the list for a visited place that is not on it", async () => {
-      mocks.visited.mockResolvedValue({ status: "ok", value: { visited: true } });
+      mocks.visited.mockResolvedValue({ status: "ok", value: onSite });
       mocks.wanted.mockResolvedValue({ status: "ok", value: { wanted: false } });
 
       const html = await render();
@@ -231,7 +247,7 @@ describe("public catalog pages", () => {
     });
 
     it("keeps the visit button when only the read of the list fails (D1)", async () => {
-      mocks.visited.mockResolvedValue({ status: "ok", value: { visited: false } });
+      mocks.visited.mockResolvedValue({ status: "ok", value: none });
       mocks.wanted.mockRejectedValue(new Error("db down"));
 
       const html = await render();
@@ -242,13 +258,125 @@ describe("public catalog pages", () => {
     });
 
     it("keeps the visit button when the list answers with a refusal", async () => {
-      mocks.visited.mockResolvedValue({ status: "ok", value: { visited: false } });
+      mocks.visited.mockResolvedValue({ status: "ok", value: none });
       mocks.wanted.mockResolvedValue({ status: "unauthenticated" });
 
       const html = await render();
 
       expect(html).toContain("Potwierdź wizytę");
       expect(html).toContain("chwilowo niedostępna");
+    });
+
+    it("offers 'Byłem tu wcześniej' to an explorer without a visit, outside the pinned button", async () => {
+      mocks.visited.mockResolvedValue({ status: "ok", value: none });
+      mocks.wanted.mockResolvedValue({ status: "ok", value: { wanted: false } });
+
+      const html = await render();
+
+      expect(html).toContain("Byłem tu wcześniej");
+      expect(html).not.toContain("Usuń wizytę z przeszłości");
+    });
+
+    it("with only a visit from the past: shows when, keeps the confirm button, offers to take it back", async () => {
+      mocks.visited.mockResolvedValue({
+        status: "ok",
+        value: { onSite: false, past: { precision: "month", visitedOn: "2019-03-01" } },
+      });
+      mocks.wanted.mockResolvedValue({ status: "ok", value: { wanted: false } });
+
+      const html = await render();
+
+      expect(html).toContain("Z przeszłości · marzec 2019");
+      expect(html).toContain("Potwierdź wizytę");
+      expect(html).toContain("Potwierdź na miejscu, gdy tu będziesz.");
+      expect(html).toContain("Usuń wizytę z przeszłości");
+      expect(html).not.toContain("Byłem tu wcześniej");
+      expect(html).not.toContain("Masz już zapisaną wizytę");
+    });
+
+    it("a visit on site wins over one from the past: only 'Odwiedzone'", async () => {
+      mocks.visited.mockResolvedValue({
+        status: "ok",
+        value: { onSite: true, past: { precision: "year", visitedOn: "2018-01-01" } },
+      });
+      mocks.wanted.mockResolvedValue({ status: "ok", value: { wanted: false } });
+
+      const html = await render();
+
+      expect(html).toContain("Masz już zapisaną wizytę w tym miejscu.");
+      expect(html).not.toContain("Z przeszłości");
+      expect(html).not.toContain("Usuń wizytę z przeszłości");
+    });
+  });
+
+  describe("the places of a collection for an explorer", () => {
+    const second = {
+      id: "33333333-3333-4333-8333-333333333333",
+      name: "Zamek",
+      address: "",
+      position: 2,
+    };
+    const third = {
+      id: "44444444-4444-4444-8444-444444444444",
+      name: "Brama",
+      address: "",
+      position: 3,
+    };
+    const render = async () =>
+      renderToStaticMarkup(
+        await collectionPage.default({ params: Promise.resolve({ slug: next() }) }),
+      );
+
+    beforeEach(() => {
+      mocks.collection.mockResolvedValue({
+        status: "ok",
+        value: { ...collection, places: [...collection.places, second, third] },
+      });
+      mocks.actor.mockResolvedValue({ id: "u1", role: "user" });
+      mocks.progress.mockResolvedValue({
+        status: "ok",
+        value: { saved: true, progress: { visited: 1, total: 3 } },
+      });
+    });
+
+    it("marks the kind of each visit and offers to choose the places", async () => {
+      mocks.kinds.mockResolvedValue({
+        status: "ok",
+        value: [
+          { placeId: placeId, kind: "on_site" },
+          { placeId: second.id, kind: "past" },
+        ],
+      });
+
+      const html = await render();
+
+      expect(html).toContain("Zaznacz odwiedzone");
+      expect(html.match(/>Odwiedzone</g)).toHaveLength(1);
+      expect(html.match(/>Z przeszłości</g)).toHaveLength(1);
+    });
+
+    it("offers no choice when every place has a visit", async () => {
+      mocks.kinds.mockResolvedValue({
+        status: "ok",
+        value: [placeId, second.id, third.id].map((id) => ({ placeId: id, kind: "past" })),
+      });
+
+      expect(await render()).not.toContain("Zaznacz odwiedzone");
+    });
+
+    it("keeps the plain list when the read of the kinds fails", async () => {
+      mocks.kinds.mockRejectedValue(new Error("db down"));
+
+      const html = await render();
+
+      expect(html).toContain("Miejsca w kolekcji (3)");
+      expect(html).not.toContain("Zaznacz odwiedzone");
+    });
+
+    it("keeps the plain list when the read of the kinds is refused", async () => {
+      mocks.kinds.mockResolvedValue({ status: "unauthenticated" });
+
+      expect(await render()).not.toContain("Zaznacz odwiedzone");
     });
   });
 

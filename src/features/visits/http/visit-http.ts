@@ -8,53 +8,12 @@ import { confirmOnSiteVisit } from "../application/confirm-on-site-visit";
 import type { VisitResponse, VisitUseCaseOutcome } from "../application/visit-types";
 import { VISIT_BODY_MAX_BYTES } from "../domain/limits";
 import { getVisitDeps } from "../infrastructure/visit-deps";
+import { privateJson as json, readJsonBody } from "./request-body";
 
 // POST /api/places/[placeId]/visits: origin check, a bounded JSON body, the
 // actor from the session and the mapping of the answer to a status. The body
 // holds the position of the device: it is read here, handed to the use case
 // and dropped; it is never logged (logFailure writes the error class only).
-
-const HEADERS = { "Cache-Control": "private, no-store" };
-
-function json(status: number, body: unknown, extra: Record<string, string> = {}): Response {
-  return Response.json(body, { status, headers: { ...HEADERS, ...extra } });
-}
-
-// A body that is not JSON is passed on as `undefined`: the use case answers 401
-// to a guest first and `invalid` (400) to a signed-in explorer.
-async function readBody(request: Request): Promise<{ tooLarge: true } | { body: unknown }> {
-  if (Number(request.headers.get("content-length") ?? "0") > VISIT_BODY_MAX_BYTES) {
-    return { tooLarge: true };
-  }
-
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  const reader = request.body?.getReader();
-
-  while (reader !== undefined) {
-    const { done, value } = await reader.read();
-
-    if (done) {
-      break;
-    }
-
-    size += value.byteLength;
-
-    if (size > VISIT_BODY_MAX_BYTES) {
-      await reader.cancel();
-
-      return { tooLarge: true };
-    }
-
-    chunks.push(value);
-  }
-
-  try {
-    return { body: JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown };
-  } catch {
-    return { body: undefined };
-  }
-}
 
 function respond(outcome: VisitUseCaseOutcome<VisitResponse>): Response {
   switch (outcome.status) {
@@ -81,7 +40,7 @@ export async function handleVisitRequest(request: Request, placeId: string): Pro
   }
 
   try {
-    const read = await readBody(request);
+    const read = await readJsonBody(request, VISIT_BODY_MAX_BYTES);
 
     if ("tooLarge" in read) {
       return json(413, { error: "payload_too_large" });
