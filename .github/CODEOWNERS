@@ -60,6 +60,13 @@
 # Ekran Profil i wylogowanie (E9-1): test sprawdza, że po wylogowaniu ekrany prywatne odmawiają gościowi
 /e2e/profile.spec.ts               @MariuszSkowron
 
+# Usunięcie konta (E9-5): przypadek użycia, trasa w /src/app/api/ już ma właściciela,
+# ekran Ustawienia, test dwóch przeglądarek i ponownego logowania
+/src/features/account/             @MariuszSkowron
+/tests/features/account/           @MariuszSkowron
+/src/app/my/settings/              @MariuszSkowron
+/e2e/account-deletion.spec.ts      @MariuszSkowron
+
 # Panel kuratora (ekrany zapisujące dane CUR przez trasy API), lista organizacji
 # konta w żądaniu i test dwóch kuratorów (kurator B nie widzi szkiców A)
 /src/app/curator/                  @MariuszSkowron

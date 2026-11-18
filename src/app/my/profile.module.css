@@ -29,8 +29,18 @@
   color: var(--color-text-secondary);
 }
 
-.page nav {
+.page nav,
+.section {
   align-self: stretch;
+}
+
+.section {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.section h2 {
+  margin: 0;
 }
 
 .links {

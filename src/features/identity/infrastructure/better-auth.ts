@@ -19,6 +19,7 @@ import type {
 } from "../domain/identity-provider";
 import { SESSION_LIMIT_MS } from "../domain/session-policy";
 import { createDatabaseHooks, createSendSignInCode } from "./auth-hooks";
+import { deleteAccountRows } from "./delete-account-rows";
 
 // The longest session any role may have; the database hooks cut it per role.
 const SESSION_LIFETIME_SECONDS = Math.max(...Object.values(SESSION_LIMIT_MS)) / 1000;
@@ -235,6 +236,16 @@ export class BetterAuthIdentityProvider implements IdentityProvider {
     });
 
     return toSignInResult(response);
+  }
+
+  async getSessionCreatedAt(headers: Headers): Promise<Date | null> {
+    const session = await this.auth().api.getSession({ headers });
+
+    return session ? new Date(session.session.createdAt) : null;
+  }
+
+  async deleteAccount(accountId: string): Promise<boolean> {
+    return deleteAccountRows(await getAuthPool(), accountId);
   }
 
   async signOut(headers: Headers): Promise<string[]> {

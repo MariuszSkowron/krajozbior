@@ -513,19 +513,21 @@ describe("operations audit: the writing role cannot change it", () => {
       expect(await auditCount()).toBe(before);
     });
 
-    it("has the two triggers with their WHEN conditions in the catalog", async () => {
+    it("has the two role triggers with their WHEN conditions in the catalog (and the deletion trigger of E9-5)", async () => {
       const rows = await admin$<{ tgname: string; def: string }>(
         `select tgname, pg_get_triggerdef(oid) as def from pg_trigger
           where tgrelid = 'auth.users'::regclass and not tgisinternal order by tgname`,
       );
 
       expect(rows.map(({ tgname }) => tgname)).toEqual([
+        "auth_users_deletion_audited",
         "auth_users_role_audited_insert",
         "auth_users_role_audited_update",
       ]);
-      expect(rows[0]!.def).toMatch(/WHEN \(\(new\.role <> 'user'::text\)\)/);
-      expect(rows[1]!.def).toMatch(/UPDATE OF role/);
-      expect(rows[1]!.def).toMatch(/WHEN \(\(old\.role IS DISTINCT FROM new\.role\)\)/);
+      expect(rows[0]!.def).toMatch(/AFTER DELETE ON auth\.users FOR EACH ROW/);
+      expect(rows[1]!.def).toMatch(/WHEN \(\(new\.role <> 'user'::text\)\)/);
+      expect(rows[2]!.def).toMatch(/UPDATE OF role/);
+      expect(rows[2]!.def).toMatch(/WHEN \(\(old\.role IS DISTINCT FROM new\.role\)\)/);
     });
   });
 });

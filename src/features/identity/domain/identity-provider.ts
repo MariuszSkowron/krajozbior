@@ -23,4 +23,12 @@ export interface IdentityProvider {
   signInWithCode(credentials: CodeCredentials, headers: Headers): Promise<SignInResult | null>;
   // Idempotent; returns Set-Cookie values that clear the session cookie.
   signOut(headers: Headers): Promise<string[]>;
+  // When the request's session was created (never its last use); null without a
+  // valid session. Used to ask for a fresh sign-in before account deletion.
+  getSessionCreatedAt(headers: Headers): Promise<Date | null>;
+  // Deletes the account in one transaction (as krajozbior_auth): sign-in codes
+  // and action limits of the account, then the account row, from which the
+  // database cascades to sessions and all product data and writes the audit
+  // entry. Returns false when the account no longer exists.
+  deleteAccount(accountId: string): Promise<boolean>;
 }

@@ -238,8 +238,55 @@ describe("PostgreSQL migrations and transactions", () => {
       expect(await objects()).toEqual({
         find: "ops_find_user(text)",
         setter: "ops_set_user_role(uuid,text)",
-        triggers: 2,
+        // The two role triggers and the deletion trigger of E9-5 (the down above
+        // passes through that migration too and removes it).
+        triggers: 3,
         columns: 2,
+      });
+    } finally {
+      await owner.close(true);
+    }
+  });
+
+  it("reverts the account-deletion migration with a delete_account entry present and applies it again (E9-5)", async () => {
+    const owner = await MikroORM.init(createOrmConfig(db.urls.krajozbior_owner));
+    const objects = () =>
+      orm.em.execute<Record<string, string | number | null>>(
+        `select to_regprocedure('public.auth_users_audit_deletion()')::text as trigger_fn,
+                to_regprocedure('public.operations_audit_delete_account_guard()')::text as guard_fn,
+                to_regprocedure('public.app_is_sole_organization_member()')::text as sole_fn,
+                (select count(*)::int from pg_trigger
+                  where tgname in ('auth_users_deletion_audited', 'operations_audit_delete_account_guard')
+                    and not tgisinternal) as triggers,
+                (select with_check from pg_policies
+                  where tablename = 'operations_audit' and policyname = 'operations_audit_ops_insert') as ops_check`,
+        [],
+        "get",
+      );
+
+    try {
+      // The append-only trigger keeps this entry through the revert, and the
+      // previous CHECK comes back NOT VALID, so it does not reject the entry.
+      await orm.em.execute(
+        `insert into public.operations_audit (operation, operator_label, subject_user_id, outcome, reason)
+         values ('delete_account', 'migration-test', gen_random_uuid(), 'applied', 'account deleted')`,
+      );
+      await owner.migrator.down({ to: "Migration20261118130000_collection_slug_first_publish" });
+      expect(await objects()).toEqual({
+        trigger_fn: null,
+        guard_fn: null,
+        sole_fn: null,
+        triggers: 0,
+        ops_check: "true",
+      });
+
+      await owner.migrator.up();
+      expect(await objects()).toEqual({
+        trigger_fn: "auth_users_audit_deletion()",
+        guard_fn: "operations_audit_delete_account_guard()",
+        sole_fn: "app_is_sole_organization_member()",
+        triggers: 2,
+        ops_check: "(operation <> 'delete_account'::text)",
       });
     } finally {
       await owner.close(true);

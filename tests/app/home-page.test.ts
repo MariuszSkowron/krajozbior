@@ -58,4 +58,11 @@ describe("start page", () => {
     );
     expect(await render()).not.toContain('role="status"');
   });
+
+  it("confirms a deleted account (E9-5) only for the exact signal", async () => {
+    expect(await render({ konto: "usuniete" })).toMatch(
+      /role="status"[^>]*>Twoje konto zostało usunięte\./,
+    );
+    expect(await render({ konto: "inne" })).not.toContain('role="status"');
+  });
 });

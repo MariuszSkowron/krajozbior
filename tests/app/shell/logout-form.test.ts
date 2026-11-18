@@ -12,5 +12,18 @@ describe("LogoutForm", () => {
     expect(html).toContain('method="post"');
     expect(html).toContain('action="/api/auth/logout"');
     expect(html).toMatch(/<button[^>]*class="btn"[^>]*type="submit">Wyloguj<\/button>/);
+    expect(html).not.toContain("returnTo");
+  });
+
+  it("carries a return path when the deletion screen asks for a fresh sign-in", () => {
+    const html = renderToStaticMarkup(
+      LogoutForm({
+        className: "btn",
+        children: "Zaloguj się ponownie",
+        returnTo: "/my/delete-account",
+      }),
+    );
+
+    expect(html).toContain('<input type="hidden" name="returnTo" value="/my/delete-account"/>');
   });
 });

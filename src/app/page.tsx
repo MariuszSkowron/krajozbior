@@ -23,9 +23,16 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   });
   const signedOut = first(params.wylogowano) === "1";
   const signOutFailed = first(params.wylogowanie) === "blad";
+  // Only a signal for the message after deleting the account (E9-5).
+  const accountDeleted = first(params.konto) === "usuniete";
 
   return (
     <div className={`content-width ${styles.page}`}>
+      {accountDeleted ? (
+        <p role="status" className={styles.status}>
+          Twoje konto zostało usunięte.
+        </p>
+      ) : null}
       {signedOut ? (
         <p role="status" className={styles.status}>
           Wylogowano.

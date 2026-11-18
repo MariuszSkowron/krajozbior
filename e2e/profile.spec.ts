@@ -8,7 +8,13 @@ import axe from "axe-core";
 // spec is skipped.
 const password = process.env.DEMO_ACCOUNT_PASSWORD;
 const EXPLORER = "user@demo.krajozbior.local";
-const PRIVATE_PATHS = ["/my", "/my/collections", "/my/want-to-see"] as const;
+const PRIVATE_PATHS = [
+  "/my",
+  "/my/collections",
+  "/my/want-to-see",
+  "/my/settings",
+  "/my/delete-account",
+] as const;
 
 async function expectNoAccessibilityViolations(page: Page) {
   await page.evaluate(() =>
@@ -56,10 +62,13 @@ test.describe("profile and logout", () => {
     await expect(page).toHaveTitle("Profil — Krajozbiór");
     await expect(main.getByRole("heading", { level: 1, name: "Profil" })).toBeVisible();
     await expect(main).toContainText("Twoja rola: Użytkownik");
-    await expect(main.getByRole("link")).toHaveText(["Moje kolekcje", "Chcę zobaczyć"]);
+    await expect(main.getByRole("link")).toHaveText([
+      "Moje kolekcje",
+      "Chcę zobaczyć",
+      "Ustawienia",
+    ]);
     await expect(main.getByRole("button", { name: "Wyloguj" })).toBeVisible();
-    // No dead entries: Settings and contact arrive with their screens.
-    await expect(main).not.toContainText("Ustawienia");
+    // No dead entries: contact arrives with its screen (E9-6).
     await expect(main).not.toContainText("Napisz do nas");
 
     // The bottom bar marks the profile as the current item.

@@ -14,9 +14,15 @@ export const AUDIT_OPERATIONS = [
   "revoke_curator",
   "set_organization_status",
   "set_user_role",
+  // Written by the database only, as a result of deleting an account
+  // (Migration20261118140000_account_deletion); `writeAuditEntry` cannot write it.
+  "delete_account",
 ] as const;
 
 export type AuditOperation = (typeof AUDIT_OPERATIONS)[number];
+
+/** What an operator command may write: everything except `delete_account`. */
+export type OperatorAuditOperation = Exclude<AuditOperation, "delete_account">;
 
 export const AUDIT_OUTCOMES = ["applied", "rejected"] as const;
 
@@ -54,7 +60,7 @@ export type AuditQueryClient = Readonly<{
 }>;
 
 export type AuditEntry = Readonly<{
-  operation: AuditOperation;
+  operation: OperatorAuditOperation;
   operator: string;
   reason: string;
   subjectUserId: string | null;
