@@ -2,6 +2,8 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import axe from "axe-core";
 import { Client } from "pg";
 
+import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+
 // E2-S5, PR8: the "Chcę zobaczyć" list. The button on the place page, the list
 // at /my/want-to-see with the date of saving, and the privacy of the list
 // (explorer B does not see the list of A). Uses the demo collection and the two
@@ -61,7 +63,9 @@ async function signedInPage(
 }
 
 async function adminQuery<T>(sql: string, params: unknown[] = []): Promise<T[]> {
-  const client = new Client({ connectionString: process.env.DATABASE_ADMIN_URL });
+  const client = new Client({
+    connectionString: parseE2eAdminDatabaseUrl(process.env.DATABASE_ADMIN_URL),
+  });
 
   await client.connect();
   try {

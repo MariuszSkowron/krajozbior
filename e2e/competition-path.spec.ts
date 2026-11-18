@@ -1,6 +1,8 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { Client } from "pg";
 
+import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+
 // The whole competition path, end to end (spec sections 1 and 8, PR7): curator
 // A builds and publishes a collection, a guest reads it, an explorer saves it,
 // confirms a visit on site and sees 1/1 in "Moje kolekcje"; curator B is
@@ -31,7 +33,9 @@ async function signedInPage(browser: Browser, name: string, geolocation = false)
 }
 
 async function adminQuery<T>(sql: string, params: unknown[] = []): Promise<T[]> {
-  const client = new Client({ connectionString: process.env.DATABASE_ADMIN_URL });
+  const client = new Client({
+    connectionString: parseE2eAdminDatabaseUrl(process.env.DATABASE_ADMIN_URL),
+  });
 
   await client.connect();
   try {
