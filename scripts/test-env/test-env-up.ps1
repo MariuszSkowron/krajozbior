@@ -296,6 +296,7 @@ try {
     KRAJOZBIOR_AUTH_DB_PASSWORD  = $s.Auth
     KRAJOZBIOR_OPS_DB_PASSWORD   = $s.Ops
     DATABASE_MIGRATION_URL  = "postgres://krajozbior_owner:$($s.Owner)@$pgE2e"
+    DATABASE_OPS_URL        = "postgres://krajozbior_ops:$($s.Ops)@$pgE2e"
     DATABASE_URL            = "postgres://krajozbior_app:$($s.App)@$pgE2e"
     DATABASE_AUTH_URL       = "postgres://krajozbior_auth:$($s.Auth)@$pgE2e"
     BETTER_AUTH_SECRET      = $s.Session
@@ -390,7 +391,7 @@ try {
     stopScript = 'scripts/test-env/test-env-down.ps1'
     app = [ordered]@{ startCommand = "next start --hostname 127.0.0.1 --port $appPort"; port = $appPort; healthPath = $HealthPath; pid = $appPid; log = $AppLog }
     services = @(
-      [ordered]@{ type = 'postgres'; purpose = 'app + e2e'; host = '127.0.0.1'; port = $e2ePort; container = $E2eContainer; database = $E2eDatabase; env = @('DATABASE_URL', 'DATABASE_AUTH_URL', 'DATABASE_MIGRATION_URL', 'DATABASE_ADMIN_URL') },
+      [ordered]@{ type = 'postgres'; purpose = 'app + e2e'; host = '127.0.0.1'; port = $e2ePort; container = $E2eContainer; database = $E2eDatabase; env = @('DATABASE_URL', 'DATABASE_AUTH_URL', 'DATABASE_OPS_URL', 'DATABASE_MIGRATION_URL', 'DATABASE_ADMIN_URL') },
       [ordered]@{ type = 'postgres'; purpose = 'integration tests'; host = '127.0.0.1'; port = $intPort; container = $IntContainer; database = $IntDatabase; env = @('TEST_DATABASE_URL') }
     )
     credentials = @($DemoAccounts | ForEach-Object { [ordered]@{ role = $_; username = "$_@demo.krajozbior.local"; passwordEnv = "TEST_$($_.ToUpper())_PASSWORD" } })

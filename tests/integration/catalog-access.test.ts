@@ -770,8 +770,7 @@ describe("collections, places and their links", () => {
       [orgId, seeder.id],
     );
 
-    const run = () =>
-      seedDemoCatalog(db.urls.krajozbior_app, db.urls.krajozbior_owner, seeder.email);
+    const run = () => seedDemoCatalog(db.urls.krajozbior_app, db.urls.krajozbior_ops, seeder.email);
 
     expect(await run()).toBe("created");
     expect(await run()).toBe("noop");
@@ -787,7 +786,7 @@ describe("collections, places and their links", () => {
     expect(rows[0]).toMatchObject({ status: "published", places: 3 });
     expect(rows[0]!.first_published_at).toBeInstanceOf(Date);
     await expect(
-      seedDemoCatalog(db.urls.krajozbior_app, db.urls.krajozbior_owner, "nobody@example.com"),
+      seedDemoCatalog(db.urls.krajozbior_app, db.urls.krajozbior_ops, "nobody@example.com"),
     ).rejects.toThrow(/missing/);
   });
 
@@ -826,9 +825,9 @@ describe("collections, places and their links", () => {
 
     await link(half, collectionId, placeId, orgId, 1);
 
-    expect(
-      await seedDemoCatalog(db.urls.krajozbior_app, db.urls.krajozbior_owner, half.email),
-    ).toBe("created");
+    expect(await seedDemoCatalog(db.urls.krajozbior_app, db.urls.krajozbior_ops, half.email)).toBe(
+      "created",
+    );
     expect(
       await admin$(
         `select c.status, (select count(*)::int from public.collection_places cp where cp.collection_id = c.id) as places
@@ -836,9 +835,9 @@ describe("collections, places and their links", () => {
         [collectionId],
       ),
     ).toEqual([{ status: "published", places: 3 }]);
-    expect(
-      await seedDemoCatalog(db.urls.krajozbior_app, db.urls.krajozbior_owner, half.email),
-    ).toBe("noop");
+    expect(await seedDemoCatalog(db.urls.krajozbior_app, db.urls.krajozbior_ops, half.email)).toBe(
+      "noop",
+    );
   });
 
   it("does not carry a user context to the next transaction on the same connection", async () => {

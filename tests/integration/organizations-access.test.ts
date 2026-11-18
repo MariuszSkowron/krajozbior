@@ -29,7 +29,8 @@ import { findApplicationRoleGaps, findRowLevelSecurityGaps } from "../support/rl
 // E1, PR1: organizations, members, the audit and app_org_permission, proven on
 // the real database. `app` is a pooled connection as krajozbior_app (max 1
 // connection, so a leaked context would show); the operator command runs as
-// krajozbior_owner like `npm run ops:curator`; the superuser connection only
+// krajozbior_ops like `npm run ops:curator`; `owner$` (krajozbior_owner, the
+// migration role) only proves what the owner may no longer do; the superuser connection only
 // prepares accounts and reads the catalog.
 const TABLES = ["public.organizations", "public.organization_members", "public.operations_audit"];
 
@@ -62,7 +63,7 @@ const as$ = (
 
 async function ops(...argv: string[]) {
   const output = await runOpsCurator([...argv, "--operator", "tester"], {
-    getConnectionString: () => db.urls.krajozbior_owner,
+    getConnectionString: () => db.urls.krajozbior_ops,
     connect: connectOpsCurator,
   });
 
@@ -133,11 +134,13 @@ describe("organizations, membership and operator command", () => {
          has_table_privilege('krajozbior_app', 'operations_audit', 'select, insert, update, delete, truncate, references, trigger') as audit_app,
          has_any_column_privilege('krajozbior_app', 'operations_audit', 'select, insert, update') as audit_app_column,
          has_table_privilege('krajozbior_auth', 'operations_audit', 'select, insert, update, delete') as audit_auth,
-         has_table_privilege('krajozbior_ops', 'operations_audit', 'select, insert, update, delete') as audit_ops,
-         has_table_privilege('krajozbior_ops', 'organizations', 'select, insert, update, delete') as org_ops,
+         has_table_privilege('krajozbior_ops', 'operations_audit', 'select, insert, update, delete, truncate') as audit_ops,
+         has_table_privilege('krajozbior_ops', 'organizations', 'select, insert') as org_ops,
+         has_table_privilege('krajozbior_ops', 'organizations', 'update, delete, truncate, references, trigger') as org_ops_more,
          has_table_privilege('krajozbior_auth', 'organization_members', 'select, insert, update, delete') as mem_auth,
          has_function_privilege('krajozbior_app', 'app_org_permission(uuid)', 'execute') as fn_app,
          has_function_privilege('krajozbior_ops', 'app_org_permission(uuid)', 'execute') as fn_ops,
+         has_function_privilege('krajozbior_ops', 'ops_find_user(text)', 'execute') as find_ops,
          has_function_privilege('krajozbior_auth', 'app_org_permission(uuid)', 'execute') as fn_auth,
          (select coalesce(proacl::text, '') ~ '(^[{]|,)=X/' from pg_proc
            where oid = 'app_org_permission(uuid)'::regprocedure) as fn_public`,
@@ -154,10 +157,12 @@ describe("organizations, membership and operator command", () => {
       audit_app_column: false,
       audit_auth: false,
       audit_ops: false,
-      org_ops: false,
+      org_ops: true,
+      org_ops_more: false,
       mem_auth: false,
       fn_app: true,
       fn_ops: false,
+      find_ops: true,
       fn_auth: false,
       fn_public: false,
     });
@@ -346,11 +351,11 @@ describe("organizations, membership and operator command", () => {
     const before = await auditCount();
     const noReason = await runOpsCurator(
       ["grant", "--org-slug", "gmina-a", "--email", accounts.ewa.email, "--operator", "tester"],
-      { getConnectionString: () => db.urls.krajozbior_owner, connect: connectOpsCurator },
+      { getConnectionString: () => db.urls.krajozbior_ops, connect: connectOpsCurator },
     );
     const badSlug = await grant("Zly Slug", accounts.ewa.email);
     const noOperator = await runOpsCurator(["suspend", "--org-slug", "gmina-a", "--reason", "x"], {
-      getConnectionString: () => db.urls.krajozbior_owner,
+      getConnectionString: () => db.urls.krajozbior_ops,
       connect: connectOpsCurator,
     });
 
@@ -548,7 +553,7 @@ describe("organizations, membership and operator command", () => {
 
   it("enforces the audit CHECKs: outcome and error code agree, labels and reasons are clean", async () => {
     const insert = (outcome: string, code: string | null, label = "tester", reason = "powód") =>
-      owner$(
+      admin$(
         `insert into public.operations_audit (operation, operator_label, outcome, reason, error_code)
          values ('grant_curator', $1, $2, $3, $4)`,
         [label, outcome, reason, code],
@@ -594,9 +599,9 @@ describe("organizations, membership and operator command", () => {
           where o.slug like 'demo-%' order by o.slug`,
       );
 
-    const first = await seedDemoOrganizations(db.urls.krajozbior_owner);
+    const first = await seedDemoOrganizations(db.urls.krajozbior_ops);
     const rows = await snapshot();
-    const second = await seedDemoOrganizations(db.urls.krajozbior_owner);
+    const second = await seedDemoOrganizations(db.urls.krajozbior_ops);
 
     expect(first.map((result) => result.outcome)).toEqual(["applied", "applied"]);
     expect(second.map((result) => result.outcome)).toEqual(["noop", "noop"]);

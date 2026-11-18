@@ -7,6 +7,10 @@ import type { RoleAssigner } from "./user-role";
 
 export const DEMO_PASSWORD_MIN_LENGTH = 12;
 
+// The label and reason of the audit entry that every demo role assignment leaves
+// (same wording as seed-demo-organizations.ts in the organizations area).
+const SEED_ROLE_ASSIGNMENT = { operator: "seed-demo", reason: "Konto demo lokalnego środowiska" };
+
 export type DemoAccount = { email: string; role: Role; name: string };
 
 // Two users show that one cannot see the other's data; the admin shows the
@@ -40,7 +44,8 @@ export async function findSeededDemoAccounts(): Promise<Pick<DemoAccount, "email
 // Creates a password account with the default role `user`, or resets the name,
 // password and sessions of an existing one. Used by the demo seed and by
 // `npm run auth:create-admin`; the role is set afterwards by a RoleAssigner
-// (user-role.ts), because krajozbior_auth may not write the `role` column.
+// (user-role.ts, as krajozbior_ops), because krajozbior_auth may not write the
+// `role` column.
 export async function ensurePasswordAccount(
   email: string,
   name: string,
@@ -102,7 +107,12 @@ export async function seedDemoAccounts(
   for (const { email, role, name } of demoAccounts) {
     const id = await ensurePasswordAccount(email, name, password);
 
-    await assignRole(email, role);
+    const assigned = await assignRole(email, role, SEED_ROLE_ASSIGNMENT);
+
+    if (assigned.outcome === "rejected") {
+      throw new Error("The role of a demo account was refused: the account is missing");
+    }
+
     prepared.push({ email, role, id });
   }
 

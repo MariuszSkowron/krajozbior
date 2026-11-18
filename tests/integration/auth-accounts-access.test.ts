@@ -96,8 +96,8 @@ describe("accounts: schema, Better Auth hooks and sign-in code", () => {
     ({ auth, closeAuth } = await importAuth());
 
     const { seedDemoAccounts } = await import("@/features/identity/infrastructure/demo-accounts");
-    const { ownerRoleAssigner } = await import("@/features/identity/infrastructure/user-role");
-    const seeded = await seedDemoAccounts(PASSWORD, ownerRoleAssigner(db.urls.krajozbior_owner));
+    const { opsRoleAssigner } = await import("@/features/identity/infrastructure/user-role");
+    const seeded = await seedDemoAccounts(PASSWORD, opsRoleAssigner(db.urls.krajozbior_ops));
     accounts = Object.fromEntries(seeded.map((account) => [account.email, account.id]));
   }, 60_000);
 
@@ -132,26 +132,77 @@ describe("accounts: schema, Better Auth hooks and sign-in code", () => {
       await admin$(`delete from auth.users where email = 'plain-insert@example.com'`);
     });
 
-    it("sets another role only through krajozbior_owner (operator script), never krajozbior_auth", async () => {
-      const { ownerRoleAssigner, setUserRole } =
+    it("sets another role only through krajozbior_ops with an audit entry, never krajozbior_auth", async () => {
+      const { opsRoleAssigner, setUserRole } =
         await import("@/features/identity/infrastructure/user-role");
       const email = "user2@demo.krajozbior.local";
+      const assign = opsRoleAssigner(db.urls.krajozbior_ops);
+      const assignment = { operator: "tester", reason: "Test roli" };
+      const entries = () =>
+        admin$<Record<string, unknown>>(
+          `select operation, outcome, operator_label, reason, recorded_by, before_state, after_state, error_code
+             from public.operations_audit
+            where operation = 'set_user_role' and operator_label = 'tester' order by occurred_at, id`,
+        );
 
       await expect(
         withClient(db.urls.krajozbior_auth, (client) => setUserRole(client, email, "admin")),
       ).rejects.toMatchObject(permissionDenied);
 
-      await ownerRoleAssigner(db.urls.krajozbior_owner)(email, "admin");
+      expect(await assign(email, "admin", assignment)).toMatchObject({ outcome: "applied" });
       expect(await admin$(`select role from auth.users where email = $1`, [email])).toEqual([
         { role: "admin" },
       ]);
-      await ownerRoleAssigner(db.urls.krajozbior_owner)(email, "user");
+      expect(await assign(email, "user", assignment)).toMatchObject({ outcome: "applied" });
       expect(await admin$(`select role from auth.users where email = $1`, [email])).toEqual([
         { role: "user" },
       ]);
+      // The same role again leaves no entry.
+      expect(await assign(email, "user", assignment)).toEqual({ outcome: "noop" });
+      expect(await assign("nobody@example.com", "admin", assignment)).toMatchObject({
+        outcome: "rejected",
+      });
+
+      const rows = await entries();
+      const common = {
+        operation: "set_user_role",
+        operator_label: "tester",
+        reason: "Test roli",
+        recorded_by: "krajozbior_ops",
+      };
+
+      expect(rows).toEqual([
+        {
+          ...common,
+          outcome: "applied",
+          before_state: { role: "user" },
+          after_state: { role: "admin" },
+          error_code: null,
+        },
+        {
+          ...common,
+          outcome: "applied",
+          before_state: { role: "admin" },
+          after_state: { role: "user" },
+          error_code: null,
+        },
+        {
+          ...common,
+          outcome: "rejected",
+          before_state: null,
+          after_state: { role: "admin" },
+          error_code: "user_not_found",
+        },
+      ]);
+      expect(JSON.stringify(rows)).not.toContain("@");
+
+      // The owner can no longer change a role without an entry (55000).
       await expect(
-        ownerRoleAssigner(db.urls.krajozbior_owner)("nobody@example.com", "admin"),
-      ).rejects.toThrow("No account");
+        withClient(db.urls.krajozbior_owner, (client) => setUserRole(client, email, "admin")),
+      ).rejects.toMatchObject({ code: "55000" });
+      expect(await admin$(`select role from auth.users where email = $1`, [email])).toEqual([
+        { role: "user" },
+      ]);
     });
 
     it("gives krajozbior_app and krajozbior_ops nothing in auth, krajozbior_auth no update of role", async () => {

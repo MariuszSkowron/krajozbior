@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseAuthEnv,
   parseMigrationEnv,
+  parseOpsEnv,
   parseServerEnv,
   ServerConfigError,
 } from "@/lib/config/env";
@@ -188,6 +189,17 @@ describe("parseMigrationEnv", () => {
     });
     expect(getError(() => parseMigrationEnv({ DATABASE_URL: url })).message).toBe(
       "Invalid server configuration: DATABASE_MIGRATION_URL",
+    );
+  });
+});
+
+describe("parseOpsEnv", () => {
+  it("reads only the operator connection and names a missing one without its value", () => {
+    const url = "postgres://krajozbior_ops:secret@localhost:5432/krajozbior";
+
+    expect(parseOpsEnv({ DATABASE_OPS_URL: url })).toEqual({ DATABASE_OPS_URL: url });
+    expect(getError(() => parseOpsEnv({ DATABASE_MIGRATION_URL: url })).message).toBe(
+      "Invalid server configuration: DATABASE_OPS_URL",
     );
   });
 });

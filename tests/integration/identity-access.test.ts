@@ -1,7 +1,7 @@
 import { MikroORM } from "@mikro-orm/postgresql";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { ownerRoleAssigner } from "@/features/identity/infrastructure/user-role";
+import { opsRoleAssigner } from "@/features/identity/infrastructure/user-role";
 import { createOrmConfig } from "@/lib/db/config";
 import { createScratchDatabase, type ScratchDatabase } from "../support/database-harness";
 
@@ -36,8 +36,8 @@ function cookieOf(response: Response) {
     .join("; ");
 }
 
-// The seed sets roles as krajozbior_owner, like `npm run db:seed:demo`.
-const asOwner = () => ownerRoleAssigner(db.urls.krajozbior_owner);
+// The seed sets roles as krajozbior_ops (with an audit entry), like `npm run db:seed:demo`.
+const asOps = () => opsRoleAssigner(db.urls.krajozbior_ops);
 
 async function signIn(role: "user" | "admin") {
   const response = await login(jsonLogin(`${role}@demo.krajozbior.local`, PASSWORD));
@@ -70,7 +70,7 @@ describe("local demo login and role enforcement", () => {
     ({ closeAuth } = await import("@/features/identity/infrastructure/better-auth"));
 
     const { seedDemoAccounts } = await import("@/features/identity/infrastructure/demo-accounts");
-    await seedDemoAccounts(PASSWORD, asOwner());
+    await seedDemoAccounts(PASSWORD, asOps());
   }, 60_000);
 
   // Several tests send wrong passwords to the same demo accounts; the sign-in
@@ -113,7 +113,7 @@ describe("local demo login and role enforcement", () => {
     );
     expect((await signIn("user")).response.status).toBe(401);
 
-    await seedDemoAccounts(PASSWORD, asOwner());
+    await seedDemoAccounts(PASSWORD, asOps());
 
     expect((await signIn("user")).response.status).toBe(200);
   });
@@ -134,11 +134,17 @@ describe("local demo login and role enforcement", () => {
     }
 
     try {
+      // The name changes by plain SQL (no trigger: `role` is untouched); the role
+      // changes the way production does, through ops with an audit entry. The
+      // database refuses a bare `update ... set role` (operations-audit-access).
       await orm.em.execute(
-        `update auth.users set role = 'admin', name = 'Changed' where email like '%@demo.krajozbior.local'`,
+        `update auth.users set name = 'Changed' where email like '%@demo.krajozbior.local'`,
       );
+      for (const { email } of demoAccounts) {
+        await asOps()(email, "admin", { operator: "test", reason: "Test ponownego seeda" });
+      }
 
-      await seedDemoAccounts(otherPassword, asOwner());
+      await seedDemoAccounts(otherPassword, asOps());
 
       const rows = await orm.em.execute<{ email: string; role: string; name: string }[]>(
         `select email, role, name from auth.users where email like '%@demo.krajozbior.local'`,
@@ -158,7 +164,7 @@ describe("local demo login and role enforcement", () => {
       }
     } finally {
       // A failed assertion must not leave the accounts unusable for later tests.
-      await seedDemoAccounts(PASSWORD, asOwner());
+      await seedDemoAccounts(PASSWORD, asOps());
     }
   });
 

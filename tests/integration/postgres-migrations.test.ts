@@ -204,6 +204,48 @@ describe("PostgreSQL migrations and transactions", () => {
     }
   });
 
+  it("reverts the audit-role migration with a set_user_role entry present and applies it again", async () => {
+    const owner = await MikroORM.init(createOrmConfig(db.urls.krajozbior_owner));
+    const objects = () =>
+      orm.em.execute<{
+        find: string | null;
+        setter: string | null;
+        triggers: number;
+        columns: number;
+      }>(
+        `select to_regprocedure('public.ops_find_user(text)')::text as find,
+                to_regprocedure('public.ops_set_user_role(uuid, text)')::text as setter,
+                (select count(*)::int from pg_trigger
+                  where tgrelid = 'auth.users'::regclass and not tgisinternal) as triggers,
+                (select count(*)::int from information_schema.columns
+                  where table_name = 'operations_audit'
+                    and column_name in ('recorded_by', 'transaction_id')) as columns`,
+        [],
+        "get",
+      );
+
+    try {
+      // The append-only trigger keeps this entry through the revert, and the
+      // old CHECK comes back NOT VALID, so it does not reject the entry.
+      await orm.em.execute(
+        `insert into public.operations_audit (operation, operator_label, outcome, reason)
+         values ('set_user_role', 'migration-test', 'applied', 'powód')`,
+      );
+      await owner.migrator.down({ to: "Migration20261117150000_album" });
+      expect(await objects()).toEqual({ find: null, setter: null, triggers: 0, columns: 0 });
+
+      await owner.migrator.up();
+      expect(await objects()).toEqual({
+        find: "ops_find_user(text)",
+        setter: "ops_set_user_role(uuid,text)",
+        triggers: 2,
+        columns: 2,
+      });
+    } finally {
+      await owner.close(true);
+    }
+  });
+
   it("reverts everything and applies it again", async () => {
     const owner = await MikroORM.init(createOrmConfig(db.urls.krajozbior_owner));
 
