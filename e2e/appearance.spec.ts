@@ -170,10 +170,23 @@ test.describe("kroje i linki", () => {
 
     const outline = await primary.evaluate((element) => {
       const style = getComputedStyle(element);
-      return { style: style.outlineStyle, width: style.outlineWidth };
+      // Kolor tokenu fokusu przeliczony przez przeglądarkę na rgb(...) (token sam bywa zapisany jako var()).
+      const probe = document.createElement("span");
+      probe.style.color = "var(--color-border-focus)";
+      document.body.append(probe);
+      const focusColor = getComputedStyle(probe).color;
+      probe.remove();
+      return {
+        style: style.outlineStyle,
+        width: style.outlineWidth,
+        color: style.outlineColor,
+        focusColor,
+      };
     });
     expect(outline.style).not.toBe("none");
     expect(outline.width).toBe("2px");
+    expect(outline.focusColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(outline.color).toBe(outline.focusColor);
   });
 
   for (const theme of ["dark", "light"]) {
