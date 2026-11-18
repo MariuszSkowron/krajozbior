@@ -71,7 +71,11 @@ export async function addToWantToSee(
       return { status: "not_found" } as const;
     }
 
-    await deps.repository.addPlace(tx, placeId);
+    // The insert tests visibility itself: a place that stopped being public after
+    // the check above is `not_found`, not a refusal of the row policy.
+    if (!(await deps.repository.addPlace(tx, placeId))) {
+      return { status: "not_found" } as const;
+    }
 
     return { status: "ok", value: { wanted: true } } as const;
   });

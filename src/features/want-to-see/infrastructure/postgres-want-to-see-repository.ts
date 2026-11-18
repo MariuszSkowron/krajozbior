@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { WantToSeePlace, WantToSeeRepository } from "../application/want-to-see-types";
+import { MAX_WANT_TO_SEE_LISTED } from "../domain/limits";
 
 // Raw SQL on the transaction of the use case (user context). No statement takes
 // a user id: the owner of a row is app_current_user_id(), and the row policies of
@@ -41,7 +42,9 @@ export const postgresWantToSeeRepository: WantToSeeRepository = {
          from public.want_to_see_places w
          join public.places p on p.id = w.place_id
         where w.user_id = app_current_user_id() and ${publicPlace("p.id")}
-        order by w.saved_at desc, p.id`,
+        order by w.saved_at desc, p.id
+        limit ?`,
+      [MAX_WANT_TO_SEE_LISTED],
     );
 
     return rows.map((row): WantToSeePlace => ({
@@ -63,12 +66,22 @@ export const postgresWantToSeeRepository: WantToSeeRepository = {
   },
 
   async addPlace(tx, placeId) {
-    await tx.em.execute(
-      `insert into public.want_to_see_places (user_id, place_id)
-       values (app_current_user_id(), ?)
-       on conflict (user_id, place_id) do nothing`,
+    // One statement: the visibility test and the insert see the same snapshot,
+    // so a place withdrawn in between is answered with `false`, not with a
+    // refusal of the row policy. A repeated add conflicts and changes nothing.
+    const rows = await tx.em.execute<{ visible: number }[]>(
+      `with target as (
+         select p.id from public.places p where p.id = ?::uuid and ${publicPlace("p.id")}
+       ), added as (
+         insert into public.want_to_see_places (user_id, place_id)
+         select app_current_user_id(), id from target
+         on conflict (user_id, place_id) do nothing
+       )
+       select count(*)::int as visible from target`,
       [placeId],
     );
+
+    return (rows[0]?.visible ?? 0) > 0;
   },
 
   async removePlace(tx, placeId) {

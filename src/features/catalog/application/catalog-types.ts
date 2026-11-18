@@ -105,7 +105,7 @@ export interface CatalogRepository {
     status: CollectionStatus,
   ): Promise<CollectionRow | null>;
   deleteCollection(tx: TransactionContext, id: string): Promise<boolean>;
-  /** Collections of one organization, newest change first (curator list). */
+  /** Collections of one organization, newest change first, at most MAX_COLLECTIONS_PER_LIST (curator list). */
   listOrganizationCollections(
     tx: TransactionContext,
     organizationId: string,
@@ -189,6 +189,7 @@ export type CuratorOutcome<T> =
         | "stale_version"
         | "was_published"
         | "already_in_collection"
+        | "too_many_places"
         | "last_place_of_published_collection";
     }>
   | Readonly<{

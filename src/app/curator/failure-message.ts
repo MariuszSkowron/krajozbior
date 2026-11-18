@@ -75,6 +75,8 @@ export function describeFailure(status: number, body: Body, subject: Subject): F
           );
         case "already_in_collection":
           return failure("To miejsce jest już w kolekcji.");
+        case "too_many_places":
+          return failure("Kolekcja ma już 500 miejsc, to najwięcej. Usuń któreś, by dodać nowe.");
         default:
           return failure(FALLBACK);
       }

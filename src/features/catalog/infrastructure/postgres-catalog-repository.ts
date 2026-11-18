@@ -13,6 +13,7 @@ import type {
   PublishedPlace,
 } from "../application/catalog-types";
 import type { CollectionStatus } from "../domain/collection";
+import { MAX_COLLECTIONS_PER_LIST } from "../domain/limits";
 
 // Raw SQL on the transaction of the use case (user or guest context), so the
 // row policies decide what each statement sees or changes. No statement names
@@ -108,8 +109,9 @@ export const postgresCatalogRepository: CatalogRepository = {
               to_char(c.updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "updatedAt"
          from public.collections c
         where c.organization_id = ? and app_org_permission(c.organization_id) = 'full_edit'
-        order by c.updated_at desc, c.id`,
-      [organizationId],
+        order by c.updated_at desc, c.id
+        limit ?`,
+      [organizationId, MAX_COLLECTIONS_PER_LIST],
     );
 
     return rows.map((row) => ({ ...row, updatedAt: new Date(row.updatedAt) }));

@@ -32,7 +32,7 @@ export type CollectionProgressView = Readonly<{ saved: boolean; progress: Progre
 // the use case opened, so the row policies decide what it sees or changes; no
 // method takes a user id (the owner is app_current_user_id() in SQL).
 export interface AlbumRepository {
-  /** Saved collections that are published now (a withdrawn one is not listed), newest save first. */
+  /** Saved collections that are published now (a withdrawn one is not listed), newest save first, at most MAX_COLLECTIONS_PER_LIST. */
   listSavedCollections(tx: TransactionContext): Promise<readonly SavedCollectionRow[]>;
   /** The places of the saved, published collections, in collection order. */
   listSavedCollectionPlaces(tx: TransactionContext): Promise<readonly CollectionPlaceLink[]>;
@@ -40,8 +40,11 @@ export interface AlbumRepository {
   listVisitedPlaceIds(tx: TransactionContext): Promise<readonly string[]>;
   /** True when the collection is published by an approved organization (what a guest sees). */
   isPubliclyVisibleCollection(tx: TransactionContext, collectionId: string): Promise<boolean>;
-  /** Saves the collection for the actor; a repeated save changes nothing. */
-  saveCollection(tx: TransactionContext, collectionId: string): Promise<void>;
+  /**
+   * Saves the collection for the actor if it is public in this very statement; a
+   * repeated save changes nothing. False means the collection is not public (any more).
+   */
+  saveCollection(tx: TransactionContext, collectionId: string): Promise<boolean>;
   /** Removes the actor's save, if any; the row of anybody else is never matched. */
   unsaveCollection(tx: TransactionContext, collectionId: string): Promise<void>;
   isCollectionSaved(tx: TransactionContext, collectionId: string): Promise<boolean>;

@@ -27,7 +27,7 @@ function makeDeps(over: Partial<AlbumRepository> = {}, allowed = true) {
     listSavedCollectionPlaces: async () => [],
     listVisitedPlaceIds: async () => [],
     isPubliclyVisibleCollection: async () => true,
-    saveCollection: vi.fn(async () => undefined),
+    saveCollection: vi.fn(async () => true),
     unsaveCollection: vi.fn(async () => undefined),
     isCollectionSaved: async () => false,
     listPlaceIdsOfCollection: async () => [],
@@ -53,6 +53,12 @@ describe("saveCollection", () => {
     });
     expect(repository.saveCollection).toHaveBeenCalledWith(expect.anything(), COLLECTION);
     expect(withUserContext).toHaveBeenCalledWith(actor, expect.any(Function));
+  });
+
+  it("answers not_found when the collection is withdrawn between the check and the save", async () => {
+    const { deps } = makeDeps({ saveCollection: vi.fn(async () => false) });
+
+    expect(await saveCollection(actor, COLLECTION, deps)).toEqual({ status: "not_found" });
   });
 
   it("answers unauthenticated for a guest before touching the limiter or the database", async () => {

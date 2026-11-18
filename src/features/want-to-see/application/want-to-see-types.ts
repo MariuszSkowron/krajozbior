@@ -17,12 +17,15 @@ export type WantToSeePlace = Readonly<{
 // the use case opened, so the row policies decide what it sees or changes; no
 // method takes a user id (the owner is app_current_user_id() in SQL).
 export interface WantToSeeRepository {
-  /** Places of the list that are publicly visible now (a withdrawn one is not listed), newest save first. */
+  /** Places of the list that are publicly visible now (a withdrawn one is not listed), newest save first, at most MAX_WANT_TO_SEE_LISTED. */
   listPlaces(tx: TransactionContext): Promise<readonly WantToSeePlace[]>;
   /** True when the place is in a collection published by an approved organization (what a guest sees). */
   isPubliclyVisiblePlace(tx: TransactionContext, placeId: string): Promise<boolean>;
-  /** Adds the place for the actor; a repeated add changes nothing. */
-  addPlace(tx: TransactionContext, placeId: string): Promise<void>;
+  /**
+   * Adds the place for the actor if it is public in this very statement; a
+   * repeated add changes nothing. False means the place is not public (any more).
+   */
+  addPlace(tx: TransactionContext, placeId: string): Promise<boolean>;
   /** Removes the actor's own entry, if any; the row of anybody else is never matched. */
   removePlace(tx: TransactionContext, placeId: string): Promise<void>;
   isPlaceWanted(tx: TransactionContext, placeId: string): Promise<boolean>;
