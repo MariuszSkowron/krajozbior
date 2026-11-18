@@ -16,10 +16,13 @@ Działa pierwsza pełna ścieżka: kurator tworzy i publikuje kolekcję, gość 
 - Potwierdzanie wizyty na miejscu lokalizacją, z obsługą „poza promieniem” i „zbyt niedokładnie”, oraz test E2E całej ścieżki (PR #17).
 - Lista „Chcę zobaczyć” (PR #18).
 - Tokeny wyglądu, kroje i przełącznik motywu nocny/jasny (PR #25).
+- Drobne poprawki bezpieczeństwa: limity długości list i liczby zapisów oraz bezpieczniejszy zapis do albumu, wykonywany jednym poleceniem bazy z warunkiem (PR #27).
+- Nowa nawigacja „nocnego albumu” (dolny pasek na telefonie, menu boczne na komputerze), menu kuratora i wspólne elementy: karta kolekcji, odznaka statusu i pasek postępu (PR #28, krok E3-2a).
+- Adres (slug) kolekcji powstaje z jej aktualnego tytułu przy pierwszej publikacji i potem się nie zmienia, więc udostępnione linki działają dalej (PR #29).
 
 ## W toku
 
-- Pozostałe dwa kroki wyglądu „nocny album”: nawigacja i wspólne elementy, potem przeniesienie wszystkich ekranów ścieżki z testem dostępności.
+- Ostatni krok wyglądu „nocny album”: przeniesienie wszystkich ekranów ścieżki na nowy wygląd z testem dostępności (E3-2b).
 - Ta dokumentacja dla oceniających.
 - Wizyta z przeszłości (zaznaczenie miejsc odwiedzonych przed założeniem konta, także wielu naraz) — po wyglądzie i dokumentacji.
 
