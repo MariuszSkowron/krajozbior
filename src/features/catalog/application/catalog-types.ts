@@ -104,6 +104,18 @@ export interface CatalogRepository {
     version: number,
     status: CollectionStatus,
   ): Promise<CollectionRow | null>;
+  /**
+   * First publication of a never published collection (D-27): sets the status
+   * and the address in one statement. `null` as for `updateCollection`;
+   * `"slug_taken"` when the address is taken (the caller draws another suffix).
+   * The transaction stays usable after `"slug_taken"`.
+   */
+  publishFirstTime(
+    tx: TransactionContext,
+    id: string,
+    version: number,
+    slug: string,
+  ): Promise<CollectionRow | null | "slug_taken">;
   deleteCollection(tx: TransactionContext, id: string): Promise<boolean>;
   /** Collections of one organization, newest change first, at most MAX_COLLECTIONS_PER_LIST (curator list). */
   listOrganizationCollections(

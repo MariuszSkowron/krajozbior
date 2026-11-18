@@ -1,6 +1,8 @@
 // Collection address (D-T8): the title in ASCII plus a random suffix, made on
 // the server, never accepted from a curator, so a conflict never tells who
-// owns a draft of that name.
+// owns a draft of that name. A draft gets a provisional address at creation; the
+// final one is made from the title at the first publication and never changes
+// again (D-27, docs/data-isolation.md).
 
 export const COLLECTION_SLUG_SUFFIX_LENGTH = 6;
 export const COLLECTION_SLUG_BASE_MAX_LENGTH = 60;
