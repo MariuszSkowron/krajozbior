@@ -58,7 +58,7 @@ test.describe("dolny pasek na telefonie", () => {
       "Start",
       "Moje kolekcje",
       "Chcę zobaczyć",
-      "Konto",
+      "Profil",
     ]);
 
     // Pasek jest przypięty do dolnej krawędzi i ma półprzezroczyste tło z rozmyciem.
@@ -79,7 +79,7 @@ test.describe("dolny pasek na telefonie", () => {
     expect(bar.height).toBeGreaterThanOrEqual(50);
 
     for (const [path, name] of [
-      ["/my", "Konto"],
+      ["/my", "Profil"],
       ["/my/collections", "Moje kolekcje"],
       ["/my/want-to-see", "Chcę zobaczyć"],
     ] as const) {

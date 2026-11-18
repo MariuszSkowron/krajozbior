@@ -57,6 +57,9 @@
 /tests/features/want-to-see/       @MariuszSkowron
 /e2e/want-to-see.spec.ts           @MariuszSkowron
 
+# Ekran Profil i wylogowanie (E9-1): test sprawdza, że po wylogowaniu ekrany prywatne odmawiają gościowi
+/e2e/profile.spec.ts               @MariuszSkowron
+
 # Panel kuratora (ekrany zapisujące dane CUR przez trasy API), lista organizacji
 # konta w żądaniu i test dwóch kuratorów (kurator B nie widzi szkiców A)
 /src/app/curator/                  @MariuszSkowron

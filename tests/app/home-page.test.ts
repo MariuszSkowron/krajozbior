@@ -109,7 +109,7 @@ describe("home page of a guest", () => {
     expect(html).toContain("Mosty i zamki");
     expect(html).toContain("3 miejsca · Gmina A");
     expect(html).toContain('href="/collections/mosty-i-zamki"');
-    expect(html).not.toContain("Moje konto");
+    expect(html).not.toContain("Profil");
     expect(html).not.toContain("Odkryte miejsca");
     // E12-2: the search field and the link to all collections.
     expect(html).toMatch(/<form (?=[^>]*action="\/search")(?=[^>]*role="search")/);
@@ -191,7 +191,7 @@ describe("home page of a signed-in explorer", () => {
     const html = await render();
 
     expect(html).toMatch(/<h1[^>]*>Dzień dobry<\/h1>/);
-    expect(html).toMatch(/<a [^>]*href="\/my"[^>]*>Moje konto<\/a>/);
+    expect(html).toMatch(/<a [^>]*href="\/my"[^>]*>Profil<\/a>/);
     expect(html).not.toContain("Zaloguj się");
     expect(html).toMatch(/<dt>Odkryte miejsca<\/dt><dd>7<\/dd>/);
     expect(html).toMatch(/<dt>Regiony<\/dt><dd>2<\/dd>/);

@@ -119,7 +119,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
             <p className={styles.lead}>Oto Twój album i kolekcje, które warto odkryć.</p>
             <div className={styles.actions}>
               <Link className="button button--outline" href="/my">
-                Moje konto
+                Profil
               </Link>
             </div>
           </>
