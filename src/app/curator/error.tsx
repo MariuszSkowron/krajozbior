@@ -9,7 +9,7 @@ export default function CuratorError({ reset }: Readonly<{ error: Error; reset: 
       <h1>Nie udało się wczytać panelu</h1>
       <p>Spróbuj jeszcze raz. Jeśli problem wraca, wróć do tego później.</p>
       <div className={styles.actions}>
-        <button type="button" className={styles.primary} onClick={reset}>
+        <button type="button" className="button button--primary" onClick={reset}>
           Spróbuj jeszcze raz
         </button>
       </div>

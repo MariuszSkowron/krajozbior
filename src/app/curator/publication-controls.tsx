@@ -102,7 +102,7 @@ export function PublicationControls({ collection }: PublicationControlsProps) {
         {collection.status === "draft" ? (
           <button
             type="button"
-            className={styles.primary}
+            className={`button button--primary ${styles.pending}`}
             aria-disabled={pending}
             onClick={() => change("publish", "Kolekcja jest opublikowana.")}
           >
@@ -111,7 +111,7 @@ export function PublicationControls({ collection }: PublicationControlsProps) {
         ) : (
           <button
             type="button"
-            className={styles.secondary}
+            className={`button button--outline ${styles.pending}`}
             aria-disabled={pending}
             onClick={() => change("unpublish", "Publikacja wycofana. Kolekcja wróciła do szkiców.")}
           >
@@ -121,7 +121,7 @@ export function PublicationControls({ collection }: PublicationControlsProps) {
         {canDelete ? (
           <button
             type="button"
-            className={styles.danger}
+            className="button button--danger"
             onClick={() => dialogRef.current?.showModal()}
           >
             Usuń szkic
@@ -138,7 +138,7 @@ export function PublicationControls({ collection }: PublicationControlsProps) {
           <div className={styles.actions}>
             <button
               type="button"
-              className={styles.danger}
+              className={`button button--danger ${styles.pending}`}
               aria-disabled={pending}
               onClick={remove}
             >
@@ -146,7 +146,7 @@ export function PublicationControls({ collection }: PublicationControlsProps) {
             </button>
             <button
               type="button"
-              className={styles.secondary}
+              className="button button--outline"
               onClick={() => dialogRef.current?.close()}
             >
               Anuluj

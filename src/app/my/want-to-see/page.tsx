@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getRequestActor, logReadFailure, loginHref } from "@/app/request-actor";
+import { StatusBadge } from "@/design-system/components/status-badge";
 import { listWantToSee } from "@/features/want-to-see/application/want-to-see";
 import { formatSavedDate } from "@/features/want-to-see/domain/saved-date";
 import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-see-deps";
@@ -48,7 +49,7 @@ export default async function WantToSeePage() {
         <section className={styles.empty} aria-labelledby="pusto">
           <h2 id="pusto">Nie masz jeszcze zapisanych miejsc</h2>
           <p>Otwórz miejsce i wybierz „Chcę zobaczyć”, a pojawi się tutaj.</p>
-          <Link className={styles.action} href="/">
+          <Link className="button button--primary" href="/">
             Przejdź do katalogu
           </Link>
         </section>
@@ -63,9 +64,11 @@ export default async function WantToSeePage() {
                   {place.address === "" ? null : (
                     <span className={catalog.itemMeta}>{place.address}</span>
                   )}
-                  <span className={catalog.itemMeta}>
-                    Zapisano: {formatSavedDate(place.savedAt)}
-                    {place.visited ? " · Odwiedzone" : ""}
+                  <span className={catalog.itemFoot}>
+                    <span className={catalog.itemMetaMono}>
+                      Zapisano: {formatSavedDate(place.savedAt)}
+                    </span>
+                    {place.visited ? <StatusBadge tone="success">Odwiedzone</StatusBadge> : null}
                   </span>
                 </Link>
               </li>

@@ -17,6 +17,10 @@ const BRIDGE = { latitude: 54.0928, longitude: 18.7919 };
 const FAR = { latitude: 54.1468, longitude: 18.7919 };
 
 async function expectNoAccessibilityViolations(page: Page) {
+  // Wejście sekcji (E3-2b) przygasza treść; axe liczy kontrast dopiero po końcu animacji.
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+  );
   await page.addScriptTag({ content: axe.source });
 
   const violations = await page.evaluate(async () => {

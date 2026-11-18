@@ -207,7 +207,7 @@ export function VisitConfirmation({ placeId, initialWanted }: Props) {
     <div className={styles.box}>
       <button
         type="button"
-        className={styles.action}
+        className={`button button--primary ${styles.action}`}
         disabled={busy}
         aria-busy={busy}
         onClick={() => void (lost ? retry() : check())}
@@ -221,7 +221,13 @@ export function VisitConfirmation({ placeId, initialWanted }: Props) {
         </p>
       ) : null}
       <p
-        className={styles.feedback}
+        className={`${styles.feedback} ${
+          state.kind === "failed" || state.kind === "problem"
+            ? styles.feedbackDanger
+            : state.kind === "out_of_range" || state.kind === "inaccurate"
+              ? styles.feedbackWarning
+              : ""
+        }`}
         role={state.kind === "failed" || state.kind === "problem" ? "alert" : "status"}
       >
         {feedbackText(state)}

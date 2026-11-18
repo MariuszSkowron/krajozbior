@@ -175,7 +175,7 @@ function CollectionFields({
       <div className={styles.actions}>
         <button
           type="submit"
-          className={styles.primary}
+          className={`button button--primary ${styles.pending}`}
           aria-disabled={pending}
           onClick={(event) => {
             if (pending) {

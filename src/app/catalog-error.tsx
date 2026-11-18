@@ -12,7 +12,11 @@ export function CatalogError({ retry }: { retry: () => void }) {
       <p role="alert" className={styles.status}>
         Coś poszło nie tak po naszej stronie. Spróbuj ponownie za chwilę.
       </p>
-      <button type="button" className={styles.retry} onClick={() => retry()}>
+      <button
+        type="button"
+        className={`button button--outline ${styles.retry}`}
+        onClick={() => retry()}
+      >
         Spróbuj ponownie
       </button>
     </div>

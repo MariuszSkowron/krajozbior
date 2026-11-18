@@ -147,49 +147,14 @@
   gap: var(--space-sm);
 }
 
-/* Przyciski i linki-przyciski: natywne elementy, wygląd z tokenów. */
-.primary,
-.secondary,
-.danger,
-.primaryLink {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  min-height: var(--size-touch-min);
-  padding-inline: var(--space-lg);
-  font: inherit;
-  font-weight: var(--font-weight-strong);
-  text-decoration: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-}
-
-.primary,
-.primaryLink {
-  color: var(--color-text-on-accent);
-  background: var(--color-brand-accent);
-}
-
-.secondary {
-  color: var(--color-text-accent);
-  background: var(--color-surface-card);
-  border-color: var(--color-border-default);
-}
-
-.danger {
-  color: var(--color-feedback-danger);
-  background: var(--color-surface-card);
-  border-color: var(--color-feedback-danger);
-}
-
-.primary[aria-disabled="true"],
-.secondary[aria-disabled="true"],
-.danger[aria-disabled="true"] {
+/*
+ * Przyciski to klasy motywu (`button`, `button--primary`, `button--outline`, `button--danger`,
+ * theme.css). Przycisk w toku pracy (`aria-disabled`) ma dodatkowo przerywany obrys, żeby stan
+ * nie był tylko przygaszeniem.
+ */
+.pending[aria-disabled="true"] {
   cursor: progress;
   border-style: dashed;
-  opacity: 0.7;
 }
 
 .form {
@@ -386,9 +351,46 @@
   flex: 1 1 18rem;
 }
 
+/* Odznaka stanu poza kartą (nagłówek ekranu) dostaje podkład w kolorze karty: reguła tła. */
+.onCard {
+  display: inline-flex;
+  background: var(--color-surface-card);
+  border-radius: var(--radius-pill);
+}
+
+/*
+ * Tabela kolekcji stoi na karcie: odznaki stanu (StatusBadge) są dozwolone tylko na `card`
+ * (reguła tła). Wiersze nie zmieniają tła po najechaniu, bo zawierają odznaki i linki akcentem.
+ */
+.tableCard {
+  overflow-x: auto;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
+}
+
+.table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.table th {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
+}
+
+.table tbody th {
+  font-family: var(--font-family-base);
+  font-size: inherit;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .table th,
@@ -405,30 +407,6 @@
 
 .table .title {
   font-weight: var(--font-weight-strong);
-}
-
-/* Stan kolekcji: zawsze tekst; kształt i obrys (pełny albo przerywany) wspierają, nie zastępują. */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  padding: 0 var(--space-sm);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-strong);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-pill);
-}
-
-.badgePublished {
-  color: var(--color-text-on-accent);
-  background: var(--color-brand-accent);
-  border-color: var(--color-brand-accent);
-}
-
-.badgeDraft {
-  color: var(--color-text-primary);
-  background: var(--color-surface-card);
-  border-style: dashed;
 }
 
 .dialog {

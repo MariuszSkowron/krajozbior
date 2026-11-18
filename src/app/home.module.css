@@ -1,12 +1,23 @@
+/*
+ * Strona startowa i „Moje konto” (E3-2b): tylko wygląd. Przyciski to klasy motywu
+ * (`button button--primary`, theme.css).
+ */
 .page {
   display: grid;
   gap: var(--space-xl);
   padding-block: var(--space-lg) var(--space-xl);
 }
 
+@media (min-width: 48rem) {
+  .page {
+    padding-block: var(--space-xl);
+  }
+}
+
 .hero {
   display: grid;
   gap: var(--space-md);
+  justify-items: start;
 }
 
 .hero h1,
@@ -23,19 +34,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-md);
-}
-
-.button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--size-touch-min);
-  padding-inline: var(--space-lg);
-  background: var(--color-brand-accent);
-  color: var(--color-text-on-accent);
-  border-radius: var(--radius-pill);
-  font-weight: var(--font-weight-strong);
-  text-decoration: none;
 }
 
 .status {

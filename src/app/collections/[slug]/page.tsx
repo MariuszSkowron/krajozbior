@@ -84,14 +84,15 @@ export default async function CollectionPage({ params }: { params: Params }) {
   return (
     <div className={`content-width ${styles.page}`}>
       <header className={styles.header}>
-        <h1>{collection.title}</h1>
+        <h1 className={styles.collectionTitle}>{collection.title}</h1>
         <p className={styles.meta}>
-          {REGION_LABELS[collection.region]} · Prowadzi: {collection.organization.name}
+          <span className={styles.itemMetaMono}>{REGION_LABELS[collection.region]}</span> ·
+          Prowadzi: {collection.organization.name}
         </p>
         {collection.summary === "" ? null : <p className={styles.summary}>{collection.summary}</p>}
         {album.kind === "guest" ? (
-          <div>
-            <Link className={albumStyles.action} href={album.loginHref}>
+          <div className={albumStyles.guestAction}>
+            <Link className="button button--primary" href={album.loginHref}>
               Zapisz kolekcję
             </Link>
             <p className={albumStyles.feedback}>
@@ -126,7 +127,7 @@ export default async function CollectionPage({ params }: { params: Params }) {
               <li key={place.id} className={styles.item}>
                 <Link className={styles.itemLink} href={`/places/${place.id}`}>
                   <span className={styles.itemTitle}>
-                    {place.position}. {place.name}
+                    <span className={styles.itemNumber}>{place.position}.</span> {place.name}
                   </span>
                   {place.address === "" ? null : (
                     <span className={styles.itemMeta}>{place.address}</span>

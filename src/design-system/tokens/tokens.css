@@ -126,6 +126,12 @@
   --size-touch-min: 44px;
   /* Główna akcja ekranu terenowego (np. Zapisz): większa niż minimum */
   --size-touch-primary: 48px;
+  /* Minimalna wysokość wiersza listy z linkiem (miejsca, „Chcę zobaczyć”) */
+  --size-row-min: 56px;
+  /* Okrągły znacznik stanu (np. potwierdzona wizyta); nie jest celem dotykowym */
+  --size-mark: 44px;
+  /* Grubość krawędzi w kolorze stanu (komunikat ostrzeżenia lub błędu) */
+  --border-width-accent: 4px;
 
   /*
    * Kroje ładowane z plików w repozytorium (next/font/local; w Storybooku @font-face z fonts.css),
@@ -147,9 +153,12 @@
   --font-size-2xl: 2.125rem;
   --font-size-3xl: 2.5rem;
   --font-size-4xl: 3.25rem;
+  /* Tytuł kolekcji na komputerze */
+  --font-size-5xl: 3.5rem;
   --line-height-body: 1.5;
   --line-height-heading: 1.05;
   --font-tracking-label: 0.14em;
+  --font-tracking-display: -0.015em;
 
   /* Fokus: kolor wskaźnika to --color-border-focus */
   --focus-ring-width: 2px;
@@ -157,6 +166,10 @@
 
   /* Ruch */
   --motion-duration-short: 150ms;
+  /* Uniesienie karty */
+  --motion-duration-medium: 350ms;
+  /* Wejście sekcji i potwierdzenie wizyty */
+  --motion-duration-enter: 800ms;
   --motion-easing-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -170,5 +183,7 @@
 @media (prefers-reduced-motion: reduce) {
   :root {
     --motion-duration-short: 0ms;
+    --motion-duration-medium: 0ms;
+    --motion-duration-enter: 0ms;
   }
 }

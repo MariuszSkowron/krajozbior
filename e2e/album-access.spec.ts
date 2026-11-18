@@ -13,6 +13,10 @@ const EXPLORER_A = "user@demo.krajozbior.local";
 const EXPLORER_B = "user2@demo.krajozbior.local";
 
 async function expectNoAccessibilityViolations(page: Page) {
+  // Wejście sekcji (E3-2b) przygasza treść; axe liczy kontrast dopiero po końcu animacji.
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+  );
   await page.addScriptTag({ content: axe.source });
 
   const violations = await page.evaluate(async () => {

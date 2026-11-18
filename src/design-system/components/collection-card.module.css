@@ -13,13 +13,23 @@
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
+  transition:
+    transform var(--motion-duration-medium) var(--motion-easing-standard),
+    border-color var(--motion-duration-medium) var(--motion-easing-standard),
+    box-shadow var(--motion-duration-medium) var(--motion-easing-standard);
 }
 
+/* Uniesienie o 3 px i jaśniejszy obrys tylko tam, gdzie jest najechanie myszą. */
 @media (hover: hover) {
   .card:hover {
     border-color: var(--color-border-strong);
     box-shadow: var(--shadow-card-hover);
+    transform: translateY(-3px);
   }
+}
+
+.card:active {
+  transform: scale(0.97);
 }
 
 /* Okładka zastępcza: gradient z dwóch kolorów zastępczych obrazu. */

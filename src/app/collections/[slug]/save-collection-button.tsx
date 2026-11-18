@@ -49,10 +49,10 @@ export function SaveCollectionButton({ collectionId, initialSaved }: Props) {
   }
 
   return (
-    <div>
+    <div className={styles.guestAction}>
       <button
         type="button"
-        className={saved ? `${styles.action} ${styles.secondary}` : styles.action}
+        className={saved ? "button button--outline" : "button button--primary"}
         disabled={pending}
         onClick={() => void toggle()}
       >

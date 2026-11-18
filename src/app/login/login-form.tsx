@@ -141,7 +141,7 @@ export function LoginForm({ returnTo, errorMessage, fieldsMarked = false }: Logi
       </div>
       <button
         type="submit"
-        className={styles.submit}
+        className={`button button--primary ${styles.submit}`}
         aria-disabled={pending}
         onClick={(event) => {
           // aria-disabled keeps the button focusable, so the click is stopped here.

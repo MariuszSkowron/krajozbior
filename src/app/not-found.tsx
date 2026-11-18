@@ -11,7 +11,9 @@ export default function NotFound() {
       <h1>Nie znaleziono</h1>
       <p>Tej strony nie ma albo nie jest dostępna.</p>
       <p>
-        <Link href="/">Wróć na stronę główną</Link>
+        <Link className="button button--outline" href="/">
+          Wróć na stronę główną
+        </Link>
       </p>
     </div>
   );

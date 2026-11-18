@@ -44,11 +44,11 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         </p>
         <div className={styles.actions}>
           {actor === null ? (
-            <Link className={styles.button} href="/login">
+            <Link className="button button--primary" href="/login">
               Zaloguj się
             </Link>
           ) : (
-            <Link className={styles.button} href="/my">
+            <Link className="button button--primary" href="/my">
               Moje konto
             </Link>
           )}
