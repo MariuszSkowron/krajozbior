@@ -144,6 +144,7 @@ jobs:
       KRAJOZBIOR_AUTH_DB_PASSWORD: ci-e2e-only-auth-password
       KRAJOZBIOR_OPS_DB_PASSWORD: ci-e2e-only-ops-password
       DATABASE_MIGRATION_URL: postgres://krajozbior_owner:ci-e2e-only-owner-password@localhost:5432/krajozbior_e2e
+      DATABASE_OPS_URL: postgres://krajozbior_ops:ci-e2e-only-ops-password@localhost:5432/krajozbior_e2e
       DATABASE_URL: postgres://krajozbior_app:ci-e2e-only-app-password@localhost:5432/krajozbior_e2e
       DATABASE_AUTH_URL: postgres://krajozbior_auth:ci-e2e-only-auth-password@localhost:5432/krajozbior_e2e
       BETTER_AUTH_SECRET: ci-e2e-only-session-secret-0123456789abcdef
