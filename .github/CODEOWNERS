@@ -44,6 +44,13 @@
 /src/features/catalog/             @MariuszSkowron
 /tests/features/catalog/           @MariuszSkowron
 
+# Album odkrywcy: zapisane kolekcje, wizyty (dane PRIV; wizytę na miejscu tworzy funkcja bazy)
+/src/features/album/               @MariuszSkowron
+/tests/features/album/             @MariuszSkowron
+/src/features/visits/              @MariuszSkowron
+/tests/features/visits/            @MariuszSkowron
+/tests/support/album-fixtures.ts   @MariuszSkowron
+
 # Panel kuratora (ekrany zapisujące dane CUR przez trasy API), lista organizacji
 # konta w żądaniu i test dwóch kuratorów (kurator B nie widzi szkiców A)
 /src/app/curator/                  @MariuszSkowron

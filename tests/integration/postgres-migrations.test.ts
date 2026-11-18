@@ -157,6 +157,53 @@ describe("PostgreSQL migrations and transactions", () => {
     }
   });
 
+  it("reverts the album migration (no CASCADE needed) and applies it again", async () => {
+    const owner = await MikroORM.init(createOrmConfig(db.urls.krajozbior_owner));
+    const objects = () =>
+      orm.em.execute<{
+        saved: string | null;
+        want: string | null;
+        visits: string | null;
+        fn: string | null;
+        collections: string | null;
+        ownerPolicies: string;
+      }>(
+        `select to_regclass('public.saved_collections')::text as saved,
+                to_regclass('public.want_to_see_places')::text as want,
+                to_regclass('public.visits')::text as visits,
+                to_regprocedure('public.record_on_site_visit(uuid, double precision, double precision, double precision, uuid)')::text as fn,
+                to_regclass('public.collections')::text as collections,
+                (select count(*) from pg_policies
+                  where tablename in ('collections', 'collection_places', 'places')
+                    and 'krajozbior_owner' = any (roles))::text as "ownerPolicies"`,
+        [],
+        "get",
+      );
+
+    try {
+      await owner.migrator.down({ to: "Migration20261117140000_catalog" });
+      expect(await objects()).toEqual({
+        saved: null,
+        want: null,
+        visits: null,
+        fn: null,
+        collections: "collections",
+        ownerPolicies: "0",
+      });
+
+      await owner.migrator.up();
+      expect(await objects()).toMatchObject({
+        saved: "saved_collections",
+        want: "want_to_see_places",
+        visits: "visits",
+        fn: "record_on_site_visit(uuid,double precision,double precision,double precision,uuid)",
+        ownerPolicies: "3",
+      });
+    } finally {
+      await owner.close(true);
+    }
+  });
+
   it("reverts everything and applies it again", async () => {
     const owner = await MikroORM.init(createOrmConfig(db.urls.krajozbior_owner));
 
