@@ -1,11 +1,21 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ getActor: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  getActor: vi.fn(),
+  getHomeAlbum: vi.fn(),
+  listRecent: vi.fn(),
+}));
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("@/features/identity/infrastructure", () => ({
   getIdentityProvider: () => ({ getActor: mocks.getActor }),
+}));
+vi.mock("@/features/album/infrastructure/album-deps", () => ({ getAlbumDeps: () => ({}) }));
+vi.mock("@/features/catalog/infrastructure/catalog-deps", () => ({ getCatalogDeps: () => ({}) }));
+vi.mock("@/features/album/application/home-album", () => ({ getHomeAlbum: mocks.getHomeAlbum }));
+vi.mock("@/features/catalog/application/public-catalog", () => ({
+  listRecentlyPublishedCollections: mocks.listRecent,
 }));
 
 const { default: HomePage } = await import("@/app/page");
@@ -18,27 +28,90 @@ async function render(search: Search = {}): Promise<string> {
   return renderToStaticMarkup(await HomePage({ searchParams: Promise.resolve(search) }));
 }
 
+const discover = [
+  {
+    id: "c1",
+    slug: "mosty-i-zamki",
+    title: "Mosty i zamki",
+    region: "pomorskie",
+    organization: { name: "Gmina A" },
+    placeCount: 3,
+  },
+];
+
+const album = {
+  summary: { discoveredPlaces: 7, regions: 2, savedCollections: 1 },
+  favorites: [
+    {
+      id: "c2",
+      slug: "wiezyce",
+      title: "Wieżyce",
+      region: "lodzkie",
+      progress: { kind: "progress", visited: 1, total: 4 },
+    },
+    ...Array.from({ length: 5 }, (_, i) => ({
+      id: `f${i}`,
+      slug: `f-${i}`,
+      title: `Ulubiona ${i}`,
+      region: "lodzkie",
+      progress: { kind: "empty" },
+    })),
+  ],
+  recentVisits: [
+    {
+      id: "v1",
+      kind: "past",
+      visitedAt: new Date("2026-11-17T12:00:00Z"),
+      visitedOn: "2019-03-01",
+      precision: "month",
+      place: { id: "p1", name: "Wieża ciśnień", address: "Tczew" },
+    },
+    {
+      id: "v2",
+      kind: "on_site",
+      visitedAt: new Date("2026-11-16T12:00:00Z"),
+      visitedOn: null,
+      precision: null,
+      place: null,
+    },
+  ],
+};
+
 beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   mocks.getActor.mockReset().mockResolvedValue(null);
+  mocks.listRecent.mockReset().mockResolvedValue(discover);
+  mocks.getHomeAlbum.mockReset().mockResolvedValue({ status: "ok", value: album });
 });
 
-describe("start page", () => {
-  it("offers a guest the login link", async () => {
+describe("home page of a guest", () => {
+  it("shows the introduction, the login link and the collections to discover", async () => {
     const html = await render();
 
-    expect(html).toMatch(/<h1[^>]*>Witaj w aplikacji<\/h1>/);
+    expect(html).toMatch(/<h1[^>]*>Odkrywaj miejsca/);
     expect(html).toMatch(/<a [^>]*href="\/login"[^>]*>Zaloguj się<\/a>/);
+    expect(html).toContain('id="do-odkrycia"');
+    expect(html).toContain("Mosty i zamki");
+    expect(html).toContain("3 miejsca · Gmina A");
+    expect(html).toContain('href="/collections/mosty-i-zamki"');
     expect(html).not.toContain("Moje konto");
+    expect(html).not.toContain("Odkryte miejsca");
+    expect(html).not.toContain('href="/search"');
+    expect(html).not.toContain('type="search"');
+    expect(mocks.getHomeAlbum).not.toHaveBeenCalled();
   });
 
-  it("offers a signed-in user the account page", async () => {
-    mocks.getActor.mockResolvedValue({ id, role: "user" });
+  it("tells that there are no collections yet, and shows a message when the read fails", async () => {
+    mocks.listRecent.mockResolvedValue([]);
+    expect(await render()).toContain("Nie ma jeszcze opublikowanych kolekcji");
 
+    mocks.listRecent.mockRejectedValue(new Error("db down: secret-host"));
     const html = await render();
 
-    expect(html).toMatch(/<a [^>]*href="\/my"[^>]*>Moje konto<\/a>/);
-    expect(html).not.toContain("Zaloguj się");
+    expect(html).toMatch(/role="alert"[^>]*>Nie udało się wczytać kolekcji\. Odśwież stronę\./);
+    expect(html).toContain("Zaloguj się");
+    expect(console.error).toHaveBeenCalledWith("Home collections read failed:", "Error");
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
   });
 
   it("shows the guest version and logs only the error class when the session lookup fails", async () => {
@@ -57,5 +130,64 @@ describe("start page", () => {
       /role="status"[^>]*>Nie udało się wylogować\./,
     );
     expect(await render()).not.toContain('role="status"');
+  });
+});
+
+describe("home page of a signed-in explorer", () => {
+  beforeEach(() => {
+    mocks.getActor.mockResolvedValue({ id, role: "user" });
+  });
+
+  it("shows the summary, the favourites with X/Y progress, the visits and the collections to discover", async () => {
+    const html = await render();
+
+    expect(html).toMatch(/<h1[^>]*>Dzień dobry<\/h1>/);
+    expect(html).toMatch(/<a [^>]*href="\/my"[^>]*>Moje konto<\/a>/);
+    expect(html).not.toContain("Zaloguj się");
+    expect(html).toMatch(/<dt>Odkryte miejsca<\/dt><dd>7<\/dd>/);
+    expect(html).toMatch(/<dt>Regiony<\/dt><dd>2<\/dd>/);
+    expect(html).toMatch(/<dt>Zapisane kolekcje<\/dt><dd>1<\/dd>/);
+    expect(html).toContain("Wieżyce");
+    expect(html).toContain("1/4");
+    expect(html).toMatch(/<a [^>]*href="\/my\/collections"[^>]*>Wszystkie moje kolekcje<\/a>/);
+    expect(html).toContain("Wieża ciśnień");
+    expect(html).toContain("marzec 2019");
+    expect(html).toContain("z przeszłości");
+    expect(html).toContain("Miejsce niedostępne w katalogu");
+    expect(html).toContain("potwierdzona na miejscu");
+    expect(html).toContain("Mosty i zamki");
+    // The phone shows the first four favourites; the rest only on a wide screen.
+    expect(html.match(/phoneHidden/g)?.length ?? 0).toBe(2);
+  });
+
+  it("points the empty favourites to the collections to discover on the same page", async () => {
+    mocks.getHomeAlbum.mockResolvedValue({
+      status: "ok",
+      value: { ...album, favorites: [], recentVisits: [] },
+    });
+
+    const html = await render();
+
+    expect(html).toContain("Nie masz jeszcze zapisanych kolekcji");
+    expect(html).toMatch(/<a [^>]*href="#do-odkrycia"[^>]*>Zobacz kolekcje do odkrycia<\/a>/);
+    expect(html).not.toContain("Wszystkie moje kolekcje");
+    expect(html).toContain("Nie masz jeszcze wizyt");
+  });
+
+  it("leaves out the personal sections, and logs the class only, when the album read fails", async () => {
+    mocks.getHomeAlbum.mockRejectedValue(new Error("db down: secret-user"));
+
+    const html = await render();
+
+    expect(html).not.toContain("Odkryte miejsca");
+    expect(html).toContain("Mosty i zamki");
+    expect(console.error).toHaveBeenCalledWith("Home album read failed:", "Error");
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
+  });
+
+  it("leaves out the personal sections when the use case does not answer ok", async () => {
+    mocks.getHomeAlbum.mockResolvedValue({ status: "unauthenticated" });
+
+    expect(await render()).not.toContain("Odkryte miejsca");
   });
 });

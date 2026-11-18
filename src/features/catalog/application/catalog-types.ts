@@ -61,6 +61,16 @@ export type PublishedCollection = Readonly<{
   places: readonly PublishedPlaceSummary[];
 }>;
 
+// One card of "Kolekcje do odkrycia" on the home page: public fields only.
+export type RecentCollection = Readonly<{
+  id: string;
+  slug: string;
+  title: string;
+  region: Region;
+  organization: Readonly<{ name: string }>;
+  placeCount: number;
+}>;
+
 export type PublishedPlace = Readonly<{
   id: string;
   name: string;
@@ -179,6 +189,11 @@ export interface CatalogRepository {
     slug: string,
   ): Promise<PublishedCollection | null>;
   findPublishedPlace(tx: TransactionContext, id: string): Promise<PublishedPlace | null>;
+  /** Published collections of approved organizations, first published most recently first, at most `limit`. */
+  listRecentlyPublishedCollections(
+    tx: TransactionContext,
+    limit: number,
+  ): Promise<readonly RecentCollection[]>;
 }
 
 export type CatalogDeps = Readonly<{

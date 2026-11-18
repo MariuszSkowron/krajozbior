@@ -1,5 +1,11 @@
+import { MAX_COLLECTIONS_PER_LIST } from "../domain/limits";
 import { isUuid } from "../domain/uuid";
-import type { CatalogDeps, PublishedCollection, PublishedPlace } from "./catalog-types";
+import type {
+  CatalogDeps,
+  PublishedCollection,
+  PublishedPlace,
+  RecentCollection,
+} from "./catalog-types";
 
 // Public reads for everyone, a guest included (D-T4): always in the guest
 // context, so even a signed-in curator sees here exactly what a guest sees.
@@ -24,6 +30,22 @@ export async function getPublishedCollection(
   );
 
   return found === null ? { status: "not_found" } : { status: "ok", value: found };
+}
+
+/**
+ * "Kolekcje do odkrycia": the most recently published collections, read in the
+ * guest context, so a signed-in curator gets exactly what a guest gets (no draft).
+ * The limit is clamped to 1..MAX_COLLECTIONS_PER_LIST.
+ */
+export async function listRecentlyPublishedCollections(
+  limit: number,
+  deps: CatalogDeps,
+): Promise<readonly RecentCollection[]> {
+  const bounded = Math.min(Math.max(Math.trunc(limit) || 1, 1), MAX_COLLECTIONS_PER_LIST);
+
+  return deps.withGuestContext((tx) =>
+    deps.repository.listRecentlyPublishedCollections(tx, bounded),
+  );
 }
 
 export async function getPublishedPlace(

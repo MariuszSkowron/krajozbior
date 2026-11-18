@@ -7,6 +7,7 @@ import type { CatalogDeps } from "@/features/catalog/application/catalog-types";
 import {
   getPublishedCollection,
   getPublishedPlace,
+  listRecentlyPublishedCollections,
 } from "@/features/catalog/application/public-catalog";
 import { postgresCatalogRepository } from "@/features/catalog/infrastructure/postgres-catalog-repository";
 import { createOrmConfig } from "@/lib/db/config";
@@ -288,5 +289,39 @@ describe("public read of collections and places (guest context)", () => {
     expect(await getPublishedCollection("Zły Slug", deps)).toEqual({ status: "not_found" });
     expect(await getPublishedCollection("a".repeat(81), deps)).toEqual({ status: "not_found" });
     expect(await getPublishedPlace("not-a-uuid", deps)).toEqual({ status: "not_found" });
+  });
+
+  // E12-1 (own block of this PR): the list "Kolekcje do odkrycia" on the home page.
+  it("lists for the home page only published collections of approved organizations, with the number of their places", async () => {
+    const draft = await newCollection(curB, orgB, "Szkic strony głównej");
+    const draftPlace = await newPlace(curB, orgB, "Miejsce szkicu strony głównej");
+    const open = await newCollection(curB, orgB, "Publiczna strony głównej");
+
+    await link(curB, draft.id, draftPlace, orgB, 1);
+    await link(curB, open.id, await newPlace(curB, orgB, "Miejsce publiczne 1"), orgB, 1);
+    await link(curB, open.id, await newPlace(curB, orgB, "Miejsce publiczne 2"), orgB, 2);
+    await publish(curB, open.id);
+
+    const list = await listRecentlyPublishedCollections(200, deps);
+
+    expect(list.map((collection) => collection.id)).toContain(open.id);
+    expect(list.map((collection) => collection.id)).not.toContain(draft.id);
+    expect(list.find((collection) => collection.id === open.id)).toEqual({
+      id: open.id,
+      slug: open.slug,
+      title: "Publiczna strony głównej",
+      region: "pomorskie",
+      organization: { name: "Gmina B" },
+      placeCount: 2,
+    });
+    // The fields are public ones only: no organization id, no version, no status.
+    expect(Object.keys(list[0]!).sort()).toEqual([
+      "id",
+      "organization",
+      "placeCount",
+      "region",
+      "slug",
+      "title",
+    ]);
   });
 });

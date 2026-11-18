@@ -1,0 +1,150 @@
+/*
+ * Sekcje strony głównej (E12-1): podsumowanie albumu, ulubione, ostatnie wizyty, kolekcje do
+ * odkrycia. Tylko tokeny. Odznaki stoją na tle karty (reguła tła, accessibility.md).
+ */
+.section {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.section h2,
+.section p {
+  margin: 0;
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.sectionHead h2 {
+  margin: 0;
+}
+
+/* Trzy liczby albumu: karta z definicjami, na telefonie w jednym rzędzie. */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-md);
+  margin: 0;
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.summary dt {
+  color: var(--color-text-label);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
+}
+
+.summary dd {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-2xl);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat {
+  display: grid;
+  gap: var(--space-xs);
+  align-content: start;
+}
+
+/* Karty ulubionych: jedna kolumna na telefonie (najwyżej 4), siatka na komputerze (do 6). */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 48rem) {
+  .cards {
+    gap: var(--space-lg);
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .phoneHidden {
+    display: none;
+  }
+}
+
+.cardNote {
+  margin: var(--space-xs) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.empty {
+  display: grid;
+  gap: var(--space-md);
+  justify-items: start;
+  padding: var(--space-lg);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.empty p {
+  margin: 0;
+}
+
+.failed {
+  margin: 0;
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-inline-start: var(--space-xs) solid var(--color-feedback-danger);
+  border-radius: var(--radius-md);
+}
+
+/* Lista ostatnich wizyt: wiersze jak lista miejsc na stronie kolekcji. */
+.visits {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.visit {
+  display: grid;
+  gap: var(--space-xs);
+  box-sizing: border-box;
+  min-height: var(--size-row-min);
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.visitName {
+  color: var(--color-text-strong);
+  font-weight: var(--font-weight-strong);
+}
+
+.visitMeta {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.visitFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
