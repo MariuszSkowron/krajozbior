@@ -530,8 +530,9 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
   async function placeWithLocation(
     browser: Browser,
     location: { latitude: number; longitude: number; accuracy: number } | null,
+    theme: "dark" | "light" = "dark",
   ) {
-    const opened = await openScreen(browser, "explorer", "dark", PHONE, paths.place, "reduce", {
+    const opened = await openScreen(browser, "explorer", theme, PHONE, paths.place, "reduce", {
       permissions: location ? ["geolocation"] : [],
       geolocation: location ?? undefined,
     });
@@ -541,13 +542,148 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
     return opened;
   }
 
-  test("miejsce: komunikat „za daleko” (ostrzeżenie), axe bez naruszeń", async ({ browser }) => {
-    const { context, page } = await placeWithLocation(browser, FAR);
+  for (const theme of ["dark", "light"] as const) {
+    test(`miejsce: komunikat „za daleko” w przypiętym pasku (ostrzeżenie), motyw ${theme}, axe bez naruszeń`, async ({
+      browser,
+    }) => {
+      const { context, page } = await placeWithLocation(browser, FAR, theme);
+      const status = page.getByRole("status").filter({ hasText: /Jesteś .* km od miejsca\./ });
 
-    await expect(
-      page.getByRole("status").filter({ hasText: /Jesteś .* km od miejsca\./ }),
-    ).toBeVisible();
-    expect(await axeViolations(page)).toEqual([]);
+      await expect(status).toBeVisible();
+      await expect(page.getByRole("button", { name: "Sprawdź ponownie" })).toBeVisible();
+      expect(await axeViolations(page)).toEqual([]);
+      await context.close();
+    });
+
+    test(`miejsce: stan wyjściowy z przypiętym przyciskiem, motyw ${theme}, axe bez naruszeń`, async ({
+      browser,
+    }) => {
+      const { context, page } = await openScreen(browser, "explorer", theme, PHONE, paths.place);
+
+      await expect(page.getByRole("button", { name: "Potwierdź wizytę" })).toBeVisible();
+      expect(await axeViolations(page)).toEqual([]);
+      await context.close();
+    });
+  }
+
+  // Przypięty przycisk główny ekranu miejsca (telefon): zastępuje dolny pasek, jest widoczny po
+  // przewinięciu i nie zasłania fokusu (WCAG 2.4.11; axe tego nie wykrywa).
+  const DOCK = "[data-pinned-action]";
+  const NAV_BAR = 'nav[aria-label="Główna"]';
+
+  test("miejsce na telefonie: przycisk przypięty u dołu, pasek nawigacji ukryty, przycisk widoczny po przewinięciu", async ({
+    browser,
+  }) => {
+    const { context, page } = await openScreen(browser, "explorer", "dark", PHONE, paths.place);
+
+    await expect(page.locator(NAV_BAR)).toBeHidden();
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const button = page.getByRole("button", { name: "Potwierdź wizytę" });
+
+    await expect(button).toBeInViewport({ ratio: 1 });
+    const box = (await button.boundingBox())!;
+
+    expect(box.height).toBeGreaterThanOrEqual(48);
+    expect(box.y + box.height).toBeLessThanOrEqual(PHONE.height);
+    // Dolny margines treści: ostatni element strony kończy się nad przypiętym przyciskiem.
+    const gap = await page.evaluate((dockSelector) => {
+      const dockTop = document.querySelector(dockSelector)!.getBoundingClientRect().top;
+      const last = [...document.querySelectorAll("main *")]
+        .filter((el) => !el.closest(dockSelector))
+        .map((el) => el.getBoundingClientRect())
+        .filter((rect) => rect.height > 0)
+        .reduce((max, rect) => Math.max(max, rect.bottom), 0);
+
+      return dockTop - last;
+    }, DOCK);
+
+    expect(gap).toBeGreaterThanOrEqual(0);
+    await context.close();
+  });
+
+  test("miejsce na komputerze: bez zmian, pasek boczny widoczny, przycisk w karcie", async ({
+    browser,
+  }) => {
+    const { context, page } = await openScreen(browser, "explorer", "dark", DESKTOP, paths.place);
+
+    await expect(page.locator(NAV_BAR)).toBeVisible();
+    const position = await page
+      .getByRole("button", { name: "Potwierdź wizytę" })
+      .evaluate((el) => getComputedStyle(el.closest("[data-pinned-action]")!).position);
+
+    expect(position).toBe("static");
+    await context.close();
+  });
+
+  // Tab przez całą stronę; zwraca opisy elementów zasłoniętych przez przypięty przycisk albo
+  // leżących pod jego górną krawędzią. Pierwszy element treści (poza paskiem) jest odsunięty
+  // tak, by stał tuż nad dolną krawędzią okna: bez `scroll-padding-bottom` przeglądarka go nie
+  // przewinie, bo uważa go za widoczny, a pasek go przykryje.
+  async function coveredFocus(page: Page, theme: string) {
+    await page.evaluate((dockSelector) => {
+      const target = [...document.querySelectorAll<HTMLElement>("main a[href], main button")].find(
+        (el) => !el.closest(dockSelector),
+      )!;
+      const box = target.getBoundingClientRect();
+      const spacer = document.createElement("div");
+
+      // Odstęp 8 px na przerwę siatki rodzica, żeby element w całości mieścił się w oknie.
+      spacer.style.height = `${window.innerHeight - box.height - 8 - box.top}px`;
+      target.parentElement!.insertBefore(spacer, target);
+    }, DOCK);
+
+    const problems: string[] = [];
+    let checked = 0;
+
+    for (let i = 0; i < 40; i += 1) {
+      await page.keyboard.press("Tab");
+      const state = await page.evaluate((dockSelector) => {
+        const element = document.activeElement as HTMLElement;
+        const box = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        const dock = document.querySelector(dockSelector)!;
+
+        return {
+          label: `${element.tagName} ${element.textContent?.trim().slice(0, 30) ?? ""}`,
+          inMain: element.closest("main") !== null,
+          inDock: dock.contains(element),
+          covered: !(hit === element || element.contains(hit)),
+          aboveDock: box.bottom <= dock.getBoundingClientRect().top,
+        };
+      }, DOCK);
+
+      if (state.inMain && !state.inDock) {
+        checked += 1;
+        if (state.covered || !state.aboveDock) {
+          problems.push(`${theme}, Tab ${i + 1}: ${state.label}`);
+        }
+      }
+    }
+
+    expect(checked, "w treści powinien być element z fokusem").toBeGreaterThan(0);
+
+    return problems;
+  }
+
+  for (const theme of ["dark", "light"] as const) {
+    test(`miejsce na telefonie: fokus nie jest zasłonięty przez przypięty przycisk (motyw ${theme})`, async ({
+      browser,
+    }) => {
+      const { context, page } = await openScreen(browser, "explorer", theme, PHONE, paths.place);
+
+      expect(await coveredFocus(page, theme)).toEqual([]);
+      await context.close();
+    });
+  }
+
+  // Test kontrolny: bez `scroll-padding-bottom` ten sam test wykrywa zasłonięty fokus.
+  test("miejsce na telefonie: bez scroll-padding test zasłonięcia fokusu wykrywa błąd", async ({
+    browser,
+  }) => {
+    const { context, page } = await openScreen(browser, "explorer", "dark", PHONE, paths.place);
+
+    await page.addStyleTag({ content: "html { scroll-padding-bottom: 0 !important; }" });
+    expect((await coveredFocus(page, "dark")).length).toBeGreaterThan(0);
     await context.close();
   });
 

@@ -14,7 +14,9 @@ import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-
 
 import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
+import { PinnedAction } from "./pinned-action";
 import { VisitConfirmation } from "./visit-confirmation";
+import visitStyles from "./visit-confirmation.module.css";
 import { WantToSeeButton } from "./want-to-see-button";
 
 // Same rules as the collection page: dynamic, never in a shared cache (the
@@ -129,9 +131,11 @@ export default async function PlacePage({ params }: { params: Params }) {
         ) : visit.kind === "explorer" ? (
           visit.visited ? (
             <div className={styles.card}>
-              <p>
-                <StatusBadge tone="success">Odwiedzone</StatusBadge>
-              </p>
+              <PinnedAction>
+                <p className={visitStyles.visitedMark}>
+                  <StatusBadge tone="success">Odwiedzone</StatusBadge>
+                </p>
+              </PinnedAction>
               <p>Masz już zapisaną wizytę w tym miejscu.</p>
               {visit.wanted === true ? <WantToSeeButton placeId={place.id} initialWanted /> : null}
             </div>
