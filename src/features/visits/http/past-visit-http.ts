@@ -42,13 +42,18 @@ export async function handlePastVisitsRequest(request: Request): Promise<Respons
   }
 
   try {
+    const actor = await getIdentityProvider().getActor(request.headers);
+
+    // A guest is turned away before the body is read at all.
+    if (actor === null) {
+      return json(401, { error: "unauthenticated" });
+    }
+
     const read = await readJsonBody(request, PAST_VISIT_BODY_MAX_BYTES);
 
     if ("tooLarge" in read) {
       return json(413, { error: "payload_too_large" });
     }
-
-    const actor = await getIdentityProvider().getActor(request.headers);
 
     return respond(await markPastVisits(actor, read.body, getVisitDeps()), (value) =>
       json(201, value),

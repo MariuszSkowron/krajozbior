@@ -112,4 +112,21 @@ describe("localDateIso", () => {
     expect(localDateIso(new Date(2026, 10, 18, 23, 59))).toBe("2026-11-18");
     expect(localDateIso(new Date(2026, 0, 5, 0, 1))).toBe("2026-01-05");
   });
+
+  it("differs from the UTC day when the zone is ahead of UTC, whatever zone the runner has", () => {
+    const original = process.env.TZ;
+
+    process.env.TZ = "Europe/Warsaw";
+
+    try {
+      // 23:30 UTC on 18 Nov is already 00:30 on 19 Nov in Warsaw (UTC+1).
+      expect(localDateIso(new Date("2026-11-18T23:30:00Z"))).toBe("2026-11-19");
+    } finally {
+      if (original === undefined) {
+        delete process.env.TZ;
+      } else {
+        process.env.TZ = original;
+      }
+    }
+  });
 });

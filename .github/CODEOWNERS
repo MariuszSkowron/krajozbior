@@ -65,8 +65,13 @@
 /e2e/competition-path.spec.ts      @MariuszSkowron
 /e2e/on-site-visit.spec.ts         @MariuszSkowron
 # Wizyty z przeszłości (dane PRIV; trasy w /src/app/api/me/visits/ mają właściciela
-# przez /src/app/api/, moduł w /src/features/visits/, test odmowy dostępu w /tests/integration/)
+# przez /src/app/api/, moduł w /src/features/visits/, test odmowy dostępu w /tests/integration/;
+# ekrany wyboru miejsc i daty w /src/app/collections/ i /src/app/places/ też mają właściciela)
 /e2e/past-visit.spec.ts            @MariuszSkowron
+/src/app/past-visit-date-fields.tsx @MariuszSkowron
+/src/app/past-visit-message.tsx    @MariuszSkowron
+/src/app/past-visit.module.css     @MariuszSkowron
+/tests/app/past-visit-date-fields.test.ts @MariuszSkowron
 # Test wyglądu i dostępności: czyści wizyty i listę „Chcę zobaczyć” konta demo
 /e2e/appearance.spec.ts            @MariuszSkowron
 
