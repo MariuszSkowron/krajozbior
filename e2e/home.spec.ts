@@ -202,7 +202,7 @@ test.describe("home page with the catalog", () => {
 
     // A visit from the past in one place, then the collection saved.
     await a.goto(`/collections/${DEMO_SLUG}`);
-    await a.getByRole("link", { name: /Most Tczewski/ }).click();
+    await a.goto((await a.getByRole("link", { name: /Most Tczewski/ }).getAttribute("href")) ?? "");
     await a.waitForLoadState("networkidle");
     await a.getByRole("button", { name: "Byłem tu wcześniej" }).click();
     await a.getByRole("radio", { name: "Rok" }).check();

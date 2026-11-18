@@ -59,6 +59,13 @@ export type PublishedCollection = Readonly<{
   region: Region;
   organization: Readonly<{ name: string; slug: string }>;
   places: readonly PublishedPlaceSummary[];
+  /** How many places the collection has now (the same places as `places`). */
+  placeCount: number;
+  /**
+   * The latest of: a change of the collection, a place added to it, a change of any of its
+   * places. Removing a place does not move it (no trace is kept without a migration, D-E12-2).
+   */
+  contentUpdatedAt: Date;
 }>;
 
 // One card of "Kolekcje do odkrycia" on the home page: public fields only.

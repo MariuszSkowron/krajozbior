@@ -372,16 +372,38 @@ export const postgresCatalogRepository: CatalogRepository = {
   async findPublishedCollection(tx: TransactionContext, slug) {
     const collection = first(
       await tx.em.execute<
-        (Omit<PublishedCollection, "organization" | "places"> & {
+        (Omit<PublishedCollection, "organization" | "places" | "contentUpdatedAt"> & {
           organizationName: string;
           organizationSlug: string;
+          contentUpdatedAt: string;
         })[]
       >(
+        // The count and the date read the same rows as the list of places below (a place
+        // joined through `collection_places`, in the guest context), so they never show more
+        // than the page lists. `greatest` skips a null (a collection without places).
         `select c.id, c.slug, c.title, c.summary, c.region,
-                o.name as "organizationName", o.slug as "organizationSlug"
+                o.name as "organizationName", o.slug as "organizationSlug",
+                (select count(*)::int
+                   from public.collection_places cp
+                   join public.places p on p.id = cp.place_id
+                  where cp.collection_id = c.id) as "placeCount",
+                to_char(
+                  greatest(
+                    c.updated_at,
+                    (select max(cp.added_at)
+                       from public.collection_places cp
+                       join public.places p on p.id = cp.place_id
+                      where cp.collection_id = c.id),
+                    (select max(p.updated_at)
+                       from public.collection_places cp
+                       join public.places p on p.id = cp.place_id
+                      where cp.collection_id = c.id)
+                  ) at time zone 'UTC',
+                  'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+                ) as "contentUpdatedAt"
            from public.collections c
            join public.organizations o on o.id = c.organization_id
-          where c.slug = ? and c.status = 'published' and o.status = 'approved'`,
+          where c.slug = ? and ${publishedCollection}`,
         [slug],
       ),
     );
@@ -398,9 +420,14 @@ export const postgresCatalogRepository: CatalogRepository = {
         order by cp.position`,
       [collection.id],
     );
-    const { organizationName, organizationSlug, ...rest } = collection;
+    const { organizationName, organizationSlug, contentUpdatedAt, ...rest } = collection;
 
-    return { ...rest, organization: { name: organizationName, slug: organizationSlug }, places };
+    return {
+      ...rest,
+      contentUpdatedAt: new Date(contentUpdatedAt),
+      organization: { name: organizationName, slug: organizationSlug },
+      places,
+    };
   },
 
   async listRecentlyPublishedCollections(tx: TransactionContext, limit) {

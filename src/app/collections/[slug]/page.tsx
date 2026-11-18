@@ -8,15 +8,36 @@ import { CollectionProgress } from "@/design-system/components/collection-progre
 import { getCollectionProgress } from "@/features/album/application/saved-collections";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import { progressCounts } from "@/features/album/domain/progress";
-import { getPublishedCollection } from "@/features/catalog/application/public-catalog";
+import {
+  getPublishedCollection,
+  getPublishedPlace,
+} from "@/features/catalog/application/public-catalog";
+import {
+  STATE_FILTERS,
+  STATE_FILTER_LABELS,
+  albumHref,
+  countByState,
+  filterByState,
+  formatUpdateDate,
+  parseSelectedPlace,
+  parseStateFilter,
+  type VisitKind,
+} from "@/features/catalog/domain/album-view";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
+import { formatPlaceCount } from "@/features/catalog/domain/place-count";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
+import type { Actor } from "@/features/identity/domain/actor";
 import { listMyVisitKindsOfCollection } from "@/features/visits/application/mark-past-visits";
 import { getVisitDeps } from "@/features/visits/infrastructure/visit-deps";
+import { isWantedPlace } from "@/features/want-to-see/application/want-to-see";
+import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-see-deps";
 
 import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
+import panelStyles from "./album.module.css";
 import { CollectionPlaces } from "./collection-places";
+import { PlaceCardLink } from "./place-card-link";
+import { PlacePanel, type PanelPlace } from "./place-panel";
 import { SaveCollectionButton } from "./save-collection-button";
 
 // Rendered on every request and never cached by a shared cache (src/proxy.ts
@@ -25,6 +46,7 @@ import { SaveCollectionButton } from "./save-collection-button";
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ slug: string }>;
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 // The page and its title share one read per request. A guest read: a draft, a
 // withdrawn collection, one of an unapproved organization and a missing slug all
@@ -59,7 +81,7 @@ async function loadAlbum(collectionId: string, slug: string) {
 
     // The kinds of the explorer's visits mark the places in the list. A failed
     // read leaves the plain list (kinds: null), like the failures above.
-    let kinds: Map<string, "on_site" | "past"> | null = null;
+    let kinds: Map<string, VisitKind> | null = null;
 
     try {
       const answer = await listMyVisitKindsOfCollection(actor, collectionId, getVisitDeps());
@@ -74,6 +96,7 @@ async function loadAlbum(collectionId: string, slug: string) {
 
     return {
       kind: "explorer",
+      actor,
       saved: view.value.saved,
       progress: view.value.progress,
       kinds,
@@ -85,13 +108,63 @@ async function loadAlbum(collectionId: string, slug: string) {
   }
 }
 
+// The data of the panel (D-E12-6): the place from the public read (the guest context, so the
+// panel shows exactly what the place page shows), the explorer's visit from the album read and
+// the state of the "Chcę zobaczyć" list. A failure of the list leaves out only its button; a
+// failure of the place read leaves a short note in the panel and the page whole.
+async function loadPanel(
+  placeId: string,
+  actor: Actor | null,
+  kinds: ReadonlyMap<string, VisitKind> | null,
+): Promise<PanelPlace> {
+  try {
+    const [found, wanted] = await Promise.all([
+      getPublishedPlace(placeId, getCatalogDeps()),
+      actor === null ? Promise.resolve(null) : loadWanted(actor, placeId),
+    ]);
+
+    if (found.status !== "ok") {
+      return { status: "none" };
+    }
+
+    return {
+      status: "ok",
+      place: found.value,
+      visit: kinds === null ? undefined : (kinds.get(placeId) ?? null),
+      wanted,
+    };
+  } catch (error) {
+    logReadFailure("Collection panel read", error);
+
+    return { status: "failed" };
+  }
+}
+
+async function loadWanted(actor: Actor, placeId: string): Promise<boolean | null> {
+  try {
+    const answer = await isWantedPlace(actor, placeId, getWantToSeeDeps());
+
+    return answer.status === "ok" ? answer.value.wanted : null;
+  } catch (error) {
+    logReadFailure("Collection panel want-to-see read", error);
+
+    return null;
+  }
+}
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const result = await load((await params).slug);
 
   return result.status === "ok" ? { title: `${result.value.title} — Krajozbiór` } : {};
 }
 
-export default async function CollectionPage({ params }: { params: Params }) {
+export default async function CollectionPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams?: SearchParams;
+}) {
   const result = await load((await params).slug);
 
   if (result.status === "not_found") {
@@ -104,17 +177,44 @@ export default async function CollectionPage({ params }: { params: Params }) {
   }
 
   const collection = result.value;
+  const query = (await searchParams) ?? {};
   const album = await loadAlbum(collection.id, collection.slug);
+  const kinds = album.kind === "explorer" ? album.kinds : null;
+  const stan = kinds === null ? "wszystkie" : parseStateFilter(query.stan);
+  const asked = parseSelectedPlace(query.miejsce);
+  // A place that is not in this collection gives no panel and no error.
+  const selectedId =
+    asked !== null && collection.places.some((place) => place.id === asked) ? asked : null;
+  const panel: PanelPlace =
+    selectedId === null
+      ? { status: "none" }
+      : await loadPanel(selectedId, album.kind === "explorer" ? album.actor : null, kinds);
+  const shown = kinds === null ? collection.places : filterByState(collection.places, stan, kinds);
+  const counts =
+    kinds === null
+      ? null
+      : countByState(
+          collection.places.map((place) => place.id),
+          kinds,
+        );
 
   return (
-    <div className={`content-width ${styles.page}`}>
+    <div className={`content-width-wide ${styles.page}`}>
       <header className={styles.header}>
+        <p className={styles.itemMetaMono}>Kolekcja · {REGION_LABELS[collection.region]}</p>
         <h1 className={styles.collectionTitle}>{collection.title}</h1>
-        <p className={styles.meta}>
-          <span className={styles.itemMetaMono}>{REGION_LABELS[collection.region]}</span> ·
-          Prowadzi: {collection.organization.name}
-        </p>
+        {album.kind === "explorer" ? (
+          <CollectionProgress
+            {...progressCounts(album.progress)}
+            label={`Twój postęp w kolekcji ${collection.title}`}
+          />
+        ) : null}
         {collection.summary === "" ? null : <p className={styles.summary}>{collection.summary}</p>}
+        <p className={styles.meta}>Kurator: {collection.organization.name}</p>
+        <p className={styles.meta}>
+          {formatPlaceCount(collection.placeCount)} · aktualizacja{" "}
+          {formatUpdateDate(collection.contentUpdatedAt)}
+        </p>
         {album.kind === "guest" ? (
           <div className={albumStyles.guestAction}>
             <Link className="button button--primary" href={album.loginHref}>
@@ -125,13 +225,7 @@ export default async function CollectionPage({ params }: { params: Params }) {
             </p>
           </div>
         ) : album.kind === "explorer" ? (
-          <>
-            <SaveCollectionButton collectionId={collection.id} initialSaved={album.saved} />
-            <CollectionProgress
-              {...progressCounts(album.progress)}
-              label={`Twój postęp w kolekcji ${collection.title}`}
-            />
-          </>
+          <SaveCollectionButton collectionId={collection.id} initialSaved={album.saved} />
         ) : album.kind === "unavailable" ? (
           <p className={albumStyles.feedback}>
             Nie udało się wczytać Twojego zapisu tej kolekcji. Odśwież stronę za chwilę.
@@ -146,31 +240,66 @@ export default async function CollectionPage({ params }: { params: Params }) {
         </h2>
         {collection.places.length === 0 ? (
           <p>Ta kolekcja nie ma jeszcze miejsc.</p>
-        ) : album.kind === "explorer" && album.kinds !== null ? (
-          <CollectionPlaces
-            places={collection.places.map((place) => ({
-              id: place.id,
-              name: place.name,
-              address: place.address,
-              position: place.position,
-              kind: album.kinds?.get(place.id) ?? null,
-            }))}
-          />
         ) : (
-          <ol className={styles.list}>
-            {collection.places.map((place) => (
-              <li key={place.id} className={styles.item}>
-                <Link className={styles.itemLink} href={`/places/${place.id}`}>
-                  <span className={styles.itemTitle}>
-                    <span className={styles.itemNumber}>{place.position}.</span> {place.name}
-                  </span>
-                  {place.address === "" ? null : (
-                    <span className={styles.itemMeta}>{place.address}</span>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ol>
+          <div className={panelStyles.layout}>
+            <div className={panelStyles.listColumn}>
+              {counts === null ? null : (
+                <nav className={panelStyles.filter} aria-label="Filtr miejsc">
+                  {STATE_FILTERS.map((filter) => (
+                    <Link
+                      key={filter}
+                      className={panelStyles.filterLink}
+                      href={albumHref(collection.slug, { stan: filter, miejsce: selectedId })}
+                      aria-current={filter === stan ? "page" : undefined}
+                    >
+                      {STATE_FILTER_LABELS[filter]}
+                      <span className={panelStyles.filterCount}>({counts[filter]})</span>
+                    </Link>
+                  ))}
+                </nav>
+              )}
+              {shown.length === 0 ? (
+                <p className={panelStyles.empty}>Żadne miejsce nie pasuje do tego filtra.</p>
+              ) : kinds !== null ? (
+                <CollectionPlaces
+                  slug={collection.slug}
+                  stan={stan}
+                  selectedId={selectedId}
+                  places={shown.map((place) => ({
+                    id: place.id,
+                    name: place.name,
+                    address: place.address,
+                    position: place.position,
+                    kind: kinds.get(place.id) ?? null,
+                  }))}
+                />
+              ) : (
+                <ol className={panelStyles.grid}>
+                  {shown.map((place) => (
+                    <li
+                      key={place.id}
+                      className={`${styles.item} ${place.id === selectedId ? panelStyles.selected : ""}`}
+                    >
+                      <PlaceCardLink
+                        className={styles.itemLink}
+                        href={`/places/${place.id}`}
+                        selectHref={albumHref(collection.slug, { miejsce: place.id })}
+                        selected={place.id === selectedId}
+                      >
+                        <span className={styles.itemTitle}>
+                          <span className={styles.itemNumber}>{place.position}.</span> {place.name}
+                        </span>
+                        {place.address === "" ? null : (
+                          <span className={styles.itemMeta}>{place.address}</span>
+                        )}
+                      </PlaceCardLink>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+            <PlacePanel panel={panel} />
+          </div>
         )}
       </section>
     </div>

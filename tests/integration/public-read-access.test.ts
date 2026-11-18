@@ -164,6 +164,8 @@ describe("public read of collections and places (guest context)", () => {
           { id: first, name: "Pierwsze", address: "Tczew", position: 1 },
           { id: second, name: "Drugie", address: "Tczew", position: 2 },
         ],
+        placeCount: 2,
+        contentUpdatedAt: expect.any(Date),
       },
     });
 
@@ -323,5 +325,185 @@ describe("public read of collections and places (guest context)", () => {
       "slug",
       "title",
     ]);
+  });
+
+  // E12-4 (own block of this PR): the number of places and the date of the last change in the
+  // header of the collection page. Both are read in the guest context, from the same rows as the
+  // list of places, so they say nothing about what a guest cannot see.
+  describe("E12-4: place count and date of the last change of a published collection", () => {
+    const at = (iso: string) => new Date(iso);
+    const setTimes = async (sql: string, params: unknown[]) => admin$(sql, params);
+
+    it("counts the places and takes the latest of: the collection, an added place, a changed place", async () => {
+      const collection = await newCollection(curA, orgA, "Album z datą");
+      const one = await newPlace(curA, orgA, "Album 1");
+      const two = await newPlace(curA, orgA, "Album 2");
+
+      await link(curA, collection.id, one, orgA, 1);
+      await link(curA, collection.id, two, orgA, 2);
+      await publish(curA, collection.id);
+      await setTimes(`update public.collections set updated_at = $2 where id = $1`, [
+        collection.id,
+        at("2026-01-10T10:00:00Z"),
+      ]);
+      await setTimes(
+        `update public.collection_places set added_at = $3 where collection_id = $1 and place_id = $2`,
+        [collection.id, one, at("2026-02-10T10:00:00Z")],
+      );
+      await setTimes(
+        `update public.collection_places set added_at = $3 where collection_id = $1 and place_id = $2`,
+        [collection.id, two, at("2026-02-01T10:00:00Z")],
+      );
+      await setTimes(`update public.places set updated_at = $2 where id = $1`, [
+        one,
+        at("2026-01-20T10:00:00Z"),
+      ]);
+      await setTimes(`update public.places set updated_at = $2 where id = $1`, [
+        two,
+        at("2026-01-25T10:00:00Z"),
+      ]);
+
+      // The latest is the addition of place 1 (10 February).
+      let result = await getPublishedCollection(collection.slug, deps);
+
+      expect(result.status === "ok" && result.value.placeCount).toBe(2);
+      expect(result.status === "ok" && result.value.contentUpdatedAt).toEqual(
+        at("2026-02-10T10:00:00Z"),
+      );
+
+      // A change of a place later than all of it moves the date.
+      await setTimes(`update public.places set updated_at = $2 where id = $1`, [
+        two,
+        at("2026-03-05T08:30:15.123Z"),
+      ]);
+      result = await getPublishedCollection(collection.slug, deps);
+      expect(result.status === "ok" && result.value.contentUpdatedAt).toEqual(
+        at("2026-03-05T08:30:15.123Z"),
+      );
+
+      // A change of the collection later than everything moves it too.
+      await setTimes(`update public.collections set updated_at = $2 where id = $1`, [
+        collection.id,
+        at("2026-04-01T00:00:00Z"),
+      ]);
+      result = await getPublishedCollection(collection.slug, deps);
+      expect(result.status === "ok" && result.value.contentUpdatedAt).toEqual(
+        at("2026-04-01T00:00:00Z"),
+      );
+    });
+
+    it("does not move the date with a place that was removed from the collection, or with one that was never in it", async () => {
+      const collection = await newCollection(curA, orgA, "Album bez cudzych zmian");
+      const kept = await newPlace(curA, orgA, "Zostaje");
+      const removed = await newPlace(curA, orgA, "Usunięte");
+      const outside = await newPlace(curA, orgA, "Poza kolekcją");
+
+      await link(curA, collection.id, kept, orgA, 1);
+      await link(curA, collection.id, removed, orgA, 2);
+      await publish(curA, collection.id);
+      await as(
+        curA,
+        `delete from public.collection_places where collection_id = ? and place_id = ?`,
+        [collection.id, removed],
+      );
+      await setTimes(`update public.collections set updated_at = $2 where id = $1`, [
+        collection.id,
+        at("2026-01-01T00:00:00Z"),
+      ]);
+      await setTimes(`update public.collection_places set added_at = $2 where collection_id = $1`, [
+        collection.id,
+        at("2026-01-02T00:00:00Z"),
+      ]);
+      await setTimes(`update public.places set updated_at = $2 where id = $1`, [
+        kept,
+        at("2026-01-03T00:00:00Z"),
+      ]);
+      await setTimes(`update public.places set updated_at = $2 where id = any($1::uuid[])`, [
+        [removed, outside],
+        at("2026-09-09T00:00:00Z"),
+      ]);
+
+      const result = await getPublishedCollection(collection.slug, deps);
+
+      expect(result.status === "ok" && result.value.placeCount).toBe(1);
+      expect(result.status === "ok" && result.value.contentUpdatedAt).toEqual(
+        at("2026-01-03T00:00:00Z"),
+      );
+    });
+
+    it("gives a collection without places the count 0 and the date of the collection", async () => {
+      const collection = await newCollection(curA, orgA, "Album pusty");
+
+      await publish(curA, collection.id);
+      await setTimes(`update public.collections set updated_at = $2 where id = $1`, [
+        collection.id,
+        at("2026-05-05T05:05:05Z"),
+      ]);
+
+      const result = await getPublishedCollection(collection.slug, deps);
+
+      expect(result.status === "ok" && result.value.placeCount).toBe(0);
+      expect(result.status === "ok" && result.value.contentUpdatedAt).toEqual(
+        at("2026-05-05T05:05:05Z"),
+      );
+    });
+
+    it("says nothing about a draft, a withdrawn collection or one of a suspended organization, even to its curator", async () => {
+      const draft = await newCollection(curA, orgA, "Album szkic");
+      const withdrawn = await newCollection(curA, orgA, "Album wycofany");
+      const place = await newPlace(curA, orgA, "Miejsce wycofanego");
+
+      await link(curA, draft.id, place, orgA, 1);
+      await link(curA, withdrawn.id, place, orgA, 1);
+      await publish(curA, withdrawn.id);
+      await unpublish(curA, withdrawn.id);
+
+      // The curator is signed in somewhere else: the read still runs as a guest.
+      expect(await getPublishedCollection(draft.slug, deps)).toEqual({ status: "not_found" });
+      expect(await getPublishedCollection(withdrawn.slug, deps)).toEqual({ status: "not_found" });
+
+      const suspended = await newCollection(curA, orgA, "Album zawieszonej organizacji");
+
+      await link(curA, suspended.id, place, orgA, 1);
+      await publish(curA, suspended.id);
+      await admin$(`update public.organizations set status = 'suspended' where id = $1`, [orgA]);
+      try {
+        expect(await getPublishedCollection(suspended.slug, deps)).toEqual({ status: "not_found" });
+      } finally {
+        await admin$(`update public.organizations set status = 'approved' where id = $1`, [orgA]);
+      }
+    });
+
+    it("counts only the places the guest lists: a place of a draft shared with a published collection counts once and shows nothing of the draft", async () => {
+      const published = await newCollection(curB, orgB, "Album współdzielony");
+      const draft = await newCollection(curB, orgB, "Szkic współdzielony");
+      const shared = await newPlace(curB, orgB, "Wspólne");
+      const onlyDraft = await newPlace(curB, orgB, "Tylko w szkicu");
+
+      await link(curB, published.id, shared, orgB, 1);
+      await link(curB, draft.id, shared, orgB, 1);
+      await link(curB, draft.id, onlyDraft, orgB, 2);
+      await publish(curB, published.id);
+
+      const result = await getPublishedCollection(published.slug, deps);
+
+      expect(result.status).toBe("ok");
+      expect(result.status === "ok" && result.value.placeCount).toBe(1);
+      expect(result.status === "ok" && result.value.places.map((place) => place.id)).toEqual([
+        shared,
+      ]);
+      // Public fields only: the new ones are the number and the date, nothing of the draft.
+      expect(result.status === "ok" ? Object.keys(result.value).sort() : []).toEqual([
+        "contentUpdatedAt",
+        "id",
+        "organization",
+        "placeCount",
+        "places",
+        "region",
+        "slug",
+        "summary",
+        "title",
+      ]);
+    });
   });
 });
