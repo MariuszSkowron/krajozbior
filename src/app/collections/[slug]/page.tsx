@@ -120,7 +120,8 @@ async function loadPanel(
   try {
     const [found, wanted] = await Promise.all([
       getPublishedPlace(placeId, getCatalogDeps()),
-      actor === null ? Promise.resolve(null) : loadWanted(actor, placeId),
+      // As on the place page: when the read of the visits failed, the button is left out too.
+      actor === null || kinds === null ? Promise.resolve(null) : loadWanted(actor, placeId),
     ]);
 
     if (found.status !== "ok") {

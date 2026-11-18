@@ -72,6 +72,7 @@
 /src/app/past-visit-message.tsx    @MariuszSkowron
 /src/app/past-visit.module.css     @MariuszSkowron
 /tests/app/past-visit-date-fields.test.ts @MariuszSkowron
+/tests/app/place-card-link.test.ts @MariuszSkowron
 # Test wyglądu i dostępności: czyści wizyty i listę „Chcę zobaczyć” konta demo
 /e2e/appearance.spec.ts            @MariuszSkowron
 

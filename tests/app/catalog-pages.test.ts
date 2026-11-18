@@ -548,6 +548,16 @@ describe("public catalog pages", () => {
         expect(html).not.toContain("Chcę zobaczyć");
       });
 
+      it("leaves out the list button of the panel when the read of the visits fails (as the place page)", async () => {
+        mocks.kinds.mockRejectedValue(new Error("db down"));
+        mocks.wanted.mockResolvedValue({ status: "ok", value: { wanted: false } });
+
+        const html = await render({ miejsce: second.id });
+
+        expect(html).toContain("Otwórz stronę miejsca");
+        expect(html).not.toContain("Chcę zobaczyć");
+      });
+
       it("gives no panel for a place outside the collection, or for a bad value, and no error", async () => {
         for (const value of [outsider, "nie-uuid", ["x", "y"]]) {
           const html = await render({ miejsce: value });

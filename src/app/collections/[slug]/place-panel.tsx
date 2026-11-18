@@ -44,7 +44,7 @@ export function PlacePanel({ panel }: Readonly<{ panel: PanelPlace }>) {
         <p>
           {panel.status === "failed"
             ? "Odśwież stronę za chwilę albo otwórz stronę miejsca z karty."
-            : "Wybierz kartę miejsca, aby zobaczyć tutaj jego szczegóły."}
+            : "Wybierz kartę miejsca, aby zobaczyć tutaj jego szczegóły albo otwórz stronę miejsca z karty."}
         </p>
       ) : (
         <>
