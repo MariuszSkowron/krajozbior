@@ -365,8 +365,13 @@ describe("public search (guest context, RLS on)", () => {
           .statement_timeout,
     );
 
-    expect(inside).toBe("2s");
-    expect(after).not.toBe("2s");
+    // One budget for both queries: whole milliseconds, at most 2 s, set after the first query.
+    // (PostgreSQL shows a whole number of seconds as "2s", others as "1873ms".)
+    const insideMs = Number.parseInt(inside, 10) * (inside.endsWith("ms") ? 1 : 1000);
+
+    expect(insideMs).toBeGreaterThan(0);
+    expect(insideMs).toBeLessThanOrEqual(2000);
+    expect(after).not.toBe(inside);
   });
 
   it("answers with a message, not an error, when the time limit cancels the query", async () => {

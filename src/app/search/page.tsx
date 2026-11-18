@@ -12,9 +12,11 @@ import {
   searchPublicCatalog,
 } from "@/features/catalog/application/public-search";
 import { REGION_LABELS, type Region } from "@/features/catalog/domain/collection";
+import { MAX_COLLECTIONS_PER_LIST } from "@/features/catalog/domain/limits";
 import { formatPlaceCount } from "@/features/catalog/domain/place-count";
 import {
   SEARCH_MAX_LENGTH,
+  REGION_LOCATIVE,
   SEARCH_RESULT_LIMIT,
   describeFound,
   formatCollectionCount,
@@ -104,7 +106,7 @@ function AllCollections({
     <p>
       {region === null
         ? "Nie ma jeszcze opublikowanych kolekcji."
-        : `W województwie ${REGION_LABELS[region].toLowerCase()} nie ma jeszcze opublikowanych kolekcji.`}
+        : `W województwie ${REGION_LOCATIVE[region]} nie ma jeszcze opublikowanych kolekcji.`}
     </p>
   ) : (
     <CollectionResults collections={collections} />
@@ -119,13 +121,15 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
   const outcome = await load(rawPhrase, first(params.region));
   const formPhrase = (rawPhrase ?? "").slice(0, SEARCH_MAX_LENGTH * 2);
 
-  if (outcome.status === "timeout") {
+  if (outcome.status === "timeout" || outcome.status === "busy") {
     return (
       <div className={`content-width ${styles.page}`}>
         <h1>Szukaj miejsc i kolekcji</h1>
         <SearchForm id="search" phrase={formPhrase} withRegion />
         <p role="alert" className={`${styles.notice} ${styles.noticeDanger}`}>
-          Wyszukiwanie trwa zbyt długo. Doprecyzuj frazę.
+          {outcome.status === "busy"
+            ? "Wyszukiwarka jest teraz zajęta, spróbuj za chwilę."
+            : "Wyszukiwanie trwa zbyt długo. Doprecyzuj frazę."}
         </p>
       </div>
     );
@@ -198,6 +202,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
       )}
       <section className={styles.section} aria-labelledby="wszystkie-kolekcje">
         <h2 id="wszystkie-kolekcje">{count}</h2>
+        {all.truncated ? (
+          <p role="status" className={styles.notice}>
+            Pokazujemy pierwsze {MAX_COLLECTIONS_PER_LIST}. Wybierz województwo albo wpisz frazę.
+          </p>
+        ) : null}
         <AllCollections collections={all.collections} region={region} />
       </section>
     </div>

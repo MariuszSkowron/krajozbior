@@ -11,4 +11,7 @@ export const FOLD_CASES: readonly (readonly [string, string])[] = [
   ["Gdańsk Śródmieście", "gdansk srodmiescie"],
   ["ĄĆĘŁŃÓŚŹŻ ąćęłńóśźż", "acelnoszz acelnoszz"],
   ["Zamek w Gniewie", "zamek w gniewie"],
+  // Capitals of other Latin alphabets are lowered by the table, in any collation (m6).
+  ["MÜLLER", "müller"],
+  ["Čapek ŠKODA", "čapek škoda"],
 ];

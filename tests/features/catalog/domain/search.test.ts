@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { REGIONS, REGION_LABELS } from "@/features/catalog/domain/collection";
 import {
   ASCII_TWINS,
+  REGION_LOCATIVE,
+  remainingBudgetMs,
+  LATIN_CAPITALS,
+  LATIN_SMALLS,
   POLISH_LETTERS,
   SEARCH_MAX_LENGTH,
   describeFound,
@@ -23,6 +28,11 @@ describe("character table", () => {
     expect(Array.from(POLISH_LETTERS)).toHaveLength(ASCII_TWINS.length);
     expect(POLISH_LETTERS).toHaveLength(18);
   });
+
+  it("has a small letter for every other Latin capital", () => {
+    expect(Array.from(LATIN_CAPITALS)).toHaveLength(LATIN_SMALLS.length);
+    expect(LATIN_CAPITALS.toLowerCase()).toBe(LATIN_SMALLS);
+  });
 });
 
 describe("foldSearchText", () => {
@@ -43,8 +53,36 @@ describe("foldSearchText", () => {
 describe("foldSql", () => {
   it("names the same table and wraps the column", () => {
     expect(foldSql("c.title")).toBe(
-      `lower(translate(c.title, '${POLISH_LETTERS}', '${ASCII_TWINS}'))`,
+      `lower(translate(c.title, '${POLISH_LETTERS}${LATIN_CAPITALS}', '${ASCII_TWINS}${LATIN_SMALLS}'))`,
     );
+  });
+});
+
+describe("remainingBudgetMs", () => {
+  it("gives the second query what the first left, at least 1 ms, a whole number", () => {
+    expect(remainingBudgetMs(2000, 0)).toBe(2000);
+    expect(remainingBudgetMs(2000, 430.7)).toBe(1569);
+    expect(remainingBudgetMs(2000, 2000)).toBe(1);
+    expect(remainingBudgetMs(2000, 5000)).toBe(1);
+  });
+});
+
+describe("REGION_LOCATIVE", () => {
+  it("has a locative form for all 16 regions, in the case that follows the label", () => {
+    expect(Object.keys(REGION_LOCATIVE).sort()).toEqual([...REGIONS].sort());
+    expect(REGIONS).toHaveLength(16);
+
+    for (const region of REGIONS) {
+      const label = foldSearchText(REGION_LABELS[region]);
+      const form = foldSearchText(REGION_LOCATIVE[region]);
+
+      expect(form).toMatch(/(im|ym)$/);
+      // the stem (without the ending "-ie" / "-im") is the same as in the label
+      expect(form.slice(0, -2)).toBe(label.slice(0, -2));
+    }
+
+    expect(REGION_LOCATIVE.pomorskie).toBe("pomorskim");
+    expect(REGION_LOCATIVE.lodzkie).toBe("łódzkim");
   });
 });
 

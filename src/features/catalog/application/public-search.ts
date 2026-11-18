@@ -1,6 +1,8 @@
 import type { Region } from "../domain/collection";
 import { MAX_COLLECTIONS_PER_LIST } from "../domain/limits";
 import {
+  SEARCH_MAX_CONCURRENT,
+  SEARCH_QUEUE_WAIT_MS,
   SEARCH_RESULT_LIMIT,
   parseSearchPhrase,
   parseSearchRegion,
@@ -9,6 +11,10 @@ import {
   sortByTitle,
 } from "../domain/search";
 import type { CatalogDeps, RecentCollection, SearchPlaceHit } from "./catalog-types";
+import { createSearchGate } from "./search-gate";
+
+// One gate per process (D-E12-10, m1 [P]): a burst of searches cannot take the connection pool.
+const searchGate = createSearchGate(SEARCH_MAX_CONCURRENT, SEARCH_QUEUE_WAIT_MS);
 
 // The public search and the list of all collections (E12-2). Always the guest
 // context (D-T4): a signed-in curator gets exactly what a guest gets, so no draft,
@@ -19,13 +25,28 @@ import type { CatalogDeps, RecentCollection, SearchPlaceHit } from "./catalog-ty
 export async function listAllPublishedCollections(
   rawRegion: string | undefined,
   deps: CatalogDeps,
-): Promise<Readonly<{ region: Region | null; collections: readonly RecentCollection[] }>> {
+): Promise<
+  Readonly<{
+    region: Region | null;
+    collections: readonly RecentCollection[];
+    /** There are more than MAX_COLLECTIONS_PER_LIST; only the first ones are returned. */
+    truncated: boolean;
+  }>
+> {
   const region = parseSearchRegion(rawRegion);
+  // One more than shown: the extra row only says "there are more" (m5).
   const rows = await deps.withGuestContext((tx) =>
-    deps.repository.listAllPublishedCollections(tx, region, MAX_COLLECTIONS_PER_LIST),
+    deps.repository.listAllPublishedCollections(tx, region, MAX_COLLECTIONS_PER_LIST + 1),
   );
 
-  return { region, collections: sortByTitle(rows, (collection) => collection.title) };
+  return {
+    region,
+    collections: sortByTitle(
+      rows.slice(0, MAX_COLLECTIONS_PER_LIST),
+      (collection) => collection.title,
+    ),
+    truncated: rows.length > MAX_COLLECTIONS_PER_LIST,
+  };
 }
 
 export type SearchOutcome =
@@ -33,6 +54,8 @@ export type SearchOutcome =
   // A phrase of 1 or over 80 characters never reaches the database.
   | Readonly<{ status: "invalid"; reason: "too_short" | "too_long"; region: Region | null }>
   | Readonly<{ status: "timeout" }>
+  // Too many searches at once in this process (m1): the page asks to try again.
+  | Readonly<{ status: "busy" }>
   | Readonly<{
       status: "ok";
       phrase: string;
@@ -66,18 +89,25 @@ export async function searchPublicCatalog(
   }
 
   try {
-    const rows = await deps.withGuestContext((tx) =>
-      deps.repository.searchPublicCatalog(
-        tx,
-        {
-          contains: phrase.contains,
-          prefix: phrase.prefix,
-          namedRegions: regionsNamedLike(phrase.folded),
-          region,
-        },
-        SEARCH_RESULT_LIMIT,
+    const rows = await searchGate.run(() =>
+      deps.withGuestContext((tx) =>
+        deps.repository.searchPublicCatalog(
+          tx,
+          {
+            contains: phrase.contains,
+            prefix: phrase.prefix,
+            namedRegions: regionsNamedLike(phrase.folded),
+            region,
+          },
+          SEARCH_RESULT_LIMIT,
+        ),
       ),
     );
+
+    if (rows === null) {
+      return { status: "busy" };
+    }
+
     const moreCollections = rows.collections.length > SEARCH_RESULT_LIMIT;
     const morePlaces = rows.places.length > SEARCH_RESULT_LIMIT;
 
