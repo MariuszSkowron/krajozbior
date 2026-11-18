@@ -12,6 +12,7 @@ import { CollectionsToDiscover } from "./home/collections-to-discover";
 import { FavoriteCollections } from "./home/favorite-collections";
 import { RecentVisits } from "./home/recent-visits";
 import styles from "./home.module.css";
+import { SearchForm } from "./search/search-form";
 
 export const dynamic = "force-dynamic";
 
@@ -106,6 +107,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
             </div>
           </>
         )}
+        <SearchForm id="home-search" />
       </section>
       {album === null ? null : (
         <>

@@ -96,8 +96,14 @@ describe("home page of a guest", () => {
     expect(html).toContain('href="/collections/mosty-i-zamki"');
     expect(html).not.toContain("Moje konto");
     expect(html).not.toContain("Odkryte miejsca");
-    expect(html).not.toContain('href="/search"');
-    expect(html).not.toContain('type="search"');
+    // E12-2: the search field and the link to all collections.
+    expect(html).toMatch(/<form (?=[^>]*action="\/search")(?=[^>]*role="search")/);
+    expect(html).toMatch(/<label [^>]*for="home-search-q"[^>]*>Szukaj miejsc i kolekcji<\/label>/);
+    expect(html).toMatch(
+      /<input [^>]*type="search"[^>]*name="q"|<input [^>]*name="q"[^>]*type="search"/,
+    );
+    expect(html).not.toContain("<select");
+    expect(html).toMatch(/<a [^>]*href="\/search"[^>]*>Wszystkie kolekcje<\/a>/);
     expect(mocks.getHomeAlbum).not.toHaveBeenCalled();
   });
 
@@ -160,7 +166,7 @@ describe("home page of a signed-in explorer", () => {
     expect(html.match(/phoneHidden/g)?.length ?? 0).toBe(2);
   });
 
-  it("points the empty favourites to the collections to discover on the same page", async () => {
+  it("points the empty favourites to the list of all collections", async () => {
     mocks.getHomeAlbum.mockResolvedValue({
       status: "ok",
       value: { ...album, favorites: [], recentVisits: [] },
@@ -169,7 +175,7 @@ describe("home page of a signed-in explorer", () => {
     const html = await render();
 
     expect(html).toContain("Nie masz jeszcze zapisanych kolekcji");
-    expect(html).toMatch(/<a [^>]*href="#do-odkrycia"[^>]*>Zobacz kolekcje do odkrycia<\/a>/);
+    expect(html).toMatch(/<a [^>]*href="\/search"[^>]*>Przeglądaj wszystkie kolekcje<\/a>/);
     expect(html).not.toContain("Wszystkie moje kolekcje");
     expect(html).toContain("Nie masz jeszcze wizyt");
   });

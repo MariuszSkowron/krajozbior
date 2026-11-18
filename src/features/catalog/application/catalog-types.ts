@@ -71,6 +71,28 @@ export type RecentCollection = Readonly<{
   placeCount: number;
 }>;
 
+// One place found by the public search: the first public collection (alphabetically) it lies in.
+export type SearchPlaceHit = Readonly<{
+  id: string;
+  name: string;
+  address: string;
+  collection: Readonly<{ slug: string; title: string }>;
+}>;
+
+// What the repository gets of a parsed phrase (E12-2): `like` patterns on the folded texts,
+// the regions named like the phrase, and the region filter of the form.
+export type SearchCriteria = Readonly<{
+  contains: string;
+  prefix: string;
+  namedRegions: readonly Region[];
+  region: Region | null;
+}>;
+
+export type SearchRows = Readonly<{
+  collections: readonly RecentCollection[];
+  places: readonly SearchPlaceHit[];
+}>;
+
 export type PublishedPlace = Readonly<{
   id: string;
   name: string;
@@ -194,6 +216,23 @@ export interface CatalogRepository {
     tx: TransactionContext,
     limit: number,
   ): Promise<readonly RecentCollection[]>;
+  /** Published collections of approved organizations by title, optionally of one region, at most `limit`. */
+  listAllPublishedCollections(
+    tx: TransactionContext,
+    region: Region | null,
+    limit: number,
+  ): Promise<readonly RecentCollection[]>;
+  /**
+   * Public search (E12-2): at most `limit` collections and `limit` places, prefix matches
+   * first. Sets a time limit for the transaction first (D-E12-10).
+   */
+  searchPublicCatalog(
+    tx: TransactionContext,
+    criteria: SearchCriteria,
+    limit: number,
+  ): Promise<SearchRows>;
+  /** True when the error is the query being cancelled by the time limit. */
+  isSearchTimeout(error: unknown): boolean;
 }
 
 export type CatalogDeps = Readonly<{

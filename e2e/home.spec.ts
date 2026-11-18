@@ -174,9 +174,12 @@ test.describe("home page with the catalog", () => {
     // The personal sections are not for a guest.
     await expect(page.getByRole("heading", { name: "Twój album" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Ostatnio odwiedzone" })).toHaveCount(0);
-    // No search field and no link to /search before E12-2.
-    await expect(page.getByRole("searchbox")).toHaveCount(0);
-    await expect(page.locator('a[href="/search"]')).toHaveCount(0);
+    // E12-2: the search field and the link to all collections (every link is checked below).
+    await expect(page.getByRole("search").getByRole("searchbox")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Wszystkie kolekcje" })).toHaveAttribute(
+      "href",
+      "/search",
+    );
 
     await expectEveryLinkWorks(page);
     await inBothThemes(page, () => expectNoAccessibilityViolations(page));
@@ -192,10 +195,10 @@ test.describe("home page with the catalog", () => {
     await expect(a.getByRole("heading", { level: 1, name: "Dzień dobry" })).toBeVisible();
     await expect(a.getByText("Nie masz jeszcze zapisanych kolekcji")).toBeVisible();
     await expect(a.getByText("Nie masz jeszcze wizyt")).toBeVisible();
-    // The empty favourites lead to the collections on the same page.
-    await expect(a.getByRole("link", { name: "Zobacz kolekcje do odkrycia" })).toHaveAttribute(
+    // The empty favourites lead to the list of all collections.
+    await expect(a.getByRole("link", { name: "Przeglądaj wszystkie kolekcje" })).toHaveAttribute(
       "href",
-      "#do-odkrycia",
+      "/search",
     );
 
     // A visit from the past in one place, then the collection saved.

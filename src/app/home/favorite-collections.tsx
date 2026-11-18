@@ -10,7 +10,7 @@ import styles from "./home-sections.module.css";
 
 // Ulubione kolekcje: zapisane przez odkrywcę, ostatnio używane na górze, bez osobnego
 // oznaczenia „ulubiona”. Telefon pokazuje pierwsze cztery, komputer wszystkie (do sześciu).
-// Stan pusty odsyła do sekcji „Kolekcje do odkrycia” na tej samej stronie.
+// Stan pusty odsyła do `/search`, czyli do listy wszystkich kolekcji (E12-2).
 export function FavoriteCollections({
   collections,
 }: Readonly<{ collections: readonly SavedCollectionSummary[] }>) {
@@ -25,8 +25,8 @@ export function FavoriteCollections({
       {collections.length === 0 ? (
         <div className={styles.empty}>
           <p>Nie masz jeszcze zapisanych kolekcji. Zapisz pierwszą, a pojawi się tutaj.</p>
-          <Link className="button button--primary" href="#do-odkrycia">
-            Zobacz kolekcje do odkrycia
+          <Link className="button button--primary" href="/search">
+            Przeglądaj wszystkie kolekcje
           </Link>
         </div>
       ) : (
