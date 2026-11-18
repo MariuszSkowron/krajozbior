@@ -3,6 +3,7 @@ import type { ActionRateLimiter } from "@/features/identity/domain/action-rate-l
 import type { Actor } from "@/features/identity/domain/actor";
 import type { TransactionContext } from "@/lib/db/user-context";
 
+import type { HomeRecentVisit } from "../domain/home-album";
 import type { Progress } from "../domain/progress";
 
 // One saved collection of the signed-in explorer, with the progress computed by
@@ -22,6 +23,32 @@ export type SavedCollectionRow = Readonly<{
   slug: string;
   title: string;
   region: Region;
+}>;
+
+// The home page of the explorer (E12-1). Counts only; no user id.
+export type HomeSummary = Readonly<{
+  /** Different places with an own visit of any kind, also places no longer in a public collection (R-07). */
+  discoveredPlaces: number;
+  /** Voivodeships of the public collections that hold a visited place. */
+  regions: number;
+  /** Saved collections that are public now (the same set as "Moje kolekcje"). */
+  savedCollections: number;
+}>;
+
+// A favourite collection as the repository reads it: the counts the progress is made of.
+export type HomeFavoriteRow = Readonly<{
+  id: string;
+  slug: string;
+  title: string;
+  region: Region;
+  total: number;
+  visited: number;
+}>;
+
+export type HomeAlbum = Readonly<{
+  summary: HomeSummary;
+  favorites: readonly SavedCollectionSummary[];
+  recentVisits: readonly HomeRecentVisit[];
 }>;
 
 export type CollectionPlaceLink = Readonly<{ collectionId: string; placeId: string }>;
@@ -53,6 +80,22 @@ export interface AlbumRepository {
   /** Removes the actor's save, if any; the row of anybody else is never matched. */
   unsaveCollection(tx: TransactionContext, collectionId: string): Promise<void>;
   isCollectionSaved(tx: TransactionContext, collectionId: string): Promise<boolean>;
+  /**
+   * The three counts of the home page, each with the public filter spelled out
+   * (published collection, approved organization), whatever the actor's role.
+   */
+  homeSummary(tx: TransactionContext): Promise<HomeSummary>;
+  /**
+   * Saved public collections, most recently used first (the later of the save and
+   * the last own visit in one of its places), at most `limit`, with the counts of
+   * the progress.
+   */
+  homeFavorites(tx: TransactionContext, limit: number): Promise<readonly HomeFavoriteRow[]>;
+  /**
+   * The actor's `limit` latest visits, newest first. The place is joined only when
+   * it is in a public collection; otherwise `place` is null.
+   */
+  homeRecentVisits(tx: TransactionContext, limit: number): Promise<readonly HomeRecentVisit[]>;
   listPlaceIdsOfCollection(
     tx: TransactionContext,
     collectionId: string,
