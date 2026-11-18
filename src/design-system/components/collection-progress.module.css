@@ -1,0 +1,45 @@
+.progress {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+/* Tor z tokenu, wypełnienie akcentem z poświatą (design system). */
+.bar {
+  appearance: none;
+  width: 100%;
+  height: var(--space-xs);
+  overflow: visible;
+  background: var(--color-progress-track);
+  border: 0;
+  border-radius: var(--radius-pill);
+}
+
+.bar::-webkit-progress-bar {
+  background: var(--color-progress-track);
+  border-radius: var(--radius-pill);
+}
+
+.bar::-webkit-progress-value {
+  background: var(--color-brand-accent);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-accent-glow);
+}
+
+.bar::-moz-progress-bar {
+  background: var(--color-brand-accent);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-accent-glow);
+}
+
+.text {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Liczby albumu: mono z cyframi tabelarycznymi. */
+.count {
+  color: var(--color-text-strong);
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+}

@@ -259,9 +259,10 @@ describe("tokeny układu", () => {
   });
 
   it("skala rozmiarów pisma jest rosnąca (rem)", () => {
-    const names = ["xs", "sm", "md", "lg", "xl", "2xl", "3xl", "4xl"];
+    const names = ["2xs", "xs", "sm", "md", "lg", "xl", "2xl", "3xl", "4xl"];
     const values = names.map((name) => parseFloat(token(`font-size-${name}`)));
     expect(values).toEqual([...values].sort((a, b) => a - b));
+    expect(token("font-size-2xs")).toBe("0.625rem");
     expect(token("font-size-xs")).toBe("0.6875rem");
     expect(token("font-size-md")).toBe("1.0625rem");
     expect(token("font-size-3xl")).toBe("2.5rem");
@@ -282,10 +283,66 @@ describe("tokeny układu", () => {
     expect(raw("shadow-card", "light").split(/,(?![^(]*\))/)).toHaveLength(2);
   });
 
-  it("wagi pisma: 400 i 600 (bez 800)", () => {
+  it("wagi pisma: 400, 500 i 600 (bez 800)", () => {
     expect(token("font-weight-regular")).toBe("400");
+    expect(token("font-weight-medium")).toBe("500");
     expect(token("font-weight-strong")).toBe("600");
   });
+});
+
+// Dolny pasek nawigacji (E3-2a, D-23): tło `glass` leży nad treścią strony. Etykieta aktywnej
+// pozycji ma kolor `strong`, a nie `accent-text` (akcent wypadałby poniżej 4,5:1 nad elementem
+// o przeciwnej jasności); ikona i kropka to elementy nietekstowe (≥ 3:1).
+describe("pasek nawigacji (color.surface.glass)", () => {
+  const underBar = ["color.surface.canvas", "color.surface.card"];
+  // Najgorszy przypadek bez rozmycia: pod paskiem duży element o przeciwnej jasności.
+  const opposite: Record<Theme, Rgba> = { dark: [255, 255, 255, 1], light: [0, 0, 0, 1] };
+
+  it.each(themes)("%s: tło glass jest półprzezroczyste, tło canvas jest pełne", (theme) => {
+    const [, , , alpha] = color("color.surface.glass", theme);
+    expect(alpha).toBeGreaterThan(0.7);
+    expect(alpha).toBeLessThan(1);
+  });
+
+  const labels = ["color.text.strong", "color.text.primary", "color.text.label"];
+  const cases: [Theme, string, string][] = [];
+  for (const theme of themes) {
+    for (const fg of labels) for (const base of underBar) cases.push([theme, fg, base]);
+  }
+
+  it.each(cases)("%s: etykieta %s na glass nad %s ≥ 4,5:1", (theme, fg, base) => {
+    expect(contrast(fg, "color.surface.glass", theme, base)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(themes)("%s: strong i primary na glass nad elementem o przeciwnej jasności", (theme) => {
+    const solid = over(color("color.surface.glass", theme), opposite[theme]);
+    for (const fg of ["color.text.strong", "color.text.primary"]) {
+      expect(ratio(color(fg, theme), solid)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it.each(themes)("%s: ikona aktywnej pozycji (accent-text) i kropka (accent) ≥ 3:1", (theme) => {
+    for (const base of underBar) {
+      expect(
+        contrast("color.text.accent", "color.surface.glass", theme, base),
+      ).toBeGreaterThanOrEqual(3);
+      expect(
+        contrast("color.brand.accent", "color.surface.glass", theme, base),
+      ).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it.each(themes)(
+    "%s: bez rozmycia pasek ma tło canvas, z etykietą strong i ikoną ≥ 3:1",
+    (theme) => {
+      expect(contrast("color.text.strong", "color.surface.canvas", theme)).toBeGreaterThanOrEqual(
+        7,
+      );
+      expect(contrast("color.text.accent", "color.surface.canvas", theme)).toBeGreaterThanOrEqual(
+        4.5,
+      );
+    },
+  );
 });
 
 describe("kroje", () => {

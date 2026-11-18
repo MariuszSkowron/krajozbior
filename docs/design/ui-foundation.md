@@ -13,7 +13,7 @@ Fundamentem interfejsu jest React 19, natywny HTML i tokeny CSS. Dokument zapisu
 
 ## 2. Stan obecny szkieletu
 
-Zweryfikuj w repozytorium (`package.json`, `src/design-system/`), zamiast ufać tej liście: tokeny (dwa motywy: nocny i jasny) w `src/design-system/tokens`, style bazowe, przyciski i pola w `theme`, kroje z plików w `src/design-system/fonts` (Geist, Geist Mono, Instrument Serif; źródła i licencje w `README.md` tamże), historie Storybook „Foundation” (z przełącznikiem „Motyw”) i kontrolek natywnych, brak biblioteki komponentów, brak Tailwind CSS i CSS-in-JS.
+Zweryfikuj w repozytorium (`package.json`, `src/design-system/`), zamiast ufać tej liście: tokeny (dwa motywy: nocny i jasny) w `src/design-system/tokens`, style bazowe, przyciski i pola w `theme`, kroje z plików w `src/design-system/fonts` (Geist, Geist Mono, Instrument Serif; źródła i licencje w `README.md` tamże), ikony liniowe rysowane w repozytorium w `src/design-system/icons` (5 sztuk, bez biblioteki ikon), komponenty produktu w `src/design-system/components` (`CollectionCard`, `CollectionProgress`, `StatusBadge`), historie Storybook „Foundation” (z przełącznikiem „Motyw”), komponentów i kontrolek natywnych, brak biblioteki komponentów, brak Tailwind CSS i CSS-in-JS.
 
 ## 3. Kiedy rozważyć bibliotekę
 

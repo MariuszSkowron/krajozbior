@@ -13,8 +13,58 @@
   border-radius: var(--radius-md);
 }
 
-.panel {
+/* Ramka z menu i treścią panelu: tylko od progu komputera. */
+.frame {
   display: none;
+}
+
+.panel {
+  display: grid;
+  gap: var(--space-lg);
+  align-content: start;
+  padding-block: var(--space-lg) var(--space-xl);
+}
+
+/* Menu panelu: odznaka roli (stan info na karcie), lista, link do profilu na dole. */
+.menu {
+  position: sticky;
+  inset-block-start: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-md);
+  align-self: start;
+  padding-block: var(--space-lg);
+}
+
+.menuList {
+  display: grid;
+  gap: var(--space-xs);
+  align-self: stretch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Pozycje menu rozpoznają się po położeniu, więc bez podkreślenia (wyjątek z własną klasą). */
+.menuLink {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 46px;
+  padding-inline: var(--space-md);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+
+.menuLink:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.menuProfile {
+  margin-block-start: var(--space-xl);
 }
 
 @media (min-width: 48rem) {
@@ -22,10 +72,10 @@
     display: none;
   }
 
-  .panel {
+  .frame {
     display: grid;
-    gap: var(--space-lg);
-    padding-block: var(--space-lg) var(--space-xl);
+    grid-template-columns: 14rem minmax(0, 1fr);
+    gap: var(--space-xl);
   }
 }
 

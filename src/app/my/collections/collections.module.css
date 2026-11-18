@@ -1,20 +1,3 @@
-.progress {
-  display: grid;
-  gap: var(--space-xs);
-}
-
-.progressText {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.bar {
-  width: 100%;
-  height: var(--space-sm);
-  accent-color: var(--color-brand-accent);
-}
-
 .empty {
   display: grid;
   gap: var(--space-md);

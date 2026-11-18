@@ -1,0 +1,231 @@
+import { expect, test, type Browser, type Page } from "@playwright/test";
+
+// E3-2a: powłoka i nawigacja. Dolny pasek zalogowanego odkrywcy na telefonie (4 pozycje,
+// aria-current, cele dotykowe 44 × 44 px, fokus niezasłonięty przez pasek), menu boczne
+// na komputerze oraz menu i komunikat panelu kuratora. Logowanie kontami demo wymaga
+// zmigrowanej i zasianej bazy jak w innych specach; bez niej te testy są pomijane.
+const password = process.env.DEMO_ACCOUNT_PASSWORD;
+
+const PHONE = { width: 390, height: 844 };
+const DESKTOP = { width: 1280, height: 800 };
+const NAV = 'nav[aria-label="Główna"]';
+const emailOf = (name: string) => `${name}@demo.krajozbior.local`;
+
+async function signedInPage(
+  browser: Browser,
+  name: string,
+  viewport: { width: number; height: number },
+  theme: "dark" | "light" = "dark",
+): Promise<Page> {
+  const context = await browser.newContext({ viewport });
+  await context.addCookies([{ name: "krajozbior-theme", value: theme, url: "http://127.0.0.1" }]);
+  const page = await context.newPage();
+
+  await page.goto("/login");
+
+  const form = page.locator("form", { has: page.getByLabel("Hasło") });
+
+  await form.getByLabel("E-mail").fill(emailOf(name));
+  await form.getByLabel("Hasło").fill(password ?? "");
+  await form.getByRole("button", { name: "Zaloguj się" }).click();
+  await expect(page).toHaveURL(/\/my$/);
+
+  return page;
+}
+
+test.describe("gość", () => {
+  test("nie ma głównej nawigacji, tylko nagłówek z logowaniem", async ({ browser }) => {
+    const context = await browser.newContext({ viewport: PHONE });
+    const page = await context.newPage();
+    await page.goto("/");
+
+    await expect(page.locator(NAV)).toHaveCount(0);
+    await expect(page.getByRole("banner").getByRole("link", { name: "Zaloguj się" })).toBeVisible();
+    await context.close();
+  });
+});
+
+test.describe("dolny pasek na telefonie", () => {
+  test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
+
+  test("ma 4 pozycje, bieżąca ma aria-current, cele mają co najmniej 44 × 44 px", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, "user", PHONE);
+    const nav = page.locator(NAV);
+
+    await expect(nav.getByRole("link")).toHaveText([
+      "Start",
+      "Moje kolekcje",
+      "Chcę zobaczyć",
+      "Konto",
+    ]);
+
+    // Pasek jest przypięty do dolnej krawędzi i ma półprzezroczyste tło z rozmyciem.
+    const bar = await nav.evaluate((element) => {
+      const style = getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return {
+        position: style.position,
+        backdrop: style.backdropFilter,
+        bottom: box.bottom,
+        height: box.height,
+        viewport: window.innerHeight,
+      };
+    });
+    expect(bar.position).toBe("fixed");
+    expect(bar.backdrop).toContain("blur");
+    expect(bar.bottom).toBe(bar.viewport);
+    expect(bar.height).toBeGreaterThanOrEqual(50);
+
+    for (const [path, name] of [
+      ["/my", "Konto"],
+      ["/my/collections", "Moje kolekcje"],
+      ["/my/want-to-see", "Chcę zobaczyć"],
+    ] as const) {
+      await page.goto(path);
+      const current = nav.locator('a[aria-current="page"]');
+      await expect(current).toHaveCount(1);
+      await expect(current).toHaveText(name);
+    }
+
+    for (const link of await nav.getByRole("link").all()) {
+      const box = await link.boundingBox();
+      expect(box?.width).toBeGreaterThanOrEqual(44);
+      expect(box?.height).toBeGreaterThanOrEqual(44);
+    }
+
+    // Aktywny napis ma kolor strong (D-23), nie akcent; akcentem jest ikona.
+    const colors = await page.evaluate(() => {
+      const link = document.querySelector('nav a[aria-current="page"]')!;
+      const probe = document.createElement("span");
+      probe.style.color = "var(--color-text-strong)";
+      document.body.append(probe);
+      const strong = getComputedStyle(probe).color;
+      probe.remove();
+      return { label: getComputedStyle(link).color, strong };
+    });
+    expect(colors.label).toBe(colors.strong);
+    await page.context().close();
+  });
+
+  for (const theme of ["dark", "light"] as const) {
+    test(`fokus nie jest zasłonięty przez dolny pasek (motyw ${theme})`, async ({ browser }) => {
+      const page = await signedInPage(browser, "user", PHONE, theme);
+
+      for (const path of ["/my/collections", "/my/want-to-see"]) {
+        await page.goto(path);
+        await page.waitForLoadState("networkidle");
+        // Odstęp przed treścią ustawia pierwszy element z fokusem tuż nad dolną krawędzią
+        // ekranu, czyli pod paskiem, ale w całości w oknie przeglądarki. Przeglądarka przewija
+        // do fokusu tylko element, który uważa za niewidoczny; bez scroll-padding-bottom
+        // pierwszy element zostałby pod paskiem.
+        await page.evaluate(() => {
+          const first = document.querySelector<HTMLElement>(
+            "main a[href], main button, main input, main select, main textarea",
+          )!;
+          const box = first.getBoundingClientRect();
+          const spacer = document.createElement("div");
+          spacer.style.height = `${window.innerHeight - box.height - 2 - box.top}px`;
+          document.querySelector("main")!.prepend(spacer);
+        });
+
+        let checked = 0;
+        for (let i = 0; i < 40; i += 1) {
+          await page.keyboard.press("Tab");
+          const state = await page.evaluate((navSelector) => {
+            const element = document.activeElement as HTMLElement;
+            const box = element.getBoundingClientRect();
+            const hit = document.elementFromPoint(
+              box.left + box.width / 2,
+              box.top + box.height / 2,
+            );
+            return {
+              inMain: element.closest("main") !== null,
+              covered: !(hit === element || element.contains(hit)),
+              aboveBar:
+                box.bottom <= document.querySelector(navSelector)!.getBoundingClientRect().top,
+            };
+          }, NAV);
+
+          if (state.inMain) {
+            checked += 1;
+            expect(state.covered, `${path}, Tab ${i + 1}: element zasłonięty`).toBe(false);
+            expect(state.aboveBar, `${path}, Tab ${i + 1}: element pod paskiem`).toBe(true);
+          }
+        }
+        expect(checked, `${path}: w treści powinien być element z fokusem`).toBeGreaterThan(0);
+      }
+      await page.context().close();
+    });
+  }
+});
+
+test.describe("menu boczne na komputerze", () => {
+  test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
+
+  test("menu stoi obok treści, ma 4 pozycje po 46 px i bieżącą z aria-current", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, "user", DESKTOP);
+    await page.goto("/my/collections");
+    const nav = page.locator(NAV);
+
+    await expect(nav.getByRole("link")).toHaveCount(4);
+    await expect(nav.locator('a[aria-current="page"]')).toHaveText("Moje kolekcje");
+
+    const layout = await page.evaluate((navSelector) => {
+      const navBox = document.querySelector(navSelector)!.getBoundingClientRect();
+      const mainBox = document.querySelector("main")!.getBoundingClientRect();
+      return {
+        width: navBox.width,
+        position: getComputedStyle(document.querySelector(navSelector)!).position,
+        mainLeft: mainBox.left,
+        navRight: navBox.right,
+      };
+    }, NAV);
+    expect(layout.width).toBe(272);
+    expect(layout.position).not.toBe("fixed");
+    expect(layout.mainLeft).toBeGreaterThanOrEqual(layout.navRight);
+
+    for (const link of await nav.getByRole("link").all()) {
+      expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(46);
+    }
+    await page.context().close();
+  });
+});
+
+test.describe("panel kuratora", () => {
+  test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
+
+  test("na komputerze ma własne menu z odznaką Kurator, a menu powłoki ustępuje", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, "curator-a", DESKTOP);
+    await page.goto("/curator");
+
+    const menu = page.getByRole("navigation", { name: "Panel kuratora" });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByText("Kurator", { exact: true })).toBeVisible();
+    await expect(menu.getByRole("link", { name: "Profil prywatny" })).toHaveAttribute(
+      "href",
+      "/my",
+    );
+    await expect(page.locator(NAV)).toBeHidden();
+    await page.context().close();
+  });
+
+  test("na telefonie pokazuje komunikat o komputerze zamiast panelu", async ({ browser }) => {
+    const page = await signedInPage(browser, "curator-a", PHONE);
+    await page.goto("/curator");
+
+    await expect(page.getByRole("note")).toContainText(
+      "Panel kuratora jest przeznaczony na komputer",
+    );
+    await expect(page.getByRole("navigation", { name: "Panel kuratora" })).toBeHidden();
+    await expect(page.getByRole("heading", { level: 1, name: "Twoje kolekcje" })).toBeHidden();
+    // Dolny pasek zostaje, żeby dało się wyjść z panelu.
+    await expect(page.locator(NAV)).toBeVisible();
+    await page.context().close();
+  });
+});

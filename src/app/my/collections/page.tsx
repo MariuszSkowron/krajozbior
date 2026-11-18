@@ -3,12 +3,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getRequestActor, logReadFailure, loginHref } from "@/app/request-actor";
+import { CollectionProgress } from "@/design-system/components/collection-progress";
 import { listMyCollectionsWithProgress } from "@/features/album/application/saved-collections";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
+import { progressCounts } from "@/features/album/domain/progress";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
 
 import catalog from "../../catalog.module.css";
-import { CollectionProgress } from "./collection-progress";
 import styles from "./collections.module.css";
 
 // Private page: rendered on every request, never cached by a shared cache.
@@ -63,7 +64,7 @@ export default async function MyCollectionsPage() {
                   <span className={catalog.itemTitle}>{collection.title}</span>
                   <span className={catalog.itemMeta}>{REGION_LABELS[collection.region]}</span>
                   <CollectionProgress
-                    progress={collection.progress}
+                    {...progressCounts(collection.progress)}
                     label={`Postęp w kolekcji ${collection.title}`}
                   />
                 </Link>

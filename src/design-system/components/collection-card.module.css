@@ -1,0 +1,77 @@
+/*
+ * Karta kolekcji. Cała karta jest linkiem rozpoznawalnym po kształcie, więc bez podkreślenia
+ * (wyjątek z theme.css ma własną klasę). Tło karty nie zmienia się po najechaniu: wiersze
+ * i karty z odznaką albo tekstem akcentem zostają na `card` (reguła tła, accessibility.md).
+ */
+.card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+@media (hover: hover) {
+  .card:hover {
+    border-color: var(--color-border-strong);
+    box-shadow: var(--shadow-card-hover);
+  }
+}
+
+/* Okładka zastępcza: gradient z dwóch kolorów zastępczych obrazu. */
+.cover {
+  display: block;
+  aspect-ratio: 16 / 7;
+  background: linear-gradient(
+    135deg,
+    var(--color-image-placeholder),
+    var(--color-image-placeholder-alt)
+  );
+}
+
+.body {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+}
+
+.region {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--color-text-label);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-label);
+  line-height: var(--line-height-body);
+  text-transform: uppercase;
+}
+
+.pin {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+}
+
+.title {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-heading);
+}
+
+@media (min-width: 48rem) {
+  .body {
+    padding: var(--space-lg);
+  }
+
+  .title {
+    font-size: var(--font-size-xl);
+  }
+}

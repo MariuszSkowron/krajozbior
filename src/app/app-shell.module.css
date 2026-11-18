@@ -1,7 +1,7 @@
 /*
- * Powłoka aplikacji (E06-S01, s16). Mobile-first: na telefonie nawigacja z ≥ 2 pozycjami
- * jest dolnym paskiem, od progu komputera częścią nagłówka. Ten sam DOM, jeden próg
- * (48 rem, jak w theme.css; breakpointy nie są tokenami).
+ * Powłoka aplikacji (E3-S2). Mobile-first: zalogowany odkrywca ma na telefonie dolny pasek
+ * nawigacji, od progu komputera menu boczne. Ten sam DOM, jeden próg (48 rem, jak w theme.css;
+ * breakpointy nie są tokenami). Gość widzi tylko nagłówek.
  */
 .shell {
   box-sizing: border-box;
@@ -11,9 +11,25 @@
   margin: 0;
 }
 
-/* Treść nie chowa się pod dolnym paskiem ani pod wskaźnikiem ekranu głównego. */
-.withBar {
-  padding-bottom: calc(var(--size-touch-min) + var(--space-xl) + env(safe-area-inset-bottom));
+/*
+ * Wysokość dolnego paska: 50 px plus wcięcie ekranu głównego. To zmienna układu, nie token:
+ * dotyczy tylko powłoki. Pasek jest przypięty, więc `html` dostaje `scroll-padding-bottom`
+ * równe tej wysokości, a przewijanie klawiszem Tab nie zostawia fokusu pod paskiem
+ * (WCAG 2.4.11). Zmienna działa tylko wtedy, gdy pasek jest widoczny (poniżej progu komputera).
+ */
+:global(html):has(.withNav) {
+  --shell-bottom-bar-height: calc(50px + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 47.99rem) {
+  :global(html):has(.withNav) {
+    scroll-padding-bottom: calc(var(--shell-bottom-bar-height) + var(--space-md));
+  }
+
+  /* Treść nie chowa się pod dolnym paskiem: ostatni element da się przewinąć ponad pasek. */
+  .withNav .main {
+    padding-bottom: calc(var(--shell-bottom-bar-height) + var(--space-md));
+  }
 }
 
 .visuallyHidden {
@@ -73,82 +89,112 @@
   text-decoration: none;
 }
 
+/*
+ * Główna nawigacja. Poniżej progu komputera: dolny pasek przypięty do krawędzi, tło `glass`
+ * z rozmyciem, `min-height` (nie `height`), żeby etykieta mogła urosnąć przy powiększeniu
+ * tekstu do 200% (WCAG 1.4.4, 1.4.12).
+ */
+.nav {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  min-height: var(--shell-bottom-bar-height);
+  padding-block-end: env(safe-area-inset-bottom);
+  background: var(--color-surface-glass);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/*
+ * Bez rozmycia tło `glass` nad treścią o przeciwnej jasności dałoby za mały kontrast etykiety,
+ * więc pasek dostaje pełne tło strony (accessibility.md, „Dolny pasek”).
+ */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .nav {
+    background: var(--color-surface-canvas);
+  }
+}
+
 .navList {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.navLink {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  min-width: var(--size-touch-min);
-  min-height: var(--size-touch-min);
-  padding-inline: var(--space-sm);
-  color: var(--color-text-accent);
-  font-weight: var(--font-weight-strong);
-  text-decoration: none;
-  border-radius: var(--radius-md);
-}
-
-/*
- * Bieżąca sekcja: pogrubienie i kreska w kolorze marki (nie sam kolor). Terakota zostaje
- * zarezerwowana dla odkryć.
- */
-.navLink[aria-current="page"] {
-  color: var(--color-text-primary);
-  font-weight: var(--font-weight-strong);
-  box-shadow: inset 0 calc(-1 * var(--space-xs)) 0 var(--color-brand-accent);
-}
-
-.navIcon {
-  flex: none;
-  width: 1.5rem;
-  height: 1.5rem;
-}
-
-/* Dolny pasek telefonu: w zasięgu kciuka, etykieta pod ikoną. */
-.bar {
-  position: fixed;
-  inset-inline: 0;
-  inset-block-end: 0;
-  z-index: 1;
-  display: block;
-  padding: var(--space-xs) var(--space-sm) calc(var(--space-xs) + env(safe-area-inset-bottom));
-  background: var(--color-surface-card);
-  border-top: 1px solid var(--color-border-subtle);
-  box-shadow: var(--shadow-overlay);
-}
-
-.bar .navList {
-  flex-wrap: nowrap;
-}
-
-.bar li {
+.navList li {
   flex: 1;
   min-width: 0;
 }
 
-/* border-box: szerokość 100% obejmuje padding, więc pozycje nie wystają poza ekran ani nie nachodzą na siebie. */
-.bar .navLink {
+/* Pozycja rozpoznaje się po kształcie i położeniu, więc bez podkreślenia (wyjątek z własną klasą). */
+.navLink {
+  position: relative;
   box-sizing: border-box;
+  display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
+  gap: var(--space-xs);
   width: 100%;
-  padding-block: var(--space-xs);
-  font-size: var(--font-size-sm);
+  min-width: var(--size-touch-min);
+  min-height: 50px;
+  padding: var(--space-xs);
+  color: var(--color-text-label);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-body);
+  text-align: center;
+  text-decoration: none;
+}
+
+.navLink[aria-current="page"] {
+  color: var(--color-text-strong);
+  font-weight: var(--font-weight-strong);
+}
+
+.navIcon {
+  flex: none;
+  width: 1.5625rem;
+  height: 1.5625rem;
+}
+
+.navLink[aria-current="page"] .navIcon {
+  color: var(--color-text-accent);
+}
+
+/* Kropka aktywnej pozycji: akcent z poświatą; nad ikoną na telefonie, przy napisie na komputerze. */
+.navDot {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 50%;
+  width: var(--space-xs);
+  height: var(--space-xs);
+  background: var(--color-brand-accent);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-accent-glow);
+  transform: translateX(-50%);
+}
+
+@media (forced-colors: active) {
+  .navDot {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
 }
 
 /* Klawiatura ekranowa: pole formularza w treści ma fokus, więc pasek ustępuje miejsca. */
-.shell:has(
-    .main :is(input:not([type="checkbox"], [type="radio"], [type="hidden"]), textarea, select):focus
-  )
-  .bar {
-  display: none;
+@media (max-width: 47.99rem) {
+  .shell:has(
+      .main
+        :is(input:not([type="checkbox"], [type="radio"], [type="hidden"]), textarea, select):focus
+    )
+    .nav {
+    display: none;
+  }
 }
 
 .account {
@@ -245,13 +291,9 @@
  * Najwęższe telefony (320 px): mniejsze odstępy utrzymują nagłówek w jednym wierszu.
  */
 @media (max-width: 22.49rem) {
-  .shell:not(.withBar) .header {
+  .header {
     column-gap: var(--space-sm);
     padding-inline: var(--space-sm);
-  }
-
-  .shell:not(.withBar) .header .navIcon {
-    display: none;
   }
 }
 
@@ -261,40 +303,89 @@
     text-align: center;
   }
 
-  .withBar {
-    padding-bottom: 0;
-  }
-
   .header {
     padding-block: var(--space-sm);
   }
 
-  .bar {
-    position: static;
-    padding: 0;
+  /*
+   * Komputer: nagłówek na całą szerokość, pod nim menu boczne (272 px) i treść. Gdy menu
+   * nie ma (gość, panel kuratora), pierwsza kolumna ma zerową szerokość.
+   */
+  .shell {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .header {
+    grid-column: 1 / -1;
+  }
+
+  .main {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .nav {
+    position: sticky;
+    inset-block: 0 auto;
+    inset-inline: auto;
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    inline-size: 17rem;
+    min-height: 0;
+    padding: var(--space-lg) var(--space-md);
     background: none;
-    border: 0;
-    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-top: 0;
+    border-inline-end: 1px solid var(--color-border-subtle);
   }
 
-  .bar li {
-    flex: none;
+  /* Panel kuratora ma własne menu. */
+  .nav[data-area="curator"] {
+    display: none;
   }
 
-  .bar .navLink {
+  .navList {
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .navLink {
     flex-direction: row;
-    width: auto;
-    padding-block: 0;
+    justify-content: flex-start;
+    gap: var(--space-md);
+    min-height: 46px;
+    padding: 0 var(--space-md);
+    color: var(--color-text-secondary);
     font-size: var(--font-size-md);
+    text-align: start;
+    border-radius: var(--radius-sm);
   }
 
-  /* Na komputerze nawigacja jest w nagłówku i nie znika przy wpisywaniu. */
-  .shell:has(
-      .main
-        :is(input:not([type="checkbox"], [type="radio"], [type="hidden"]), textarea, select):focus
-    )
-    .bar {
-    display: block;
+  .navLink:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text-primary);
+  }
+
+  /* Aktywna pozycja na `tint`: napis strong (accent-text ma tam 4,16:1 w jasnym motywie). */
+  .navLink[aria-current="page"],
+  .navLink[aria-current="page"]:hover {
+    background: var(--color-surface-tint);
+    color: var(--color-text-strong);
+  }
+
+  .navIcon {
+    width: 1.375rem;
+    height: 1.375rem;
+  }
+
+  .navDot {
+    inset-block-start: 50%;
+    inset-inline-start: var(--space-sm);
+    transform: translateY(-50%);
   }
 }
 
