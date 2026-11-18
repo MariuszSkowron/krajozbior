@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   getActor: vi.fn(),
   getHomeAlbum: vi.fn(),
   listRecent: vi.fn(),
+  listNearby: vi.fn(),
 }));
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
@@ -16,6 +17,7 @@ vi.mock("@/features/catalog/infrastructure/catalog-deps", () => ({ getCatalogDep
 vi.mock("@/features/album/application/home-album", () => ({ getHomeAlbum: mocks.getHomeAlbum }));
 vi.mock("@/features/catalog/application/public-catalog", () => ({
   listRecentlyPublishedCollections: mocks.listRecent,
+  listNearbyCandidates: mocks.listNearby,
 }));
 
 const { default: HomePage } = await import("@/app/page");
@@ -36,6 +38,18 @@ const discover = [
     region: "pomorskie",
     organization: { name: "Gmina A" },
     placeCount: 3,
+  },
+];
+
+const nearby = [
+  {
+    slug: "mosty-i-zamki",
+    title: "Mosty i zamki",
+    region: "pomorskie",
+    placeCount: 3,
+    centerLat: 54.1,
+    centerLon: 18.8,
+    firstPublishedAt: "2026-11-01T10:00:00.000Z",
   },
 ];
 
@@ -81,6 +95,7 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   mocks.getActor.mockReset().mockResolvedValue(null);
   mocks.listRecent.mockReset().mockResolvedValue(discover);
+  mocks.listNearby.mockReset().mockResolvedValue(nearby);
   mocks.getHomeAlbum.mockReset().mockResolvedValue({ status: "ok", value: album });
 });
 
@@ -135,7 +150,33 @@ describe("home page of a guest", () => {
     expect(await render({ wylogowanie: "blad" })).toMatch(
       /role="status"[^>]*>Nie udało się wylogować\./,
     );
-    expect(await render()).not.toContain('role="status"');
+    // Nothing of the sign-out in the default page (the "W okolicy" status region is empty).
+    const plain = await render();
+
+    expect(plain).not.toContain("Wylogowano.");
+    expect(plain).not.toContain("Nie udało się wylogować");
+  });
+
+  it("shows the section W okolicy with the button only, and no position or list before a click (E12-3)", async () => {
+    const html = await render();
+
+    expect(html).toMatch(/<h2[^>]*>W okolicy<\/h2>/);
+    expect(html).toMatch(/<button [^>]*>Pokaż kolekcje w okolicy<\/button>/);
+    expect(html).toMatch(/<p role="status"><\/p>/);
+    // The only link to the collection is the one of "Kolekcje do odkrycia", not a nearby card.
+    expect(html.match(/href="\/collections\/mosty-i-zamki"/g)).toHaveLength(1);
+  });
+
+  it("shows a message in the W okolicy section when its read fails, and the rest works", async () => {
+    mocks.listNearby.mockRejectedValue(new Error("db down: secret-host"));
+
+    const html = await render();
+
+    expect(html).toMatch(/<h2[^>]*>W okolicy<\/h2>/);
+    expect(html).not.toContain("Pokaż kolekcje w okolicy");
+    expect(html).toContain("Mosty i zamki");
+    expect(console.error).toHaveBeenCalledWith("Home nearby read failed:", "Error");
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
   });
 });
 
