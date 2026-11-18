@@ -76,3 +76,15 @@ describe("collection lists", () => {
     expect(normalizeLineBreaks("a\r\nb\rc\nd")).toBe("a\nb\nc\nd");
   });
 });
+
+describe("labels for screens", () => {
+  it("names every voivodeship and every state in Polish", async () => {
+    const { COLLECTION_STATUS_LABELS, REGION_LABELS } =
+      await import("@/features/catalog/domain/collection");
+
+    expect(Object.keys(REGION_LABELS).sort()).toEqual([...REGIONS].sort());
+    expect(Object.keys(COLLECTION_STATUS_LABELS).sort()).toEqual([...COLLECTION_STATUSES].sort());
+    expect(REGION_LABELS.lodzkie).toBe("Łódzkie");
+    expect(COLLECTION_STATUS_LABELS).toEqual({ draft: "Szkic", published: "Opublikowana" });
+  });
+});

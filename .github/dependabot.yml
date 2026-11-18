@@ -10,10 +10,22 @@ updates:
       time: "04:00"
       timezone: "Etc/UTC"
     groups:
+      # vitest and its plugins must share one version (peer dependency), so
+      # they move together, including major updates.
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
       npm-minor-and-patch:
         update-types:
           - minor
           - patch
+    ignore:
+      # Types must match the runtime (Node 22, see engines and CI); a major
+      # bump of @types/node would allow APIs the runtime does not have.
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
