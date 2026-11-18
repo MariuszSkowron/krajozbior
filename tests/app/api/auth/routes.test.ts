@@ -153,7 +153,7 @@ describe("demo accounts on a production deployment", () => {
     "refuses the password sign-in of a demo account like wrong credentials",
     inProduction(async () => {
       const response = await login(
-        jsonPost("/api/auth/login", { email: "admin@demo.starter.local", password: "x" }),
+        jsonPost("/api/auth/login", { email: "admin@demo.krajozbior.local", password: "x" }),
       );
 
       expect(response.status).toBe(401);
@@ -167,7 +167,7 @@ describe("demo accounts on a production deployment", () => {
     "answers a code request for a demo address as sent, but counts and sends nothing",
     inProduction(async () => {
       const response = await requestCode(
-        jsonPost("/api/auth/code/request", { email: "user@demo.starter.local" }),
+        jsonPost("/api/auth/code/request", { email: "user@demo.krajozbior.local" }),
       );
 
       expect(response.status).toBe(202);
@@ -180,7 +180,7 @@ describe("demo accounts on a production deployment", () => {
     "refuses a code check for a demo address",
     inProduction(async () => {
       const response = await verifyCode(
-        jsonPost("/api/auth/code/verify", { email: "user@demo.starter.local", code: "123456" }),
+        jsonPost("/api/auth/code/verify", { email: "user@demo.krajozbior.local", code: "123456" }),
       );
 
       expect(response.status).toBe(401);
@@ -276,11 +276,14 @@ describe("POST /api/auth/login sign-in limit (issue #39)", () => {
 
 describe("POST /api/auth/login", () => {
   it("sets the session cookies and redirects a form post to a safe returnTo", async () => {
-    provider.signIn.mockResolvedValue({ actor, setCookies: ["starter.session_token=a; HttpOnly"] });
+    provider.signIn.mockResolvedValue({
+      actor,
+      setCookies: ["krajozbior.session_token=a; HttpOnly"],
+    });
 
     const response = await login(
       formLogin({
-        email: "admin@demo.starter.local",
+        email: "admin@demo.krajozbior.local",
         password: "pw",
         returnTo: "/api/admin",
       }),
@@ -288,7 +291,7 @@ describe("POST /api/auth/login", () => {
 
     expect(response.status).toBe(303);
     expect(response.headers.get("Location")).toBe("/api/admin");
-    expect(response.headers.getSetCookie()).toEqual(["starter.session_token=a; HttpOnly"]);
+    expect(response.headers.getSetCookie()).toEqual(["krajozbior.session_token=a; HttpOnly"]);
   });
 
   it("never redirects off-site, whatever returnTo says", async () => {
@@ -323,15 +326,15 @@ describe("POST /api/auth/login", () => {
   });
 
   it("revokes the session the browser already had after a successful login", async () => {
-    provider.signIn.mockResolvedValue({ actor, setCookies: ["starter.session_token=new"] });
-    provider.signOut.mockResolvedValue(["starter.session_token=; Max-Age=0"]);
+    provider.signIn.mockResolvedValue({ actor, setCookies: ["krajozbior.session_token=new"] });
+    provider.signOut.mockResolvedValue(["krajozbior.session_token=; Max-Age=0"]);
 
     const request = jsonLogin('{"email":"a@b.c","password":"pw"}');
     const response = await login(request);
 
     expect(provider.signOut).toHaveBeenCalledWith(request.headers);
     // Only the new session cookie goes back; the clearing cookie would drop it.
-    expect(response.headers.getSetCookie()).toEqual(["starter.session_token=new"]);
+    expect(response.headers.getSetCookie()).toEqual(["krajozbior.session_token=new"]);
   });
 
   it("keeps the current session when the login fails", async () => {
@@ -343,7 +346,7 @@ describe("POST /api/auth/login", () => {
   });
 
   it("reports a failed revocation of the previous session as retryable", async () => {
-    provider.signIn.mockResolvedValue({ actor, setCookies: ["starter.session_token=new"] });
+    provider.signIn.mockResolvedValue({ actor, setCookies: ["krajozbior.session_token=new"] });
     provider.signOut.mockRejectedValue(new Error("Session is still active after sign-out"));
 
     const response = await login(jsonLogin('{"email":"a@b.c","password":"pw"}'));
@@ -428,14 +431,14 @@ describe("POST /api/auth/login", () => {
 
 describe("POST /api/auth/logout", () => {
   it("clears the cookies and returns 204 for API clients", async () => {
-    provider.signOut.mockResolvedValue(["starter.session_token=; Max-Age=0"]);
+    provider.signOut.mockResolvedValue(["krajozbior.session_token=; Max-Age=0"]);
 
     const response = await logout(
       new Request("http://localhost/api/auth/logout", { method: "POST" }),
     );
 
     expect(response.status).toBe(204);
-    expect(response.headers.getSetCookie()).toEqual(["starter.session_token=; Max-Age=0"]);
+    expect(response.headers.getSetCookie()).toEqual(["krajozbior.session_token=; Max-Age=0"]);
   });
 
   it("redirects a form post to the public home page", async () => {

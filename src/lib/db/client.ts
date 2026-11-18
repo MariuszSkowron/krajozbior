@@ -11,7 +11,7 @@ import {
 
 export { UnsafeDatabaseRoleError };
 
-// The application must run as starter_app (docs/data-isolation.md, section 3);
+// The application must run as krajozbior_app (docs/data-isolation.md, section 3);
 // with a role that can skip row policies every private table would be readable.
 export async function initApplicationOrm(options: Options = createOrmConfig()): Promise<MikroORM> {
   const orm = await MikroORM.init(options);

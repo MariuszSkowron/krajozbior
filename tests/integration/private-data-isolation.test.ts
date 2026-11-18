@@ -37,11 +37,11 @@ const notesOf = (em: EntityManager) =>
 
 describe("private data isolation", () => {
   beforeAll(async () => {
-    db = await createScratchDatabase("starter_integration_private_data");
+    db = await createScratchDatabase("krajozbior_integration_private_data");
     await db.migrate();
 
     // The table and its policies come from one migration-like step run as the owner.
-    await withClient(db.urls.starter_owner, async (client) => {
+    await withClient(db.urls.krajozbior_owner, async (client) => {
       await client.query(`create table ${TABLE} (
         id uuid primary key default gen_random_uuid(),
         user_id uuid not null,
@@ -57,7 +57,7 @@ describe("private data isolation", () => {
     // One pooled connection: every test reuses the same session, so a leaked
     // `app.user_id` would show up in the next transaction.
     app = await MikroORM.init({
-      ...createOrmConfig(db.urls.starter_app),
+      ...createOrmConfig(db.urls.krajozbior_app),
       pool: { min: 1, max: 1 },
     });
 
@@ -77,7 +77,7 @@ describe("private data isolation", () => {
   });
 
   it("passes the catalog guard and the guard flags a table without row security", async () => {
-    await withClient(db.urls.starter_owner, (client) =>
+    await withClient(db.urls.krajozbior_owner, (client) =>
       client.query("create table public.integration_unprotected (id int)"),
     );
 

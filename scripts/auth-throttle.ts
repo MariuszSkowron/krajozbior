@@ -1,5 +1,5 @@
 // Operator procedure for the sign-in limiter (issue #39): block, unblock or
-// inspect one account or one client address. Connects as starter_auth through
+// inspect one account or one client address. Connects as krajozbior_auth through
 // DATABASE_AUTH_URL; prints no secrets and no stored key.
 //
 // Run with:

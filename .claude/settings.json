@@ -1,7 +1,7 @@
 {
   "permissions": {
     "defaultMode": "auto",
-    "additionalDirectories": ["../ai-repo-starter-docs"],
+    "additionalDirectories": ["../krajozbior-docs"],
     "allow": [
       "Bash(gh api -X POST repos/*/statuses/* -f state=* -f context=agent-review *)",
       "Bash(gh api -X POST repos/*/statuses/* -f state=* -f context=security-review *)"

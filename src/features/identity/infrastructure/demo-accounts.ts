@@ -36,7 +36,7 @@ export async function findSeededDemoAccounts(): Promise<Pick<DemoAccount, "email
 // Creates a password account with the default role `user`, or resets the name,
 // password and sessions of an existing one. Used by the demo seed and by
 // `npm run auth:create-admin`; the role is set afterwards by a RoleAssigner
-// (user-role.ts), because starter_auth may not write the `role` column.
+// (user-role.ts), because krajozbior_auth may not write the `role` column.
 export async function ensurePasswordAccount(
   email: string,
   name: string,

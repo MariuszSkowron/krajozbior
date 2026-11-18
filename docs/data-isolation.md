@@ -17,21 +17,24 @@ Konwencja: **[Z]** wymaganie, **Decyzja techniczna** — wybór projektowy tego 
 
 Każda tabela i zasób ma klasę zapisaną w tej tabeli, zanim powstanie migracja.
 
-| Klasa              | Tabele / zasoby                                                  | Odczyt                                                | Zapis                                                |
-| ------------------ | ---------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------- |
-| Publiczna          | {{np. opublikowane treści}}                                      | każdy, także gość                                     | tylko operacje administracyjne (`starter_ops`)       |
-| Prywatna (PRIV)    | {{dane użytkownika, np. notatki}}; w szkielecie tabela kontrolna | tylko właściciel                                      | tylko właściciel                                     |
-| Autor + rola (CUR) | {{np. wnioski do zatwierdzenia}}                                 | autor; rola z zakresem, gdy zasób jest w jej zakresie | autor; rola przez nazwane funkcje `security definer` |
-| Systemowa (SYS)    | schemat `auth` (hasła, sesje), dziennik audytu, jeśli istnieje   | nikt przez `starter_app`                              | rola techniczna (`starter_auth`, `starter_ops`)      |
+| Klasa              | Tabele / zasoby (planowane)                                                                                                                                              | Odczyt                                                                                                                              | Zapis                                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Publiczna          | opublikowane kolekcje kuratorów i ich miejsca, oficjalne zdjęcia, zaakceptowane zdjęcia użytkowników, aktualności, profile organizacji kuratorskich                      | każdy, także gość                                                                                                                   | kurator w zakresie swojej organizacji (CUR), przez funkcje z kontrolą zakresu                   |
+| Prywatna (PRIV)    | wizyty użytkownika, lista „Chcę zobaczyć”, zapisane kolekcje, skrytka i karty legendarne, kolekcje prywatne użytkownika, ustawienia konta; w szkielecie tabela kontrolna | tylko właściciel                                                                                                                    | tylko właściciel; wizytę tworzy wyłącznie przypadek użycia sprawdzający lokalizację na serwerze |
+| Prywatna z wyborem | profil użytkownika (imię, region, awatar, statystyki), publiczne kolekcje użytkownika                                                                                    | właściciel; inni, gdy właściciel udostępnił (a kolekcja publiczna przeszła akceptację, jeśli jest wymagana)                         | tylko właściciel                                                                                |
+| Autor + rola (CUR) | zdjęcia użytkowników przed decyzją, zgłoszenia poprawek i problemów, szkice kolekcji i miejsc, członkostwa i zaproszenia w organizacjach, wnioski o status kuratora      | autor; kurator, gdy zasób należy do kolekcji jego organizacji (w przyznanym zakresie); administrator dla wniosków o status kuratora | autor; decyzje kuratora i administratora przez nazwane funkcje `security definer`               |
+| Systemowa (SYS)    | schemat `auth` (sesje, kody logowania), dziennik audytu, historia zmian w kolekcjach                                                                                     | nikt przez `krajozbior_app`; historię zmian kolekcji kurator czyta przez funkcję z kontrolą zakresu                                 | rola techniczna (`krajozbior_auth`, `krajozbior_ops`) albo wyzwalacz                            |
+
+Zasady klasyfikacji: kurator nigdy nie czyta tabel PRIV (prywatnych odwiedzin), także w zagregowanej postaci z pojedynczymi osobami. Pliki zdjęć mają tę samą klasę co ich wiersz: przed akceptacją nie są dostępne pod publicznym adresem. Pozycji urządzenia z potwierdzenia wizyty nie zapisujemy.
 
 ## 3. Role bazy danych
 
 **Decyzja techniczna:** cztery role, żadna użytkowa nie jest właścicielem tabel.
 
-- `starter_owner` — właściciel obiektów, uruchamia migracje. Nie jest używana przez aplikację w czasie działania.
-- `starter_app` — rola aplikacji. `NOSUPERUSER NOBYPASSRLS`, nie jest właścicielem tabel; uprawnienia `SELECT/INSERT/UPDATE/DELETE` nadawane tabela po tabeli (jawny `GRANT`, bez `ALL TABLES`).
-- `starter_auth` — wyłącznie adapter logowania (better-auth): dostęp do schematu `auth`, zero uprawnień do tabel produktu; `NOSUPERUSER NOBYPASSRLS NOINHERIT`. W `auth.users` wstawia i zmienia wszystkie kolumny poza `role` (grant kolumnowy), więc każde nowe konto jest `user`, a adapter nie utworzy administratora ani nie awansuje konta. Inną rolę ustawia `starter_owner` ze skryptu operatora (`npm run auth:create-admin`, seed kont demo; `src/features/identity/infrastructure/user-role.ts`) albo równoważnym SQL wykonanym jako `starter_owner`: `update auth.users set role = 'admin', updated_at = now() where email = '<e-mail>';`.
-- `starter_ops` — operacje administracyjne (skrypty CLI, zapis danych publicznych). Poza aplikacją webową; wywołania warto zapisywać w dzienniku audytu. `BYPASSRLS` tylko jeśli konkretna operacja tego wymaga, nadawane świadomie i opisane.
+- `krajozbior_owner` — właściciel obiektów, uruchamia migracje. Nie jest używana przez aplikację w czasie działania.
+- `krajozbior_app` — rola aplikacji. `NOSUPERUSER NOBYPASSRLS`, nie jest właścicielem tabel; uprawnienia `SELECT/INSERT/UPDATE/DELETE` nadawane tabela po tabeli (jawny `GRANT`, bez `ALL TABLES`).
+- `krajozbior_auth` — wyłącznie adapter logowania (better-auth): dostęp do schematu `auth`, zero uprawnień do tabel produktu; `NOSUPERUSER NOBYPASSRLS NOINHERIT`. W `auth.users` wstawia i zmienia wszystkie kolumny poza `role` (grant kolumnowy), więc każde nowe konto jest `user`, a adapter nie utworzy administratora ani nie awansuje konta. Inną rolę ustawia `krajozbior_owner` ze skryptu operatora (`npm run auth:create-admin`, seed kont demo; `src/features/identity/infrastructure/user-role.ts`) albo równoważnym SQL wykonanym jako `krajozbior_owner`: `update auth.users set role = 'admin', updated_at = now() where email = '<e-mail>';`.
+- `krajozbior_ops` — operacje administracyjne (skrypty CLI, zapis danych publicznych). Poza aplikacją webową; wywołania warto zapisywać w dzienniku audytu. `BYPASSRLS` tylko jeśli konkretna operacja tego wymaga, nadawane świadomie i opisane.
 
 Każda tabela z danymi osobistymi: `ENABLE ROW LEVEL SECURITY` **oraz** `FORCE ROW LEVEL SECURITY` (właściciel nie omija polityk przypadkiem). Brak polityki = brak dostępu. Aplikacja odmawia startu, gdy jej rola ma zbyt szerokie uprawnienia (`src/lib/db/role-guard.ts`).
 
@@ -52,16 +55,16 @@ Wszystkie polityki powstają **w tej samej migracji co tabela**; nie wolno utwor
 
 | Tabela                                 | Klasa                  | Polityka                                                                                                                                                           |
 | -------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `auth.*`                               | SYS                    | Brak uprawnień dla `starter_app`; dostęp wyłącznie `starter_auth`.                                                                                                 |
+| `auth.*`                               | SYS                    | Brak uprawnień dla `krajozbior_app`; dostęp wyłącznie `krajozbior_auth`.                                                                                           |
 | tabela kontrolna szkieletu (wzór PRIV) | PRIV                   | `privateTableSecuritySql` z `src/lib/db/policies.ts`: SELECT/INSERT/DELETE tylko dla `user_id = app_current_user_id()`, INSERT z `WITH CHECK` tym samym warunkiem. |
 | {{tabela produktu}}                    | {{PRIV/CUR/publiczna}} | {{opis polityki, zakres grantów kolumnowych}}                                                                                                                      |
 
 Wzorzec PRIV, zasady wspólne i pułapki:
 
 - `UPDATE` nadawaj tylko na edytowane kolumny (grant kolumnowy); `user_id` i klucze są niezmienialne. Test sprawdza też `has_column_privilege`.
-- **Klucz obcy omija RLS.** PostgreSQL sprawdza klucz obcy jako właściciel tabeli docelowej, bez polityk. Wiersz PRIV wskazujący inną tabelę przyjmie więc identyfikator niewidocznego wiersza, jeśli ktoś go zna. Dodaj restrykcyjną politykę `INSERT` wymagającą, by cel był widoczny dla `starter_app`, i test surowego `insert` → `42501`.
+- **Klucz obcy omija RLS.** PostgreSQL sprawdza klucz obcy jako właściciel tabeli docelowej, bez polityk. Wiersz PRIV wskazujący inną tabelę przyjmie więc identyfikator niewidocznego wiersza, jeśli ktoś go zna. Dodaj restrykcyjną politykę `INSERT` wymagającą, by cel był widoczny dla `krajozbior_app`, i test surowego `insert` → `42501`.
 - Polityka odwołująca się do innej tabeli blokuje `DROP TABLE` tamtej: w `down()` usuwaj powiązane tabele jedną instrukcją `drop table a, b`, bez `CASCADE`.
-- Funkcja `security definer` czytająca tabelę z `FORCE` potrzebuje wąskiej polityki dla `starter_owner`, jawnego `set search_path`, a agregaty zwracają liczby, nie wiersze.
+- Funkcja `security definer` czytająca tabelę z `FORCE` potrzebuje wąskiej polityki dla `krajozbior_owner`, jawnego `set search_path`, a agregaty zwracają liczby, nie wiersze.
 - Wartości słownikowe w `CHECK` kopiuj do migracji jako zamrożone stałe, nie importuj z kodu domeny.
 
 ## 6. Niezmienniki poza RLS
@@ -72,10 +75,10 @@ Rzeczy, których RLS nie zapewni, a które trzeba sprawdzić w serwerze: zakaz s
 
 ## 7. Testy (wymagane przed uznaniem funkcji za gotową)
 
-Każda funkcja używająca danych prywatnych lub roli z zakresem ma test integracyjny na harnessie (`docs/testing.md`), na połączeniu `starter_app`, który pokrywa:
+Każda funkcja używająca danych prywatnych lub roli z zakresem ma test integracyjny na harnessie (`docs/testing.md`), na połączeniu `krajozbior_app`, który pokrywa:
 
 - [ ] **Katalog:** `findRowLevelSecurityGaps(client, ["public.<tabela>"])` i `findApplicationRoleGaps(client)` zwracają `[]`.
-- [ ] **Dokładne uprawnienia:** `has_table_privilege('starter_app', ...)` dla każdej operacji — dokładnie te nadane, nic więcej (`truncate`, `references`, `trigger` = `false`).
+- [ ] **Dokładne uprawnienia:** `has_table_privilege('krajozbior_app', ...)` dla każdej operacji — dokładnie te nadane, nic więcej (`truncate`, `references`, `trigger` = `false`).
 - [ ] **Brak kontekstu:** bez `app.user_id` 0 wierszy, `INSERT` odrzucony.
 - [ ] **A kontra B:** użytkownik B nie odczyta, nie zmieni i nie usunie wiersza A — także surowym SQL; `INSERT` z cudzym `user_id` kończy się `42501`.
 - [ ] **Inne role:** rola z zakresem poza zakresem i rola administracyjna dostają odmowę (role nie dziedziczą); gość — 401 przez prawdziwy handler trasy.

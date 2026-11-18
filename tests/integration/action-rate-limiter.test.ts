@@ -9,7 +9,7 @@ import {
   type ScratchDatabase,
 } from "../support/database-harness";
 
-// The request limit of authenticated actions as starter_auth (issue #67).
+// The request limit of authenticated actions as krajozbior_auth (issue #67).
 let db: ScratchDatabase;
 let pool: Pool;
 let limiter: PostgresActionRateLimiter;
@@ -20,9 +20,9 @@ const limit = { limit: 3, windowSeconds: 600 };
 
 describe("PostgresActionRateLimiter", () => {
   beforeAll(async () => {
-    db = await createScratchDatabase("starter_integration_action_limit");
+    db = await createScratchDatabase("krajozbior_integration_action_limit");
     await db.migrate();
-    pool = new Pool({ connectionString: db.urls.starter_auth, max: 10 });
+    pool = new Pool({ connectionString: db.urls.krajozbior_auth, max: 10 });
     limiter = new PostgresActionRateLimiter(async () => pool);
   }, 60_000);
 
@@ -100,10 +100,10 @@ describe("PostgresActionRateLimiter", () => {
     ).rejects.toThrow(RangeError);
   });
 
-  it("denies starter_app any access to the counters, so it cannot reset its own limit", async () => {
+  it("denies krajozbior_app any access to the counters, so it cannot reset its own limit", async () => {
     await limiter.reserve("note_save", alice, limit);
 
-    await withClient(db.urls.starter_app, async (client) => {
+    await withClient(db.urls.krajozbior_app, async (client) => {
       await expect(
         client.query("update auth.sign_in_throttle set attempts = 0"),
       ).rejects.toMatchObject({ code: "42501" });

@@ -11,7 +11,7 @@ test("a guest opening a private page is sent to login", async ({ page }) => {
   await page.goto("/my");
 
   await expect(page).toHaveURL(/\/login\?returnTo=%2Fmy$/);
-  await expect(page).toHaveTitle("Logowanie — Starter");
+  await expect(page).toHaveTitle("Logowanie — Krajozbiór");
   await expect(page.getByRole("heading", { level: 1, name: "Logowanie" })).toBeVisible();
   await expect(page.getByLabel("E-mail").first()).toBeVisible();
 });
@@ -33,7 +33,7 @@ test.describe("with seeded demo accounts", () => {
     request,
   }) => {
     await page.goto("/my");
-    await logIn(page, "user@demo.starter.local", password ?? "");
+    await logIn(page, "user@demo.krajozbior.local", password ?? "");
 
     await expect(page).toHaveURL(/\/my$/);
     await expect(page.getByRole("heading", { level: 1, name: "Moje konto" })).toBeVisible();
@@ -49,7 +49,7 @@ test.describe("with seeded demo accounts", () => {
 
   test("an admin can use the admin route", async ({ page }) => {
     await page.goto("/login");
-    await logIn(page, "admin@demo.starter.local", password ?? "");
+    await logIn(page, "admin@demo.krajozbior.local", password ?? "");
 
     await expect(page).toHaveURL(/\/my$/);
     const response = await page.request.get("/api/admin");
@@ -59,7 +59,7 @@ test.describe("with seeded demo accounts", () => {
 
   test("wrong credentials show a generic error and keep the guest signed out", async ({ page }) => {
     await page.goto("/login");
-    await logIn(page, "user@demo.starter.local", "definitely-not-the-password");
+    await logIn(page, "user@demo.krajozbior.local", "definitely-not-the-password");
 
     await expect(page.locator("main [role=alert]")).toContainText(
       "Nieprawidłowy e-mail lub hasło.",
@@ -69,7 +69,7 @@ test.describe("with seeded demo accounts", () => {
 
   test("a signed-in user can log out", async ({ page }) => {
     await page.goto("/login");
-    await logIn(page, "user@demo.starter.local", password ?? "");
+    await logIn(page, "user@demo.krajozbior.local", password ?? "");
     await expect(page).toHaveURL(/\/my$/);
 
     await page.getByRole("banner").getByRole("button", { name: "Wyloguj" }).click();

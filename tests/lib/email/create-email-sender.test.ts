@@ -85,7 +85,7 @@ describe("getMemoryEmailSender", () => {
   });
 
   it("is refused by the configuration in a production build without the test flag", () => {
-    useEnv({ EMAIL_TRANSPORT: "memory", NODE_ENV: "production", EMAIL_FROM: "a@starter.local" });
+    useEnv({ EMAIL_TRANSPORT: "memory", NODE_ENV: "production", EMAIL_FROM: "a@krajozbior.local" });
 
     expect(() => getMemoryEmailSender()).toThrow("Invalid server configuration");
   });

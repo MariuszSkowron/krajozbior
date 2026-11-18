@@ -34,7 +34,7 @@ export async function findRowLevelSecurityGaps(
     if (!found.enabled) gaps.push(`${table}: row level security is not enabled`);
     if (!found.forced) gaps.push(`${table}: row level security is not forced`);
     if (found.policies === 0) gaps.push(`${table}: no policies`);
-    if (found.owner !== "starter_owner") gaps.push(`${table}: owned by ${found.owner}`);
+    if (found.owner !== "krajozbior_owner") gaps.push(`${table}: owned by ${found.owner}`);
   }
 
   return gaps;
@@ -45,15 +45,15 @@ export async function findApplicationRoleGaps(
   client: Pick<ClientBase, "query">,
 ): Promise<string[]> {
   const { rows } = await client.query<{ gap: string }>(
-    `select 'starter_app is superuser' as gap from pg_roles where rolname = 'starter_app' and rolsuper
+    `select 'krajozbior_app is superuser' as gap from pg_roles where rolname = 'krajozbior_app' and rolsuper
      union all
-     select 'starter_app bypasses RLS' from pg_roles where rolname = 'starter_app' and rolbypassrls
+     select 'krajozbior_app bypasses RLS' from pg_roles where rolname = 'krajozbior_app' and rolbypassrls
      union all
-     select 'starter_app owns ' || c.oid::regclass::text
-       from pg_class c where c.relowner = (select oid from pg_roles where rolname = 'starter_app')
+     select 'krajozbior_app owns ' || c.oid::regclass::text
+       from pg_class c where c.relowner = (select oid from pg_roles where rolname = 'krajozbior_app')
      union all
-     select 'starter_app is a member of ' || pg_get_userbyid(m.roleid)
-       from pg_auth_members m where m.member = (select oid from pg_roles where rolname = 'starter_app')`,
+     select 'krajozbior_app is a member of ' || pg_get_userbyid(m.roleid)
+       from pg_auth_members m where m.member = (select oid from pg_roles where rolname = 'krajozbior_app')`,
   );
 
   return rows.map((row) => row.gap);

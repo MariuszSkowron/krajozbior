@@ -20,7 +20,7 @@ const catalogState = (em: MikroORM["em"]) =>
 
 describe("PostgreSQL migrations and transactions", () => {
   beforeAll(async () => {
-    db = await createScratchDatabase("starter_integration_migrations");
+    db = await createScratchDatabase("krajozbior_integration_migrations");
     orm = await MikroORM.init(createOrmConfig(db.adminUrl));
   }, 30_000);
 
@@ -29,14 +29,14 @@ describe("PostgreSQL migrations and transactions", () => {
     await db?.drop();
   });
 
-  it("refuses to apply the migrations as any role other than starter_owner", async () => {
-    await expect(orm.migrator.up()).rejects.toThrow(/Migrations must run as starter_owner/);
+  it("refuses to apply the migrations as any role other than krajozbior_owner", async () => {
+    await expect(orm.migrator.up()).rejects.toThrow(/Migrations must run as krajozbior_owner/);
     expect(await catalogState(orm.em)).toMatchObject({ userFunction: null });
     // The migrator creates its own bookkeeping table before the guard runs.
     await orm.em.execute("drop table if exists mikro_orm_migrations");
   });
 
-  it("applies the migrations to an empty database as starter_owner", async () => {
+  it("applies the migrations to an empty database as krajozbior_owner", async () => {
     await db.migrate();
 
     const after = await catalogState(orm.em);
@@ -58,7 +58,7 @@ describe("PostgreSQL migrations and transactions", () => {
     expect(after.migrationTable).toBe("mikro_orm_migrations");
     expect(after.userFunction).toBe("app_current_user_id()");
     expect(currentUser).toEqual({ userId: null });
-    expect(owners).toEqual([{ owner: "starter_owner" }]);
+    expect(owners).toEqual([{ owner: "krajozbior_owner" }]);
     expect(authTables.map(({ table }) => table)).toEqual([
       "accounts",
       "otp_send_counters",
@@ -70,7 +70,7 @@ describe("PostgreSQL migrations and transactions", () => {
   });
 
   it("reverts the sign-in throttle table and applies it again", async () => {
-    const owner = await MikroORM.init(createOrmConfig(db.urls.starter_owner));
+    const owner = await MikroORM.init(createOrmConfig(db.urls.krajozbior_owner));
     const throttle = () =>
       orm.em.execute<{ table: string | null }>(
         `select to_regclass('auth.sign_in_throttle')::text as table`,
@@ -90,7 +90,7 @@ describe("PostgreSQL migrations and transactions", () => {
   });
 
   it("reverts everything and applies it again", async () => {
-    const owner = await MikroORM.init(createOrmConfig(db.urls.starter_owner));
+    const owner = await MikroORM.init(createOrmConfig(db.urls.krajozbior_owner));
 
     try {
       await owner.migrator.down({ to: 0 });

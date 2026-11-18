@@ -30,7 +30,7 @@ const snake = (...names: string[]) =>
   );
 
 // Kysely opens the pool through this factory before the first query and
-// retries it after a failure, so a starter_auth connection that reaches a role
+// retries it after a failure, so a krajozbior_auth connection that reaches a role
 // able to skip row policies never serves a request.
 export function verifiedPool(pool: Pool): () => Promise<Pool> {
   return async () => {
@@ -43,7 +43,7 @@ export function verifiedPool(pool: Pool): () => Promise<Pool> {
 const LOCAL_SITE_URL = "http://localhost:3000";
 
 // Better Auth owns the `auth` schema (users, sessions, accounts, verifications;
-// created by migration) and reaches it through its own pool as starter_auth, a
+// created by migration) and reaches it through its own pool as krajozbior_auth, a
 // role with no access to application tables (docs/data-isolation.md). Password
 // sign-up is off: admin and demo accounts come from the seed. A `user` account
 // is created by the sign-in code, only through our routes in `src/app/api/auth`
@@ -66,7 +66,7 @@ function createAuth(pool: Pool, secret: string, baseURL?: string) {
       additionalFields: {
         // `input: false` keeps clients from setting their own role. No
         // default here: Better Auth would then write the column, and
-        // starter_auth may insert accounts only without `role` (the database
+        // krajozbior_auth may insert accounts only without `role` (the database
         // default `user` applies; another role is set by user-role.ts).
         role: { type: "string", required: false, input: false },
       },
@@ -118,7 +118,7 @@ function createAuth(pool: Pool, secret: string, baseURL?: string) {
       }),
     ],
     advanced: {
-      cookiePrefix: "starter",
+      cookiePrefix: "krajozbior",
       // The client address is not stored with a session.
       ipAddress: { disableIpTracking: true },
       // Secure follows the configured address, not the library's guess;
