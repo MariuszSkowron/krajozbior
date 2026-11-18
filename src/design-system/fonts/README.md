@@ -12,7 +12,7 @@ obok plików). Kroje ładuje `next/font/local` w `src/app/fonts.ts`, a Storybook
 | `instrument-serif/InstrumentSerif-Regular.woff2` | `Instrument/instrument-serif`, `fonts/webfonts/InstrumentSerif-Regular.woff2` (https://github.com/Instrument/instrument-serif)                           | commit `65c0ef225f386a3c7e87570a4aa9cc0262c2fd81` (repozytorium nie ma wydań) | `ca21b99b0d6b88a0dc34cebfe48104611e5c7f8f92746bed26c37aa470174322` | 26,8 KB (27 440 B) |
 | `instrument-serif/InstrumentSerif-Italic.woff2`  | `fonts/webfonts/InstrumentSerif-Italic.woff2` w tym samym commicie                                                                                       | `65c0ef2…`                                                                    | `4f7aacc18d491dea8778bbc591db87b9455625899ed5f913957e7fd82604c294` | 27,4 KB (28 096 B) |
 
-Razem 191,7 KB. Geist i Geist Mono to pliki zmiennej wagi (oś `wght` 100–900); Instrument Serif ma jedną
+Razem 191,6 KB (196 236 B). Geist i Geist Mono to pliki zmiennej wagi (oś `wght` 100–900); Instrument Serif ma jedną
 wagę (400) w odmianie prostej i kursywie.
 
 Jedyna zmiana wobec źródła: nazwy plików Geist i Geist Mono (`Geist[wght].woff2` na

@@ -122,6 +122,7 @@ test.describe("kroje i linki", () => {
   // (document.fonts.check tego nie rozróżnia).
   test("polskie znaki są rysowane krojami z projektu, bez zapasowych", async ({ page }) => {
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
     await page.evaluate(() => {
       document.querySelector("main")!.innerHTML = `
         <h1 id="t">Żółć, Gdańsk, Łódź</h1>
@@ -148,12 +149,40 @@ test.describe("kroje i linki", () => {
     expect(await platformFonts("#l")).toEqual(["Geist Mono"]);
   });
 
+  test("obwódka fokusu przycisku głównego zostaje widoczna po najechaniu myszą", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    // Po hydratacji React nie nadpisze wstrzykniętego przycisku.
+    await page.waitForLoadState("networkidle");
+    await page.evaluate(() => {
+      document.querySelector("main")!.innerHTML =
+        '<button id="primary" class="button button--primary">Dalej</button>';
+    });
+
+    for (let i = 0; i < 20; i += 1) {
+      await page.keyboard.press("Tab");
+      if (await page.evaluate(() => document.activeElement?.id === "primary")) break;
+    }
+    const primary = page.locator("#primary");
+    await expect(primary).toBeFocused();
+    await primary.hover();
+
+    const outline = await primary.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { style: style.outlineStyle, width: style.outlineWidth };
+    });
+    expect(outline.style).not.toBe("none");
+    expect(outline.width).toBe("2px");
+  });
+
   for (const theme of ["dark", "light"]) {
     test(`link w akapicie jest podkreślony, nazwa aplikacji nie (motyw ${theme})`, async ({
       page,
     }) => {
       await setThemeCookie(page, theme);
       await page.goto("/");
+      await page.waitForLoadState("networkidle");
       await page.evaluate(() => {
         document.querySelector("main")!.innerHTML =
           '<p><a id="in-text" href="#x">pełny opis</a></p>';

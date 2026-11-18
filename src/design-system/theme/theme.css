@@ -170,6 +170,10 @@ h2 em {
 /* Pierścień 6 px w kolorze akcentu przy 18% (design system); obok obrys dla trybu wymuszonych kolorów. */
 .button--primary:hover:not(:disabled, [aria-disabled="true"]) {
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-brand-accent) 18%, transparent);
+}
+
+/* Przezroczysty obrys widać tylko w trybie wymuszonych kolorów; nie nadpisuje obwódki fokusu. */
+.button--primary:hover:not(:disabled, [aria-disabled="true"], :focus-visible) {
   outline: 2px solid transparent;
 }
 
