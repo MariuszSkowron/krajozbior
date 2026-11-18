@@ -52,6 +52,12 @@
 /tests/support/album-fixtures.ts   @MariuszSkowron
 /e2e/album-access.spec.ts          @MariuszSkowron
 
+# Panel kuratora (ekrany zapisujące dane CUR przez trasy API), lista organizacji
+# konta w żądaniu i test dwóch kuratorów (kurator B nie widzi szkiców A)
+/src/app/curator/                  @MariuszSkowron
+/src/app/request-organizations.ts  @MariuszSkowron
+/e2e/catalog-access.spec.ts        @MariuszSkowron
+
 # Publiczne strony kolekcji i miejsc (dziś treść publiczna, w kolejnych krokach
 # także prywatny postęp odkrywcy) oraz ich wspólne style
 /src/app/collections/              @MariuszSkowron

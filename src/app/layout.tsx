@@ -7,6 +7,7 @@ import "@/design-system/theme/theme.css";
 
 import styles from "./app-shell.module.css";
 import { AccountArea } from "./shell/account-area";
+import { shellCuratorLink } from "./shell/shell-curator";
 import { shellRole } from "./shell/shell-role";
 
 export const metadata: Metadata = {
@@ -29,6 +30,7 @@ export default async function RootLayout({
   children: ReactNode;
 }>) {
   const role = await shellRole();
+  const curatorLink = await shellCuratorLink(role);
 
   return (
     <html lang="pl">
@@ -40,7 +42,7 @@ export default async function RootLayout({
           <Link className={styles.brand} href="/">
             Krajozbiór
           </Link>
-          <AccountArea role={role} />
+          <AccountArea role={role} curatorLink={curatorLink} />
         </header>
         <main id="tresc" tabIndex={-1} className={styles.main}>
           {children}

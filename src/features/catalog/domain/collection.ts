@@ -47,6 +47,12 @@ export const COLLECTION_STATUSES = ["draft", "published"] as const;
 
 export type CollectionStatus = (typeof COLLECTION_STATUSES)[number];
 
+// Polish names of the states shown to a curator (the panel never shows the key).
+export const COLLECTION_STATUS_LABELS: Readonly<Record<CollectionStatus, string>> = {
+  draft: "Szkic",
+  published: "Opublikowana",
+};
+
 export const COLLECTION_TITLE_MAX_LENGTH = 120;
 export const COLLECTION_SUMMARY_MAX_LENGTH = 280;
 
