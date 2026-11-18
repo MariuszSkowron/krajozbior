@@ -71,7 +71,7 @@ describe("visitOutcomeMessage", () => {
       "Jesteś 6,2 km od miejsca.",
     );
     expect(visitOutcomeMessage({ result: "inaccurate", accuracyM: 180 })).toBe(
-      "Lokalizacja jest zbyt niedokładna (±180 m). Spróbuj na zewnątrz.",
+      "Lokalizacja jest zbyt niedokładna (±180 m). Spróbuj na zewnątrz albo zaznacz wizytę z przeszłości.",
     );
     expect(visitOutcomeMessage({ result: "not_found" })).toBe("Nie znaleziono tego miejsca.");
   });

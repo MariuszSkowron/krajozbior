@@ -7,7 +7,9 @@ import { getRequestActor, logReadFailure, loginHref } from "@/app/request-actor"
 import { StatusBadge } from "@/design-system/components/status-badge";
 import { getPublishedPlace } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
-import { hasVisitedPlace } from "@/features/visits/application/confirm-on-site-visit";
+import { getMyVisitOfPlace } from "@/features/visits/application/mark-past-visits";
+import { pastVisitBadgeText } from "@/features/visits/domain/past-visit-form";
+import { formatPastVisitDate } from "@/features/visits/domain/past-visit-request";
 import { getVisitDeps } from "@/features/visits/infrastructure/visit-deps";
 import { isWantedPlace } from "@/features/want-to-see/application/want-to-see";
 import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-see-deps";
@@ -46,7 +48,7 @@ async function loadVisit(placeId: string) {
       return { kind: "guest", loginHref: loginHref(`/places/${placeId}`) } as const;
     }
 
-    const state = await hasVisitedPlace(actor, placeId, getVisitDeps());
+    const state = await getMyVisitOfPlace(actor, placeId, getVisitDeps());
 
     if (state.status !== "ok") {
       return { kind: "none" } as const;
@@ -64,7 +66,19 @@ async function loadVisit(placeId: string) {
       logReadFailure("Place want-to-see read", error);
     }
 
-    return { kind: "explorer", visited: state.value.visited, wanted } as const;
+    // On-site beats past (D-10): a visit confirmed on site is "Odwiedzone"; with only a
+    // visit from the past the confirm button stays and the page says when it was.
+    const { past } = state.value;
+
+    return {
+      kind: "explorer",
+      visited: state.value.onSite,
+      past:
+        past === null
+          ? null
+          : pastVisitBadgeText(formatPastVisitDate(past.precision, past.visitedOn)),
+      wanted,
+    } as const;
   } catch (error) {
     logReadFailure("Place visit read", error);
 
@@ -140,7 +154,7 @@ export default async function PlacePage({ params }: { params: Params }) {
               {visit.wanted === true ? <WantToSeeButton placeId={place.id} initialWanted /> : null}
             </div>
           ) : (
-            <VisitConfirmation placeId={place.id} initialWanted={visit.wanted} />
+            <VisitConfirmation placeId={place.id} initialWanted={visit.wanted} past={visit.past} />
           )
         ) : visit.kind === "unavailable" ? (
           <p className={albumStyles.feedback}>
