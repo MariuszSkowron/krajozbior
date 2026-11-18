@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 
+import { StatusBadge } from "@/design-system/components/status-badge";
 import { formatProgress, type Progress } from "@/features/album/domain/progress";
 import {
   geolocationProblemMessage,
@@ -9,6 +10,7 @@ import {
   type GeolocationProblem,
 } from "@/features/visits/domain/visit-outcome";
 
+import { PinnedAction } from "./pinned-action";
 import styles from "./visit-confirmation.module.css";
 import { WantToSeeButton } from "./want-to-see-button";
 
@@ -192,6 +194,12 @@ export function VisitConfirmation({ placeId, initialWanted }: Props) {
             ))}
           </ul>
         )}
+        {/* Przypięty stan „Odwiedzone” (telefon); na komputerze `order` stawia go na górze karty. */}
+        <PinnedAction>
+          <p className={styles.visitedMark}>
+            <StatusBadge tone="success">Odwiedzone</StatusBadge>
+          </p>
+        </PinnedAction>
       </div>
     );
   }
@@ -205,33 +213,37 @@ export function VisitConfirmation({ placeId, initialWanted }: Props) {
 
   return (
     <div className={styles.box}>
-      <button
-        type="button"
-        className={`button button--primary ${styles.action}`}
-        disabled={busy}
-        aria-busy={busy}
-        onClick={() => void (lost ? retry() : check())}
-      >
-        {label}
-      </button>
+      <PinnedAction>
+        <button
+          type="button"
+          className={`button button--primary ${styles.action}`}
+          disabled={busy}
+          aria-busy={busy}
+          onClick={() => void (lost ? retry() : check())}
+        >
+          {label}
+        </button>
+        <p
+          className={`${styles.feedback} ${
+            state.kind === "failed" || state.kind === "problem"
+              ? styles.feedbackDanger
+              : state.kind === "out_of_range" || state.kind === "inaccurate"
+                ? styles.feedbackWarning
+                : ""
+          }`}
+          role={state.kind === "failed" || state.kind === "problem" ? "alert" : "status"}
+        >
+          {feedbackText(state)}
+        </p>
+      </PinnedAction>
       {state.kind === "idle" ? (
         <p className={styles.hint}>
           Przeglądarka zapyta o zgodę na lokalizację. Nie zapisujemy, gdzie jesteś: tylko to, że
           byłeś w tym miejscu.
         </p>
       ) : null}
-      <p
-        className={`${styles.feedback} ${
-          state.kind === "failed" || state.kind === "problem"
-            ? styles.feedbackDanger
-            : state.kind === "out_of_range" || state.kind === "inaccurate"
-              ? styles.feedbackWarning
-              : ""
-        }`}
-        role={state.kind === "failed" || state.kind === "problem" ? "alert" : "status"}
-      >
-        {feedbackText(state)}
-      </p>
+      {/* Drugorzędne akcje zostają w treści, nie w przypiętym pasku. Tu (obok „Chcę zobaczyć”)
+          dojdzie „Byłem tu wcześniej” (wizyta z przeszłości). */}
       {initialWanted === null ? (
         <p className={styles.feedback}>Lista „Chcę zobaczyć” jest chwilowo niedostępna.</p>
       ) : (

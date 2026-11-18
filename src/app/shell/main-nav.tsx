@@ -38,7 +38,9 @@ export function MainNav() {
     const root = document.documentElement;
     const phone = window.matchMedia("(max-width: 47.99rem)");
     const update = () => {
-      if (phone.matches) {
+      // Ukryty pasek (ekran miejsca z przypiętym przyciskiem) nie rezerwuje miejsca: wtedy
+      // zmienną ustawia CSS z wysokości przycisku.
+      if (phone.matches && getComputedStyle(nav).display !== "none") {
         root.style.setProperty(
           "--shell-bottom-bar-height",
           `${nav.getBoundingClientRect().height}px`,

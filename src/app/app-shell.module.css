@@ -33,6 +33,25 @@
   .withNav .main {
     padding-bottom: calc(var(--shell-bottom-bar-height) + var(--space-md));
   }
+
+  /*
+   * Ekran miejsca (spec E3 5.6 i 5.8): przypięty przycisk główny (`data-pinned-action`, strona
+   * miejsca) zastępuje dolny pasek nawigacji, więc pasek jest ukryty, a ta sama zmienna ma
+   * wysokość przycisku. Przycisk mierzy się sam (`--pinned-action-height` na `html`); do
+   * pierwszego pomiaru i bez JavaScriptu obowiązuje minimum: przycisk główny z odstępami.
+   * Kolejność ma znaczenie: ta sama specyficzność co `html:has(.withNav)` wyżej, więc blok
+   * musi stać po nim (inaczej wygra wysokość paska nawigacji i fokus zostanie zasłonięty).
+   */
+  :global(html):has([data-pinned-action]) {
+    --shell-bottom-bar-height: var(
+      --pinned-action-height,
+      calc(var(--size-touch-primary) + 2 * var(--space-sm) + 1px + env(safe-area-inset-bottom))
+    );
+  }
+
+  :global(html):has([data-pinned-action]) .nav {
+    display: none;
+  }
 }
 
 .visuallyHidden {
