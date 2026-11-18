@@ -29,28 +29,29 @@ const demoPlaces = [
 export type DemoCatalogResult = "created" | "noop";
 
 /**
- * `appUrl` is the krajozbior_app connection, `ownerUrl` krajozbior_owner (only
- * to find the curator account by e-mail, which krajozbior_app cannot read).
+ * `appUrl` is the krajozbior_app connection, `opsUrl` krajozbior_ops (only to
+ * find the curator account by e-mail through `ops_find_user`, which
+ * krajozbior_app cannot do; the seed needs no migration password, D-21).
  */
 export async function seedDemoCatalog(
   appUrl: string,
-  ownerUrl: string,
+  opsUrl: string,
   curatorEmail: string,
 ): Promise<DemoCatalogResult> {
-  const owner = new Client({ connectionString: ownerUrl });
+  const ops = new Client({ connectionString: opsUrl });
 
-  await owner.connect();
+  await ops.connect();
 
   let curatorId: string | undefined;
 
   try {
     curatorId = (
-      await owner.query<{ id: string }>(`select id from auth.users where email = $1`, [
+      await ops.query<{ user_id: string }>(`select user_id from public.ops_find_user($1)`, [
         curatorEmail,
       ])
-    ).rows[0]?.id;
+    ).rows[0]?.user_id;
   } finally {
-    await owner.end();
+    await ops.end();
   }
 
   if (curatorId === undefined) {

@@ -6,14 +6,15 @@
 // repository or printed. Even when seeded somewhere by mistake, the demo
 // accounts do not sign in on a production deployment (isDemoSignInAllowed).
 //
-// The accounts are created as krajozbior_auth (DATABASE_AUTH_URL); the admin role
-// is set as krajozbior_owner (DATABASE_MIGRATION_URL), because krajozbior_auth may
-// not write the `role` column.
+// The accounts are created as krajozbior_auth (DATABASE_AUTH_URL); the roles, the
+// organizations and the curator lookup go through krajozbior_ops
+// (DATABASE_OPS_URL), because krajozbior_auth may not write the `role` column.
+// The seed does not need the migration password (D-21).
 //
 // Run with: ALLOW_DEMO_SEED=1 npm run db:seed:demo
 import { closeAuth } from "../src/features/identity/infrastructure/better-auth";
 import { seedDemoAccounts } from "../src/features/identity/infrastructure/demo-accounts";
-import { ownerRoleAssigner } from "../src/features/identity/infrastructure/user-role";
+import { opsRoleAssigner } from "../src/features/identity/infrastructure/user-role";
 import {
   DEMO_COLLECTION_TITLE,
   seedDemoCatalog,
@@ -23,6 +24,7 @@ import {
   demoOrganizations,
   seedDemoOrganizations,
 } from "../src/features/organizations/infrastructure/seed-demo-organizations";
+import { getOpsEnv } from "../src/lib/config/env";
 import { assertLocalDatabaseUrl } from "../src/lib/config/loopback";
 
 async function main() {
@@ -36,13 +38,14 @@ async function main() {
 
   // Before any connection: NODE_ENV alone does not say where the database is.
   assertLocalDatabaseUrl(process.env.DATABASE_AUTH_URL);
-  assertLocalDatabaseUrl(process.env.DATABASE_MIGRATION_URL);
+  // A missing DATABASE_OPS_URL ends the seed here, naming the variable.
+  assertLocalDatabaseUrl(getOpsEnv().DATABASE_OPS_URL);
   assertLocalDatabaseUrl(process.env.DATABASE_URL);
 
   try {
     const accounts = await seedDemoAccounts(
       process.env.DEMO_ACCOUNT_PASSWORD ?? "",
-      ownerRoleAssigner(process.env.DATABASE_MIGRATION_URL as string),
+      opsRoleAssigner(process.env.DATABASE_OPS_URL as string),
     );
 
     for (const { email } of accounts) {
@@ -50,7 +53,7 @@ async function main() {
     }
 
     // The identity area does not import organizations; the script wires them.
-    const organizations = await seedDemoOrganizations(process.env.DATABASE_MIGRATION_URL as string);
+    const organizations = await seedDemoOrganizations(process.env.DATABASE_OPS_URL as string);
 
     for (const { organizationSlug, outcome } of organizations) {
       console.log(`Demo organization ${organizationSlug}: ${outcome}`);
@@ -64,7 +67,7 @@ async function main() {
     const sampleCurator = demoOrganizations[0]!.curatorEmail;
     const sample = await seedDemoCatalog(
       process.env.DATABASE_URL as string,
-      process.env.DATABASE_MIGRATION_URL as string,
+      process.env.DATABASE_OPS_URL as string,
       sampleCurator,
     );
 

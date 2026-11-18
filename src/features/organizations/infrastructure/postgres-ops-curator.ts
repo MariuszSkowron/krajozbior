@@ -2,7 +2,11 @@ import "server-only";
 
 import { Client } from "pg";
 
-import type { AuditErrorCode, AuditOperation } from "@/lib/db/operations-audit";
+import {
+  writeAuditEntry,
+  type AuditErrorCode,
+  type AuditOperation,
+} from "@/lib/db/operations-audit";
 
 import type {
   GrantCuratorInput,
@@ -19,10 +23,12 @@ import {
   type OrganizationStatus,
 } from "../domain/organization";
 
-// The operator command as SQL, on one connection as krajozbior_owner (D-T7):
-// it must read auth.users by e-mail, which krajozbior_ops cannot. The tables
-// have FORCE row security, so the owner works through the `to krajozbior_owner`
-// policies of Migration20261117130000. Each command is one transaction:
+// The operator command as SQL, on one connection as krajozbior_ops
+// (DATABASE_OPS_URL; D-20, D-21): the role writes the audit but owns no table,
+// so it cannot switch the audit's protection off. It finds an account by
+// e-mail through `ops_find_user`, not by reading auth.users. The tables have
+// FORCE row security, so the role works through the `to krajozbior_ops`
+// policies of Migration20261118120000. Each command is one transaction:
 // the change and its audit entry commit together, and a refusal commits only
 // its `rejected` entry. A `noop` writes nothing.
 
@@ -34,41 +40,6 @@ export type QueryClient = Readonly<{
 }>;
 
 type OrganizationRow = { id: string; kind: OrganizationKind; status: OrganizationStatus };
-
-type Audit = Readonly<{
-  operation: AuditOperation;
-  operator: string;
-  reason: string;
-  subjectUserId: string | null;
-  organizationId: string | null;
-  before: Record<string, unknown> | null;
-  after: Record<string, unknown> | null;
-  outcome: "applied" | "rejected";
-  code: AuditErrorCode | null;
-}>;
-
-async function writeAudit(client: QueryClient, entry: Audit): Promise<string> {
-  const { rows } = await client.query(
-    `insert into public.operations_audit
-       (operation, operator_label, subject_user_id, organization_id, outcome,
-        before_state, after_state, reason, error_code)
-     values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9)
-     returning id`,
-    [
-      entry.operation,
-      entry.operator,
-      entry.subjectUserId,
-      entry.organizationId,
-      entry.outcome,
-      entry.before === null ? null : JSON.stringify(entry.before),
-      entry.after === null ? null : JSON.stringify(entry.after),
-      entry.reason,
-      entry.code,
-    ],
-  );
-
-  return rows[0].id as string;
-}
 
 async function lockOrganization(
   client: QueryClient,
@@ -91,9 +62,9 @@ async function lockOrganization(
 }
 
 async function findUserId(client: QueryClient, email: string): Promise<string | null> {
-  const { rows } = await client.query(`select id from auth.users where email = $1`, [email]);
+  const { rows } = await client.query(`select user_id from public.ops_find_user($1)`, [email]);
 
-  return (rows[0]?.id as string | undefined) ?? null;
+  return (rows[0]?.user_id as string | undefined) ?? null;
 }
 
 async function reject(
@@ -103,7 +74,7 @@ async function reject(
   code: AuditErrorCode,
   ids: { subjectUserId?: string | null; organizationId?: string | null },
 ): Promise<OpsCuratorResult> {
-  const auditId = await writeAudit(client, {
+  const auditId = await writeAuditEntry(client, {
     operation,
     operator: input.operator,
     reason: input.reason,
@@ -193,7 +164,7 @@ async function grantCurator(
     [organization.id, userId],
   );
 
-  const auditId = await writeAudit(client, {
+  const auditId = await writeAuditEntry(client, {
     operation: "grant_curator",
     operator: input.operator,
     reason: input.reason,
@@ -253,7 +224,7 @@ async function revokeCurator(
     };
   }
 
-  const auditId = await writeAudit(client, {
+  const auditId = await writeAuditEntry(client, {
     operation: "revoke_curator",
     operator: input.operator,
     reason: input.reason,
@@ -297,7 +268,7 @@ async function setOrganizationStatus(
     input.status,
   ]);
 
-  const auditId = await writeAudit(client, {
+  const auditId = await writeAuditEntry(client, {
     operation: "set_organization_status",
     operator: input.operator,
     reason: input.reason,
@@ -347,7 +318,7 @@ export function createOpsCuratorGateway(client: QueryClient): OpsCuratorGateway 
 export const OPS_LOCK_TIMEOUT_MS = 5_000;
 export const OPS_STATEMENT_TIMEOUT_MS = 30_000;
 
-// One connection as krajozbior_owner (DATABASE_MIGRATION_URL).
+// One connection as krajozbior_ops (DATABASE_OPS_URL).
 export async function connectOpsCurator(connectionString: string): Promise<OpsCuratorConnection> {
   const client = new Client({
     connectionString,

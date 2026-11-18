@@ -2,6 +2,8 @@ import { parseArgs } from "node:util";
 
 import { z } from "zod";
 
+import { auditOperatorSchema, auditReasonSchema } from "@/lib/db/operations-audit";
+
 import {
   ORGANIZATION_KINDS,
   ORGANIZATION_NAME_MAX_LENGTH,
@@ -67,7 +69,7 @@ const text = (max: number) =>
 
 const slug = z.string().max(ORGANIZATION_SLUG_MAX_LENGTH).regex(ORGANIZATION_SLUG_PATTERN);
 const email = z.email().max(254);
-const common = { reason: text(400), operator: text(80) };
+const common = { reason: auditReasonSchema, operator: auditOperatorSchema };
 
 const grantSchema = z.strictObject({
   "org-slug": slug,

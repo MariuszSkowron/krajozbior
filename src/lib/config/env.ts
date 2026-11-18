@@ -46,6 +46,15 @@ const migrationEnvSchema = z.object({
 
 export type MigrationEnv = z.infer<typeof migrationEnvSchema>;
 
+// The operator commands (`ops:curator`, `auth:create-admin`, the demo seed)
+// connect as krajozbior_ops (D-21). Unlike the migration role, this one owns no
+// table, so it cannot switch off the protection of the operations audit.
+const opsEnvSchema = z.object({
+  DATABASE_OPS_URL: postgresUrl,
+});
+
+export type OpsEnv = z.infer<typeof opsEnvSchema>;
+
 export class ServerConfigError extends Error {
   constructor(invalidNames: string[]) {
     // Names only: values may be secrets and must not reach logs or responses.
@@ -105,6 +114,10 @@ export function parseAuthEnv(source: Record<string, string | undefined>): AuthEn
 
 export function parseMigrationEnv(source: Record<string, string | undefined>): MigrationEnv {
   return parseEnv(migrationEnvSchema, source);
+}
+
+export function parseOpsEnv(source: Record<string, string | undefined>): OpsEnv {
+  return parseEnv(opsEnvSchema, source);
 }
 
 // The demo accounts (seeded with one shared, known password) may sign in only
@@ -206,4 +219,8 @@ export function getAuthEnv(): AuthEnv {
 
 export function getMigrationEnv(): MigrationEnv {
   return parseMigrationEnv(process.env);
+}
+
+export function getOpsEnv(): OpsEnv {
+  return parseOpsEnv(process.env);
 }

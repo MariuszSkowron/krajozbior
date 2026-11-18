@@ -47,7 +47,7 @@ export function assertDemoOrganizationsSeeded(results: readonly OpsCuratorResult
   }
 }
 
-/** Grants the demo memberships as krajozbior_owner (`connectionString`). */
+/** Grants the demo memberships as krajozbior_ops (`connectionString`). */
 export async function seedDemoOrganizations(connectionString: string): Promise<OpsCuratorResult[]> {
   const connection = await connectOpsCurator(connectionString);
 
