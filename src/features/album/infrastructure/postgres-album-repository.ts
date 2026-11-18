@@ -22,7 +22,8 @@ const publishedCollection = `c.status = 'published' and o.status = 'approved'`;
 
 // "The place lies in a public collection" (E12-1, D-E12-1a): spelled out wherever the home
 // page shows data of a place, whatever the role of the actor. The place must also belong to
-// an approved organization, as getPublishedPlace demands, so no link leads to a 404.
+// an approved organization, as getPublishedPlace demands. The second condition is implied by
+// the foreign key (collection_places.place_id, organization_id), so it is only a safeguard.
 // RLS is the second barrier only: a curator's policies would show them more.
 // The place is the row aliased `p`.
 const placeInPublicCollection = `
@@ -176,15 +177,11 @@ export const postgresAlbumRepository: AlbumRepository = {
             from public.visits v
            where v.user_id = app_current_user_id()) as "discoveredPlaces",
          (select count(distinct c.region)::int
-            from public.collections c
+            from public.visits v
+            join public.collection_places cp on cp.place_id = v.place_id
+            join public.collections c on c.id = cp.collection_id
             join public.organizations o on o.id = c.organization_id
-           where ${publishedCollection}
-             and exists (
-               select
-                 from public.collection_places cp
-                 join public.visits v on v.place_id = cp.place_id
-                where cp.collection_id = c.id and v.user_id = app_current_user_id()
-             )) as "regions",
+           where v.user_id = app_current_user_id() and ${publishedCollection}) as "regions",
          (select count(*)::int
             from public.saved_collections sc
             join public.collections c on c.id = sc.collection_id

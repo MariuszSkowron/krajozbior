@@ -154,7 +154,7 @@ describe("home page: personal album and public collections", () => {
     // The curator saved the collection while it was public, then withdrew it; a draft exists too.
     const withdrawn = await f.publishedCollection(curA, orgA);
 
-    await setRegion(curA, withdrawn.collectionId, "podlaskie").catch(() => undefined);
+    await setRegion(curA, withdrawn.collectionId, "podlaskie");
     await save(curA, withdrawn.collectionId);
     await f.draftCollection(curA, orgA, 2);
     await pastVisit(curA, withdrawn.placeIds[0]!);
