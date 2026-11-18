@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-// Static tab titles "{page} — Starter" (WCAG 2.4.2). Pages with a role-dependent
+// Static tab titles "{page} — Krajozbiór" (WCAG 2.4.2). Pages with a role-dependent
 // title are covered next to their page tests.
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 // The shell role (identity, database driver, session library) is a cold import
@@ -13,9 +13,9 @@ vi.mock("@/app/request-actor", () => ({
 
 describe("tab titles", () => {
   it.each([
-    ["@/app/layout", "Starter"],
-    ["@/app/not-found", "Nie znaleziono — Starter"],
-    ["@/app/my/page", "Moje konto — Starter"],
+    ["@/app/layout", "Krajozbiór"],
+    ["@/app/not-found", "Nie znaleziono — Krajozbiór"],
+    ["@/app/my/page", "Moje konto — Krajozbiór"],
   ])(
     "%s has the title „%s”",
     async (path, title) => {

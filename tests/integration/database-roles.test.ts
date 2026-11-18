@@ -15,7 +15,7 @@ import {
 import { findApplicationRoleGaps } from "../support/rls-guard";
 
 // Proves the role boundary of issue #21 through real LOGIN connections:
-// starter_app never reaches `auth`, starter_auth reaches nothing else, and no role
+// krajozbior_app never reaches `auth`, krajozbior_auth reaches nothing else, and no role
 // can skip row policies. The superuser connection only reads the catalog.
 let db: ScratchDatabase;
 
@@ -38,7 +38,7 @@ const runtimeRoleCanCreateInPublicSchema = async () => {
   const { rows } = await withClient(db.adminUrl, (client) =>
     client.query<{ rolname: string }>(
       `select rolname from pg_roles
-        where rolname in ('starter_app', 'starter_auth', 'starter_ops')
+        where rolname in ('krajozbior_app', 'krajozbior_auth', 'krajozbior_ops')
           and has_schema_privilege(oid, 'public', 'CREATE')`,
     ),
   );
@@ -46,7 +46,7 @@ const runtimeRoleCanCreateInPublicSchema = async () => {
   return rows.map((row) => row.rolname);
 };
 
-// A LOGIN role that is not one of starter_*, prepared by `setup` from the
+// A LOGIN role that is not one of krajozbior_*, prepared by `setup` from the
 // superuser connection and dropped afterwards (roles are global to the cluster).
 const withTemporaryRole = async <T>(
   setup: string[],
@@ -95,7 +95,7 @@ const asRole = <T>(role: keyof ScratchDatabase["urls"], work: (client: Client) =
 
 describe("database roles", () => {
   beforeAll(async () => {
-    db = await createScratchDatabase("starter_integration_roles");
+    db = await createScratchDatabase("krajozbior_integration_roles");
     await db.migrate();
   }, 60_000);
 
@@ -107,21 +107,23 @@ describe("database roles", () => {
     const { rows } = await withClient(db.adminUrl, (client) =>
       client.query(
         `select rolname, rolcanlogin, rolsuper, rolbypassrls, rolinherit, rolcreaterole, rolcreatedb
-           from pg_roles where rolname like 'starter\\_%' and rolname <> current_user
+           from pg_roles where rolname like 'krajozbior\\_%' and rolname <> current_user
           order by rolname`,
       ),
     );
 
     expect(rows).toEqual(
-      ["starter_app", "starter_auth", "starter_ops", "starter_owner"].map((rolname) => ({
-        rolname,
-        rolcanlogin: true,
-        rolsuper: false,
-        rolbypassrls: false,
-        rolinherit: false,
-        rolcreaterole: false,
-        rolcreatedb: false,
-      })),
+      ["krajozbior_app", "krajozbior_auth", "krajozbior_ops", "krajozbior_owner"].map(
+        (rolname) => ({
+          rolname,
+          rolcanlogin: true,
+          rolsuper: false,
+          rolbypassrls: false,
+          rolinherit: false,
+          rolcreaterole: false,
+          rolcreatedb: false,
+        }),
+      ),
     );
   });
 
@@ -131,10 +133,10 @@ describe("database roles", () => {
     expect(await withClient(db.adminUrl, findApplicationRoleGaps)).toEqual([]);
   });
 
-  it("gives starter_app no access to the auth schema", async () => {
-    await asRole("starter_app", async (client) => {
+  it("gives krajozbior_app no access to the auth schema", async () => {
+    await asRole("krajozbior_app", async (client) => {
       expect((await client.query("select current_user as role")).rows).toEqual([
-        { role: "starter_app" },
+        { role: "krajozbior_app" },
       ]);
       for (const table of ["users", "sessions", "accounts", "verifications", "sign_in_throttle"]) {
         await expect(client.query(`select * from auth.${table} limit 1`)).rejects.toMatchObject(
@@ -147,8 +149,8 @@ describe("database roles", () => {
     });
   });
 
-  it("lets starter_app read the user context but not create objects", async () => {
-    await asRole("starter_app", async (client) => {
+  it("lets krajozbior_app read the user context but not create objects", async () => {
+    await asRole("krajozbior_app", async (client) => {
       expect((await client.query(`select app_current_user_id() as "userId"`)).rows).toEqual([
         { userId: null },
       ]);
@@ -171,7 +173,9 @@ describe("database roles", () => {
 
   it("takes CREATE on the public schema away from the runtime roles, also after a manual grant", async () => {
     await withClient(db.adminUrl, (client) =>
-      client.query("grant create on schema public to starter_app, starter_auth, starter_ops"),
+      client.query(
+        "grant create on schema public to krajozbior_app, krajozbior_auth, krajozbior_ops",
+      ),
     );
     expect(await runtimeRoleCanCreateInPublicSchema()).toHaveLength(3);
 
@@ -205,19 +209,19 @@ describe("database roles", () => {
   });
 
   it("refuses a role that belongs to another role and could switch to it", async () => {
-    await withTemporaryRole(["grant starter_ops to $role"], expectRefused);
+    await withTemporaryRole(["grant krajozbior_ops to $role"], expectRefused);
   });
 
-  it("refuses a privileged login that switched to starter_app", async () => {
+  it("refuses a privileged login that switched to krajozbior_app", async () => {
     const url = new URL(db.adminUrl);
 
-    url.searchParams.set("options", "-c role=starter_app");
+    url.searchParams.set("options", "-c role=krajozbior_app");
 
     const pool = new Pool({ connectionString: url.toString(), max: 1 });
 
     try {
       expect((await pool.query("select current_user as role")).rows).toEqual([
-        { role: "starter_app" },
+        { role: "krajozbior_app" },
       ]);
       await expect(verifiedPool(pool)()).rejects.toBeInstanceOf(UnsafeDatabaseRoleError);
     } finally {
@@ -225,12 +229,12 @@ describe("database roles", () => {
     }
   });
 
-  it("starts the application as starter_app and the auth pool as starter_auth", async () => {
-    const orm = await initApplicationOrm(createOrmConfig(db.urls.starter_app));
+  it("starts the application as krajozbior_app and the auth pool as krajozbior_auth", async () => {
+    const orm = await initApplicationOrm(createOrmConfig(db.urls.krajozbior_app));
 
     await orm.close(true);
 
-    const pool = new Pool({ connectionString: db.urls.starter_auth, max: 1 });
+    const pool = new Pool({ connectionString: db.urls.krajozbior_auth, max: 1 });
 
     try {
       await expect(verifiedPool(pool)()).resolves.toBe(pool);
@@ -239,8 +243,8 @@ describe("database roles", () => {
     }
   });
 
-  it("limits starter_auth to the auth schema", async () => {
-    await asRole("starter_auth", async (client) => {
+  it("limits krajozbior_auth to the auth schema", async () => {
+    await asRole("krajozbior_auth", async (client) => {
       expect((await client.query("select count(*)::int as count from auth.users")).rows).toEqual([
         { count: 0 },
       ]);
@@ -259,29 +263,29 @@ describe("database roles", () => {
     });
   });
 
-  it("gives starter_auth no privilege on public tables and no ops_* function", async () => {
+  it("gives krajozbior_auth no privilege on public tables and no ops_* function", async () => {
     const { rows } = await withClient(db.adminUrl, (client) =>
       client.query<{ object: string }>(
         `select c.oid::regclass::text as object
            from pg_class c join pg_namespace n on n.oid = c.relnamespace
           where n.nspname = 'public' and c.relkind = 'r'
-            and (has_table_privilege('starter_auth', c.oid,
+            and (has_table_privilege('krajozbior_auth', c.oid,
                    'select, insert, update, delete, truncate, references, trigger')
-                 or has_any_column_privilege('starter_auth', c.oid, 'select, insert, update'))
+                 or has_any_column_privilege('krajozbior_auth', c.oid, 'select, insert, update'))
          union all
          select p.oid::regprocedure::text
            from pg_proc p join pg_namespace n on n.oid = p.pronamespace
           where n.nspname = 'public' and p.proname like 'ops\_%'
-            and has_function_privilege('starter_auth', p.oid, 'execute')`,
+            and has_function_privilege('krajozbior_auth', p.oid, 'execute')`,
       ),
     );
 
-    // No ops_* function of the application schema is executable by starter_auth.
+    // No ops_* function of the application schema is executable by krajozbior_auth.
     expect(rows).toEqual([]);
   });
 
-  it("gives starter_ops no access to the auth schema or the migrations table", async () => {
-    await asRole("starter_ops", async (client) => {
+  it("gives krajozbior_ops no access to the auth schema or the migrations table", async () => {
+    await asRole("krajozbior_ops", async (client) => {
       await expect(client.query("select * from auth.users")).rejects.toMatchObject(
         permissionDenied,
       );

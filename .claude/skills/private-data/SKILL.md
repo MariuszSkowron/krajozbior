@@ -19,7 +19,7 @@ Przykłady poniżej używają wymyślonej tabeli `trip_notes` (prywatne notatki 
 - Nowy przypadek użycia, trasa `src/app/api/**` albo akcja serwera, która czyta lub zapisuje takie dane.
 - Zmiana uprawnień istniejącej tabeli prywatnej (nowa operacja, nowy grant kolumnowy).
 
-Nie używaj do danych w pełni publicznych — tam obowiązuje zapis przez `starter_ops` i polityka `SELECT` dla wszystkich.
+Nie używaj do danych w pełni publicznych — tam obowiązuje zapis przez `krajozbior_ops` i polityka `SELECT` dla wszystkich.
 
 Hook `.claude/hooks/require-rls-in-migration.mjs` blokuje migrację, która tworzy tabelę bez włączonego i wymuszonego RLS. Jeśli cię zatrzymał, wróć do kroku 2.
 
@@ -27,11 +27,11 @@ Hook `.claude/hooks/require-rls-in-migration.mjs` blokuje migrację, która twor
 
 Ustal klasę według `docs/data-isolation.md`, sekcja 2, i zapisz decyzję w specyfikacji:
 
-| Klasa     | Kto czyta                                         | Kto zapisuje              | Mechanizm                                                                         |
-| --------- | ------------------------------------------------- | ------------------------- | --------------------------------------------------------------------------------- |
-| PRIV      | tylko właściciel                                  | tylko właściciel          | `privateTableSecuritySql()` z `src/lib/db/policies.ts`                            |
-| CUR       | autor; rola z zakresem, gdy zasób jest w zakresie | autor; rola przez decyzję | nazwane funkcje `security definer`, bez bezpośredniego `UPDATE` dla `starter_app` |
-| Publiczna | każdy, także gość                                 | `starter_ops`             | polityka `SELECT` dla wszystkich                                                  |
+| Klasa     | Kto czyta                                         | Kto zapisuje              | Mechanizm                                                                            |
+| --------- | ------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------ |
+| PRIV      | tylko właściciel                                  | tylko właściciel          | `privateTableSecuritySql()` z `src/lib/db/policies.ts`                               |
+| CUR       | autor; rola z zakresem, gdy zasób jest w zakresie | autor; rola przez decyzję | nazwane funkcje `security definer`, bez bezpośredniego `UPDATE` dla `krajozbior_app` |
+| Publiczna | każdy, także gość                                 | `krajozbior_ops`          | polityka `SELECT` dla wszystkich                                                     |
 
 Role nie dziedziczą uprawnień: administrator nie jest rolą z zakresem, rola z zakresem nie jest zwykłym użytkownikiem. Zdecyduj, czego rola z zakresem **nigdy** nie widzi.
 
@@ -48,17 +48,17 @@ Plik `src/lib/db/migrations/MigrationYYYYMMDDHHMMSS_<slug>.ts` (`npm run db:migr
      this.addSql(statement);
    }
    ```
-   Helper włącza i wymusza RLS (`FORCE` obejmuje też właściciela tabeli), odbiera wszystko `public`, nadaje `starter_app` tylko wskazane operacje i tworzy polityki właściciela z `WITH CHECK`.
+   Helper włącza i wymusza RLS (`FORCE` obejmuje też właściciela tabeli), odbiera wszystko `public`, nadaje `krajozbior_app` tylko wskazane operacje i tworzy polityki właściciela z `WITH CHECK`.
 3. `UPDATE` tylko na edytowanych kolumnach (grant kolumnowy). Nie nadawaj `UPDATE` na całą tabelę; `user_id` i klucze muszą być niezmienialne.
 4. **Klucz obcy omija RLS.** Jeśli wiersz wskazuje inną tabelę z własnymi ograniczeniami widoczności, dodaj restrykcyjną politykę `INSERT`, która wymaga widocznego celu — inaczej ktoś, kto zna UUID niewidocznego wiersza, go przypnie:
    ```sql
    create policy trip_notes_target_insert on public.trip_notes
-     as restrictive for insert to starter_app
+     as restrictive for insert to krajozbior_app
      with check (exists (select from places p where p.id = trip_notes.place_id and p.is_published));
    ```
 5. Wartości słownikowe w `CHECK` kopiuj do migracji jako zamrożone stałe, nie importuj z kodu domeny.
 6. `down()`: tabele powiązane politykami usuwaj jedną instrukcją `drop table a, b`, bez `CASCADE`.
-7. Funkcja `security definer` czytająca tabelę z `FORCE` potrzebuje wąskiej polityki dla `starter_owner` i jawnego `set search_path`; agregaty zwracają liczby, nie wiersze.
+7. Funkcja `security definer` czytająca tabelę z `FORCE` potrzebuje wąskiej polityki dla `krajozbior_owner` i jawnego `set search_path`; agregaty zwracają liczby, nie wiersze.
 
 ## Krok 3. Domena
 
@@ -88,10 +88,10 @@ Przed pisaniem sprawdź właściwy przewodnik w `node_modules/next/dist/docs/` (
 
 ## Krok 7. Test integracyjny odmowy dostępu (wymagany)
 
-`tests/integration/<feature>-access.test.ts`, na prawdziwym PostgreSQL, połączenie jako `starter_app`. Wzór do skopiowania: `tests/integration/private-data-isolation.test.ts` (harness: `tests/support/database-harness.ts`). Pokryj punkty z `docs/data-isolation.md`, sekcja 7:
+`tests/integration/<feature>-access.test.ts`, na prawdziwym PostgreSQL, połączenie jako `krajozbior_app`. Wzór do skopiowania: `tests/integration/private-data-isolation.test.ts` (harness: `tests/support/database-harness.ts`). Pokryj punkty z `docs/data-isolation.md`, sekcja 7:
 
 - [ ] **Katalog:** `findRowLevelSecurityGaps(client, ["public.<tabela>"])` i `findApplicationRoleGaps(client)` zwracają `[]`.
-- [ ] **Dokładne uprawnienia:** `has_table_privilege('starter_app', ...)` dla każdej operacji — dokładnie te z kroku 2, nic więcej (`truncate`, `references`, `trigger` = `false`).
+- [ ] **Dokładne uprawnienia:** `has_table_privilege('krajozbior_app', ...)` dla każdej operacji — dokładnie te z kroku 2, nic więcej (`truncate`, `references`, `trigger` = `false`).
 - [ ] **Brak kontekstu:** bez `app.user_id` 0 wierszy, `INSERT` odrzucony.
 - [ ] **A kontra B:** użytkownik B nie odczyta, nie zmieni i nie usunie wiersza A — także surowym SQL; `INSERT` z cudzym `user_id` kończy się `42501`.
 - [ ] **Inne role:** rola z zakresem poza zakresem i administrator dostają `forbidden`/403 (role nie dziedziczą); gość — `unauthenticated`/401 przez prawdziwy handler trasy z podmienioną sesją.
@@ -116,7 +116,7 @@ Jeśli funkcja ma ekran, dodaj scenariusz E2E z dwoma kontami (konta demo z seed
 
 | Błąd                                       | Skutek                                                   | Jak uniknąć                                |
 | ------------------------------------------ | -------------------------------------------------------- | ------------------------------------------ |
-| Tabela teraz, RLS „w następnym PR”         | Okno, w którym `starter_app` widzi wszystko              | Krok 2; hook blokuje taki plik             |
+| Tabela teraz, RLS „w następnym PR”         | Okno, w którym `krajozbior_app` widzi wszystko           | Krok 2; hook blokuje taki plik             |
 | `ENABLE` bez `FORCE`                       | Właściciel i funkcje `security definer` omijają polityki | Helper albo oba polecenia                  |
 | Filtr `WHERE user_id = ?` zamiast polityki | IDOR po pierwszym zapomnianym filtrze                    | Polityka w bazie + `app_current_user_id()` |
 | Klucz obcy bez polityki restrykcyjnej      | Przypięcie niewidocznego wiersza                         | Krok 2.4 i test surowego `insert`          |

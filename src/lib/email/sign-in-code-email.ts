@@ -1,7 +1,7 @@
 export const SIGN_IN_CODE_VALIDITY_MINUTES = 10;
 
 /** Name of the application in messages; `npm run rename-project` replaces it. */
-export const APP_NAME = "Starter";
+export const APP_NAME = "Krajozbiór";
 
 export type SignInCodeEmailInput = Readonly<{
   code: string;

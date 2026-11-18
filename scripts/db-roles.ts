@@ -1,7 +1,7 @@
-// Creates or updates the database roles starter_owner, starter_app, starter_auth and
-// starter_ops (issue #21) and prepares the database for migrations run as
-// starter_owner. Connects through DATABASE_ADMIN_URL (a superuser; locally the
-// `starter` user from compose.yaml). Passwords come from STARTER_*_DB_PASSWORD and
+// Creates or updates the database roles krajozbior_owner, krajozbior_app, krajozbior_auth and
+// krajozbior_ops (issue #21) and prepares the database for migrations run as
+// krajozbior_owner. Connects through DATABASE_ADMIN_URL (a superuser; locally the
+// `krajozbior` user from compose.yaml). Passwords come from KRAJOZBIOR_*_DB_PASSWORD and
 // are never printed.
 //
 // Run with: npm run db:roles (before npm run db:migrate)

@@ -11,7 +11,7 @@ Fakty tego repozytorium dla skilla `om-prepare-test-env`. Nie łagodzi reguł be
 
 ## Działający łańcuch (zweryfikowany 2026-11-08)
 
-1. Dwa kontenery `postgres:17` z `--rm`: `starter-testenv-e2e-pg` (`starter_e2e`, preferowany 55433) i `starter-testenv-int-pg` (`starter_integration_test`, preferowany 55432). Zajęty port → wolny port.
+1. Dwa kontenery `postgres:17` z `--rm`: `krajozbior-testenv-e2e-pg` (`krajozbior_e2e`, preferowany 55433) i `krajozbior-testenv-int-pg` (`krajozbior_integration_test`, preferowany 55432). Zajęty port → wolny port.
 2. Jawne zmienne procesu (nadpisują lokalny `.env`), potem `npm run db:roles` → `db:migrate` → `db:seed:demo`.
 3. `npm run build` tylko gdy zmienił się odcisk wejść; `.snapshot-*.json` MikroORM pomijane.
 4. `next start` na 127.0.0.1 (preferowany 3100), odłączony przez WMI; zdrowie: `/api/health` (sprawdza bazę).
@@ -19,7 +19,7 @@ Fakty tego repozytorium dla skilla `om-prepare-test-env`. Nie łagodzi reguł be
 
 ## Pułapki, którym zapobiega skrypt
 
-- Integracja i aplikacja na jednym klastrze: harness zmienia hasła ról `starter_*` i aplikacja traci bazę. Dlatego dwa kontenery.
+- Integracja i aplikacja na jednym klastrze: harness zmienia hasła ról `krajozbior_*` i aplikacja traci bazę. Dlatego dwa kontenery.
 - `Start-Process` wiesza wywołującego, który przechwytuje wyjście. Dlatego WMI `Win32_Process.Create`.
 - Testy integracyjne zapisują `src/lib/db/migrations/.snapshot-*.json`. Bez wykluczenia każde uruchomienie po nich przebudowywało środowisko.
 - E2E z wieloma workerami: timeouty `page.goto` lokalnie. Launcher używa `--workers=1` (jak CI).

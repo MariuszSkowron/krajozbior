@@ -26,7 +26,7 @@ PostgreSQL jest źródłem prawdy. MikroORM odpowiada za migracje oraz połącze
 
 Schemat zmienia się wyłącznie wersjonowanymi migracjami (`npm run db:migration:create`, `npm run db:migrate`). Ograniczenia relacyjne, unikalności i indeksy odzwierciedlają reguły domeny. RLS jest warstwą izolacji rekordów osobistych i uzupełnia, a nie zastępuje, autoryzację serwerową. Klasy danych, role bazy i polityki: `docs/data-isolation.md`.
 
-Cztery role bazy: `starter_owner` (migracje, właściciel obiektów), `starter_app` (aplikacja, bez `BYPASSRLS`), `starter_auth` (wyłącznie schemat `auth`), `starter_ops` (operacje administracyjne). Tworzy je `npm run db:roles`.
+Cztery role bazy: `krajozbior_owner` (migracje, właściciel obiektów), `krajozbior_app` (aplikacja, bez `BYPASSRLS`), `krajozbior_auth` (wyłącznie schemat `auth`), `krajozbior_ops` (operacje administracyjne). Tworzy je `npm run db:roles`.
 
 ## Uwierzytelnianie i autoryzacja
 
@@ -36,6 +36,17 @@ Logowanie realizuje better-auth z PostgreSQL (schemat `auth`), kodem jednorazowy
 
 Nagłówki bezpieczeństwa (CSP, HSTS, `nosniff`, `Referrer-Policy`, `Permissions-Policy`) ustawia `next.config.ts` przez `src/lib/security-headers.ts`. Konfigurację środowiska waliduje `src/lib/config/env.ts`. Błędy do użytkownika mają stabilne kody i bezpieczne komunikaty; szczegóły trafiają tylko do logu serwera (`src/lib/log-failure.ts`).
 
+## Wymagania projektu wpływające na architekturę
+
+Wynikają z ankiety przy zakładaniu projektu; szczegóły i uzasadnienia są w `<docs>/docs/product.md` i `<docs>/docs/decisions.md`.
+
+- **[Z]** Aplikacja webowa z osobnymi układami na komputer i telefon; telefon jest używany w terenie. Natywna aplikacja mobilna nie należy do pierwszej wersji.
+- **[Z]** Rejestracja publiczna: każdy zakłada konto kodem z e-maila. Rola kuratora (członek organizacji) i rola administratora nie powstają przy rejestracji; nadaje je administrator, a kurator zaprasza członków organizacji e-mailem.
+- **[Z]** Role z zakresem: kurator ma uprawnienia tylko do kolekcji swojej organizacji, a w kolekcji współzarządzanej tylko w przyznanym zakresie. Kurator nie widzi prywatnych odwiedzin użytkowników. Każda taka reguła potrzebuje RLS i testu odmowy dostępu (`docs/data-isolation.md`).
+- **[Z]** Produkt przyjmuje zdjęcia od użytkowników (JPG, PNG, do 20 MB), więc potrzebny jest magazyn plików poza bazą. Zdjęcie przed akceptacją jest prywatne, a plik nie może być dostępny pod publicznym adresem.
+- **[Z]** Potwierdzenie wizyty korzysta z lokalizacji urządzenia (API geolokalizacji przeglądarki). Odległość od miejsca sprawdza serwer, nie tylko przeglądarka. **[P]** Pozycji urządzenia nie zapisujemy, tylko wynik sprawdzenia.
+- **[Z]** Dwa motywy (nocny domyślny i jasny) z jednych tokenów, WCAG 2.2 AA, `prefers-reduced-motion` wyłącza animacje.
+
 ## Otwarte decyzje
 
-Zbierane w `<docs>/docs/decisions.md`. Typowe przy starcie projektu: dostawca wdrożenia, wysyłka e-maili produkcyjnych, magazyn plików (jeśli produkt je przyjmuje).
+Zbierane w `<docs>/docs/decisions.md`. Przy starcie projektu otwarte są: dostawca wdrożenia, wysyłka e-maili produkcyjnych, magazyn zdjęć i podkład mapy.

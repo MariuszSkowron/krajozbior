@@ -26,13 +26,13 @@ const DAILY_RETENTION_DAYS = 2;
 // The longest wait for a row lock of a counter (above all the shared global
 // row). A flood of requests then ends in 503 unavailable, with nothing used up
 // (the transaction rolls back), instead of holding the connections of the
-// starter_auth pool that sessions and password sign-in also need.
+// krajozbior_auth pool that sessions and password sign-in also need.
 const COUNTER_LOCK_TIMEOUT = "2s";
 
 // A key of its own for the HMAC of addresses and IPs, derived from the session
 // secret; rotating the secret resets the counters.
 export function otpSendHmacKey(secret: string): Buffer {
-  return Buffer.from(hkdfSync("sha256", secret, "", "starter-otp-send-limits", 32));
+  return Buffer.from(hkdfSync("sha256", secret, "", "krajozbior-otp-send-limits", 32));
 }
 
 // Neither the address nor the IP reaches the tables in clear text: both are

@@ -6,7 +6,11 @@ Zadanie zapisz zwykłym tekstem jako docs#N (bez słowa „Closes”).
 
 ## Co się zmienia
 
-1–3 zdania prostą polszczyzną: co zmienia się dla użytkownika lub projektu i dlaczego.
+1–3 zdania poprawną, prostą polszczyzną, zrozumiałe bez wiedzy technicznej (bez kalek z angielskiego):
+
+- co robi ten PR — skutek dla użytkownika lub projektu, nie nazwy plików,
+- dlaczego jest potrzebny,
+- z czego wynika — zadanie, decyzja (D-NN), specyfikacja, błąd albo prośba właściciela.
 
 Zadanie: docs#
 

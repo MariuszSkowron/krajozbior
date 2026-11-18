@@ -1,26 +1,30 @@
-# Zestaw startowy (ai-repo-starter)
+# Krajozbiór
 
 ## W skrócie
 
-To publiczne repozytorium-szablon kodu, od którego zaczynamy nowy projekt. Zawiera działający szkielet aplikacji (Next.js, PostgreSQL z regułami dostępu, logowanie kodem z e-maila, testy, Storybook, CI) oraz zasady pracy agentów AI: przepływ od zadania do automatycznego scalenia, zabezpieczenia (czego agent nie może zrobić) i kontrole w CI. Nie ma tu treści produktu ani nic prywatnego.
+Krajozbiór to aplikacja webowa do zbierania odwiedzonych miejsc w tematycznych kolekcjach, na komputer i telefon. To publiczne repozytorium kodu: aplikacja (Next.js, PostgreSQL z regułami dostępu, logowanie kodem z e-maila), testy, Storybook, CI i zasady pracy agentów AI. Kod jest publiczny tylko do wglądu (`LICENSE`). Dokumentacja produktu, decyzje i zadania są w osobnym, prywatnym repozytorium.
 
-Każdy projekt ma **dwa repozytoria, w dwóch folderach obok siebie**:
+Projekt ma **dwa repozytoria, w dwóch folderach obok siebie**:
 
-| Folder           | Repozytorium | Co zawiera                                                                                                    |
-| ---------------- | ------------ | ------------------------------------------------------------------------------------------------------------- |
-| `<projekt>`      | publiczne    | kod, testy, CI, zasady pracy agentów (to repozytorium)                                                        |
-| `<projekt>-docs` | prywatne     | produkt, decyzje, specyfikacje, runy, lekcje, raporty bezpieczeństwa, zadania, instrukcja zakładania projektu |
+| Folder            | Repozytorium | Co zawiera                                                                    |
+| ----------------- | ------------ | ----------------------------------------------------------------------------- |
+| `krajozbior`      | publiczne    | kod, testy, CI, zasady pracy agentów (to repozytorium)                        |
+| `krajozbior-docs` | prywatne     | produkt, decyzje, specyfikacje, runy, lekcje, raporty bezpieczeństwa, zadania |
 
-Robocza nazwa szkieletu to `starter` (np. role bazy `starter_app`). Przy zakładaniu projektu zamienia ją skrypt `npm run rename-project`.
+Repozytorium powstało z szablonu `ai-repo-starter`.
 
-## Jak zacząć nowy projekt
+## Jak działa Krajozbiór
 
-Instrukcja krok po kroku jest w prywatnym szablonie dokumentacji (`ai-repo-starter-docs`, plik `BOOTSTRAP.md`). W skrócie: oba repozytoria powstają z szablonów przyciskiem **Use this template**, właściciel wypełnia ankietę, a agent wykonuje `BOOTSTRAP.md`.
+- **Kolekcje.** Miejsca są zebrane w tematyczne kolekcje, np. „Wieże ciśnień Pomorza”. Jedno miejsce może należeć do kilku kolekcji.
+- **Wizyty.** Odkrywca potwierdza wizytę lokalizacją telefonu na miejscu albo dopisuje wcześniejsze wizyty. Postęp w kolekcji widzi jako liczbę zebranych miejsc, np. 9/24.
+- **Kuratorzy.** Gotowe kolekcje przygotowują kuratorzy: gminy, organizacje turystyczne i lokalni przewodnicy. Użytkownicy mogą też tworzyć własne kolekcje.
+
+Projekt jest na wczesnym etapie: działa logowanie kodem z e-maila i podstawy design systemu, a pierwsza wersja kolekcji i wizyt jest w przygotowaniu. Na początek aplikacja działa w przeglądarce na komputerze i telefonie.
 
 ## Codzienny start (Visual Studio Code)
 
-1. Oba foldery muszą leżeć obok siebie, np. `Projekty\moj-projekt` i `Projekty\moj-projekt-docs`.
-2. W folderze dokumentacji kliknij dwukrotnie plik `<projekt>.code-workspace` (albo w VS Code: **File → Open Workspace from File…** i wskaż ten plik). ✅ Po lewej widać dwa foldery: najpierw kod, potem dokumentację.
+1. Oba foldery leżą obok siebie: `krajozbior` i `krajozbior-docs`.
+2. W folderze dokumentacji kliknij dwukrotnie plik `krajozbior.code-workspace` (albo w VS Code: **File → Open Workspace from File…** i wskaż ten plik). ✅ Po lewej widać dwa foldery: najpierw kod, potem dokumentację.
 3. Otwórz panel Claude Code: ikona Claude na pasku bocznym albo `Ctrl+Shift+P` → „Claude Code: Open”. Agent pracuje w folderze kodu i ma dostęp do folderu dokumentacji.
 4. Przy pierwszym otwarciu VS Code zaproponuje rekomendowane rozszerzenia (Claude Code, Prettier, ESLint, Playwright) — kliknij **Install**.
 
@@ -31,7 +35,7 @@ Wymagania: Node.js (wersja jak w `.github/workflows/ci.yml`), npm, Docker Deskto
 ```bash
 npm ci
 cp .env.example .env     # uzupełnij wartości lokalnie; pliku .env nie commituj
-npm run db:roles         # tworzy role bazy starter_owner, starter_app, starter_auth, starter_ops
+npm run db:roles         # tworzy role bazy krajozbior_owner, krajozbior_app, krajozbior_auth, krajozbior_ops
 npm run db:migrate
 npm run db:seed:demo     # konta demonstracyjne (tylko z ALLOW_DEMO_SEED=1 w .env)
 npm run dev
@@ -53,7 +57,6 @@ Aplikacja działa pod adresem `http://localhost:3000`. Uwaga: `compose.yaml` jes
 | `npm run db:roles`, `db:migrate`, `db:migration:create`, `db:seed:demo` | role, migracje i konta demo                                   |
 | `npm run auth:create-admin -- --email <e-mail>`                         | konto administratora (hasło z `ADMIN_PASSWORD`)               |
 | `npm run auth:throttle -- <polecenie>`                                  | blokada i odblokowanie limitów logowania i próśb o kod        |
-| `npm run rename-project -- <slug> "<Nazwa>"`                            | zmienia nazwę `starter` na nazwę projektu                     |
 
 Na Windows lokalne środowisko testowe (integracja i E2E): `powershell -ExecutionPolicy Bypass -File scripts/test-env/test-env-test.ps1`.
 
@@ -67,7 +70,7 @@ docs/                     architektura, standardy, testy, izolacja danych, desig
 .claude/                  uprawnienia (settings.json), hooki strażnicze, skille
 .github/                  CI, guard, CodeQL, CODEOWNERS, szablon PR, Dependabot, ruleset ochrony main, bot.json
 .vscode/extensions.json   rekomendowane rozszerzenia VS Code
-scripts/                  db-roles, rename-project, setup-github.ps1, bot-token.ps1, test-env/
+scripts/                  db-roles, setup-github.ps1, bot-token.ps1, test-env/
 LICENSE                   wszelkie prawa zastrzeżone (kod publiczny tylko do wglądu)
 src/                      app (routing), features (domeny), design-system, lib (infrastruktura)
 tests/, e2e/              testy jednostkowe i integracyjne, testy przeglądarkowe

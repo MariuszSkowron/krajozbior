@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "Nie znaleziono — Starter" };
+export const metadata: Metadata = { title: "Nie znaleziono — Krajozbiór" };
 
 // One "not found" for every missing or hidden resource: it never says whether
 // something private exists at the address.

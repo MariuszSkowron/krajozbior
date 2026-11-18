@@ -17,7 +17,7 @@ export type ScratchDatabase = {
   urls: Record<DatabaseRole, string>;
   /** Runs the `npm run db:roles` logic again on this database. */
   provisionRoles(): Promise<void>;
-  /** Runs all migrations as starter_owner, like `npm run db:migrate`. */
+  /** Runs all migrations as krajozbior_owner, like `npm run db:migrate`. */
   migrate(): Promise<void>;
   drop(): Promise<void>;
 };
@@ -76,8 +76,8 @@ export async function closePool(pool: Pool): Promise<void> {
 }
 
 export async function createScratchDatabase(name: string): Promise<ScratchDatabase> {
-  if (!/^starter_integration_[a-z_]+$/.test(name)) {
-    throw new Error("Scratch database names must start with starter_integration_");
+  if (!/^krajozbior_integration_[a-z_]+$/.test(name)) {
+    throw new Error("Scratch database names must start with krajozbior_integration_");
   }
 
   const testUrl = parseIntegrationDatabaseUrl(process.env.TEST_DATABASE_URL);
@@ -101,7 +101,7 @@ export async function createScratchDatabase(name: string): Promise<ScratchDataba
     urls,
     provisionRoles,
     async migrate() {
-      const orm = await MikroORM.init(createOrmConfig(urls.starter_owner));
+      const orm = await MikroORM.init(createOrmConfig(urls.krajozbior_owner));
 
       try {
         await orm.migrator.up();

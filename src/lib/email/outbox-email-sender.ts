@@ -39,10 +39,10 @@ export class OutboxEmailSender implements EmailSender {
       const fileName = `${stamp}-${id}.eml`;
       const eml = buildEml(message, {
         from: this.options.from,
-        fromName: this.options.fromName ?? "Starter",
+        fromName: this.options.fromName ?? "Krajozbiór",
         date,
-        messageId: `${randomUUID()}@starter.local`,
-        boundary: `starter-${randomUUID()}`,
+        messageId: `${randomUUID()}@krajozbior.local`,
+        boundary: `krajozbior-${randomUUID()}`,
       });
 
       // Owner-only access: the files hold fresh sign-in codes (no effect on Windows).

@@ -13,7 +13,7 @@ import {
 // policy. The hook reads one file's text and can miss a spelling; this test
 // reads the database catalog and misses nothing (docs/data-isolation.md).
 //
-// `auth` is exempt: starter_app and starter_ops have no privileges there at all
+// `auth` is exempt: krajozbior_app and krajozbior_ops have no privileges there at all
 // (tested in auth-accounts-access.test.ts and database-roles.test.ts).
 //
 // ALLOWLIST: tables that are deliberately not protected by RLS. Every entry
@@ -21,7 +21,7 @@ import {
 // is in CODEOWNERS).
 const EXEMPT_SCHEMAS = ["auth"];
 const ALLOWLIST: Record<string, string> = {
-  // MikroORM's own bookkeeping; owned by starter_owner, no grants to the app.
+  // MikroORM's own bookkeeping; owned by krajozbior_owner, no grants to the app.
   "public.mikro_orm_migrations": "migration bookkeeping, no application access",
 };
 
@@ -56,9 +56,9 @@ async function applicationPrivilegesInAuth(client: Client): Promise<string[]> {
        join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'auth'
         and c.relkind in ('r', 'p', 'v', 'm', 'f')
-        and (has_table_privilege('starter_app', c.oid,
+        and (has_table_privilege('krajozbior_app', c.oid,
                'select, insert, update, delete, truncate, references, trigger')
-             or has_any_column_privilege('starter_app', c.oid,
+             or has_any_column_privilege('krajozbior_app', c.oid,
                'select, insert, update, references'))
       order by 1`,
   );
@@ -97,7 +97,7 @@ let db: ScratchDatabase;
 
 describe("row level security on every table after all migrations", () => {
   beforeAll(async () => {
-    db = await createScratchDatabase("starter_integration_rls_coverage");
+    db = await createScratchDatabase("krajozbior_integration_rls_coverage");
     await db.migrate();
   }, 60_000);
 
@@ -128,17 +128,17 @@ describe("row level security on every table after all migrations", () => {
     });
   });
 
-  it("gives starter_app no privilege on any relation in the auth schema, and would catch one", async () => {
+  it("gives krajozbior_app no privilege on any relation in the auth schema, and would catch one", async () => {
     expect(await withClient(db.adminUrl, applicationPrivilegesInAuth)).toEqual([]);
 
     await withClient(db.adminUrl, async (client) => {
       await client.query(`create table auth.rls_probe_privilege (id int, secret text)`);
       try {
-        await client.query(`grant select (id) on auth.rls_probe_privilege to starter_app`);
+        await client.query(`grant select (id) on auth.rls_probe_privilege to krajozbior_app`);
         expect(await applicationPrivilegesInAuth(client)).toEqual(["auth.rls_probe_privilege"]);
-        await client.query(`revoke select (id) on auth.rls_probe_privilege from starter_app`);
+        await client.query(`revoke select (id) on auth.rls_probe_privilege from krajozbior_app`);
         expect(await applicationPrivilegesInAuth(client)).toEqual([]);
-        await client.query(`grant delete on auth.rls_probe_privilege to starter_app`);
+        await client.query(`grant delete on auth.rls_probe_privilege to krajozbior_app`);
         expect(await applicationPrivilegesInAuth(client)).toEqual(["auth.rls_probe_privilege"]);
       } finally {
         await client.query(`drop table auth.rls_probe_privilege`);

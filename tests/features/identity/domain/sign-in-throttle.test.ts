@@ -75,6 +75,6 @@ describe("decide", () => {
 
 describe("normalizeEmail", () => {
   it("keys every spelling of an address the same way", () => {
-    expect(normalizeEmail("  USER@Demo.starter.local ")).toBe("user@demo.starter.local");
+    expect(normalizeEmail("  USER@Demo.krajozbior.local ")).toBe("user@demo.krajozbior.local");
   });
 });

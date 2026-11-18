@@ -3,15 +3,15 @@ import { Migration } from "@mikro-orm/migrations";
 // Storage of Better Auth (src/features/identity/infrastructure/better-auth.ts):
 // users, credential accounts, sessions and verification codes in a dedicated
 // `auth` schema. Column names follow Better Auth's snake_case mapping.
-// `users.role` is limited to the roles of the starter and defaults to the least
+// `users.role` is limited to the roles of the krajozbior and defaults to the least
 // privileged one.
 //
 // Access is limited by role, not by row policies (docs/data-isolation.md):
-// only starter_auth, the identity adapter's role, has privileges here;
-// starter_app and starter_ops have none. starter_auth may insert and change
+// only krajozbior_auth, the identity adapter's role, has privileges here;
+// krajozbior_app and krajozbior_ops have none. krajozbior_auth may insert and change
 // every column of auth.users except `role`: a new account always gets the
 // default `user`, and the adapter can neither create an admin nor promote an
-// existing account. Another role is set by starter_owner from an operator
+// existing account. Another role is set by krajozbior_owner from an operator
 // script (src/features/identity/infrastructure/user-role.ts).
 const userColumnsWithoutRole = "name, email, email_verified, image, updated_at";
 const insertableUserColumns = `id, ${userColumnsWithoutRole}, created_at`;
@@ -80,15 +80,17 @@ export class Migration20261116120100_auth_schema extends Migration {
     this.addSql(`create index verifications_identifier_idx on auth.verifications (identifier);`);
 
     this.addSql(`revoke all on schema auth from public;`);
-    this.addSql(`revoke all on all tables in schema auth from public, starter_app, starter_ops;`);
-    this.addSql(`grant usage on schema auth to starter_auth;`);
-    this.addSql(`grant select, delete on auth.users to starter_auth;`);
-    this.addSql(`grant insert (${insertableUserColumns}) on auth.users to starter_auth;`);
-    this.addSql(`grant update (${userColumnsWithoutRole}) on auth.users to starter_auth;`);
+    this.addSql(
+      `revoke all on all tables in schema auth from public, krajozbior_app, krajozbior_ops;`,
+    );
+    this.addSql(`grant usage on schema auth to krajozbior_auth;`);
+    this.addSql(`grant select, delete on auth.users to krajozbior_auth;`);
+    this.addSql(`grant insert (${insertableUserColumns}) on auth.users to krajozbior_auth;`);
+    this.addSql(`grant update (${userColumnsWithoutRole}) on auth.users to krajozbior_auth;`);
     this.addSql(`
       grant select, insert, update, delete
         on auth.sessions, auth.accounts, auth.verifications
-        to starter_auth;
+        to krajozbior_auth;
     `);
   }
 

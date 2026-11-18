@@ -39,11 +39,13 @@ export default defineConfig({
       PORT: port,
       HOSTNAME: "127.0.0.1",
       // Test-only fallbacks: a throwaway session secret, not a credential. The
-      // login specs also need a migrated, seeded database reached as starter_app
-      // and starter_auth (see e2e/login.spec.ts); without one they are skipped.
-      DATABASE_URL: process.env.DATABASE_URL ?? "postgres://starter:starter@127.0.0.1:5432/starter",
+      // login specs also need a migrated, seeded database reached as krajozbior_app
+      // and krajozbior_auth (see e2e/login.spec.ts); without one they are skipped.
+      DATABASE_URL:
+        process.env.DATABASE_URL ?? "postgres://krajozbior:krajozbior@127.0.0.1:5432/krajozbior",
       DATABASE_AUTH_URL:
-        process.env.DATABASE_AUTH_URL ?? "postgres://starter:starter@127.0.0.1:5432/starter",
+        process.env.DATABASE_AUTH_URL ??
+        "postgres://krajozbior:krajozbior@127.0.0.1:5432/krajozbior",
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "e2e-only-secret-0123456789abcdef-xyz",
       // A production build requires the public address; plain http is accepted
       // only for this loopback host.

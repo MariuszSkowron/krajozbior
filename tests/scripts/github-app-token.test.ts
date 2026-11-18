@@ -126,9 +126,21 @@ describe("parseBotConfig", () => {
     expect(parseBotConfig(JSON.stringify({ ...config, extra: 1 }))).toEqual(config);
   });
 
-  it("refuses the template file until BOOTSTRAP fills it", () => {
-    const template = readFileSync(new URL("../../.github/bot.json", import.meta.url), "utf8");
+  it("refuses the unfilled template until BOOTSTRAP fills it", () => {
+    const template = JSON.stringify({
+      owner: "{{GITHUB_OWNER}}",
+      appSlug: "demo-bot",
+      appId: 0,
+      installationId: 0,
+      botUserId: 0,
+      repositories: ["demo", "demo-docs"],
+    });
     expect(() => parseBotConfig(template)).toThrow(/owner, appId, installationId/);
+  });
+
+  it("accepts the filled .github/bot.json of this repository", () => {
+    const file = readFileSync(new URL("../../.github/bot.json", import.meta.url), "utf8");
+    expect(parseBotConfig(file).appId).toBeGreaterThan(0);
   });
 
   it("refuses broken JSON, one repository or a repeated one", () => {
