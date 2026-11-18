@@ -2,6 +2,8 @@ import { expect, test, type APIResponse, type Page } from "@playwright/test";
 import axe from "axe-core";
 import { Client } from "pg";
 
+import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+
 // E1, PR4: public pages of a collection and a place, seen as a guest. Needs a
 // migrated, seeded database (demo accounts and the demo collection) like the
 // other specs that sign in; without it the spec is skipped.
@@ -61,7 +63,9 @@ async function removeCreatedData() {
     return;
   }
 
-  const client = new Client({ connectionString: process.env.DATABASE_ADMIN_URL });
+  const client = new Client({
+    connectionString: parseE2eAdminDatabaseUrl(process.env.DATABASE_ADMIN_URL),
+  });
 
   await client.connect();
   try {

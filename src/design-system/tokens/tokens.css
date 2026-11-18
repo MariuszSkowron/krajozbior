@@ -129,9 +129,9 @@
   /* Minimalna wysokość wiersza listy z linkiem (miejsca, „Chcę zobaczyć”) */
   --size-row-min: 56px;
   /* Okrągły znacznik stanu (np. potwierdzona wizyta); nie jest celem dotykowym */
-  --size-mark: 44px;
+  --size-icon-badge: 44px;
   /* Grubość krawędzi w kolorze stanu (komunikat ostrzeżenia lub błędu) */
-  --border-width-accent: 4px;
+  --border-width-state: 4px;
 
   /*
    * Kroje ładowane z plików w repozytorium (next/font/local; w Storybooku @font-face z fonts.css),

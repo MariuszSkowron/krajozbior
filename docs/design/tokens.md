@@ -47,7 +47,7 @@ Zostajemy przy gramatyce repozytorium; nazwy z PDF design systemu mapujemy 1:1. 
 | `--glass` | `color.surface.glass` | półprzezroczyste tło dolnego paska nawigacji (E3-2a) |
 | `--img-a` / `--img-b` | `color.image.placeholder` / `.placeholder-alt` | okładka kolekcji bez zdjęcia: gradient (E3-2a) |
 
-Tokeny, które pierwszy używa kolejny PR (zasada 5), powstają dopiero w nim: `radius.xl`, `space.2xl`, `space.3xl`, odstępy kart. PR E3-2b dodał `font.size.5xl`, `font.tracking.display`, `motion.duration.medium`, `motion.duration.enter`, `size.row.min`, `size.mark` i `border.width.accent`. PR E3-2a dodał `color.surface.glass`, `color.image.placeholder(-alt)`, `shadow.card-hover`, `shadow.accent-glow`, `font.size.2xs` i `font.weight.medium`.
+Tokeny, które pierwszy używa kolejny PR (zasada 5), powstają dopiero w nim: `radius.xl`, `space.2xl`, `space.3xl`, odstępy kart. PR E3-2b dodał `font.size.5xl`, `font.tracking.display`, `motion.duration.medium`, `motion.duration.enter`, `size.row.min`, `size.icon.badge` i `border.width.state`. PR E3-2a dodał `color.surface.glass`, `color.image.placeholder(-alt)`, `shadow.card-hover`, `shadow.accent-glow`, `font.size.2xs` i `font.weight.medium`.
 
 Wysokość dolnego paska nawigacji (`--shell-bottom-bar-height`) to zmienna układu powłoki w `src/app/app-shell.module.css`, nie token: dotyczy tylko powłoki i nie zależy od motywu.
 
