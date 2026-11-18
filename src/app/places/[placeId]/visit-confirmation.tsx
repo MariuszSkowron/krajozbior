@@ -10,12 +10,14 @@ import {
   type GeolocationProblem,
 } from "@/features/visits/domain/visit-outcome";
 
+import { PastVisit } from "./past-visit";
 import { PinnedAction } from "./pinned-action";
 import styles from "./visit-confirmation.module.css";
 import { WantToSeeButton } from "./want-to-see-button";
 
 // initialWanted is null when the list could not be read: only its button is hidden.
-type Props = { placeId: string; initialWanted: boolean | null };
+// past is the text of the explorer's visit from the past ("Z przeszłości · marzec 2019"), or null.
+type Props = { placeId: string; initialWanted: boolean | null; past?: string | null };
 
 type Reading = { latitude: number; longitude: number; accuracy: number };
 type Attempt = { clientVisitId: string; reading: Reading };
@@ -92,7 +94,7 @@ function feedbackText(state: State): string {
 // server error) sends the same client visit id and the same body, so the
 // server records one visit at most; a fresh check ("Sprawdź ponownie") reads
 // the position again and uses a new id.
-export function VisitConfirmation({ placeId, initialWanted }: Props) {
+export function VisitConfirmation({ placeId, initialWanted, past = null }: Props) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const attempt = useRef<Attempt | null>(null);
 
@@ -238,12 +240,14 @@ export function VisitConfirmation({ placeId, initialWanted }: Props) {
       </PinnedAction>
       {state.kind === "idle" ? (
         <p className={styles.hint}>
-          Przeglądarka zapyta o zgodę na lokalizację. Nie zapisujemy, gdzie jesteś: tylko to, że
-          byłeś w tym miejscu.
+          {past === null
+            ? "Przeglądarka zapyta o zgodę na lokalizację. Nie zapisujemy, gdzie jesteś: tylko to, że byłeś w tym miejscu."
+            : "Potwierdź na miejscu, gdy tu będziesz. Przeglądarka zapyta o zgodę na lokalizację; nie zapisujemy, gdzie jesteś."}
         </p>
       ) : null}
-      {/* Drugorzędne akcje zostają w treści, nie w przypiętym pasku. Tu (obok „Chcę zobaczyć”)
-          dojdzie „Byłem tu wcześniej” (wizyta z przeszłości). */}
+      {/* Drugorzędne akcje zostają w treści, nie w przypiętym pasku: „Byłem tu wcześniej”
+          (wizyta z przeszłości, decyzja P5) i „Chcę zobaczyć”. */}
+      <PastVisit placeId={placeId} existing={past} />
       {initialWanted === null ? (
         <p className={styles.feedback}>Lista „Chcę zobaczyć” jest chwilowo niedostępna.</p>
       ) : (

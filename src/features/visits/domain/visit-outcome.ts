@@ -66,7 +66,7 @@ export function visitOutcomeMessage(outcome: VisitOutcome): string {
     case "out_of_range":
       return `Jesteś ${formatDistance(outcome.distanceM)} od miejsca.`;
     case "inaccurate":
-      return `Lokalizacja jest zbyt niedokładna (±${outcome.accuracyM} m). Spróbuj na zewnątrz.`;
+      return `Lokalizacja jest zbyt niedokładna (±${outcome.accuracyM} m). Spróbuj na zewnątrz albo zaznacz wizytę z przeszłości.`;
     case "not_found":
       return "Nie znaleziono tego miejsca.";
   }
