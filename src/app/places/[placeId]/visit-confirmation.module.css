@@ -39,6 +39,18 @@
 }
 
 @media (max-width: 47.99rem) {
+  /*
+   * Sekcja z przypiętym przyciskiem wchodzi samą przezroczystością. Wejście sekcji (theme.css,
+   * `section-enter`) przesuwa ją o 12 px (`transform`), a element z `transform` staje się
+   * blokiem zawierającym dla potomków `position: fixed`: przez czas animacji przycisk leżałby
+   * na dole sekcji, nie okna, i potem przeskoczył. Sama `opacity` takiego bloku nie tworzy.
+   * Specyficzność (0,2,0) wygrywa z `:where` w theme.css; opóźnienie i czas zostają z motywu,
+   * a przy `prefers-reduced-motion` animacje i tak wyłącza reguła globalna.
+   */
+  :global(.content-width) > :has([data-pinned-action]) {
+    animation-name: pinned-section-enter;
+  }
+
   .dock {
     position: fixed;
     inset-inline: 0;
@@ -123,6 +135,12 @@
   animation:
     visit-mark var(--motion-duration-enter) var(--motion-easing-standard) backwards,
     visit-ring var(--motion-duration-enter) var(--motion-easing-standard) backwards;
+}
+
+@keyframes pinned-section-enter {
+  from {
+    opacity: 0;
+  }
 }
 
 @keyframes visit-mark {
