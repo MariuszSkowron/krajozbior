@@ -7,7 +7,7 @@ next-env.d.ts
 *.docx
 *.ico
 playwright-report/
-test-results/
+test-results*/
 
 # Artefakt designu (mockup), nie źródło kodu
 docs/design/
