@@ -61,7 +61,6 @@ Plik `src/lib/db/migrations/MigrationYYYYMMDDHHMMSS_<slug>.ts` (`npm run db:migr
 7. Funkcja `security definer` czytająca tabelę z `FORCE` potrzebuje wąskiej polityki dla `krajozbior_owner` i jawnego `set search_path`; agregaty zwracają liczby, nie wiersze.
 8. Operacje operatora (organizacje, członkostwa kuratorów, nadanie lub odebranie roli konta) zapisuje wyłącznie `krajozbior_ops` (`DATABASE_OPS_URL`), zawsze razem z wpisem w `operations_audit`. Właściciel tabel (`krajozbior_owner`) nie ma polityk zapisu tych tabel ani dziennika, a wpisów dziennika nie zmienia ani nie usuwa żadna rola. Zmiana kolumny `role` konta bez wpisu `set_user_role` w tej samej transakcji kończy się błędem `55000` (`docs/data-isolation.md`). Nowa operacja operatora dostaje własną funkcję `security definer` z `set search_path = ''` i `EXECUTE` tylko dla `krajozbior_ops`, plus test integracyjny odmowy dla `krajozbior_app` i `krajozbior_owner`.
 
-
 ## Krok 3. Domena
 
 `src/features/<feature>/domain/` — czyste funkcje i walidacja (Zod), bez Next.js i ORM. Próg pokrycia domeny to 100% na plik, więc każda gałąź walidacji ma test jednostkowy w `tests/features/<feature>/`. Tekst z formularza normalizuj (CRLF → LF) przed liczeniem długości.
