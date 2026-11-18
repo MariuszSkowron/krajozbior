@@ -16,6 +16,12 @@
   --color-surface-card: #10131b;
   --color-surface-tint: #161a26;
   --color-surface-hover: #151925;
+  /* Półprzezroczyste tło dolnego paska nawigacji (z rozmyciem; bez rozmycia pasek ma tło canvas) */
+  --color-surface-glass: rgb(11 13 18 / 78%);
+
+  /* Okładka kolekcji bez zdjęcia: gradient z obu kolorów */
+  --color-image-placeholder: #1d2434;
+  --color-image-placeholder-alt: #141925;
 
   /* Linie i fokus */
   --color-border-subtle: #1d2130;
@@ -50,7 +56,10 @@
 
   /* Cienie: w motywie nocnym głębię daje obrys, nie cień */
   --shadow-card: none;
+  --shadow-card-hover: none;
   --shadow-overlay: 0 16px 40px rgb(0 0 0 / 50%);
+  /* Poświata wypełnienia paska postępu i kropki aktywnej pozycji nawigacji */
+  --shadow-accent-glow: 0 0 10px rgb(255 107 44 / 45%);
 }
 
 .theme-light {
@@ -60,6 +69,10 @@
   --color-surface-card: #ffffff;
   --color-surface-tint: #eae6dd;
   --color-surface-hover: #eeebe4;
+  --color-surface-glass: rgb(244 242 236 / 82%);
+
+  --color-image-placeholder: #e6e1d6;
+  --color-image-placeholder-alt: #d8d2c5;
 
   --color-border-subtle: #e3dfd5;
   --color-border-default: #d3cec3;
@@ -88,7 +101,9 @@
   --color-feedback-info-bg: rgb(31 95 134 / 8%);
 
   --shadow-card: 0 1px 2px rgb(0 0 0 / 4%), 0 8px 24px rgb(0 0 0 / 6%);
+  --shadow-card-hover: 0 1px 2px rgb(0 0 0 / 6%), 0 12px 32px rgb(0 0 0 / 10%);
   --shadow-overlay: 0 8px 24px rgb(0 0 0 / 12%);
+  --shadow-accent-glow: 0 0 10px rgb(240 90 26 / 30%);
 }
 
 /* Tokeny niezależne od motywu. */
@@ -120,7 +135,10 @@
   --font-family-display: var(--font-instrument-serif, Georgia, serif);
   --font-family-mono: var(--font-geist-mono, "Courier New", monospace);
   --font-weight-regular: 400;
+  --font-weight-medium: 500;
   --font-weight-strong: 600;
+  /* 10 px: etykieta dolnego paska nawigacji */
+  --font-size-2xs: 0.625rem;
   --font-size-xs: 0.6875rem;
   --font-size-sm: 0.875rem;
   --font-size-md: 1.0625rem;

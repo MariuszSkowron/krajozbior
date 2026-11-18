@@ -8,6 +8,7 @@ import "@/design-system/theme/theme.css";
 import styles from "./app-shell.module.css";
 import { geist, geistMono, instrumentSerif } from "./fonts";
 import { AccountArea } from "./shell/account-area";
+import { MainNav } from "./shell/main-nav";
 import { requestTheme, themeColor } from "./shell/theme";
 import { ThemeSwitch } from "./shell/theme-switch";
 import { shellCuratorLink } from "./shell/shell-curator";
@@ -31,7 +32,8 @@ export async function generateViewport(): Promise<Viewport> {
 }
 
 // The app shell: skip link, header with the application name and the account
-// area, the page in <main id="tresc">. Reading the role makes every page render
+// area, the main navigation of a signed-in explorer (bottom bar on a phone, side
+// menu on a computer), the page in <main id="tresc">. Reading the role makes every page render
 // per request; src/proxy.ts keeps the role-dependent documents out of shared
 // caches.
 export default async function RootLayout({
@@ -48,7 +50,7 @@ export default async function RootLayout({
       lang="pl"
       className={`theme-${theme} ${geist.variable} ${geistMono.variable} ${instrumentSerif.variable}`}
     >
-      <body className={styles.shell}>
+      <body className={role === null ? styles.shell : `${styles.shell} ${styles.withNav}`}>
         <a className={styles.skipLink} href="#tresc">
           Przejdź do treści
         </a>
@@ -61,6 +63,7 @@ export default async function RootLayout({
             <AccountArea role={role} curatorLink={curatorLink} />
           </div>
         </header>
+        {role === null ? null : <MainNav />}
         <main id="tresc" tabIndex={-1} className={styles.main}>
           {children}
         </main>
