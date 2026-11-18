@@ -27,7 +27,7 @@ function makeDeps(over: Partial<AlbumRepository> = {}, allowed = true) {
     listSavedCollectionPlaces: async () => [],
     listVisitedPlaceIds: async () => [],
     isPubliclyVisibleCollection: async () => true,
-    saveCollection: vi.fn(async () => undefined),
+    saveCollection: vi.fn(async () => "saved" as const),
     unsaveCollection: vi.fn(async () => undefined),
     isCollectionSaved: async () => false,
     listPlaceIdsOfCollection: async () => [],
@@ -53,6 +53,21 @@ describe("saveCollection", () => {
     });
     expect(repository.saveCollection).toHaveBeenCalledWith(expect.anything(), COLLECTION);
     expect(withUserContext).toHaveBeenCalledWith(actor, expect.any(Function));
+  });
+
+  it("answers not_found when the collection is withdrawn between the check and the save", async () => {
+    const { deps } = makeDeps({ saveCollection: vi.fn(async () => "not_found" as const) });
+
+    expect(await saveCollection(actor, COLLECTION, deps)).toEqual({ status: "not_found" });
+  });
+
+  it("answers conflict when the actor already has the largest list (D-28)", async () => {
+    const { deps } = makeDeps({ saveCollection: vi.fn(async () => "too_many" as const) });
+
+    expect(await saveCollection(actor, COLLECTION, deps)).toEqual({
+      status: "conflict",
+      reason: "too_many_saved",
+    });
   });
 
   it("answers unauthenticated for a guest before touching the limiter or the database", async () => {

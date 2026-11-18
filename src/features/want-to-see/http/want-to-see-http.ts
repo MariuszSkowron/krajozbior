@@ -26,6 +26,8 @@ export function respond<T>(outcome: WantToSeeOutcome<T>): Response {
       return json(401, { error: "unauthenticated" });
     case "not_found":
       return json(404, { error: "not_found" });
+    case "conflict":
+      return json(409, { error: "conflict", reason: outcome.reason });
     case "rate_limited":
       return json(
         429,

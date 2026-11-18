@@ -4,12 +4,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import styles from "@/app/my/collections/collections.module.css";
+import { MAX_COLLECTIONS_PER_LIST } from "@/features/catalog/domain/limits";
 
 type Props = { collectionId: string; initialSaved: boolean };
 
 const MESSAGES: Record<number, string> = {
   401: "Sesja wygasła. Zaloguj się ponownie.",
   404: "Ta kolekcja nie jest już dostępna.",
+  409: `Masz już ${MAX_COLLECTIONS_PER_LIST} zapisanych kolekcji, to najwięcej. Usuń którąś, by zapisać nową.`,
   429: "Za dużo prób. Spróbuj za chwilę.",
 };
 
