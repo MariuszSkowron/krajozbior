@@ -10,7 +10,11 @@ import { postgresVisitRepository } from "@/features/visits/infrastructure/postgr
 import { createOrmConfig } from "@/lib/db/config";
 import { runInUserContext } from "@/lib/db/user-context";
 import { albumFixtures, newUser } from "../support/album-fixtures";
-import { createScratchDatabase, type ScratchDatabase } from "../support/database-harness";
+import {
+  createScratchDatabase,
+  withClient,
+  type ScratchDatabase,
+} from "../support/database-harness";
 
 // PR9: POST /api/me/visits/past and DELETE /api/me/visits/past/[placeId]
 // through the real routes, the real use cases and the real database
@@ -423,11 +427,13 @@ describe("/api/me/visits/past", () => {
     state.session = a;
 
     const [place] = await places(1);
-    const nextYear = String(new Date().getUTCFullYear() + 1);
+    // Two years ahead is in the future in Europe/Warsaw whatever the UTC clock
+    // says, also on New Year's Eve after 23:00 UTC.
+    const futureYear = String(new Date().getUTCFullYear() + 2);
 
     for (const date of [
-      { precision: "day", value: `${nextYear}-01-01` },
-      { precision: "year", value: nextYear },
+      { precision: "day", value: `${futureYear}-01-01` },
+      { precision: "year", value: futureYear },
       { precision: "day", value: "1899-12-31" },
       { precision: "day", value: "2019-02-31" },
       { precision: "month", value: "2019-03-12" },
@@ -461,15 +467,114 @@ describe("/api/me/visits/past", () => {
     expect(await rowsOf(explorerA.id, place!)).toBe(0);
   });
 
-  it("leaves no actor on the connection: a guest after a batch sees nothing", async () => {
+  it("leaves no actor on the connection: outside any transaction the setting is empty and no visit is visible", async () => {
     state.session = a;
 
     const [place] = await places(1);
 
     expect((await post(batch([place!]))).status).toBe(201);
-    expect((await f.asGuest(`select count(*)::int as n from public.visits`))[0]!.n).toBe(0);
-    expect(
-      (await f.asGuest(`select nullif(current_setting('app.user_id', true), '') as u`))[0]!.u,
-    ).toBeNull();
+    expect(await rowsOf(explorerA.id, place!, "past")).toBe(1);
+
+    // The pool has ONE connection and these statements run on it outside a
+    // transaction, without the guest context (which would clear the setting
+    // itself): a leaked `app.user_id` would be seen here.
+    const connection = app.em.getConnection();
+    const setting = await connection.execute<{ u: string | null }[]>(
+      `select nullif(current_setting('app.user_id', true), '') as u`,
+    );
+    const visible = await connection.execute<{ n: number }[]>(
+      `select count(*)::int as n from public.visits`,
+    );
+
+    expect(setting[0]!.u).toBeNull();
+    expect(visible[0]!.n).toBe(0);
+  });
+
+  it("a batch waits for the advisory lock of the explorer and then adds nothing for a place recorded meanwhile", async () => {
+    state.session = a;
+    state.app = wide;
+
+    const [place] = await places(1);
+    let batchPromise: ReturnType<typeof post> | undefined;
+    let waiting = false;
+
+    // The test holds the same lock a batch takes. A batch started now must
+    // wait for it; the test records the place in the meantime and commits. The
+    // batch then sees that visit and adds nothing. Without the lock it would
+    // not wait and would add its own row first.
+    // A raw connection of krajozbior_app, so the batch is not started inside
+    // this transaction (MikroORM would see it and refuse a nested context).
+    await withClient(db.urls.krajozbior_app, async (client) => {
+      await client.query("begin");
+      await client.query("select set_config('app.user_id', $1, true)", [explorerA.id]);
+      await client.query(
+        `select pg_advisory_xact_lock(
+           hashtextextended('visits_past:' || app_current_user_id()::text, 0))`,
+      );
+      batchPromise = post(batch([place!], { precision: "year", value: "2018" }));
+
+      for (let i = 0; i < 100 && !waiting; i += 1) {
+        waiting =
+          Number(
+            (
+              await f.admin$<{ n: string }>(
+                `select count(*) as n from pg_locks where locktype = 'advisory' and not granted`,
+              )
+            )[0]!.n,
+          ) > 0;
+        if (!waiting) {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+      }
+
+      await client.query(
+        `insert into public.visits (user_id, place_id, kind, visited_on, date_precision)
+         values (app_current_user_id(), $1, 'past', '2017-06-01', 'month')`,
+        [place],
+      );
+      await client.query("commit");
+    });
+
+    expect(waiting).toBe(true);
+
+    const response = await batchPromise!;
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({ recorded: 0, alreadyVisited: 1 });
+    expect(await rowsOf(explorerA.id, place!, "past")).toBe(1);
+
+    const [row] = await f.admin$<{ visited_on: string }>(
+      `select visited_on::text from public.visits where user_id = $1 and place_id = $2`,
+      [explorerA.id, place],
+    );
+
+    expect(row!.visited_on).toBe("2017-06-01");
+  });
+
+  it("answers 404 and writes nothing for a place of a suspended organization", async () => {
+    state.session = a;
+
+    const suspendedOrganization = await f.newOrganization(
+      "Gmina Zawieszona Wizyt",
+      "gmina-zawieszona-wizyt",
+      [cur],
+    );
+    const made = await f.publishedCollection(curActor, suspendedOrganization, 2);
+
+    expect((await post(batch(made.placeIds))).status).toBe(201);
+    await f.admin$(`delete from public.visits where user_id = $1`, [explorerA.id]);
+    await f.suspendOrganization(suspendedOrganization);
+
+    try {
+      expect((await post(batch(made.placeIds))).status).toBe(404);
+      expect((await post(batch([made.placeIds[0]!]))).status).toBe(404);
+      for (const id of made.placeIds) {
+        expect(await rowsOf(explorerA.id, id)).toBe(0);
+      }
+    } finally {
+      await f.approveOrganization(suspendedOrganization);
+    }
+
+    expect((await post(batch(made.placeIds))).status).toBe(201);
   });
 });
