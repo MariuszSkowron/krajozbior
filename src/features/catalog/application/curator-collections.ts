@@ -140,7 +140,8 @@ export async function updateCollection(
   });
 }
 
-// Draft -> published; needs at least one place.
+// Draft -> published; needs at least one place. The first publication also
+// sets the address from the current title (D-27).
 export async function publishCollection(
   actor: Actor | null,
   collectionId: string,
@@ -175,6 +176,28 @@ export async function publishCollection(
 
     if (!decision.ok) {
       return { status: "unprocessable", reason: decision.reason } as const;
+    }
+
+    // D-27: a collection that was never published gets its address from the
+    // title it has now, so a working name never reaches a public link. Once
+    // published, the address stays (also after a withdrawal): links keep working.
+    if (current.firstPublishedAt === null) {
+      for (let attempt = 0; attempt < SLUG_ATTEMPTS; attempt += 1) {
+        const first = await deps.repository.publishFirstTime(
+          tx,
+          collectionId,
+          version,
+          generateCollectionSlug(current.title, deps.random),
+        );
+
+        if (first !== "slug_taken") {
+          return first === null
+            ? ({ status: "conflict", reason: "stale_version" } as const)
+            : ({ status: "ok", value: first } as const);
+        }
+      }
+
+      throw new Error("Collection slug is taken after repeated draws");
     }
 
     const updated = await deps.repository.setCollectionStatus(

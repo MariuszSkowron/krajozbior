@@ -248,7 +248,9 @@ describe("collections, places and their links", () => {
       c_table_write: false,
       c_first: false,
       c_published: false,
-      c_slug_update: false,
+      // D-27: the address may be set once, at the first publication; a trigger
+      // keeps it fixed in every other update.
+      c_slug_update: true,
       c_org_update: false,
       c_id: false,
       c_status: true,
@@ -1205,6 +1207,204 @@ describe("collections, places and their links", () => {
       expect(await getPublishedCollection(created.value.slug, deps)).toEqual(
         await getPublishedCollection("zupelnie-inny-slug-abc123", deps),
       );
+    });
+
+    // D-27: the address comes from the title at the first publication and
+    // never changes afterwards.
+    describe("collection address at the first publication (D-27)", () => {
+      const publishable = async (title: string) => {
+        const created = await createCollection(asActor(curA), { title, region: "slaskie" }, deps);
+
+        if (created.status !== "ok") throw new Error("setup");
+        const added = await addPlace(
+          asActor(curA),
+          created.value.id,
+          { name: "Miejsce adresu", latitude: 50, longitude: 19 },
+          deps,
+        );
+
+        if (added.status !== "ok") throw new Error("setup");
+
+        return { id: created.value.id, slug: created.value.slug, version: created.value.version };
+      };
+
+      it("takes the address from the title at the moment of the first publication", async () => {
+        const draft = await publishable("Robocza nazwa");
+
+        expect(draft.slug).toMatch(/^robocza-nazwa-[a-z0-9]{6}$/);
+        const renamed = await updateCollection(
+          asActor(curA),
+          draft.id,
+          { title: "Zamki Pomorza", version: draft.version },
+          deps,
+        );
+
+        if (renamed.status !== "ok") throw new Error("setup");
+        // Renaming a draft does not touch the address.
+        expect(renamed.value.slug).toBe(draft.slug);
+
+        const published = await publishCollection(
+          asActor(curA),
+          draft.id,
+          { version: renamed.value.version },
+          deps,
+        );
+
+        expect(published.status).toBe("ok");
+        if (published.status !== "ok") return;
+        expect(published.value.slug).toMatch(/^zamki-pomorza-[a-z0-9]{6}$/);
+        expect(await getPublishedCollection(published.value.slug, deps)).toMatchObject({
+          status: "ok",
+        });
+        expect(await getPublishedCollection(draft.slug, deps)).toEqual({ status: "not_found" });
+      });
+
+      it("keeps the address after the title changes, the withdrawal and a new publication", async () => {
+        const draft = await publishable("Pierwszy tytuł");
+        const published = await publishCollection(
+          asActor(curA),
+          draft.id,
+          { version: draft.version },
+          deps,
+        );
+
+        if (published.status !== "ok") throw new Error("setup");
+        const address = published.value.slug;
+
+        const renamed = await updateCollection(
+          asActor(curA),
+          draft.id,
+          { title: "Zupełnie inny tytuł", version: published.value.version },
+          deps,
+        );
+
+        if (renamed.status !== "ok") throw new Error("setup");
+        expect(renamed.value.slug).toBe(address);
+
+        const withdrawn = await unpublishCollection(
+          asActor(curA),
+          draft.id,
+          { version: renamed.value.version },
+          deps,
+        );
+
+        if (withdrawn.status !== "ok") throw new Error("setup");
+        expect(withdrawn.value.slug).toBe(address);
+
+        const again = await publishCollection(
+          asActor(curA),
+          draft.id,
+          { version: withdrawn.value.version },
+          deps,
+        );
+
+        expect(again).toMatchObject({
+          status: "ok",
+          value: { slug: address, title: "Zupełnie inny tytuł" },
+        });
+        expect(await getPublishedCollection(address, deps)).toMatchObject({ status: "ok" });
+      });
+
+      it("draws another suffix when the address from the title is taken, even by a draft the curator cannot see", async () => {
+        const draft = await publishable("Kolizja adresów");
+        // A draft of another organization holds the first address that will be drawn.
+        await admin$(
+          `insert into public.collections (slug, organization_id, title, region)
+           values ('kolizja-adresow-aaaaaa', $1, 'Cudzy szkic', 'slaskie')`,
+          [orgB],
+        );
+        let calls = 0;
+        const collidingDeps: CatalogDeps = {
+          ...deps,
+          // 'aaaaaa' first (taken), then 'bbbbbb'.
+          random: () => (calls++ < 6 ? 0 : 1),
+        };
+
+        const published = await publishCollection(
+          asActor(curA),
+          draft.id,
+          { version: draft.version },
+          collidingDeps,
+        );
+
+        expect(published).toMatchObject({
+          status: "ok",
+          value: { slug: "kolizja-adresow-bbbbbb", status: "published" },
+        });
+      });
+
+      it("settles two parallel first publications of one collection: one wins, the address is one and stable, the other gets a controlled result", async () => {
+        const draft = await publishable("Wyścig publikacji");
+        // The shared pool has one connection; the race needs two.
+        const racing = await MikroORM.init({
+          ...createOrmConfig(db.urls.krajozbior_app),
+          pool: { min: 2, max: 4 },
+        });
+
+        try {
+          const racingDeps: CatalogDeps = {
+            ...deps,
+            withUserContext: (actor, work) => runInUserContext(racing.em, actor, work),
+          };
+          const results = await Promise.all(
+            [0, 1].map(() =>
+              publishCollection(asActor(curA), draft.id, { version: draft.version }, racingDeps),
+            ),
+          );
+          const won = results.filter((result) => result.status === "ok");
+          const lost = results.filter((result) => result.status !== "ok");
+
+          expect(won).toHaveLength(1);
+          expect(lost).toEqual([{ status: "conflict", reason: "stale_version" }]);
+          const winner = won[0];
+
+          if (winner?.status !== "ok") throw new Error("setup");
+          expect(winner.value.slug).toMatch(/^wyscig-publikacji-[a-z0-9]{6}$/);
+          // The stored address is the winner's and stays after the loser finished.
+          const stored = await rowOf(draft.id);
+
+          expect(stored).toMatchObject({ slug: winner.value.slug, status: "published" });
+          expect(await getPublishedCollection(winner.value.slug, deps)).toMatchObject({
+            status: "ok",
+          });
+        } finally {
+          await racing.close(true);
+        }
+      });
+
+      it("lets the database reject any other change of the address by the application role", async () => {
+        const draft = await publishable("Adres w bazie");
+
+        // A draft that is not being published first keeps its address.
+        await as(curA, `update public.collections set slug = 'podmieniony-aaaaaa' where id = ?`, [
+          draft.id,
+        ]);
+        expect((await rowOf(draft.id)).slug).toBe(draft.slug);
+
+        const published = await publishCollection(
+          asActor(curA),
+          draft.id,
+          { version: draft.version },
+          deps,
+        );
+
+        if (published.status !== "ok") throw new Error("setup");
+        // After the first publication no statement changes it, also together with the status.
+        await as(curA, `update public.collections set slug = 'podmieniony-bbbbbb' where id = ?`, [
+          draft.id,
+        ]);
+        await as(
+          curA,
+          `update public.collections set status = 'draft', slug = 'podmieniony-cccccc' where id = ?`,
+          [draft.id],
+        );
+        await as(
+          curA,
+          `update public.collections set status = 'published', slug = 'podmieniony-dddddd' where id = ?`,
+          [draft.id],
+        );
+        expect((await rowOf(draft.id)).slug).toBe(published.value.slug);
+      });
     });
   });
 });

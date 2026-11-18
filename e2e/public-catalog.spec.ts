@@ -185,7 +185,14 @@ test.describe("public catalog pages", () => {
       }),
     );
 
-    await guest.goto(`/collections/${slug}`);
+    // D-27: the address is made at the first publication; the provisional one
+    // of the draft never became public.
+    const publishedSlug = String(published.slug);
+
+    expect(publishedSlug).toMatch(/^szkic-z-testu-publicznego-[a-z0-9]{6}$/);
+    expect(publishedSlug).not.toBe(slug);
+    await expectNotFound(`/collections/${slug}`, guest);
+    await guest.goto(`/collections/${publishedSlug}`);
     await expect(
       guest.getByRole("heading", { level: 1, name: "Szkic z testu publicznego" }),
     ).toBeVisible();
@@ -198,7 +205,7 @@ test.describe("public catalog pages", () => {
         data: { version: published.version },
       }),
     );
-    await expectNotFound(`/collections/${slug}`, guest);
+    await expectNotFound(`/collections/${publishedSlug}`, guest);
     await expectNotFound(`/places/${placeId}`, guest);
 
     await guestContext.close();

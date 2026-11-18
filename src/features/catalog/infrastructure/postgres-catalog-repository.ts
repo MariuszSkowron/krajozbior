@@ -29,6 +29,23 @@ const placeColumns = `id, organization_id as "organizationId", name, description
 
 const first = <T>(rows: readonly T[]): T | null => rows[0] ?? null;
 
+const SLUG_CONSTRAINT = "collections_slug_key";
+
+// PostgreSQL error 23505 on the address index only (the driver error may be
+// wrapped); another unique violation is a real failure, not a taken address.
+export function isSlugTaken(error: unknown): boolean {
+  const { code, constraint, cause } = (error ?? {}) as {
+    code?: unknown;
+    constraint?: unknown;
+    cause?: unknown;
+  };
+
+  return (
+    (code === "23505" && constraint === SLUG_CONSTRAINT) ||
+    (cause !== undefined && isSlugTaken(cause))
+  );
+}
+
 export const postgresCatalogRepository: CatalogRepository = {
   async permittedOrganizationIds(tx) {
     const rows = await tx.em.execute<{ id: string }[]>(
@@ -87,6 +104,37 @@ export const postgresCatalogRepository: CatalogRepository = {
         [status, id, version],
       ),
     );
+  },
+
+  async publishFirstTime(tx, id, version, slug) {
+    // A collision with a draft of another organization is invisible to the
+    // policies, so the unique index reports it. A savepoint keeps the rest of
+    // the transaction usable, and the caller draws another suffix.
+    await tx.em.execute(`savepoint first_publication_slug`);
+
+    try {
+      const row = first(
+        await tx.em.execute<CollectionRow[]>(
+          `update public.collections
+              set status = 'published', slug = ?, version = version + 1, updated_at = now()
+            where id = ? and version = ?
+            returning ${returningCollection}`,
+          [slug, id, version],
+        ),
+      );
+
+      await tx.em.execute(`release savepoint first_publication_slug`);
+
+      return row;
+    } catch (error) {
+      if (isSlugTaken(error)) {
+        await tx.em.execute(`rollback to savepoint first_publication_slug`);
+
+        return "slug_taken";
+      }
+
+      throw error;
+    }
   },
 
   async deleteCollection(tx, id) {
