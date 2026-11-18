@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   placeInPublicCollection,
   publishedCollection,
-} from "@/features/album/infrastructure/postgres-album-repository";
+} from "@/features/catalog/infrastructure/public-visibility";
 import type { CatalogDeps } from "@/features/catalog/application/catalog-types";
 import { searchPublicCatalog } from "@/features/catalog/application/public-search";
 import { foldSql } from "@/features/catalog/domain/search";

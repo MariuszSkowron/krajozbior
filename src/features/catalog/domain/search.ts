@@ -10,16 +10,40 @@ import { REGIONS, REGION_LABELS, isRegion, type Region } from "./collection";
 export const POLISH_LETTERS = "ĄĆĘŁŃÓŚŹŻąćęłńóśźż";
 export const ASCII_TWINS = "ACELNOSZZacelnoszz";
 
+/**
+ * Capitals of other Latin alphabets and their small letters (Müller, Čapek, Škoda): spelled
+ * out in the same table, so SQL does not depend on the collation. `lower()` in the C
+ * collation lowers only ASCII, in a UTF-8 collation every letter; with the table both agree
+ * on these letters. Letters outside both tables (e.g. Greek) are lowered by TypeScript but
+ * not necessarily by a C-collation database: a known, documented limit (D-E12-3).
+ */
+export const LATIN_CAPITALS = "ÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÔÕÖØÙÚÛÜÝČĎĚŇŘŠŤŮŽ";
+export const LATIN_SMALLS = "àáâãäåçèéêëìíîïñòôõöøùúûüýčďěňřšťůž";
+
+const FROM_LETTERS = POLISH_LETTERS + LATIN_CAPITALS;
+const TO_LETTERS = ASCII_TWINS + LATIN_SMALLS;
+
 export const SEARCH_MIN_LENGTH = 2;
 export const SEARCH_MAX_LENGTH = 80;
 /** At most this many collections and this many places are shown; the query reads one more. */
 export const SEARCH_RESULT_LIMIT = 20;
-/** Time limit of one search query (D-E12-10), in the form of a PostgreSQL interval. */
-export const SEARCH_STATEMENT_TIMEOUT = "2s";
+/** Time budget of the whole search request, both queries together (D-E12-10), in milliseconds. */
+export const SEARCH_TIME_BUDGET_MS = 2000;
 
-const TWIN_OF = new Map(
-  Array.from(POLISH_LETTERS, (letter, index) => [letter, ASCII_TWINS[index]]),
-);
+/**
+ * The time left for the next query: `statement_timeout` counts one statement, so the second
+ * query gets the budget minus what the first one used (at least 1 ms, a whole number).
+ */
+export function remainingBudgetMs(budgetMs: number, elapsedMs: number): number {
+  return Math.max(1, Math.floor(budgetMs - elapsedMs));
+}
+
+/** At most this many searches run at once in one process (D-E12-10, m1); the rest get "busy". */
+export const SEARCH_MAX_CONCURRENT = 4;
+/** How long a request waits for a free place before the page says "busy". */
+export const SEARCH_QUEUE_WAIT_MS = 1500;
+
+const TWIN_OF = new Map(Array.from(FROM_LETTERS, (letter, index) => [letter, TO_LETTERS[index]]));
 
 /**
  * NFC, Polish letters to ASCII, then lower case. Text stored in NFD (a letter and a
@@ -34,7 +58,7 @@ export function foldSearchText(text: string): string {
 
 /** The SQL twin of `foldSearchText` for a column (the table is a constant, never user input). */
 export function foldSql(column: string): string {
-  return `lower(translate(${column}, '${POLISH_LETTERS}', '${ASCII_TWINS}'))`;
+  return `lower(translate(${column}, '${FROM_LETTERS}', '${TO_LETTERS}'))`;
 }
 
 /** `%`, `_` and `\` lose their meaning in a `like` pattern (`escape '\'`). */
@@ -89,6 +113,26 @@ export function parseSearchRegion(raw: string | undefined): Region | null {
 export function regionsNamedLike(folded: string): readonly Region[] {
   return REGIONS.filter((region) => foldSearchText(REGION_LABELS[region]).startsWith(folded));
 }
+
+/** The adjective after "w województwie" (locative): "W województwie pomorskim". */
+export const REGION_LOCATIVE: Readonly<Record<Region, string>> = {
+  dolnoslaskie: "dolnośląskim",
+  kujawsko_pomorskie: "kujawsko-pomorskim",
+  lubelskie: "lubelskim",
+  lubuskie: "lubuskim",
+  lodzkie: "łódzkim",
+  malopolskie: "małopolskim",
+  mazowieckie: "mazowieckim",
+  opolskie: "opolskim",
+  podkarpackie: "podkarpackim",
+  podlaskie: "podlaskim",
+  pomorskie: "pomorskim",
+  slaskie: "śląskim",
+  swietokrzyskie: "świętokrzyskim",
+  warminsko_mazurskie: "warmińsko-mazurskim",
+  wielkopolskie: "wielkopolskim",
+  zachodniopomorskie: "zachodniopomorskim",
+};
 
 const collator = new Intl.Collator("pl");
 

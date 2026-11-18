@@ -130,6 +130,40 @@ describe("searchPublicCatalog", () => {
   });
 });
 
+describe("searchPublicCatalog under load (m1)", () => {
+  it("answers busy, not an error, when more than 4 searches wait too long for a place", async () => {
+    vi.useFakeTimers();
+
+    try {
+      let release!: () => void;
+      const hang = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const deps = depsWith({
+        searchPublicCatalog: async () => {
+          await hang;
+
+          return { collections: [], places: [] };
+        },
+      });
+      const running = Array.from({ length: 4 }, () => searchPublicCatalog("ab", undefined, deps));
+      const fifth = searchPublicCatalog("ab", undefined, deps);
+
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(await fifth).toEqual({ status: "busy" });
+
+      release();
+      const done = await Promise.all(running);
+
+      expect(done.every((outcome) => outcome.status === "ok")).toBe(true);
+      // places are free again
+      expect((await searchPublicCatalog("ab", undefined, deps)).status).toBe("ok");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("listAllPublishedCollections", () => {
   it("reads at most 200 in the guest context and sorts by title in Polish order", async () => {
     const list = vi.fn(async () => [collection("Żary"), collection("Łódź"), collection("Lublin")]);
@@ -138,8 +172,21 @@ describe("listAllPublishedCollections", () => {
       depsWith({ listAllPublishedCollections: list }),
     );
 
-    expect(list).toHaveBeenCalledWith({}, "pomorskie", 200);
+    // asks for one more than shown: the extra row only reveals the cut
+    expect(list).toHaveBeenCalledWith({}, "pomorskie", 201);
     expect(result.region).toBe("pomorskie");
+    expect(result.truncated).toBe(false);
     expect(result.collections.map((c) => c.title)).toEqual(["Lublin", "Łódź", "Żary"]);
+  });
+
+  it("cuts the list at 200 and says so when the repository returns the extra row", async () => {
+    const rows = Array.from({ length: 201 }, (_, index) => collection(`K${index}`));
+    const result = await listAllPublishedCollections(
+      undefined,
+      depsWith({ listAllPublishedCollections: async () => rows }),
+    );
+
+    expect(result.collections).toHaveLength(200);
+    expect(result.truncated).toBe(true);
   });
 });

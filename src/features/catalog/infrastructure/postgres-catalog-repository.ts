@@ -1,9 +1,6 @@
 import "server-only";
 
-import {
-  placeInPublicCollection,
-  publishedCollection,
-} from "@/features/album/infrastructure/postgres-album-repository";
+import { placeInPublicCollection, publishedCollection } from "./public-visibility";
 import type { TransactionContext } from "@/lib/db/user-context";
 
 import type {
@@ -20,7 +17,7 @@ import type {
 } from "../application/catalog-types";
 import type { CollectionStatus, Region } from "../domain/collection";
 import { MAX_COLLECTIONS_PER_LIST, MAX_PLACES_PER_COLLECTION } from "../domain/limits";
-import { SEARCH_STATEMENT_TIMEOUT, foldSql } from "../domain/search";
+import { SEARCH_TIME_BUDGET_MS, foldSql, remainingBudgetMs } from "../domain/search";
 
 // Raw SQL on the transaction of the use case (user or guest context), so the
 // row policies decide what each statement sees or changes. No statement names
@@ -498,8 +495,15 @@ export const postgresCatalogRepository: CatalogRepository = {
 
   async searchPublicCatalog(tx, criteria, limit) {
     // The scan has no index (D-E12-10): the time limit protects the database, and the
-    // transaction is read only. `set local` ends with the transaction.
-    await tx.em.execute(`set local statement_timeout = '${SEARCH_STATEMENT_TIMEOUT}'`);
+    // transaction is read only. `set local` ends with the transaction. The limit is one
+    // budget for both queries: the second gets what the first left (a whole number of ms).
+    const startedAt = Date.now();
+    const limitStatement = () =>
+      tx.em.execute(
+        `set local statement_timeout = '${remainingBudgetMs(SEARCH_TIME_BUDGET_MS, Date.now() - startedAt)}ms'`,
+      );
+
+    await limitStatement();
 
     const region = criteria.region;
     const regionFilter = region === null ? [] : [region];
@@ -524,6 +528,7 @@ export const postgresCatalogRepository: CatalogRepository = {
         take,
       ],
     );
+    await limitStatement();
     // The place counts in its first public collection (by title); with a region filter,
     // in the first one of that region. The guard of the place is the same as in the album.
     const places = await tx.em.execute<
