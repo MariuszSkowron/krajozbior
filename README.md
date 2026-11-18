@@ -19,7 +19,11 @@ Repozytorium powstało z szablonu `ai-repo-starter`.
 - **Wizyty.** Odkrywca potwierdza wizytę lokalizacją telefonu na miejscu albo dopisuje wcześniejsze wizyty. Postęp w kolekcji widzi jako liczbę zebranych miejsc, np. 9/24.
 - **Kuratorzy.** Gotowe kolekcje przygotowują kuratorzy: gminy, organizacje turystyczne i lokalni przewodnicy. Użytkownicy mogą też tworzyć własne kolekcje.
 
-Projekt jest na wczesnym etapie: działa logowanie kodem z e-maila i podstawy design systemu, a pierwsza wersja kolekcji i wizyt jest w przygotowaniu. Na początek aplikacja działa w przeglądarce na komputerze i telefonie.
+Działa pierwsza pełna ścieżka: kurator publikuje kolekcję, gość ją ogląda, a odkrywca zapisuje ją, potwierdza wizytę lokalizacją i widzi postęp. Pozostałe części pierwszej wersji są w przygotowaniu. Na początek aplikacja działa w przeglądarce na komputerze i telefonie.
+
+## Dla oceniających
+
+Jawny opis projektu dla osób, które go nie znają (produkt, architektura i ochrona danych, specyfikacje, proces z przeglądami, stan realizacji), jest w [docs/dla-oceniajacych/](docs/dla-oceniajacych/README.md).
 
 ## Codzienny start (Visual Studio Code)
 
@@ -65,7 +69,7 @@ Na Windows lokalne środowisko testowe (integracja i E2E): `powershell -Executio
 ```text
 AGENTS.md, CLAUDE.md      zasady pracy agenta (CLAUDE.md odsyła do AGENTS.md)
 SDLC.md                   proces: zadanie -> specyfikacja -> implementacja -> przegląd -> poprawki -> auto-merge
-docs/                     architektura, standardy, testy, izolacja danych, design system, przepływ agentów
+docs/                     architektura, standardy, testy, izolacja danych, design system, przepływ agentów, opis dla oceniających
 .ai/                      publiczna konfiguracja skilli agentów (reszta .ai/ jest lokalna i ignorowana)
 .claude/                  uprawnienia (settings.json), hooki strażnicze, skille
 .github/                  CI, guard, CodeQL, CODEOWNERS, szablon PR, Dependabot, ruleset ochrony main, bot.json
