@@ -95,6 +95,8 @@ describe("local demo login and role enforcement", () => {
 
     expect(rows).toEqual([
       { email: "admin@demo.krajozbior.local", role: "admin", hasHash: true },
+      { email: "curator-a@demo.krajozbior.local", role: "user", hasHash: true },
+      { email: "curator-b@demo.krajozbior.local", role: "user", hasHash: true },
       { email: "user2@demo.krajozbior.local", role: "user", hasHash: true },
       { email: "user@demo.krajozbior.local", role: "user", hasHash: true },
     ]);
@@ -200,6 +202,8 @@ describe("local demo login and role enforcement", () => {
       { email: "user@demo.krajozbior.local", role: "user" },
       { email: "user2@demo.krajozbior.local", role: "user" },
       { email: "admin@demo.krajozbior.local", role: "admin" },
+      { email: "curator-a@demo.krajozbior.local", role: "user" },
+      { email: "curator-b@demo.krajozbior.local", role: "user" },
     ]);
   });
 

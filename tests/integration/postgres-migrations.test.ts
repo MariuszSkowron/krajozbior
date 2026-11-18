@@ -89,6 +89,32 @@ describe("PostgreSQL migrations and transactions", () => {
     }
   });
 
+  it("reverts the organizations migration and applies it again", async () => {
+    const owner = await MikroORM.init(createOrmConfig(db.urls.krajozbior_owner));
+    const objects = () =>
+      orm.em.execute<{ organizations: string | null; audit: string | null; fn: string | null }>(
+        `select to_regclass('public.organizations')::text as organizations,
+                to_regclass('public.operations_audit')::text as audit,
+                to_regprocedure('public.app_org_permission(uuid)')::text as fn`,
+        [],
+        "get",
+      );
+
+    try {
+      await owner.migrator.down({ to: "Migration20261117120000_otp_send_counters" });
+      expect(await objects()).toEqual({ organizations: null, audit: null, fn: null });
+
+      await owner.migrator.up();
+      expect(await objects()).toEqual({
+        organizations: "organizations",
+        audit: "operations_audit",
+        fn: "app_org_permission(uuid)",
+      });
+    } finally {
+      await owner.close(true);
+    }
+  });
+
   it("reverts everything and applies it again", async () => {
     const owner = await MikroORM.init(createOrmConfig(db.urls.krajozbior_owner));
 
