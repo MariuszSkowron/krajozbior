@@ -19,7 +19,6 @@ Działa pierwsza pełna ścieżka: kurator tworzy i publikuje kolekcję, gość 
 - Drobne poprawki bezpieczeństwa: limity długości list i liczby zapisów oraz bezpieczniejszy zapis do albumu, wykonywany jednym poleceniem bazy z warunkiem (PR #27).
 - Nowa nawigacja „nocnego albumu” (dolny pasek na telefonie, menu boczne na komputerze), menu kuratora i wspólne elementy: karta kolekcji, odznaka statusu i pasek postępu (PR #28, krok E3-2a).
 - Adres (slug) kolekcji powstaje z jej aktualnego tytułu przy pierwszej publikacji i potem się nie zmienia, więc udostępnione linki działają dalej (PR #29).
-
 - Ekrany ścieżki w wyglądzie „nocny album” z testem dostępności w obu motywach (PR #31, krok E3-2b).
 - Przypięty przycisk wizyty na ekranie miejsca na telefonie: „Potwierdź wizytę”, po wizycie „Odwiedzone”; zastępuje tam dolny pasek nawigacji (PR #32).
 - Wizyta z przeszłości, pojedyncza i wiele naraz (do 100 miejsc z jedną datą), z odznaką „Z przeszłości”, usuwaniem i pierwszeństwem potwierdzenia na miejscu; to ostatni element ścieżki konkursowej (PR #34).
@@ -27,7 +26,7 @@ Działa pierwsza pełna ścieżka: kurator tworzy i publikuje kolekcję, gość 
 
 ## W toku
 
-- Test automatyczny wizyty z przeszłości w pełnej ścieżce E2E (docs#106).
+- Test pilnujący, że współrzędne wizyty nie trafiają do logów ani do odpowiedzi błędu (PR #36, w przeglądzie; docs#106).
 - Ta dokumentacja dla oceniających.
 
 ## Planowane (zakres pierwszej wersji)

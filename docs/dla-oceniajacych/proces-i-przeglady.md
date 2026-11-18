@@ -19,7 +19,7 @@ Pełny opis: [docs/agent-workflow.md](../agent-workflow.md) i [SDLC.md](../../SD
 - **Osobna tożsamość agentów.** Agenci działają na GitHubie jako aplikacja projektu z wąskimi uprawnieniami, z tokenem ważnym godzinę. Nie mogą zatwierdzać PR-ów ani zmieniać ustawień repozytorium.
 - **Właściciel kodu.** Plik `.github/CODEOWNERS` wskazuje ścieżki wrażliwe; zmiana w nich czeka na zatwierdzenie właściciela, a każdy nowy commit w PR unieważnia to zatwierdzenie.
 - **Czystość repozytorium publicznego.** Osobne zadanie CI (automatycznych kontroli GitHuba uruchamianych przy każdym PR; zadanie `guard`) odrzuca PR, gdy trafia do niego plik prywatny albo odwołanie do prywatnego repozytorium. Skan sekretów obejmuje całą historię.
-- **Hooki agenta.** Lokalne reguły blokują agentowi m.in. czytanie plików z sekretami, zmianę własnych ustawień i scalanie PR-ów. Od PR #33 blokują też zmianę plików projektu poleceniami terminala (np. dopisywanie tekstu przekierowaniem), bo agenci kilka razy złamali ten zakaz mimo zapisu w zasadach; zostają im zwykłe narzędzia edycji, których pilnują pozostałe zabezpieczenia. Hook chroni przed pomyłką, nie przed zdeterminowanym obejściem; granicą pozostaje ustawienie GitHuba.
+- **Hooki agenta.** Lokalne reguły blokują agentowi m.in. czytanie plików z sekretami, zmianę własnych ustawień i scalanie PR-ów. Od PR #33 blokują też zmianę plików projektu poleceniami terminala (np. dopisywanie tekstu przekierowaniem), bo agenci kilka razy złamali ten zakaz mimo zapisu w zasadach. Zostają im zwykłe narzędzia edycji, których pilnują pozostałe zabezpieczenia. Hook chroni przed pomyłką, nie przed zdeterminowanym obejściem; granicą pozostaje ustawienie GitHuba.
 
 ## Wyniki przeglądów kodu
 
