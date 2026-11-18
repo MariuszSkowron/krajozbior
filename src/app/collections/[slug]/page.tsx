@@ -3,12 +3,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
-import { logReadFailure } from "@/app/request-actor";
+import { getRequestActor, logReadFailure, loginHref } from "@/app/request-actor";
+import { getCollectionProgress } from "@/features/album/application/saved-collections";
+import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import { getPublishedCollection } from "@/features/catalog/application/public-catalog";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 
+import { CollectionProgress } from "../../my/collections/collection-progress";
+import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
+import { SaveCollectionButton } from "./save-collection-button";
 
 // Rendered on every request and never cached by a shared cache (src/proxy.ts
 // sets `Cache-Control: private, no-store`): later this page also shows the
@@ -30,6 +35,30 @@ const load = cache(async (slug: string) => {
   }
 });
 
+// What the page adds for the visitor: a guest is sent to sign in and back here;
+// a signed-in explorer gets the save button and their own progress. A failure
+// of the album read (or of the session lookup) leaves the public page whole,
+// without the personal part, and is logged by class only.
+async function loadAlbum(collectionId: string, slug: string) {
+  try {
+    const actor = await getRequestActor();
+
+    if (actor === null) {
+      return { kind: "guest", loginHref: loginHref(`/collections/${slug}`) } as const;
+    }
+
+    const view = await getCollectionProgress(actor, collectionId, getAlbumDeps());
+
+    return view.status === "ok"
+      ? ({ kind: "explorer", saved: view.value.saved, progress: view.value.progress } as const)
+      : ({ kind: "none" } as const);
+  } catch (error) {
+    logReadFailure("Collection album read", error);
+
+    return { kind: "unavailable" } as const;
+  }
+}
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const result = await load((await params).slug);
 
@@ -49,6 +78,7 @@ export default async function CollectionPage({ params }: { params: Params }) {
   }
 
   const collection = result.value;
+  const album = await loadAlbum(collection.id, collection.slug);
 
   return (
     <div className={`content-width ${styles.page}`}>
@@ -58,6 +88,28 @@ export default async function CollectionPage({ params }: { params: Params }) {
           {REGION_LABELS[collection.region]} · Prowadzi: {collection.organization.name}
         </p>
         {collection.summary === "" ? null : <p className={styles.summary}>{collection.summary}</p>}
+        {album.kind === "guest" ? (
+          <div>
+            <Link className={albumStyles.action} href={album.loginHref}>
+              Zapisz kolekcję
+            </Link>
+            <p className={albumStyles.feedback}>
+              Aby zapisać kolekcję, zalogujesz się i wrócisz tutaj.
+            </p>
+          </div>
+        ) : album.kind === "explorer" ? (
+          <>
+            <SaveCollectionButton collectionId={collection.id} initialSaved={album.saved} />
+            <CollectionProgress
+              progress={album.progress}
+              label={`Twój postęp w kolekcji ${collection.title}`}
+            />
+          </>
+        ) : album.kind === "unavailable" ? (
+          <p className={albumStyles.feedback}>
+            Nie udało się wczytać Twojego zapisu tej kolekcji. Odśwież stronę za chwilę.
+          </p>
+        ) : null}
       </header>
       <section className={styles.section} aria-labelledby="miejsca">
         <h2 id="miejsca">
