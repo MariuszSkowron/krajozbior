@@ -9,7 +9,6 @@ import { createOrmConfig } from "@/lib/db/config";
 import { runInGuestContext, runInUserContext } from "@/lib/db/user-context";
 
 import type { CatalogDeps } from "../application/catalog-types";
-import { publishCollection } from "../application/curator-collections";
 import { addPlace } from "../application/curator-places";
 import { postgresCatalogRepository } from "./postgres-catalog-repository";
 
@@ -118,10 +117,15 @@ export async function seedDemoCatalog(
     }
 
     if (state.status !== "published") {
-      const published = await publishCollection(actor, state.id, { version: state.version }, deps);
+      // The demo keeps its fixed address (links of the demo and tests use it),
+      // so it publishes with that address instead of one drawn from the title
+      // (D-27); the places were added above, as `publishCollection` requires.
+      const published = await runInUserContext(orm.em, actor, (tx) =>
+        repository.publishFirstTime(tx, state.id, state.version, DEMO_COLLECTION_SLUG),
+      );
 
-      if (published.status !== "ok") {
-        throw new Error(`Demo collection was not published: ${published.status}`);
+      if (published === null || published === "slug_taken") {
+        throw new Error("Demo collection was not published");
       }
     }
 
