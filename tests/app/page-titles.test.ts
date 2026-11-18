@@ -25,7 +25,7 @@ describe("tab titles", () => {
   it.each([
     ["@/app/layout", "Krajozbiór"],
     ["@/app/not-found", "Nie znaleziono — Krajozbiór"],
-    ["@/app/my/page", "Moje konto — Krajozbiór"],
+    ["@/app/my/page", "Profil — Krajozbiór"],
     ["@/app/curator/page", "Panel kuratora — Krajozbiór"],
     ["@/app/curator/collections/new/page", "Nowa kolekcja — Krajozbiór"],
     ["@/app/curator/collections/[collectionId]/page", "Edycja kolekcji — Krajozbiór"],

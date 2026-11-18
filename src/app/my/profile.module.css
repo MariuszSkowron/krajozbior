@@ -1,0 +1,67 @@
+/*
+ * Ekran „Profil” (E9-1): nagłówek z rolą, lista odnośników do istniejących ekranów i przycisk
+ * „Wyloguj”. Przyciski to klasy motywu (`button`, `button--outline`, theme.css).
+ */
+.page {
+  display: grid;
+  gap: var(--space-lg);
+  justify-items: start;
+  padding-block: var(--space-lg) var(--space-xl);
+}
+
+@media (min-width: 48rem) {
+  .page {
+    padding-block: var(--space-xl);
+  }
+}
+
+.header {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.header h1,
+.role {
+  margin: 0;
+}
+
+.role {
+  color: var(--color-text-secondary);
+}
+
+.page nav {
+  align-self: stretch;
+}
+
+.links {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 48rem) {
+  .links {
+    max-width: 28rem;
+  }
+}
+
+/* Cały wiersz jest celem dotyku (min. 44 px). */
+.link {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: var(--size-touch-min);
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-strong);
+  text-decoration: none;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.link:hover {
+  border-color: var(--color-border-strong);
+}
