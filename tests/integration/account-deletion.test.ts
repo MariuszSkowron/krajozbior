@@ -626,20 +626,55 @@ describe("account deletion on the real database", () => {
       const two = await newExplorer("last-two");
       const shared = await f.newOrganization("Gmina D", "gmina-d", [one, two]);
 
-      const results = await Promise.allSettled([
-        deleteAccountRows(authPool, one.id),
-        deleteAccountRows(authPool, two.id),
-      ]);
-      const refused = results.filter(
-        (result) =>
-          result.status === "rejected" && result.reason instanceof SoleOrganizationMemberError,
-      );
+      // Deterministic: transaction A deletes the first account and stays open.
+      // B (the second deletion) must stand on the advisory lock of the
+      // organization taken by the trigger; the test waits until pg_locks shows
+      // it. Only then A commits, B sees the result and is refused. Without the
+      // lock B would not wait: it would see the first membership still present
+      // (A is uncommitted), succeed, and the organization would be left empty.
+      let secondDeletion: Promise<boolean> | undefined;
+      let waiting = false;
 
-      expect(
-        results.filter((result) => result.status === "fulfilled" && result.value),
-      ).toHaveLength(1);
-      expect(refused).toHaveLength(1);
+      await withClient(db.urls.krajozbior_auth, async (client) => {
+        await client.query("begin");
+        await client.query(`delete from auth.users where id = $1::uuid`, [one.id]);
+
+        secondDeletion = deleteAccountRows(authPool, two.id);
+        // Attach the handler now, so a refusal is never reported as unhandled.
+        const outcome = secondDeletion.then(
+          () => "fulfilled",
+          () => "rejected",
+        );
+
+        for (let i = 0; i < 200 && !waiting; i += 1) {
+          waiting =
+            Number(
+              (
+                await admin$<{ n: string }>(
+                  `select count(*) as n from pg_locks
+                    where locktype = 'advisory' and not granted
+                      and database = (select oid from pg_database where datname = current_database())`,
+                )
+              )[0]!.n,
+            ) > 0;
+          if (!waiting) {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
+        }
+
+        // While A is open, B has neither finished nor removed anything.
+        expect(await Promise.race([outcome, Promise.resolve("pending")])).toBe("pending");
+        expect(await rowsOf("auth.users", "id", two.id)).toBe(1);
+
+        await client.query("commit");
+      });
+
+      expect(waiting).toBe(true);
+      await expect(secondDeletion!).rejects.toBeInstanceOf(SoleOrganizationMemberError);
+      expect(await rowsOf("auth.users", "id", one.id)).toBe(0);
+      expect(await rowsOf("auth.users", "id", two.id)).toBe(1);
       expect(await rowsOf("public.organization_members", "organization_id", shared)).toBe(1);
+      expect(await rowsOf("public.organization_members", "user_id", two.id)).toBe(1);
     });
 
     it("refuses to delete the only member directly, and leaves the account and membership intact", async () => {
