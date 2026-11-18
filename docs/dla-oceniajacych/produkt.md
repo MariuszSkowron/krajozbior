@@ -40,4 +40,4 @@ Później przyjdzie m.in. aplikacja na Androida.
 
 ## Wygląd i dostępność
 
-Kierunek wizualny to „nocny album kolekcjonerski”: ciemny motyw domyślny, jasny motyw z tych samych tokenów, jeden pomarańczowy akcent i perłowy połysk zarezerwowany dla kart legendarnych. Interfejs jest po polsku i zwraca się do odkrywcy na „Ty”. Obowiązuje WCAG 2.2 AA w obu motywach, a ustawienie „ogranicz ruch” w systemie wyłącza animacje. Telefon to osobne układy ekranów do użycia w terenie; panel kuratora jest projektowany na komputer. Szczegóły: [docs/design/](../design/README.md).
+Kierunek wizualny to „nocny album kolekcjonerski”: ciemny motyw domyślny, jasny motyw z tych samych tokenów, jeden pomarańczowy akcent i perłowy połysk zarezerwowany dla kart legendarnych. Interfejs jest po polsku i zwraca się do odkrywcy na „Ty”. Obowiązuje standard dostępności WCAG 2.2 na poziomie AA w obu motywach, a ustawienie „ogranicz ruch” w systemie wyłącza animacje. Telefon to osobne układy ekranów do użycia w terenie; panel kuratora jest projektowany na komputer. Szczegóły: [docs/design/](../design/README.md).

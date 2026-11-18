@@ -2,7 +2,7 @@
 
 ## W skrócie
 
-Krajozbiór to jedna aplikacja (Next.js z React 19 i TypeScript) z bazą PostgreSQL 17, bez osobnych usług. Dane użytkowników chronią dwie niezależne bariery: serwer sprawdza, kto wysyła żądanie i co mu wolno, a sama baza danych ma reguły dostępu do wierszy (RLS), które obowiązują nawet wtedy, gdyby kod aplikacji się pomylił. Każda taka reguła ma test, który próbuje ją obejść i oczekuje odmowy.
+Krajozbiór to jedna aplikacja internetowa (zbudowana na popularnych narzędziach Next.js, React 19 i TypeScript) z bazą PostgreSQL 17, bez osobnych usług. Dane użytkowników chronią dwie niezależne bariery: serwer sprawdza, kto wysyła żądanie i co mu wolno, a sama baza danych ma reguły dostępu do wierszy (RLS), które obowiązują nawet wtedy, gdyby kod aplikacji się pomylił. Każda taka reguła ma test, który próbuje ją obejść i oczekuje odmowy.
 
 Pełne dokumenty techniczne: [docs/architecture.md](../architecture.md) (budowa aplikacji) i [docs/data-isolation.md](../data-isolation.md) (klasy danych, role bazy, macierz reguł, wymagane testy). Ten plik je streszcza.
 
@@ -40,7 +40,7 @@ Aplikacja łączy się z bazą jako rola bez uprawnień administracyjnych i bez 
 - **Kurator zmienia tylko swoje.** Reguły bazy pozwalają kuratorowi zmieniać kolekcje i miejsca jego organizacji i tylko wybrane pola; daty publikacji wylicza baza.
 - **Dziennik operacji tylko do dopisywania.** Dziennik zapisuje osobna rola, która może dodawać wpisy, ale nie może ich zmienić ani wyłączyć ochrony. Zmiana roli konta na administratora bez wpisu w dzienniku jest odrzucana przez bazę.
 - **Bez pamięci podręcznej dla danych prywatnych.** Strony i odpowiedzi z danymi odkrywcy mają nagłówek zakazujący zapisu w pamięci podręcznej, a zapisy sprawdzają pochodzenie żądania.
-- **Nagłówki bezpieczeństwa** (polityka treści, HSTS i inne) ustawia jedno miejsce w kodzie, a test E2E (w prawdziwej przeglądarce) sprawdza, że są obecne.
+- **Nagłówki bezpieczeństwa** (polityka treści, HSTS, czyli wymuszenie szyfrowanego połączenia, i inne) ustawia jedno miejsce w kodzie, a test E2E (w prawdziwej przeglądarce) sprawdza, że są obecne.
 
 ## Jak to jest sprawdzane
 
