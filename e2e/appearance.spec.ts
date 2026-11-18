@@ -530,8 +530,9 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
   async function placeWithLocation(
     browser: Browser,
     location: { latitude: number; longitude: number; accuracy: number } | null,
+    theme: "dark" | "light" = "dark",
   ) {
-    const opened = await openScreen(browser, "explorer", "dark", PHONE, paths.place, "reduce", {
+    const opened = await openScreen(browser, "explorer", theme, PHONE, paths.place, "reduce", {
       permissions: location ? ["geolocation"] : [],
       geolocation: location ?? undefined,
     });
@@ -541,13 +542,234 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
     return opened;
   }
 
-  test("miejsce: komunikat „za daleko” (ostrzeżenie), axe bez naruszeń", async ({ browser }) => {
+  const DOCK = "[data-pinned-action]";
+  const NAV_BAR = 'nav[aria-label="Główna"]';
+
+  // Odstęp między końcem treści a górną krawędzią przypiętego przycisku po przewinięciu na dół
+  // (>= 0: treść nie chowa się pod przyciskiem). Komunikat nad przyciskiem powiększa pasek, więc
+  // pomiar po komunikacie sprawdza też, że rezerwa pod przycisk rośnie razem z nim.
+  async function contentGap(page: Page) {
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+
+    return page.evaluate((dockSelector) => {
+      const dockTop = document.querySelector(dockSelector)!.getBoundingClientRect().top;
+      const last = [...document.querySelectorAll("main *")]
+        .filter((el) => !el.closest(dockSelector))
+        .map((el) => el.getBoundingClientRect())
+        .filter((rect) => rect.height > 0)
+        .reduce((max, rect) => Math.max(max, rect.bottom), 0);
+
+      return dockTop - last;
+    }, DOCK);
+  }
+
+  for (const theme of ["dark", "light"] as const) {
+    test(`miejsce: komunikat „za daleko” w przypiętym pasku (ostrzeżenie), motyw ${theme}, axe bez naruszeń`, async ({
+      browser,
+    }) => {
+      const { context, page } = await placeWithLocation(browser, FAR, theme);
+      const status = page.getByRole("status").filter({ hasText: /Jesteś .* km od miejsca\./ });
+
+      await expect(status).toBeVisible();
+      await expect(page.getByRole("button", { name: "Sprawdź ponownie" })).toBeVisible();
+      expect(await contentGap(page)).toBeGreaterThanOrEqual(0);
+      expect(await axeViolations(page)).toEqual([]);
+      await context.close();
+    });
+
+    test(`miejsce: stan wyjściowy z przypiętym przyciskiem, motyw ${theme}, axe bez naruszeń`, async ({
+      browser,
+    }) => {
+      const { context, page } = await openScreen(browser, "explorer", theme, PHONE, paths.place);
+
+      await expect(page.getByRole("button", { name: "Potwierdź wizytę" })).toBeVisible();
+      expect(await axeViolations(page)).toEqual([]);
+      await context.close();
+    });
+  }
+
+  // Przypięty przycisk główny ekranu miejsca (telefon): zastępuje dolny pasek, jest widoczny po
+  // przewinięciu i nie zasłania fokusu (WCAG 2.4.11; axe tego nie wykrywa).
+  test("miejsce na telefonie: przycisk przypięty u dołu, pasek nawigacji ukryty, przycisk widoczny po przewinięciu", async ({
+    browser,
+  }) => {
+    const { context, page } = await openScreen(browser, "explorer", "dark", PHONE, paths.place);
+
+    await expect(page.locator(NAV_BAR)).toBeHidden();
+    // Dolny margines treści: ostatni element strony kończy się nad przypiętym przyciskiem.
+    expect(await contentGap(page)).toBeGreaterThanOrEqual(0);
+    const button = page.getByRole("button", { name: "Potwierdź wizytę" });
+
+    await expect(button).toBeInViewport({ ratio: 1 });
+    const box = (await button.boundingBox())!;
+
+    expect(box.height).toBeGreaterThanOrEqual(48);
+    expect(box.y + box.height).toBeLessThanOrEqual(PHONE.height);
+    await context.close();
+  });
+
+  // Regresja M1: sekcja z przyciskiem ma animację wejścia (przesunięcie `transform` tworzy blok
+  // zawierający dla `position: fixed`), więc przez czas animacji przycisk leżałby na dole sekcji,
+  // nie okna. Test działa z włączonym ruchem (`no-preference`), a animacje wydłuża do 5 s, żeby
+  // pomiar zaraz po wczytaniu na pewno wypadł w jej trakcie (bez tego wynik zależałby od tempa
+  // maszyny); sprawdza też, że animacja faktycznie trwa.
+  test("miejsce na telefonie: przycisk przylega do dołu okna także w trakcie animacji wejścia", async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({
+      viewport: PHONE,
+      reducedMotion: "no-preference",
+      storageState: states.explorer,
+    });
+
+    await context.addCookies([{ name: COOKIE, value: "dark", url: "http://127.0.0.1" }]);
+    await context.addInitScript(() => {
+      document.addEventListener("DOMContentLoaded", () => {
+        const style = document.createElement("style");
+
+        style.textContent = "*, *::before, *::after { animation-duration: 5s !important; }";
+        document.head.append(style);
+      });
+    });
+    const page = await context.newPage();
+
+    await page.goto(paths.place, { waitUntil: "domcontentloaded" });
+    await page.locator(DOCK).waitFor();
+    const state = await page.evaluate((dockSelector) => {
+      const dock = document.querySelector(dockSelector)!;
+
+      return {
+        bottom: dock.getBoundingClientRect().bottom,
+        innerHeight: window.innerHeight,
+        sectionAnimations: dock
+          .closest("section")!
+          .getAnimations()
+          .filter((animation) => animation.playState === "running").length,
+      };
+    }, DOCK);
+
+    expect(state.sectionAnimations, "animacja wejścia sekcji ma jeszcze trwać").toBeGreaterThan(0);
+    expect(state.bottom).toBeCloseTo(state.innerHeight, 0);
+    await context.close();
+  });
+
+  test("miejsce na komputerze: bez zmian, pasek boczny widoczny, przycisk w karcie", async ({
+    browser,
+  }) => {
+    const { context, page } = await openScreen(browser, "explorer", "dark", DESKTOP, paths.place);
+
+    await expect(page.locator(NAV_BAR)).toBeVisible();
+    // Opakowanie jest przezroczyste (`display: contents`), a przycisk leży w karcie „Wizyta”.
+    const layout = await page
+      .getByRole("button", { name: "Potwierdź wizytę" })
+      .evaluate((button, dockSelector) => {
+        const dock = button.closest(dockSelector)!;
+        const card = dock.parentElement!.getBoundingClientRect();
+        const rect = button.getBoundingClientRect();
+
+        return {
+          display: getComputedStyle(dock).display,
+          inCard:
+            rect.top >= card.top &&
+            rect.bottom <= card.bottom &&
+            rect.left >= card.left &&
+            rect.right <= card.right,
+        };
+      }, DOCK);
+
+    expect(layout).toEqual({ display: "contents", inCard: true });
+    await context.close();
+  });
+
+  // Tab przez całą stronę; zwraca opisy elementów zasłoniętych przez przypięty przycisk albo
+  // leżących pod jego górną krawędzią. Pierwszy element treści (poza paskiem) jest odsunięty
+  // tak, by jego dół był 4 px POD górną krawędzią przycisku (zachodzi na niego, ale w całości
+  // mieści się w oknie): bez `scroll-padding-bottom` przeglądarka go nie przewinie, a za mały
+  // (np. stara wysokość paska nawigacji zamiast wysokości przycisku) też nie, bo 4 px zakładki
+  // wymaga rezerwy równej wysokości przycisku.
+  async function coveredFocus(page: Page, theme: string) {
+    await page.evaluate((dockSelector) => {
+      const target = [...document.querySelectorAll<HTMLElement>("main a[href], main button")].find(
+        (el) => !el.closest(dockSelector),
+      )!;
+      const dockTop = document.querySelector(dockSelector)!.getBoundingClientRect().top;
+      const spacer = document.createElement("div");
+
+      spacer.style.height = "0px";
+      target.parentElement!.insertBefore(spacer, target);
+      // Przerwa siatki rodzica wchodzi w pozycję elementu, więc dopasowanie liczy się z pomiaru.
+      spacer.style.height = `${dockTop + 4 - target.getBoundingClientRect().bottom}px`;
+    }, DOCK);
+
+    const problems: string[] = [];
+    let checked = 0;
+
+    for (let i = 0; i < 40; i += 1) {
+      await page.keyboard.press("Tab");
+      const state = await page.evaluate((dockSelector) => {
+        const element = document.activeElement as HTMLElement;
+        const box = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        const dock = document.querySelector(dockSelector)!;
+
+        return {
+          label: `${element.tagName} ${element.textContent?.trim().slice(0, 30) ?? ""}`,
+          inMain: element.closest("main") !== null,
+          inDock: dock.contains(element),
+          covered: !(hit === element || element.contains(hit)),
+          aboveDock: box.bottom <= dock.getBoundingClientRect().top,
+        };
+      }, DOCK);
+
+      if (state.inMain && !state.inDock) {
+        checked += 1;
+        if (state.covered || !state.aboveDock) {
+          problems.push(`${theme}, Tab ${i + 1}: ${state.label}`);
+        }
+      }
+    }
+
+    expect(checked, "w treści powinien być element z fokusem").toBeGreaterThan(0);
+
+    return problems;
+  }
+
+  for (const theme of ["dark", "light"] as const) {
+    test(`miejsce na telefonie: fokus nie jest zasłonięty przez przypięty przycisk (motyw ${theme})`, async ({
+      browser,
+    }) => {
+      const { context, page } = await openScreen(browser, "explorer", theme, PHONE, paths.place);
+
+      expect(await coveredFocus(page, theme)).toEqual([]);
+      await context.close();
+    });
+  }
+
+  // Pasek z komunikatem „za daleko” jest wyższy niż sam przycisk (ok. 130 px), więc rezerwa musi
+  // pochodzić z pomiaru paska (`--pinned-action-height`), a nie z minimum: ten stan wykrywa brak
+  // nadpisania `--shell-bottom-bar-height` na ekranie miejsca (stan wyjściowy go nie wykrywa,
+  // bo minimum paska nawigacji 50 px plus odstęp przypadkiem wystarcza dla samego przycisku).
+  test("miejsce na telefonie: fokus nie jest zasłonięty przez wyższy pasek z komunikatem „za daleko”", async ({
+    browser,
+  }) => {
     const { context, page } = await placeWithLocation(browser, FAR);
 
     await expect(
       page.getByRole("status").filter({ hasText: /Jesteś .* km od miejsca\./ }),
     ).toBeVisible();
-    expect(await axeViolations(page)).toEqual([]);
+    expect(await coveredFocus(page, "dark, za daleko")).toEqual([]);
+    await context.close();
+  });
+
+  // Kontrola metody pomiaru, nie funkcji: bez `scroll-padding-bottom` ten sam pomiar wykrywa
+  // zasłonięty fokus (chroni przed testem „zielonym, bo nic nie mierzy”).
+  test("miejsce na telefonie: bez scroll-padding test zasłonięcia fokusu wykrywa błąd", async ({
+    browser,
+  }) => {
+    const { context, page } = await openScreen(browser, "explorer", "dark", PHONE, paths.place);
+
+    await page.addStyleTag({ content: "html { scroll-padding-bottom: 0 !important; }" });
+    expect((await coveredFocus(page, "dark")).length).toBeGreaterThan(0);
     await context.close();
   });
 
