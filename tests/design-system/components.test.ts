@@ -67,6 +67,20 @@ describe("CollectionCard", () => {
     expect(html).toContain("1/3");
   });
 
+  it.each([2, 4, 6] as const)("poziom nagłówka %i z właściwości headingLevel", (level) => {
+    const html = render(
+      createElement(CollectionCard, {
+        href: "/collections/x",
+        title: "X",
+        regionLabel: "Śląskie",
+        headingLevel: level,
+      }),
+    );
+
+    expect(html).toMatch(new RegExp(`<h${level} class="[^"]*">X</h${level}>`));
+    expect(html).not.toContain("<h3");
+  });
+
   it("bez postępu nie rysuje paska ani licznika", () => {
     const html = render(
       createElement(CollectionCard, { href: "/collections/x", title: "X", regionLabel: "Śląskie" }),

@@ -109,6 +109,49 @@ test.describe("dolny pasek na telefonie", () => {
     await page.context().close();
   });
 
+  test("przy tekście powiększonym do 200% rezerwa pod pasek nadąża za jego wysokością", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, "user", { width: 320, height: 640 });
+    await page.addStyleTag({ content: "html { font-size: 200%; }" });
+
+    for (const path of ["/my/collections", "/my/want-to-see"]) {
+      await page.goto(path);
+      await page.addStyleTag({ content: "html { font-size: 200%; }" });
+      await page.waitForLoadState("networkidle");
+
+      // Etykieta zawija się i pasek rośnie ponad 50 px; treść i przewijanie do fokusu muszą
+      // zostawiać pod spodem co najmniej tyle miejsca, ile zajmuje pasek.
+      const sizes = await page.evaluate((navSelector) => {
+        const bar = document.querySelector(navSelector)!.getBoundingClientRect().height;
+        return {
+          bar,
+          scroll: Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom),
+          padding: Number.parseFloat(
+            getComputedStyle(document.querySelector("main")!).paddingBottom,
+          ),
+        };
+      }, NAV);
+      expect(sizes.bar, `${path}: pasek powinien urosnąć ponad 50 px`).toBeGreaterThan(50);
+      expect(sizes.scroll, `${path}: scroll-padding-bottom`).toBeGreaterThanOrEqual(sizes.bar);
+      expect(sizes.padding, `${path}: padding-bottom treści`).toBeGreaterThanOrEqual(sizes.bar);
+
+      // Ostatni element treści po przewinięciu do końca stoi nad paskiem.
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      const gap = await page.evaluate((navSelector) => {
+        const barTop = document.querySelector(navSelector)!.getBoundingClientRect().top;
+        const main = document.querySelector("main")!;
+        const last = [...main.querySelectorAll("*")]
+          .map((element) => element.getBoundingClientRect())
+          .filter((box) => box.height > 0)
+          .reduce((max, box) => Math.max(max, box.bottom), 0);
+        return barTop - last;
+      }, NAV);
+      expect(gap, `${path}: treść schowana pod paskiem`).toBeGreaterThanOrEqual(0);
+    }
+    await page.context().close();
+  });
+
   for (const theme of ["dark", "light"] as const) {
     test(`fokus nie jest zasłonięty przez dolny pasek (motyw ${theme})`, async ({ browser }) => {
       const page = await signedInPage(browser, "user", PHONE, theme);
@@ -188,6 +231,15 @@ test.describe("menu boczne na komputerze", () => {
     expect(layout.position).not.toBe("fixed");
     expect(layout.mainLeft).toBeGreaterThanOrEqual(layout.navRight);
 
+    // Górny odstęp treści: 32 px od góry <main> do nagłówka strony (spec 5.6).
+    await expect(page.getByRole("heading", { level: 1, name: "Moje kolekcje" })).toBeVisible();
+    const top = await page.evaluate(
+      () =>
+        document.querySelector("main h1")!.getBoundingClientRect().top -
+        document.querySelector("main")!.getBoundingClientRect().top,
+    );
+    expect(top).toBeGreaterThanOrEqual(32);
+
     for (const link of await nav.getByRole("link").all()) {
       expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(46);
     }
@@ -210,6 +262,12 @@ test.describe("panel kuratora", () => {
     await expect(menu.getByRole("link", { name: "Profil prywatny" })).toHaveAttribute(
       "href",
       "/my",
+    );
+    // Bieżąca pozycja menu panelu: jedna, z aria-current="page" na liście kolekcji.
+    await expect(menu.locator("[aria-current]")).toHaveCount(1);
+    await expect(menu.getByRole("link", { name: "Kolekcje" })).toHaveAttribute(
+      "aria-current",
+      "page",
     );
     await expect(page.locator(NAV)).toBeHidden();
     await page.context().close();

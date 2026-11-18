@@ -63,6 +63,14 @@
   color: var(--color-text-primary);
 }
 
+/* Bieżąca pozycja jak w menu bocznym powłoki: tło `tint`, napis `strong` (D-22, reguła tła). */
+.menuLink[aria-current],
+.menuLink[aria-current]:hover {
+  background: var(--color-surface-tint);
+  color: var(--color-text-strong);
+  font-weight: var(--font-weight-strong);
+}
+
 .menuProfile {
   margin-block-start: var(--space-xl);
 }

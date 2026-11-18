@@ -16,9 +16,12 @@
  * dotyczy tylko powłoki. Pasek jest przypięty, więc `html` dostaje `scroll-padding-bottom`
  * równe tej wysokości, a przewijanie klawiszem Tab nie zostawia fokusu pod paskiem
  * (WCAG 2.4.11). Zmienna działa tylko wtedy, gdy pasek jest widoczny (poniżej progu komputera).
+ * 50 px to minimum paska; przy tekście powiększonym pasek rośnie, a `MainNav` nadpisuje
+ * `--shell-bottom-bar-height` jego zmierzoną wysokością (ResizeObserver, styl inline na `html`).
  */
 :global(html):has(.withNav) {
-  --shell-bottom-bar-height: calc(50px + env(safe-area-inset-bottom));
+  --shell-bottom-bar-min: calc(50px + env(safe-area-inset-bottom));
+  --shell-bottom-bar-height: var(--shell-bottom-bar-min);
 }
 
 @media (max-width: 47.99rem) {
@@ -100,7 +103,7 @@
   inset-block-end: 0;
   z-index: 1;
   box-sizing: border-box;
-  min-height: var(--shell-bottom-bar-height);
+  min-height: var(--shell-bottom-bar-min);
   padding-block-end: env(safe-area-inset-bottom);
   background: var(--color-surface-glass);
   -webkit-backdrop-filter: blur(20px);
@@ -183,17 +186,6 @@
   .navDot {
     forced-color-adjust: none;
     background: Highlight;
-  }
-}
-
-/* Klawiatura ekranowa: pole formularza w treści ma fokus, więc pasek ustępuje miejsca. */
-@media (max-width: 47.99rem) {
-  .shell:has(
-      .main
-        :is(input:not([type="checkbox"], [type="radio"], [type="hidden"]), textarea, select):focus
-    )
-    .nav {
-    display: none;
   }
 }
 
@@ -324,6 +316,11 @@
   .main {
     grid-column: 2;
     grid-row: 2;
+  }
+
+  /* Górny odstęp treści 32 px (spec 5.6): strony mają własne 24 px (`space.lg`), tu dochodzi 8. */
+  .withNav .main {
+    padding-block-start: var(--space-sm);
   }
 
   .nav {

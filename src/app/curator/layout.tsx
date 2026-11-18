@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { StatusBadge } from "@/design-system/components/status-badge";
 
+import { CuratorMenuLink } from "./curator-menu-link";
 import styles from "./curator.module.css";
 
 // The frame of every panel screen. The panel is for a computer (product.md):
@@ -22,9 +23,7 @@ export default function CuratorLayout({ children }: Readonly<{ children: ReactNo
           <StatusBadge tone="info">Kurator</StatusBadge>
           <ul className={styles.menuList}>
             <li>
-              <Link className={styles.menuLink} href="/curator">
-                Kolekcje
-              </Link>
+              <CuratorMenuLink className={styles.menuLink}>Kolekcje</CuratorMenuLink>
             </li>
           </ul>
           <Link className={`${styles.menuLink} ${styles.menuProfile}`} href="/my">
