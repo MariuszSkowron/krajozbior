@@ -36,7 +36,7 @@ test.describe("with seeded demo accounts", () => {
     await logIn(page, "user@demo.krajozbior.local", password ?? "");
 
     await expect(page).toHaveURL(/\/my$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Moje konto" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Profil" })).toBeVisible();
 
     const me = await page.request.get("/api/me");
     expect(me.status()).toBe(200);

@@ -209,7 +209,7 @@ describe("app shell", () => {
     expect(html).toMatch(/<body class="[^"]*withNav/);
     expect(html).toMatch(/<\/header><nav [^>]*aria-label="Główna"[\s\S]*<\/nav><main id="tresc"/);
     expect(nav(html).match(/<li>/g)).toHaveLength(4);
-    for (const label of ["Start", "Moje kolekcje", "Chcę zobaczyć", "Konto"]) {
+    for (const label of ["Start", "Moje kolekcje", "Chcę zobaczyć", "Profil"]) {
       expect(nav(html)).toContain(`>${label}</span>`);
     }
     // Tylko bieżąca pozycja ma aria-current i kropkę akcentu.
