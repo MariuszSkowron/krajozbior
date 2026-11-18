@@ -3,6 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 // Static tab titles "{page} — Krajozbiór" (WCAG 2.4.2). Pages with a role-dependent
 // title are covered next to their page tests.
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+// next/font/local works only inside the Next.js compiler.
+vi.mock("@/app/fonts", () => ({
+  geist: { variable: "" },
+  geistMono: { variable: "" },
+  instrumentSerif: { variable: "" },
+}));
 // The shell role (identity, database driver, session library) is a cold import
 // and has nothing to do with the title.
 vi.mock("@/app/shell/shell-role", () => ({ shellRole: async () => null }));

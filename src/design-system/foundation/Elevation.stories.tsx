@@ -17,8 +17,8 @@ export const Shadows: Story = {
     <main className={styles.page}>
       <h1>Elevation</h1>
       <p className={styles.lead}>
-        Dwa poziomy: karta w układzie (miękki cień dwuwarstwowy, v1) oraz warstwa nakładana (np.
-        dialog).
+        Dwa poziomy: karta w układzie (w motywie nocnym bez cienia, jasny ma cień dwuwarstwowy) oraz
+        warstwa nakładana (np. dialog).
       </p>
       <div className={styles.elevationStage}>
         {shadows.map((name) => (
@@ -28,9 +28,7 @@ export const Shadows: Story = {
               style={{
                 boxShadow: tokenVar(name),
                 borderRadius: tokenVar("radius.md"),
-                background: tokenVar(
-                  name === "shadow.overlay" ? "color.surface.elevated" : "color.surface.card",
-                ),
+                background: tokenVar("color.surface.card"),
               }}
             >
               {name}

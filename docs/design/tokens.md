@@ -2,7 +2,7 @@
 
 ## W skrócie
 
-Tokeny to nazwane wartości wyglądu (kolory, odstępy, promienie, cienie, rozmiary, krój pisma, fokus, ruch) zapisane jako zmienne CSS. Nazwa mówi, do czego wartość służy, a nie jak wygląda, więc zmiana wyglądu to zmiana wartości w jednym miejscu. Szkielet ma neutralne wartości; tożsamość wizualną projektu ustala właściciel, a agent zapisuje ją w tokenach. Ten dokument opisuje model, nazewnictwo i zasady; faktyczne wartości są w `src/design-system/tokens/tokens.css` (jedyne źródło).
+Tokeny to nazwane wartości wyglądu (kolory, odstępy, promienie, cienie, rozmiary, krój pisma, fokus, ruch) zapisane jako zmienne CSS. Nazwa mówi, do czego wartość służy, a nie jak wygląda, więc zmiana wyglądu to zmiana wartości w jednym miejscu. Wygląd „nocny album” (ciemny motyw domyślny i jasny) pochodzi z design systemu właściciela (D-08, D-22); agent zapisuje go w tokenach. Ten dokument opisuje model, nazewnictwo i zasady; faktyczne wartości są w `src/design-system/tokens/tokens.css` (jedyne źródło).
 
 Oznaczenia: **[Z]** wymaganie, **[P]** propozycja, **[Decyzja techniczna]** rozstrzygnięcie.
 
@@ -23,11 +23,33 @@ Tokeny domenowe powstają dopiero z pierwszym komponentem, który ich używa, i 
 
 ### Nazewnictwo
 
-Gramatyka `<kategoria>.<rola>[.<wariant>]`, małe litery, po angielsku. W CSS: kropki zamieniają się na myślniki (`color.brand.primary` → `--color-brand-primary`). Nazwa nie zawiera barwy, jasności ani liczby. Wyjątki: skale porządkowe `xs`–`xl` i `2xl`–`3xl` oraz `pill` (kształt).
+Gramatyka `<kategoria>.<rola>[.<wariant>]`, małe litery, po angielsku. W CSS: kropki zamieniają się na myślniki (`color.text.accent` → `--color-text-accent`). Nazwa nie zawiera barwy, jasności ani liczby. Wyjątki: skale porządkowe `xs`–`xl` i `2xl`–`3xl` oraz `pill` (kształt).
 
-## Tokeny w szkielecie
+## Motywy
 
-Kolor: `color.brand.{primary,accent}`, `color.surface.{canvas,card,elevated,tint}`, `color.text.{primary,secondary,inverse}`, `color.border.{default,subtle,focus}`, `color.feedback.danger`. Odstępy `space.{xs..xl}`, promienie `radius.{sm,md,lg,pill}`, cienie `shadow.{card,overlay}`, rozmiary dotyku `size.touch.{min,primary}`, typografia `font.family.{base,display}`, `font.size.*`, `font.weight.strong`, `line.height.*`, fokus `focus.ring.*`, ruch `motion.*`. Pełna lista: `src/design-system/tokens/tokens.ts`.
+**[Decyzja techniczna]** Motyw to klasa na `<html>`: `.theme-dark` (nocny, domyślny; jego wartości stoją też w `:root`, więc działa bez klasy) i `.theme-light`. Oba bloki w `tokens.css` definiują dokładnie te same nazwy kolorów i cieni; zmiana motywu zmienia tylko wartości, nigdy komponenty. Każdy blok ustawia `color-scheme`. Klasę ustawia po stronie serwera układ główny z ciasteczka `krajozbior-theme` (`src/app/shell/theme.ts`; każda wartość inna niż `light` oznacza motyw nocny; `prefers-color-scheme` nie jest czytane), a przełącznik w nagłówku to natywny formularz z akcją serwera (`theme-actions.ts`), działający bez JavaScriptu. W Storybooku motyw zmienia pasek narzędzi „Motyw”.
+
+## Mapowanie nazw z design systemu właściciela
+
+Zostajemy przy gramatyce repozytorium; nazwy z PDF design systemu mapujemy 1:1. Wartości są w `tokens.css`, nie tutaj.
+
+| PDF | Token repozytorium | Rola |
+| --- | --- | --- |
+| `--bg` | `color.surface.canvas` | tło strony i pól formularzy |
+| `--surface` | `color.surface.card` | karty, nagłówek |
+| `--surface-2` | `color.surface.tint` | tło wyróżnione |
+| `--hover` | `color.surface.hover` | tło po najechaniu (cichy przycisk) |
+| `--line` / `--line-2` / `--line-3` | `color.border.subtle` / `.default` / `.strong` | linie; `.strong` obrys po najechaniu |
+| `--track` | `color.progress.track` | tor paska postępu |
+| `--text` / `--strong` / `--muted` / `--muted-2` / `--faint` | `color.text.primary` / `.strong` / `.secondary` / `.label` / `.meta` | tekst; `.meta` także obrys pól i tekst zastępczy (D-22, Q3) |
+| `--accent` / `--accent-text` / `--on-accent` | `color.brand.accent` / `color.text.accent` / `color.text.on-accent` | przyciski i wypełnienia / linki i fokus / tekst na akcencie |
+| `--ok` `--warn` `--bad` `--info` (+`-bg`) | `color.feedback.success` / `.warning` / `.danger` / `.info` (+`.bg`) | stany |
+
+Tokeny, które pierwszy używa kolejny PR (zasada 5), powstają dopiero w nim: `color.surface.glass`, `color.image.placeholder(-alt)`, `shadow.card-hover`, `shadow.accent-glow`, `radius.xl`, `space.2xl`, `space.3xl`, odstępy kart, `font.size.2xs`, `font.size.5xl`, `font.weight.medium`, `font.tracking.display`, `motion.duration.medium`, `motion.duration.enter`.
+
+## Tokeny
+
+Pełna lista: `src/design-system/tokens/tokens.ts` (59 tokenów po E3-1). Kolor i cienie zależą od motywu; odstępy, promienie, rozmiary, krój, fokus i ruch są wspólne. Krój: `font.family.{base,display,mono}` (Geist, Instrument Serif, Geist Mono z `src/design-system/fonts/`, z zapasem systemowym), wagi 400 i 600 (Instrument Serif ma tylko 400).
 
 ## Implementacja
 
@@ -40,13 +62,13 @@ Kolor: `color.brand.{primary,accent}`, `color.surface.{canvas,card,elevated,tint
 3. **Znaczenie dobiera token, nie wygląd.**
 4. **Status nigdy tylko kolorem:** etykieta tekstowa oraz ikona lub kształt (`accessibility.md`).
 5. **Nowy token tylko z uzasadnieniem:** opisuje znaczenie, którego nie wyraża żaden istniejący, wynika z wymagania produktu lub dostępności i ma wskazane miejsce użycia oraz test kontrastu. Bez tokenów „na zapas”.
-6. **Brak wariantów „na każdy przypadek”:** stany interakcji (hover, active, disabled) wynikają z elementu natywnego lub jednej reguły motywu, nie z osobnych tokenów. Każda funkcja działa bez hover.
-7. **Limit utrzymaniowy:** zapisz w `<docs>/docs/decisions.md` przyjęty limit liczby tokenów; przekroczenie wymaga przeglądu istniejących, nie dopisywania kolejnych.
+6. **Brak wariantów „na każdy przypadek”:** stany interakcji (hover, active, disabled) wynikają z elementu natywnego lub jednej reguły motywu, nie z osobnych tokenów. Każda funkcja działa bez hover. **Wyjątek:** token stanu interakcji jest dozwolony, gdy wartość podaje design system właściciela (D-08, D-22); poza tym stan wynika z tokenu bazowego. Tak powstały `color.surface.hover` i `color.border.strong` (oraz w kolejnych PR-ach `shadow.card-hover` i `shadow.accent-glow`).
+7. **Limit utrzymaniowy:** 90 tokenów (D-24, `<docs>/docs/decisions.md`); przekroczenie wymaga przeglądu istniejących, nie dopisywania kolejnych. Test `tokens.test.ts` pilnuje limitu.
 
 ## Dostępność i kontrast
 
-Kontrast tekstu spełnia WCAG 2.2 AA (4,5:1 dla tekstu zwykłego, 3:1 dla dużego i elementów nietekstowych); tekst główny celuje wyżej (7:1). Test `tests/design-system/tokens.test.ts` czyta `tokens.css` i sprawdza kontrast kluczowych par, porządek skal, zgodność listy `tokens.ts` z `tokens.css`, wyzerowanie ruchu przy `prefers-reduced-motion` i brak literałów koloru w `src/` poza `tokens.css`. Pomiar kontrastu nie dowodzi czytelności w słońcu.
+Kontrast tekstu spełnia WCAG 2.2 AA (4,5:1 dla tekstu zwykłego, 3:1 dla dużego i elementów nietekstowych); tekst główny celuje wyżej (7:1). Test `tests/design-system/tokens.test.ts` czyta `tokens.css` i sprawdza w obu motywach kontrast par dozwolonych (tekst 4,5:1, elementy nietekstowe 3:1, odznaki stanu z nałożonym tłem), prawdziwość listy par niedozwolonych (reguła tła, `accessibility.md`), jednakowe nazwy w obu motywach, porządek skal, zgodność listy `tokens.ts` z `tokens.css`, limit tokenów, wyzerowanie ruchu przy `prefers-reduced-motion` i brak literałów koloru w `src/` poza `tokens.css` (wyjątki: stała `themeColor` w `src/app/shell/theme.ts` i pierścienie `color-mix(in srgb, var(--…) N%, transparent)`). Pomiar kontrastu nie dowodzi czytelności w słońcu.
 
 ## Zmiana wyglądu projektu
 
-Gdy właściciel poda kierunek wizualny: zapisz decyzję w `<docs>/docs/decisions.md`, zmień wartości w `tokens.css`, zaktualizuj test kontrastu i strony Storybook „Foundation”, uruchom `npm run build-storybook`. Nie dopisuj nowych tokenów, jeśli wystarczy zmiana wartości.
+Gdy właściciel zmieni kierunek wizualny: zapisz decyzję w `<docs>/docs/decisions.md`, zmień wartości w `tokens.css` (w obu motywach), zaktualizuj test kontrastu i strony Storybook „Foundation”, uruchom `npm run build-storybook`. Nie dopisuj nowych tokenów, jeśli wystarczy zmiana wartości.

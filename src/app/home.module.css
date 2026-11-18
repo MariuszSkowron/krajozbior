@@ -31,8 +31,8 @@
   justify-content: center;
   min-height: var(--size-touch-min);
   padding-inline: var(--space-lg);
-  background: var(--color-brand-primary);
-  color: var(--color-text-inverse);
+  background: var(--color-brand-accent);
+  color: var(--color-text-on-accent);
   border-radius: var(--radius-pill);
   font-weight: var(--font-weight-strong);
   text-decoration: none;
@@ -43,6 +43,6 @@
   padding: var(--space-md);
   background: var(--color-surface-card);
   border: 1px solid var(--color-border-subtle);
-  border-inline-start: var(--space-xs) solid var(--color-brand-primary);
+  border-inline-start: var(--space-xs) solid var(--color-brand-accent);
   border-radius: var(--radius-md);
 }

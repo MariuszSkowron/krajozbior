@@ -82,7 +82,7 @@
 
 .bar {
   height: var(--space-md);
-  background: var(--color-brand-primary);
+  background: var(--color-brand-accent);
 }
 
 .box {

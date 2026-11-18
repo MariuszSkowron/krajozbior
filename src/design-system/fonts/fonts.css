@@ -1,0 +1,42 @@
+/*
+ * Kroje dla Storybooka (Vite nie rozumie next/font). Te same pliki co w aplikacji; zmienne
+ * --font-geist, --font-geist-mono i --font-instrument-serif zasilają tokeny font.family.*,
+ * tak jak robi to next/font/local na <html>.
+ */
+@font-face {
+  font-family: "Geist";
+  src: url("./geist/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("./geist-mono/GeistMono-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("./instrument-serif/InstrumentSerif-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("./instrument-serif/InstrumentSerif-Italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  --font-geist: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-geist-mono: "Geist Mono", "Courier New", monospace;
+  --font-instrument-serif: "Instrument Serif", Georgia, serif;
+}
