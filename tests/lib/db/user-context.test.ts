@@ -94,14 +94,18 @@ describe("runInUserContext", () => {
 });
 
 describe("runInGuestContext", () => {
-  it("opens a read-only transaction without setting any user", async () => {
+  it("opens a read-only transaction and clears any user left on the connection", async () => {
     const { em, calls } = fakeEntityManager();
 
     const result = await runInGuestContext(em, async () => "public");
 
     expect(result).toBe("public");
-    expect(calls).toEqual(["begin", "set transaction read only []", "commit"]);
-    expect(calls.join(" ")).not.toContain("app.user_id");
+    expect(calls).toEqual([
+      "begin",
+      "set transaction read only []",
+      `select set_config('app.user_id', '', true) []`,
+      "commit",
+    ]);
   });
 
   it("rolls back and rethrows when the work fails", async () => {

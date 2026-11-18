@@ -91,4 +91,14 @@ describe("WantToSeeButton", () => {
     expect(html).toContain("Za dużo prób. Spróbuj za chwilę.");
     expect(html).not.toContain("/login");
   });
+
+  it("tells that the list is full (409)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 409 }));
+
+    await click(false);
+
+    expect(render(false)).toContain(
+      "Na liście „Chcę zobaczyć” jest już 200 miejsc, to najwięcej. Usuń któreś, by dodać nowe.",
+    );
+  });
 });

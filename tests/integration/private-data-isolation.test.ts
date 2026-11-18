@@ -8,6 +8,7 @@ import { privateTableSecuritySql } from "@/lib/db/policies";
 import {
   InvalidActorIdError,
   NestedUserContextError,
+  runInGuestContext,
   runInUserContext,
 } from "@/lib/db/user-context";
 import {
@@ -161,6 +162,22 @@ describe("private data isolation", () => {
       userId: null,
     });
     expect(await notesOf(app.em)).toEqual([]);
+  });
+
+  it("shows a guest no actor and no private rows even on a connection left with a session user", async () => {
+    // A future mistake: the identity is set for the whole session, not for one transaction.
+    await app.em.execute(`select set_config('app.user_id', ?, false)`, [alice.id], "get");
+
+    try {
+      const seen = await runInGuestContext(app.em, async ({ em }) => ({
+        user: await em.execute(`select app_current_user_id() as "userId"`, [], "get"),
+        notes: await notesOf(em),
+      }));
+
+      expect(seen).toEqual({ user: { userId: null }, notes: [] });
+    } finally {
+      await app.em.execute(`select set_config('app.user_id', '', false)`, [], "get");
+    }
   });
 
   it("refuses an actor id that is not a UUID instead of running without context", async () => {

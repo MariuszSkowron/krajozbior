@@ -74,7 +74,17 @@ export async function saveCollection(
       return { status: "not_found" } as const;
     }
 
-    await deps.repository.saveCollection(tx, collectionId);
+    // The insert tests visibility itself: a collection withdrawn after the check
+    // above is `not_found`, not a refusal of the row policy.
+    const saved = await deps.repository.saveCollection(tx, collectionId);
+
+    if (saved === "not_found") {
+      return { status: "not_found" } as const;
+    }
+
+    if (saved === "too_many") {
+      return { status: "conflict", reason: "too_many_saved" } as const;
+    }
 
     return { status: "ok", value: { saved: true } } as const;
   });

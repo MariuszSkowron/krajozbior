@@ -72,4 +72,13 @@ describe("SaveCollectionButton", () => {
     await click();
     expect(render(true).status).toBe("Za dużo prób. Spróbuj za chwilę.");
   });
+
+  it("tells that the list of saved collections is full (409)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 409 }));
+
+    await click();
+    expect(render(false).status).toBe(
+      "Masz już 200 zapisanych kolekcji, to najwięcej. Usuń którąś, by zapisać nową.",
+    );
+  });
 });

@@ -7,6 +7,10 @@ import {
   COLLECTION_TITLE_MAX_LENGTH,
 } from "@/features/catalog/domain/collection";
 import {
+  MAX_COLLECTIONS_PER_LIST,
+  MAX_PLACES_PER_COLLECTION,
+} from "@/features/catalog/domain/limits";
+import {
   PLACE_ACCESS_MAX_LENGTH,
   PLACE_ADDRESS_MAX_LENGTH,
   PLACE_DESCRIPTION_MAX_LENGTH,
@@ -75,6 +79,14 @@ export function describeFailure(status: number, body: Body, subject: Subject): F
           );
         case "already_in_collection":
           return failure("To miejsce jest już w kolekcji.");
+        case "too_many_places":
+          return failure(
+            `Kolekcja ma już ${MAX_PLACES_PER_COLLECTION} miejsc, to najwięcej. Usuń któreś, by dodać nowe.`,
+          );
+        case "too_many_collections":
+          return failure(
+            `Organizacja ma już ${MAX_COLLECTIONS_PER_LIST} kolekcji, to najwięcej. Nie da się utworzyć kolejnej.`,
+          );
         default:
           return failure(FALLBACK);
       }

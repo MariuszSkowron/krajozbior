@@ -59,7 +59,9 @@ export async function runInUserContext<T>(
 }
 
 // Public reads for a guest (D-T4): a read-only transaction on krajozbior_app
-// with no `app.user_id`, so app_current_user_id() is NULL. Public policies
+// with `app.user_id` cleared for the transaction, so app_current_user_id() is
+// NULL even on a connection that someone left with a session-level user
+// (defence in depth: today nothing sets it for a session). Public policies
 // (published collection of an approved organization) match without an actor,
 // private ones match nothing. There is no read path that skips row security.
 export async function runInGuestContext<T>(
@@ -72,6 +74,7 @@ export async function runInGuestContext<T>(
 
   return em.transactional(async (tx) => {
     await tx.execute("set transaction read only", [], "run");
+    await tx.execute("select set_config('app.user_id', '', true)", [], "get");
 
     return work({ em: tx });
   });
