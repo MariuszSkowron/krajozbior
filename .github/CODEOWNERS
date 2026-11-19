@@ -134,6 +134,13 @@
 /LICENSE                           @MariuszSkowron
 /scripts/                          @MariuszSkowron
 
+# Obraz produkcyjny, Compose serwera i pokazu lokalnego (granice sieci, flagi demo, logi)
+/Dockerfile                        @MariuszSkowron
+/.dockerignore                     @MariuszSkowron
+/deploy/                           @MariuszSkowron
+/tests/deploy/                     @MariuszSkowron
+/docs/deployment.md                @MariuszSkowron
+
 # Tożsamość agentów: aplikacja GitHub (bot), jej token i jawne identyfikatory.
 # Pokryte już przez /scripts/ i /.github/; wpisy jawne, żeby nie zniknęły przy
 # zmianie tamtych reguł.

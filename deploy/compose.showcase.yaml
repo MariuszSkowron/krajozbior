@@ -1,0 +1,88 @@
+# Nakładka pokazu lokalnego (D-E11-8): ten sam Compose co na serwerze, ale
+#   - projekt `krajozbior-showcase` (sieć krajozbior-showcase_default, wolumen krajozbior-showcase-pgdata),
+#   - aplikacja tylko na 127.0.0.1:3300, baza bez portu na hoście,
+#   - bez Caddy (profil `disabled`) i bez Brevo (skrzynka e-mail w .data/showcase/outbox/),
+#   - flagi demo z deploy/showcase.env, hasła z .data/showcase/secrets.env (przez `--env-file`).
+# Uruchamia ją wyłącznie scripts/showcase/showcase-up.ps1:
+#   docker compose -p krajozbior-showcase -f deploy/compose.yaml -f deploy/compose.showcase.yaml
+#     --env-file .data/showcase/secrets.env ...
+# Ścieżki względne liczą się od katalogu deploy/.
+#
+# Logi: na Windows (Docker Desktop) sterownik journald nie istnieje, więc pokaz używa sterownika
+# `local` z rotacją (3 x 10 MB). Serwer zostaje przy journald (compose.yaml).
+name: krajozbior-showcase
+
+services:
+  db:
+    container_name: krajozbior-showcase-db
+    logging: !override
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  app:
+    container_name: krajozbior-showcase-app
+    image: krajozbior-showcase-app:local
+    logging: !override
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+    ports:
+      - "127.0.0.1:3300:3000"
+    env_file: !override
+      - showcase.env
+    environment:
+      DATABASE_URL: postgres://krajozbior_app:${KRAJOZBIOR_APP_DB_PASSWORD:?run showcase-up.ps1}@db:5432/krajozbior
+      DATABASE_AUTH_URL: postgres://krajozbior_auth:${KRAJOZBIOR_AUTH_DB_PASSWORD:?run showcase-up.ps1}@db:5432/krajozbior
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?run showcase-up.ps1}
+    volumes:
+      - ../.data/showcase/outbox:/app/.data/outbox
+
+  # Bez Caddy: nie startuje, a jego porty 80 i 443 nie są publikowane.
+  proxy:
+    profiles: !override
+      - disabled
+
+  # Polecenia operatora. Kontener dzieli sieć z bazą (`network_mode: service:db`), więc baza jest
+  # dla niego pod `localhost:5432`: bezpieczniki `catalog:import` i `db:seed:demo` (adres bazy musi
+  # być lokalny) działają bez zmian i nie trzeba ich osłabiać.
+  ops:
+    image: krajozbior-showcase-ops:local
+    logging: !override
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+    network_mode: service:db
+    env_file: !override
+      - showcase.env
+    environment:
+      # Jedyne miejsce, gdzie wolno poluzować produkcyjny NODE_ENV z compose.yaml (pokaz wgrywa dane demo).
+      NODE_ENV: development
+      DATABASE_ADMIN_URL: postgres://postgres:${SHOWCASE_PG_PASSWORD:?run showcase-up.ps1}@localhost:5432/krajozbior
+      KRAJOZBIOR_OWNER_DB_PASSWORD: ${KRAJOZBIOR_OWNER_DB_PASSWORD:?run showcase-up.ps1}
+      KRAJOZBIOR_APP_DB_PASSWORD: ${KRAJOZBIOR_APP_DB_PASSWORD:?run showcase-up.ps1}
+      KRAJOZBIOR_AUTH_DB_PASSWORD: ${KRAJOZBIOR_AUTH_DB_PASSWORD:?run showcase-up.ps1}
+      KRAJOZBIOR_OPS_DB_PASSWORD: ${KRAJOZBIOR_OPS_DB_PASSWORD:?run showcase-up.ps1}
+      DATABASE_MIGRATION_URL: postgres://krajozbior_owner:${KRAJOZBIOR_OWNER_DB_PASSWORD}@localhost:5432/krajozbior
+      DATABASE_URL: postgres://krajozbior_app:${KRAJOZBIOR_APP_DB_PASSWORD}@localhost:5432/krajozbior
+      DATABASE_AUTH_URL: postgres://krajozbior_auth:${KRAJOZBIOR_AUTH_DB_PASSWORD}@localhost:5432/krajozbior
+      DATABASE_OPS_URL: postgres://krajozbior_ops:${KRAJOZBIOR_OPS_DB_PASSWORD}@localhost:5432/krajozbior
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?run showcase-up.ps1}
+      DEMO_ACCOUNT_PASSWORD: ${DEMO_ACCOUNT_PASSWORD:?run showcase-up.ps1}
+    volumes:
+      - ../.data/showcase/reports:/app/.ai/tmp/catalog-import
+
+secrets:
+  pg_bootstrap:
+    file: ../.data/showcase/pg-bootstrap
+
+volumes:
+  pgdata:
+    name: krajozbior-showcase-pgdata
+  caddy-data:
+    name: krajozbior-showcase-caddy-data
+  caddy-config:
+    name: krajozbior-showcase-caddy-config

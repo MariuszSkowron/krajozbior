@@ -1,0 +1,19 @@
+# Caddy przed aplikacją (D-E11-2). Domena i certyfikat TLS z Let's Encrypt.
+# Nagłówki bezpieczeństwa (CSP, HSTS, Referrer-Policy) ustawia wyłącznie aplikacja.
+# Dziennik dostępu jest wyłączony; dziennik błędów idzie do journald (retencja 14 dni).
+{
+	log {
+		level ERROR
+	}
+}
+
+www.krajozbior.pl, http://krajozbior.pl, http://www.krajozbior.pl {
+	redir https://krajozbior.pl{uri} permanent
+}
+
+krajozbior.pl {
+	# Adres klienta bierzemy z połączenia TCP, nie z nagłówka przysłanego przez klienta.
+	reverse_proxy app:3000 {
+		header_up X-Real-IP {remote_host}
+	}
+}

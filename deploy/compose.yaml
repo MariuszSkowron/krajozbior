@@ -1,0 +1,126 @@
+# Docker Compose serwera (D-E11-1). Usługi: db (PostgreSQL 17), app (Next.js),
+# proxy (Caddy) i jednorazowe ops (polecenia operatora).
+#
+# Zasady, które pilnuje test tests/deploy/compose-config.test.ts:
+#   - sekcję `ports:` ma wyłącznie `proxy` (Docker omija zaporę ufw dla opublikowanych portów),
+#   - każda usługa ma `restart: unless-stopped` i sterownik logów journald (D-E11-5),
+#   - tu nie ma zmiennych pokazu ani trzech flag demo (lista w docs/deployment.md);
+#     leżą w deploy/showcase.env i nakładce compose.showcase.yaml,
+#   - hasło superużytkownika bazy jest jednorazowym plikiem (D-E11-11), nie zmienną środowiska.
+# Ścieżki względne liczą się od katalogu tego pliku (deploy/).
+name: krajozbior
+
+x-logging: &logging
+  driver: journald
+  options:
+    tag: "krajozbior-{{.Name}}"
+
+services:
+  db:
+    # Przypięte skrótem jak Node i Caddy. Odświeżenie: `docker pull postgres:17`, potem
+    # `docker inspect --format '{{index .RepoDigests 0}}' postgres:17`.
+    image: postgres:17@sha256:b8faeff7712663c2773a190181e1246e37e364b887611c04658c28b44e2408fe
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: krajozbior
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_bootstrap
+      # Bez `trust` w pg_hba.conf: gniazdo tylko dla `peer` (docker exec -u postgres), TCP zawsze
+      # z hasłem (także z 127.0.0.1). Ustawienie zapisuje się przy pierwszej inicjalizacji wolumenu.
+      POSTGRES_INITDB_ARGS: "--auth-local=peer --auth-host=scram-sha-256"
+    # Logi bez danych osobowych (D-E11-5): żadnych instrukcji, parametrów ani linii DETAIL.
+    command:
+      - postgres
+      - -c
+      - log_statement=none
+      - -c
+      - log_min_duration_statement=-1
+      - -c
+      - log_parameter_max_length=0
+      - -c
+      - log_parameter_max_length_on_error=0
+      - -c
+      - log_error_verbosity=terse
+      - -c
+      - log_connections=off
+      - -c
+      - log_disconnections=off
+    secrets:
+      - pg_bootstrap
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d krajozbior"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    image: krajozbior-app:${IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    logging: *logging
+    env_file:
+      - path: ${KRAJOZBIOR_ENV_FILE:-/srv/krajozbior/.env.production}
+        required: false
+    depends_on:
+      db:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  proxy:
+    image: caddy:2@sha256:4851e54a46b206517c574821bb5cc67f170d2156041e9fbc4c9193b45e84a75b
+    restart: unless-stopped
+    logging: *logging
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+  # Jednorazowe polecenia operatora: `docker compose run --rm ops npm run db:migrate`.
+  # Nie startuje z `up` (profil), a `run` i tak ignoruje politykę restartu.
+  ops:
+    image: krajozbior-ops:${IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: ops
+    restart: unless-stopped
+    logging: *logging
+    profiles:
+      - ops
+    env_file:
+      - path: ${KRAJOZBIOR_ENV_FILE:-/srv/krajozbior/.env.production}
+        required: false
+    # Na serwerze `catalog:import` i `db:seed:demo` odmawiają w produkcji niezależnie od adresu
+    # bazy. Kontener nie dzieli sieci z bazą (pilnuje tego test); tylko nakładka pokazu nadpisuje NODE_ENV.
+    environment:
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+
+secrets:
+  pg_bootstrap:
+    file: ${PG_BOOTSTRAP_FILE:-/run/krajozbior/pg-bootstrap}
+
+volumes:
+  pgdata:
+    name: krajozbior-pgdata
+  caddy-data:
+    name: krajozbior-caddy-data
+  caddy-config:
+    name: krajozbior-caddy-config

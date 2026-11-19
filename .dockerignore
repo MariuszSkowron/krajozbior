@@ -1,0 +1,22 @@
+# Lista dozwolonych plików: do obrazu trafia tylko to, co jest potrzebne do budowy
+# i poleceń operatora. Sekrety (.env*), historia git, dane lokalne i katalogi
+# robocze agentów nie wchodzą do kontekstu budowy (D-E11-3).
+*
+
+!package.json
+!package-lock.json
+!next.config.ts
+!tsconfig.json
+!mikro-orm.config.ts
+!src/
+!scripts/
+!public/
+
+# Wyjątki w dozwolonych katalogach
+**/.env*
+**/.snapshot-*.json
+**/node_modules
+**/.next
+scripts/test-env
+scripts/showcase
+scripts/*.ps1
