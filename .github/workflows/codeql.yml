@@ -25,7 +25,6 @@ jobs:
     # Unlike CI and the guard job (which run on drafts too), CodeQL skips draft
     # PRs and starts when one is marked ready. It is not a required check, so
     # a skipped run blocks nothing.
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

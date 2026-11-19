@@ -37,6 +37,8 @@ Gdy nie masz Dockera, **nie uruchamiaj** `npm run test:integration` lokalnie i z
 
 Zasady: spece dzielące konto demo i fikstury nie mogą zużywać tych samych zasobów; testy niczego nie zapisujące uruchamiaj przed zużywającymi. Nagłówki bezpieczeństwa sprawdzaj w E2E na buildzie produkcyjnym, nie tylko jednostkowo. axe nie działa przy wyłączonym JavaScripcie (zob. `<docs>/.ai/lessons.md`). Agent, który nie może nadpisać wyników innego przebiegu, zapisuje je do osobnego katalogu (`npx playwright test --workers=1 --output=test-results-<krok>`); git i Prettier pomijają wszystkie katalogi `test-results*/`, więc `npm run check` się o nie nie potyka. Sprzątanie w specach usuwa tylko dane utworzone przez dany test (po identyfikatorach), a nie wszystkie dane kont demo.
 
+Lokatory regionów ogłaszanych (`getByRole("status")`, `getByRole("alert")`) zawsze zawężaj: filtrem po treści (`.filter({ hasText: "…" })`) albo do konkretnego kontenera. Next.js dodaje na każdej stronie własny ogłaszacz tras z `role="alert"`, a sekcje strony (np. „W okolicy” na stronie głównej) mają stałe, zwykle puste regiony `role="status"`. Niezawężony lokator działa, dopóki na stronie jest jeden taki region, a pada w trybie ścisłym Playwright, gdy ktoś doda następny w innym miejscu. Przy dodaniu nowego regionu `status` albo `alert` przeszukaj spece pod kątem niezawężonych lokatorów.
+
 ## Lokalne środowisko testowe (Windows)
 
 Skrypty w `scripts/test-env/` odtwarzają lokalnie joby `integration` i `e2e` z CI. Nie dotykają bazy deweloperskiej (`127.0.0.1:5432`) ani portu 3000.
