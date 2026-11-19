@@ -36,6 +36,22 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // Ręczne escapowanie przed budową wyrażenia regularnego: CodeQL zgłasza
+  // "incomplete string escaping" (e2e/home.spec.ts, e2e/nearby.spec.ts).
+  {
+    files: ["src/**", "e2e/**", "tests/**", "scripts/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            ":matches(NewExpression, CallExpression)[callee.name='RegExp'] > CallExpression.arguments:first-child[callee.property.name=/^replace(All)?$/]",
+          message:
+            "Nie buduj RegExp z wyniku .replace(): ręczne escapowanie łatwo pominąć znak (CodeQL: incomplete string escaping). Użyj dopasowania tekstowego (Playwright: ciąg znaków zamiast wyrażenia, string.includes) albo helpera, który escapuje wszystkie znaki specjalne.",
+        },
+      ],
+    },
+  },
   // Zależności design systemu idą tylko w dół (docs/design/architecture.md).
   {
     files: ["src/design-system/**"],
