@@ -1,4 +1,4 @@
-import { isLoopbackHost } from "@/lib/config/loopback";
+import { isLocalDatabaseUrl } from "@/lib/config/loopback";
 
 // Local guards of the loader (the limit of curator writes is off for it, so
 // it must never run against a shared or production database). Pure: the runner
@@ -16,14 +16,6 @@ export class UnsafeImportEnvironmentError extends Error {
   }
 }
 
-function hostOf(value: string | undefined): string | null {
-  try {
-    return new URL(value ?? "").hostname;
-  } catch {
-    return null;
-  }
-}
-
 export function assertSafeImportEnvironment(
   env: Readonly<{
     NODE_ENV?: string | undefined;
@@ -36,9 +28,7 @@ export function assertSafeImportEnvironment(
   }
 
   for (const value of [env.DATABASE_URL, env.DATABASE_OPS_URL]) {
-    const host = hostOf(value);
-
-    if (host === null || !isLoopbackHost(host)) {
+    if (!isLocalDatabaseUrl(value)) {
       throw new UnsafeImportEnvironmentError("non_local_database");
     }
   }

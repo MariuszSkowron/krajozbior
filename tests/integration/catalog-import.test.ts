@@ -50,6 +50,9 @@ const curB = user("cur-b");
 const curS = user("cur-s");
 const curR = user("cur-r");
 const outsider = user("outsider");
+const curU = user("cur-u");
+const curP = user("cur-p");
+const curL = user("cur-l");
 
 const admin$ = <T>(sql: string, params: unknown[] = []) =>
   withClient(db.adminUrl, async (client) => (await client.query(sql, params)).rows as T[]);
@@ -128,7 +131,7 @@ describe("loading a collection file", () => {
     db = await createScratchDatabase("krajozbior_integration_catalog_load");
     await db.migrate();
 
-    for (const { id, email } of [curA, curB, curS, curR, outsider]) {
+    for (const { id, email } of [curA, curB, curS, curR, outsider, curU, curP, curL]) {
       await admin$(`insert into auth.users (id, name, email) values ($1, $2, $3)`, [
         id,
         email.split("@")[0],
@@ -141,6 +144,9 @@ describe("loading a collection file", () => {
       ["gmina-b", curB],
       ["gmina-s", curS],
       ["gmina-r", curR],
+      ["gmina-u", curU],
+      ["gmina-p", curP],
+      ["gmina-l", curL],
     ] as const) {
       const [{ id }] = await admin$<{ id: string }>(
         `insert into public.organizations (name, slug, kind) values ($1, $2, 'municipality') returning id`,
@@ -521,5 +527,239 @@ describe("loading a collection file", () => {
     expect(await admin$(`select 1 from collections where title = 'Kolekcja testowa pięć'`)).toEqual(
       [],
     );
+  });
+});
+
+// Reloading a new version of the file (M2 of the review): what the loader
+// writes after a change must be what the next load reads, or the next load
+// reports a false manual edit (and, later, overwrites a real one).
+type FileLine = Record<string, unknown>;
+
+const fileLines = (): FileLine[] =>
+  fixture
+    .split("\n")
+    .filter((line) => line.trim() !== "")
+    .map((line) => JSON.parse(line) as FileLine);
+const fileText = (lines: readonly FileLine[]) => lines.map((l) => JSON.stringify(l)).join("\n");
+const byKey = (lines: readonly FileLine[], key: string) =>
+  lines.find((l) => l.import_key === key) as FileLine;
+
+describe("reloading a new version of the file", () => {
+  let current: string;
+
+  beforeAll(async () => {
+    db = await createScratchDatabase("krajozbior_integration_catalog_reload");
+    await db.migrate();
+
+    for (const [curator, slug] of [
+      [curU, "gmina-u"],
+      [curP, "gmina-p"],
+      [curL, "gmina-l"],
+    ] as const) {
+      await admin$(`insert into auth.users (id, name, email) values ($1, $2, $3)`, [
+        curator.id,
+        slug,
+        curator.email,
+      ]);
+
+      const [{ id }] = await admin$<{ id: string }>(
+        `insert into public.organizations (name, slug, kind) values ($1, $1, 'municipality') returning id`,
+        [slug],
+      );
+
+      await admin$(
+        `insert into public.organization_members (organization_id, user_id) values ($1, $2)`,
+        [id, curator.id],
+      );
+    }
+
+    appOrm = await MikroORM.init(createOrmConfig(db.urls.krajozbior_app));
+  }, 60_000);
+
+  afterAll(async () => {
+    await appOrm?.close(true);
+    await db?.drop();
+  });
+
+  const importedState = async (slug: string) =>
+    admin$<{ import_key: string; imported_version: number; imported_places: string[] | null }>(
+      `select k.import_key, k.imported_version, k.imported_places
+         from catalog_import_keys k join organizations o on o.id = k.organization_id
+        where o.slug = $1 order by k.import_key`,
+      [slug],
+    );
+
+  it("(a) updates a place from the new version of the file and records the version it wrote", async () => {
+    done(await load(curU, "gmina-u"));
+
+    const lines = fileLines();
+
+    byKey(lines, "ext:TEST-0001").name = "Miejsce testowe pierwsze, nowa nazwa";
+    byKey(lines, "ext:TEST-0003").address = "Nowy adres testowy";
+    current = fileText(lines);
+
+    const reports = done(await load(curU, "gmina-u", current));
+
+    expect(results(reports)).toEqual([
+      { result: "noop", composition: "noop", places: ["updated", "noop"] },
+      { result: "noop", composition: "noop", places: ["noop", "updated"] },
+    ]);
+    expect(await admin$(`select name from places where name like '%nowa nazwa'`)).toHaveLength(1);
+
+    const stored = await admin$<{ import_key: string; version: number; imported_version: number }>(
+      `select k.import_key, p.version, k.imported_version
+         from catalog_import_keys k join places p on p.id = k.entity_id
+        where k.entity_kind = 'place' order by k.import_key`,
+    );
+
+    expect(stored).toHaveLength(3);
+    expect(stored.every((row) => row.version === row.imported_version)).toBe(true);
+  });
+
+  it("(b) changes the composition and order of an untouched draft and records the places in order", async () => {
+    const lines = fileLines();
+
+    byKey(lines, "ext:TEST-0001").name = "Miejsce testowe pierwsze, nowa nazwa";
+    byKey(lines, "ext:TEST-0003").address = "Nowy adres testowy";
+
+    const extra = {
+      ...byKey(lines, "ext:TEST-0003"),
+      import_key: "ext:TEST-0004",
+      name: "Miejsce testowe czwarte",
+    };
+
+    lines.push(extra);
+    // Collection one: drops TEST-0002 (still in collection two), adds TEST-0003
+    // and the new TEST-0004, in a new order.
+    byKey(lines, "col:testowa-jeden").places = ["ext:TEST-0004", "ext:TEST-0001", "ext:TEST-0003"];
+    current = fileText(lines);
+
+    const reports = done(await load(curU, "gmina-u", current));
+
+    expect(results(reports)).toEqual([
+      { result: "updated", composition: "synced", places: ["created", "noop", "noop"] },
+      { result: "noop", composition: "noop", places: ["noop", "noop"] },
+    ]);
+    expect(await placeNamesOf("Kolekcja testowa jeden")).toEqual([
+      "Miejsce testowe czwarte",
+      "Miejsce testowe pierwsze, nowa nazwa",
+      "Miejsce testowe trzecie",
+    ]);
+    // The removed place stays in the organization and in the other collection.
+    expect(await placeNamesOf("Kolekcja testowa dwa")).toEqual([
+      "Miejsce testowe drugie",
+      "Miejsce testowe trzecie",
+    ]);
+
+    const [collection] = await admin$<{ id: string; imported_places: string[] }>(
+      `select c.id, k.imported_places from collections c
+         join catalog_import_keys k on k.entity_id = c.id
+        where c.title = 'Kolekcja testowa jeden'`,
+    );
+    const inOrder = await admin$<{ place_id: string }>(
+      `select place_id from collection_places where collection_id = $1 order by position`,
+      [collection!.id],
+    );
+
+    expect(collection!.imported_places).toEqual(inOrder.map((row) => row.place_id));
+  });
+
+  it("(c) loading the same new version again is a noop and writes nothing", async () => {
+    const collections = await admin$(`select id, version from collections order by id`);
+    const places = await admin$(`select id, version from places order by id`);
+    const state = await importedState("gmina-u");
+    const keys = await admin$(
+      `select entity_id, imported_at from catalog_import_keys order by entity_id`,
+    );
+    const reports = done(await load(curU, "gmina-u", current));
+
+    expect(results(reports)).toEqual([
+      { result: "noop", composition: "noop", places: ["noop", "noop", "noop"] },
+      { result: "noop", composition: "noop", places: ["noop", "noop"] },
+    ]);
+    expect(await admin$(`select id, version from collections order by id`)).toEqual(collections);
+    expect(await admin$(`select id, version from places order by id`)).toEqual(places);
+    expect(await importedState("gmina-u")).toEqual(state);
+    expect(
+      await admin$(`select entity_id, imported_at from catalog_import_keys order by entity_id`),
+    ).toEqual(keys);
+  });
+
+  it("(d) a published collection keeps its composition; its places still follow the file, new ones are not created", async () => {
+    done(await load(curP, "gmina-p"));
+    await admin$(
+      `update collections set status = 'published', first_published_at = now(), version = version + 1
+        where title = 'Kolekcja testowa jeden'`,
+    );
+
+    const lines = fileLines();
+
+    byKey(lines, "ext:TEST-0001").name = "Miejsce testowe pierwsze, w opublikowanej";
+    lines.push({
+      ...byKey(lines, "ext:TEST-0003"),
+      import_key: "ext:TEST-0004",
+      name: "Miejsce testowe czwarte",
+    });
+    byKey(lines, "col:testowa-jeden").places = ["ext:TEST-0002", "ext:TEST-0001", "ext:TEST-0004"];
+
+    const text = fileText(lines);
+    const before = await placeNamesOf("Kolekcja testowa jeden");
+    const placesBefore = (await counts("gmina-p")).places;
+    const first = done(await load(curP, "gmina-p", text));
+
+    expect(first[0]).toMatchObject({
+      result: "skipped_already_published",
+      composition: "skipped_already_published",
+    });
+    expect(first[0]!.places.map((p) => p.result)).toEqual([
+      "noop",
+      "updated",
+      "skipped_collection_kept",
+    ]);
+    expect(await placeNamesOf("Kolekcja testowa jeden")).toEqual(
+      before.map((name) =>
+        name === "Miejsce testowe pierwsze" ? "Miejsce testowe pierwsze, w opublikowanej" : name,
+      ),
+    );
+    // No place was created for the new key; the second collection (a draft) is untouched.
+    expect((await counts("gmina-p")).places).toBe(placesBefore);
+    expect(first[1]!.result).toBe("noop");
+
+    const state = await importedState("gmina-p");
+    const again = done(await load(curP, "gmina-p", text));
+
+    expect(again[0]).toMatchObject({ result: "skipped_already_published" });
+    expect(again[0]!.places.map((p) => p.result)).toEqual([
+      "noop",
+      "noop",
+      "skipped_collection_kept",
+    ]);
+    expect(await importedState("gmina-p")).toEqual(state);
+  });
+
+  it("(L6) a refusal after a place was created rolls back the place and its key with the collection", async () => {
+    const deps = makeDeps(appOrm);
+    let inserted = 0;
+    const failing: CatalogImportDeps = {
+      ...deps,
+      imports: {
+        ...deps.imports,
+        insertKey: async (tx, organizationId, kind, importKey, values) => {
+          if (kind === "place" && ++inserted === 2) {
+            throw new Error("injected failure after the first place was created");
+          }
+
+          return deps.imports.insertKey(tx, organizationId, kind, importKey, values);
+        },
+      },
+    };
+
+    await expect(
+      executeCatalogImport(
+        { actor: curL, orgSlug: "gmina-l", file: parse(fixture), preview: false },
+        failing,
+      ),
+    ).rejects.toThrow(/injected failure/);
+    expect(await counts("gmina-l")).toEqual({ collections: 0, places: 0, keys: 0 });
   });
 });

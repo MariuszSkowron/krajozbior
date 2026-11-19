@@ -314,6 +314,10 @@ describe("assertSafeImportEnvironment", () => {
     { ...local, DATABASE_OPS_URL: "postgres://u:secret@10.0.0.5/x" },
     { ...local, DATABASE_URL: undefined },
     { ...local, DATABASE_OPS_URL: "not a url" },
+    { ...local, DATABASE_URL: "postgres://u:secret@localhost/x?host=example.com" },
+    { ...local, DATABASE_OPS_URL: "postgres://u:secret@127.0.0.1/x?hostaddr=10.0.0.5" },
+    { ...local, DATABASE_OPS_URL: "postgres://u:secret@localhost/x?HOST=example.com" },
+    { ...local, DATABASE_URL: "postgres://u:secret@localhost,example.com/x" },
   ])("refuses a database outside localhost without echoing the URL", (env) => {
     try {
       assertSafeImportEnvironment(env);

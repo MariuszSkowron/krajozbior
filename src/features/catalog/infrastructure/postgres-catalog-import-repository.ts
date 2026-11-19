@@ -91,11 +91,12 @@ export const postgresCatalogImportRepository: CatalogImportRepository = {
     importKey: string,
     values: ImportKeyValues,
   ) {
-    await tx.em.execute(
+    const rows = await tx.em.execute<unknown[]>(
       `update public.catalog_import_keys
           set entity_id = ?, batch_id = ?, imported_version = ?,
               imported_places = ${placesSql}, imported_at = now()
-        where organization_id = ? and entity_kind = ? and import_key = ?`,
+        where organization_id = ? and entity_kind = ? and import_key = ?
+        returning import_key`,
       [
         values.entityId,
         values.batchId,
@@ -106,6 +107,12 @@ export const postgresCatalogImportRepository: CatalogImportRepository = {
         importKey,
       ],
     );
+
+    // A policy that hides the row makes the update change nothing, silently;
+    // the error rolls the whole collection back instead.
+    if (rows.length !== 1) {
+      throw new Error("catalog_import_keys: the update changed no row");
+    }
   },
 
   async countCollections(tx, organizationId) {

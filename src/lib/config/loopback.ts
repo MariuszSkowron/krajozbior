@@ -15,19 +15,33 @@ export class NonLocalDatabaseError extends Error {
   }
 }
 
-// Refuses a connection string whose host is not loopback, a Unix socket or an
-// unparsable value included, so a production DATABASE_AUTH_URL never gets
-// accounts with the shared demo password.
-export function assertLocalDatabaseUrl(value: string | undefined): void {
-  let hostname = "";
+// True only for a connection string that certainly stays on this machine. The
+// pg driver (pg-connection-string) takes the host from the `host` query
+// parameter (and `hostaddr`) over the one in the authority, so the authority
+// alone proves nothing: any `host*` parameter, a Unix socket path included, an
+// unparsable value, a list of hosts or a non-loopback host gives false.
+export function isLocalDatabaseUrl(value: string | undefined): boolean {
+  let url: URL;
 
   try {
-    hostname = new URL(value ?? "").hostname;
+    url = new URL(value ?? "");
   } catch {
-    throw new NonLocalDatabaseError();
+    return false;
   }
 
-  if (!isLoopbackHost(hostname)) {
+  for (const key of url.searchParams.keys()) {
+    if (key.toLowerCase().startsWith("host")) {
+      return false;
+    }
+  }
+
+  return isLoopbackHost(url.hostname);
+}
+
+// Refuses a connection string that is not local (see isLocalDatabaseUrl), so a
+// production DATABASE_AUTH_URL never gets accounts with the shared demo password.
+export function assertLocalDatabaseUrl(value: string | undefined): void {
+  if (!isLocalDatabaseUrl(value)) {
     throw new NonLocalDatabaseError();
   }
 }
