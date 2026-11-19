@@ -292,7 +292,9 @@ test.describe("the map view of a collection", () => {
     const page = await context.newPage();
 
     await page.goto(MAP);
-    await expect(page.getByText("Mapa wymaga JavaScriptu")).toBeVisible();
+    // Playwright's text engine skips <noscript>, so read its element directly.
+    await expect(page.locator("noscript p")).toHaveText(/Mapa wymaga JavaScriptu/);
+    await expect(page.getByText("Wczytuję mapę…")).toBeHidden();
     await expect(page.getByRole("link", { name: /Most Tczewski/ })).toBeVisible();
     await context.close();
   });

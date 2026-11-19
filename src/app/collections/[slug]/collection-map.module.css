@@ -28,6 +28,11 @@
   font-size: var(--font-size-sm);
 }
 
+/* Wiersz „Wczytuję mapę…”; bez JavaScriptu chowa go <noscript> na stronie kolekcji. */
+.loading {
+  min-height: var(--size-touch-min);
+}
+
 .legend {
   display: flex;
   flex-wrap: wrap;

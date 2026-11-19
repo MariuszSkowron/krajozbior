@@ -9,7 +9,7 @@ import type { MapPlace } from "./collection-map";
 // compressed) is fetched when this view is rendered, i.e. after the explorer picks the map.
 const CollectionMap = dynamic(() => import("./collection-map"), {
   ssr: false,
-  loading: () => <p className={styles.notice}>Wczytuję mapę…</p>,
+  loading: () => <p className={`${styles.notice} ${styles.loading}`}>Wczytuję mapę…</p>,
 });
 
 export function CollectionMapLoader({ places }: { places: readonly MapPlace[] }) {

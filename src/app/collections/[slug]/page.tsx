@@ -36,6 +36,7 @@ import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-
 import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
 import panelStyles from "./album.module.css";
+import mapStyles from "./collection-map.module.css";
 import { CollectionMapLoader } from "./collection-map-loader";
 import { CollectionPlaces } from "./collection-places";
 import { PlaceCardLink } from "./place-card-link";
@@ -277,6 +278,8 @@ export default async function CollectionPage({
                   />
                 )}
                 <noscript>
+                  {/* Without JavaScript the "loading" line would never go away: hide it. */}
+                  <style>{`.${mapStyles.loading}{display:none}`}</style>
                   <p className={panelStyles.empty}>
                     Mapa wymaga JavaScriptu. Miejsca są na liście poniżej.
                   </p>
