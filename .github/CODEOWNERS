@@ -98,6 +98,10 @@
 /src/app/page.tsx                  @MariuszSkowron
 /src/app/home/                     @MariuszSkowron
 /e2e/home.spec.ts                  @MariuszSkowron
+# „W okolicy” (E12-3): lokalizacja urządzenia jest czytana tylko po kliknięciu i nie opuszcza
+# przeglądarki; ten test pilnuje tej granicy (sam komponent leży w /src/app/home/)
+/e2e/nearby.spec.ts                @MariuszSkowron
+/tests/app/nearby-collections.test.ts @MariuszSkowron
 
 # Wyszukiwarka publiczna (E12-2): granica „tylko opublikowane” (kolekcje i miejsca z publicznych
 # kolekcji zatwierdzonych organizacji); test dostępu jest w /tests/integration/

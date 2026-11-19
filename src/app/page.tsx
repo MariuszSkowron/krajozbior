@@ -3,13 +3,17 @@ import Link from "next/link";
 import { getRequestActor, logActorFailure, logReadFailure } from "@/app/request-actor";
 import { getHomeAlbum } from "@/features/album/application/home-album";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
-import { listRecentlyPublishedCollections } from "@/features/catalog/application/public-catalog";
+import {
+  listNearbyCandidates,
+  listRecentlyPublishedCollections,
+} from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import type { Actor } from "@/features/identity/domain/actor";
 
 import { AlbumSummary } from "./home/album-summary";
 import { CollectionsToDiscover } from "./home/collections-to-discover";
 import { FavoriteCollections } from "./home/favorite-collections";
+import { NearbyCollections } from "./home/nearby-collections";
 import { RecentVisits } from "./home/recent-visits";
 import styles from "./home.module.css";
 import { SearchForm } from "./search/search-form";
@@ -32,6 +36,18 @@ async function loadDiscover() {
     return await listRecentlyPublishedCollections(DISCOVER_LIMIT, getCatalogDeps());
   } catch (error) {
     logReadFailure("Home collections read", error);
+
+    return null;
+  }
+}
+
+// The list for "W okolicy": public, the same for everyone. The distance is counted in the
+// browser, so the position of the device never comes here (E12-3).
+async function loadNearby() {
+  try {
+    return await listNearbyCandidates(getCatalogDeps());
+  } catch (error) {
+    logReadFailure("Home nearby read", error);
 
     return null;
   }
@@ -64,8 +80,9 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const signOutFailed = first(params.wylogowanie) === "blad";
   // Only a signal for the message after deleting the account (E9-5).
   const accountDeleted = first(params.konto) === "usuniete";
-  const [discover, album] = await Promise.all([
+  const [discover, nearby, album] = await Promise.all([
     loadDiscover(),
+    loadNearby(),
     actor === null ? Promise.resolve(null) : loadAlbum(actor),
   ]);
 
@@ -122,6 +139,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           <FavoriteCollections collections={album.favorites} />
         </>
       )}
+      <NearbyCollections candidates={nearby} />
       {album === null ? null : <RecentVisits visits={album.recentVisits} />}
       <CollectionsToDiscover collections={discover} />
     </div>

@@ -1,4 +1,5 @@
 import { MAX_COLLECTIONS_PER_LIST } from "../domain/limits";
+import type { NearbyCandidate } from "../domain/nearby";
 import { isUuid } from "../domain/uuid";
 import type {
   CatalogDeps,
@@ -45,6 +46,17 @@ export async function listRecentlyPublishedCollections(
 
   return deps.withGuestContext((tx) =>
     deps.repository.listRecentlyPublishedCollections(tx, bounded),
+  );
+}
+
+/**
+ * Public list for "W okolicy" (E12-3, D-E12-9): collections with the centre of their places, in
+ * the guest context (a curator gets what a guest gets). The distance is counted in the browser;
+ * the server never sees the position of the device. At most MAX_COLLECTIONS_PER_LIST (D-25).
+ */
+export async function listNearbyCandidates(deps: CatalogDeps): Promise<readonly NearbyCandidate[]> {
+  return deps.withGuestContext((tx) =>
+    deps.repository.listNearbyCandidates(tx, MAX_COLLECTIONS_PER_LIST),
   );
 }
 
