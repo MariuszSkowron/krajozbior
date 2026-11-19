@@ -29,6 +29,8 @@ Testy szkieletu:
 
 Każda nowa tabela z danymi prywatnymi dodaje w swojej zmianie test na harnessie: `findRowLevelSecurityGaps` dla tabeli oraz odmowę odczytu i zapisu cudzych wierszy przez połączenie `krajozbior_app`. Każda funkcja używająca danych prywatnych lub roli z zakresem wymaga testu integracyjnego potwierdzającego odmowę dostępu bez uprawnień (`docs/data-isolation.md`, sekcja 5).
 
+Test wgrywania kolekcji z pliku (`tests/integration/catalog-import.test.ts`) tworzy własne bazy na tym samym serwerze; opis polecenia jest w `docs/catalog-import.md`.
+
 Gdy nie masz Dockera, **nie uruchamiaj** `npm run test:integration` lokalnie i zapisz `blocked` (zob. `docs/engineering.md`). `npm run check` nie uruchamia integracji: zmiana kształtu odpowiedzi przypadku użycia bez przebiegu `test:integration` nie jest gotowa.
 
 ## E2E
