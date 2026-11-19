@@ -7,6 +7,7 @@ import type { CatalogDeps } from "@/features/catalog/application/catalog-types";
 import {
   getPublishedCollection,
   getPublishedPlace,
+  listNearbyCandidates,
   listRecentlyPublishedCollections,
 } from "@/features/catalog/application/public-catalog";
 import { postgresCatalogRepository } from "@/features/catalog/infrastructure/postgres-catalog-repository";
@@ -504,6 +505,132 @@ describe("public read of collections and places (guest context)", () => {
         "summary",
         "title",
       ]);
+    });
+  });
+
+  // E12-3 (own block of this PR): the public list for "W okolicy" with the centre of the places.
+  describe("list for W okolicy (E12-3)", () => {
+    const placeAt = async (
+      actor: { id: string },
+      organizationId: string,
+      name: string,
+      latitude: number,
+      longitude: number,
+    ) =>
+      (
+        await as(
+          actor,
+          `insert into public.places (organization_id, name, description, address, access_info, latitude, longitude)
+           values (?, ?, 'Opis', 'Adres', 'Dostęp', ?, ?) returning id`,
+          [organizationId, name, latitude, longitude],
+        )
+      )[0]!.id as string;
+
+    it("gives the centre and the number of the places of a published collection, public fields only", async () => {
+      const open = await newCollection(curB, orgB, "W okolicy: publiczna");
+
+      await link(curB, open.id, await placeAt(curB, orgB, "Okolica 1", 54, 18), orgB, 1);
+      await link(curB, open.id, await placeAt(curB, orgB, "Okolica 2", 54.2, 18.4), orgB, 2);
+      await publish(curB, open.id);
+
+      const found = (await listNearbyCandidates(deps)).find((entry) => entry.slug === open.slug);
+
+      expect(found).toMatchObject({
+        slug: open.slug,
+        title: "W okolicy: publiczna",
+        region: "pomorskie",
+        placeCount: 2,
+      });
+      expect(found!.centerLat).toBeCloseTo(54.1, 9);
+      expect(found!.centerLon).toBeCloseTo(18.2, 9);
+      expect(typeof found!.firstPublishedAt).toBe("string");
+      expect(Object.keys(found!).sort()).toEqual([
+        "centerLat",
+        "centerLon",
+        "firstPublishedAt",
+        "placeCount",
+        "region",
+        "slug",
+        "title",
+      ]);
+    });
+
+    it("leaves out a draft, a withdrawn collection and one of a suspended organization, also for its curator", async () => {
+      const draft = await newCollection(curB, orgB, "W okolicy: szkic");
+      const withdrawn = await newCollection(curB, orgB, "W okolicy: wycofana");
+      const suspended = await newCollection(curA, orgA, "W okolicy: zawieszona");
+
+      await link(curB, draft.id, await placeAt(curB, orgB, "Miejsce szkicu", 54, 18), orgB, 1);
+      await link(
+        curB,
+        withdrawn.id,
+        await placeAt(curB, orgB, "Miejsce wycofanej", 54, 18),
+        orgB,
+        1,
+      );
+      await link(
+        curA,
+        suspended.id,
+        await placeAt(curA, orgA, "Miejsce zawieszonej", 54, 18),
+        orgA,
+        1,
+      );
+      await publish(curB, withdrawn.id);
+      await unpublish(curB, withdrawn.id);
+      await publish(curA, suspended.id);
+      await admin$(`update public.organizations set status = 'suspended' where id = $1`, [orgA]);
+
+      try {
+        // The owners can read their own non-public collections ...
+        expect(
+          await as(curB, `select id from public.collections where id in (?, ?)`, [
+            draft.id,
+            withdrawn.id,
+          ]),
+        ).toHaveLength(2);
+
+        // ... and the public list still has none of them.
+        const slugs = (await listNearbyCandidates(deps)).map((entry) => entry.slug);
+
+        expect(slugs).not.toContain(draft.slug);
+        expect(slugs).not.toContain(withdrawn.slug);
+        expect(slugs).not.toContain(suspended.slug);
+      } finally {
+        await admin$(`update public.organizations set status = 'approved' where id = $1`, [orgA]);
+      }
+    });
+
+    it("counts only the places of the collection itself, also when one lies in a draft too", async () => {
+      const open = await newCollection(curB, orgB, "W okolicy: wspólne miejsce");
+      const draft = await newCollection(curB, orgB, "W okolicy: szkic ze wspólnym");
+      const shared = await placeAt(curB, orgB, "Wspólne", 54, 18);
+      const far = await placeAt(curB, orgB, "Tylko w szkicu", 10, 10);
+
+      await link(curB, open.id, shared, orgB, 1);
+      await link(curB, draft.id, shared, orgB, 1);
+      await link(curB, draft.id, far, orgB, 2);
+      await publish(curB, open.id);
+
+      const list = await listNearbyCandidates(deps);
+      const found = list.find((entry) => entry.slug === open.slug);
+
+      expect(found).toMatchObject({ placeCount: 1, centerLat: 54, centerLon: 18 });
+      expect(list.map((entry) => entry.slug)).not.toContain(draft.slug);
+    });
+
+    it("leaves out a published collection that has no place", async () => {
+      const empty = await newCollection(curB, orgB, "W okolicy: pusta");
+
+      // A collection may be published without a place by the owner of the database only; the
+      // list must not break on it (no centre, so no entry).
+      await admin$(
+        `update public.collections set status = 'published', published_at = now(), first_published_at = now() where id = $1`,
+        [empty.id],
+      );
+
+      expect((await listNearbyCandidates(deps)).map((entry) => entry.slug)).not.toContain(
+        empty.slug,
+      );
     });
   });
 });

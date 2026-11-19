@@ -506,6 +506,42 @@ export const postgresCatalogRepository: CatalogRepository = {
     };
   },
 
+  async listNearbyCandidates(tx, limit) {
+    // Public data only: the guest context, the collection published by an approved organization,
+    // and only the places that lie in a public collection (the same fragments as the album).
+    // A collection without such a place has no centre and does not come back.
+    const rows = await tx.em.execute<
+      {
+        slug: string;
+        title: string;
+        region: string;
+        placeCount: number;
+        centerLat: number;
+        centerLon: number;
+        firstPublishedAt: Date | null;
+      }[]
+    >(
+      `select c.slug, c.title, c.region, count(*)::int as "placeCount",
+              avg(p.latitude)::float8 as "centerLat", avg(p.longitude)::float8 as "centerLon",
+              c.first_published_at as "firstPublishedAt"
+         from public.collections c
+         join public.organizations o on o.id = c.organization_id
+         join public.collection_places cp on cp.collection_id = c.id
+         join public.places p on p.id = cp.place_id
+        where ${publishedCollection} and ${placeInPublicCollection}
+        group by c.id
+       having count(*) > 0
+        order by c.first_published_at desc nulls last, c.id
+        limit ?`,
+      [limit],
+    );
+
+    return rows.map(({ firstPublishedAt, ...rest }) => ({
+      ...rest,
+      firstPublishedAt: firstPublishedAt === null ? null : new Date(firstPublishedAt).toISOString(),
+    }));
+  },
+
   async listAllPublishedCollections(tx, region, limit) {
     const rows = await tx.em.execute<CollectionCardRow[]>(
       `select ${collectionCardColumns}
