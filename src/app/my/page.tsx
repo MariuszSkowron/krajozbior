@@ -14,8 +14,8 @@ export const metadata: Metadata = { title: "Profil — Krajozbiór" };
 
 // E9-1: the profile screen. The session is checked on the server, a guest is
 // sent to /login and returns here afterwards. Only entries that lead to an
-// existing screen are shown (D-22 point 7); "Ustawienia" and "Napisz do nas"
-// arrive together with their screens (E9-5, E9-6). Logging out is a native form
+// existing screen are shown (D-22 point 7); "Ustawienia" arrived with its screen
+// (E9-5), "Napisz do nas" comes with E9-6. Logging out is a native form
 // post, so it works without JavaScript and ends the current session only.
 export default async function MyPage() {
   const actor = await getRequestActor();
@@ -42,6 +42,11 @@ export default async function MyPage() {
           <li>
             <Link className={styles.link} href="/my/want-to-see">
               Chcę zobaczyć
+            </Link>
+          </li>
+          <li>
+            <Link className={styles.link} href="/my/settings">
+              Ustawienia
             </Link>
           </li>
         </ul>
