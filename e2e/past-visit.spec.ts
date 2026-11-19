@@ -90,7 +90,10 @@ async function visitRows(email: string) {
 
 async function openBridge(page: Page) {
   await page.goto(`/collections/${DEMO_SLUG}`);
-  await page.getByRole("link", { name: /Most Tczewski/ }).click();
+  // On a desktop screen a click on the card opens the panel (E12-4), so go by the address of the card.
+  await page.goto(
+    (await page.getByRole("link", { name: /Most Tczewski/ }).getAttribute("href")) ?? "",
+  );
   await expect(page.getByRole("heading", { level: 1, name: "Most Tczewski" })).toBeVisible();
   // The forms are client components: wait until the page is interactive.
   await page.waitForLoadState("networkidle");

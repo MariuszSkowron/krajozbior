@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
@@ -18,8 +17,11 @@ import {
   type PastVisitDateForm,
 } from "@/features/visits/domain/past-visit-form";
 import { MAX_PAST_VISITS_PER_REQUEST } from "@/features/visits/domain/limits";
+import { albumHref, type StateFilter } from "@/features/catalog/domain/album-view";
 
 import styles from "../../catalog.module.css";
+import albumStyles from "./album.module.css";
+import { PlaceCardLink } from "./place-card-link";
 
 type Place = {
   id: string;
@@ -36,7 +38,18 @@ type Place = {
 // visited place has no checkbox: one visit per place). One date for all chosen
 // places, up to 100 at a time (D-3). The page is rendered again after a save,
 // so the progress above the list grows; the message stays here and gets the focus.
-export function CollectionPlaces({ places }: { places: Place[] }) {
+export function CollectionPlaces({
+  places,
+  slug,
+  stan,
+  selectedId,
+}: {
+  places: Place[];
+  /** For the links of the cards: the collection, the chosen filter and the place in the panel. */
+  slug: string;
+  stan: StateFilter;
+  selectedId: string | null;
+}) {
   const router = useRouter();
   const [picking, setPicking] = useState(false);
   const [chosen, setChosen] = useState<string[]>([]);
@@ -151,7 +164,7 @@ export function CollectionPlaces({ places }: { places: Place[] }) {
           alertRef={alertRef}
         />
       </div>
-      <ol className={styles.list}>
+      <ol className={albumStyles.grid}>
         {places.map((place) => {
           const title = (
             <span className={styles.itemTitle}>
@@ -160,7 +173,10 @@ export function CollectionPlaces({ places }: { places: Place[] }) {
           );
 
           return (
-            <li key={place.id} className={styles.item}>
+            <li
+              key={place.id}
+              className={`${styles.item} ${place.id === selectedId ? albumStyles.selected : ""}`}
+            >
               {picking && place.kind === null ? (
                 <label className={pastStyles.pickLabel}>
                   <input
@@ -177,7 +193,12 @@ export function CollectionPlaces({ places }: { places: Place[] }) {
                   </span>
                 </label>
               ) : (
-                <Link className={styles.itemLink} href={`/places/${place.id}`}>
+                <PlaceCardLink
+                  className={styles.itemLink}
+                  href={`/places/${place.id}`}
+                  selectHref={albumHref(slug, { stan, miejsce: place.id })}
+                  selected={place.id === selectedId}
+                >
                   {title}
                   {place.address === "" ? null : (
                     <span className={styles.itemMeta}>{place.address}</span>
@@ -191,7 +212,7 @@ export function CollectionPlaces({ places }: { places: Place[] }) {
                       )}
                     </span>
                   )}
-                </Link>
+                </PlaceCardLink>
               )}
             </li>
           );

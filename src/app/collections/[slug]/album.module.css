@@ -1,0 +1,125 @@
+/*
+ * Kolekcja jako album (E12-4): filtr stanu, siatka kart i panel wybranego miejsca.
+ * Telefon: jedna kolumna kart, bez panelu (karta prowadzi do strony miejsca). Od 48rem:
+ * siatka kart obok panelu. Tylko tokeny; karty i linki wierszy dziedziczą z catalog.module.css.
+ */
+.filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+/* Pozycja filtra: obrys z tekstem, aktywna z akcentem i pogrubieniem (stan niesie też aria-current). */
+.filterLink {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: var(--size-touch-min);
+  padding-inline: var(--space-md);
+  color: var(--color-text-strong);
+  text-decoration: none;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-pill);
+}
+
+@media (hover: hover) {
+  .filterLink:hover {
+    border-color: var(--color-border-strong);
+  }
+}
+
+.filterLink[aria-current="page"] {
+  color: var(--color-text-accent);
+  font-weight: var(--font-weight-strong);
+  border-color: var(--color-border-focus);
+}
+
+.filterCount {
+  margin-inline-start: var(--space-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.layout {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.listColumn {
+  display: grid;
+  gap: var(--space-md);
+  min-width: 0;
+  align-content: start;
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* Wybrana karta: obrys akcentem (stan niesie też aria-current na linku). */
+.selected {
+  border-color: var(--color-border-focus);
+}
+
+.panel {
+  display: none;
+}
+
+@media (min-width: 48rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+    align-items: start;
+    gap: var(--space-xl);
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+    gap: var(--space-md);
+  }
+
+  .panel {
+    position: sticky;
+    top: var(--space-lg);
+    display: grid;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+  }
+}
+
+.panel h2,
+.panel p,
+.panel dl,
+.panel dd {
+  margin: 0;
+}
+
+.panelFacts {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.panelFacts dt {
+  color: var(--color-text-label);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
+}
+
+.panelActions {
+  display: grid;
+  gap: var(--space-sm);
+  justify-items: start;
+}

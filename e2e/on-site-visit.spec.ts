@@ -85,7 +85,10 @@ async function cleanUp() {
 
 async function openBridge(page: Page) {
   await page.goto(`/collections/${DEMO_SLUG}`);
-  await page.getByRole("link", { name: /Most Tczewski/ }).click();
+  // On a desktop screen a click on the card opens the panel (E12-4), so go by the address of the card.
+  await page.goto(
+    (await page.getByRole("link", { name: /Most Tczewski/ }).getAttribute("href")) ?? "",
+  );
   await expect(page.getByRole("heading", { level: 1, name: "Most Tczewski" })).toBeVisible();
   // The button is a client component: wait until the page is interactive.
   await page.waitForLoadState("networkidle");
@@ -109,7 +112,9 @@ test.describe("confirming a visit on site", () => {
 
   test("a guest is sent to sign in and comes back to the place", async ({ page }) => {
     await page.goto(`/collections/${DEMO_SLUG}`);
-    await page.getByRole("link", { name: /Most Tczewski/ }).click();
+    await page.goto(
+      (await page.getByRole("link", { name: /Most Tczewski/ }).getAttribute("href")) ?? "",
+    );
 
     await expect(page).toHaveURL(/\/places\/[0-9a-f-]{36}$/);
 
