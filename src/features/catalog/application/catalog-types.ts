@@ -3,6 +3,7 @@ import type { Actor } from "@/features/identity/domain/actor";
 import type { TransactionContext } from "@/lib/db/user-context";
 
 import type { CollectionInput, CollectionStatus, Region } from "../domain/collection";
+import type { NearbyCandidate } from "../domain/nearby";
 import type { PlaceInput } from "../domain/place";
 
 // What a curator sees of a collection and a place of the own organization.
@@ -216,6 +217,11 @@ export interface CatalogRepository {
     tx: TransactionContext,
     limit: number,
   ): Promise<readonly RecentCollection[]>;
+  /**
+   * "W okolicy" (E12-3): published collections of approved organizations that have at least one
+   * public place, with the mean of the coordinates of those places, newest first, at most `limit`.
+   */
+  listNearbyCandidates(tx: TransactionContext, limit: number): Promise<readonly NearbyCandidate[]>;
   /** Published collections of approved organizations by title, optionally of one region, at most `limit`. */
   listAllPublishedCollections(
     tx: TransactionContext,
