@@ -55,6 +55,8 @@ export default defineConfig({
       EMAIL_TRANSPORT: "outbox",
       EMAIL_OUTBOX_DIR: ".data/e2e-email-outbox",
       EMAIL_OUTBOX_TEST_ONLY: "1",
+      // A production build has no default sender address (parseEmailEnv).
+      EMAIL_FROM: "noreply@krajozbior.local",
       // The seeded demo accounts sign in to a production build only with this
       // test flag and a loopback BETTER_AUTH_URL (isDemoSignInAllowed).
       DEMO_ACCOUNTS_TEST_ONLY: "1",

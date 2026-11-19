@@ -23,4 +23,23 @@ export interface IdentityProvider {
   signInWithCode(credentials: CodeCredentials, headers: Headers): Promise<SignInResult | null>;
   // Idempotent; returns Set-Cookie values that clear the session cookie.
   signOut(headers: Headers): Promise<string[]>;
+  // When the request's session was created (never its last use); null without a
+  // valid session. Used to ask for a fresh sign-in before account deletion.
+  getSessionCreatedAt(headers: Headers): Promise<Date | null>;
+  // Deletes the account in one transaction (as krajozbior_auth): sign-in codes
+  // and action limits of the account, then the account row, from which the
+  // database cascades to sessions and all product data and writes the audit
+  // entry. Returns false when the account no longer exists. Throws
+  // SoleOrganizationMemberError when the database refuses to leave an
+  // organization without a member (Q8).
+  deleteAccount(accountId: string): Promise<boolean>;
+}
+
+// The database refused the deletion: the account is the last member of an
+// organization (trigger of Migration20261118150000_last_member_guard).
+export class SoleOrganizationMemberError extends Error {
+  constructor() {
+    super("The account is the only member of an organization.");
+    this.name = "SoleOrganizationMemberError";
+  }
 }

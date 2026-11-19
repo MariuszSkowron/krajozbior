@@ -1,0 +1,88 @@
+/*
+ * Ekran „Usuń konto” (E9-5): ostrzeżenie, co zniknie i co zostanie, pole na słowo potwierdzenia
+ * i przycisk w stylu niebezpiecznym (`button button--danger`, theme.css). Tylko układ i stany.
+ */
+.page {
+  display: grid;
+  gap: var(--space-lg);
+  justify-items: start;
+  padding-block: var(--space-lg) var(--space-xl);
+}
+
+@media (min-width: 48rem) {
+  .page {
+    padding-block: var(--space-xl);
+    max-width: 40rem;
+  }
+}
+
+.page h1,
+.page h2,
+.page p {
+  margin: 0;
+}
+
+.page section {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.warning {
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-default);
+  border-inline-start: var(--space-xs) solid var(--color-feedback-danger);
+  border-radius: var(--radius-md);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding-inline-start: var(--space-lg);
+}
+
+.form {
+  display: grid;
+  gap: var(--space-md);
+  justify-items: start;
+}
+
+.field {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.field label {
+  font-weight: var(--font-weight-strong);
+}
+
+.field input[aria-invalid="true"] {
+  border-color: var(--color-feedback-danger);
+  border-width: 2px;
+}
+
+.error {
+  padding: var(--space-md);
+  font-weight: var(--font-weight-strong);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-default);
+  border-inline-start: var(--space-xs) solid var(--color-feedback-danger);
+  border-radius: var(--radius-md);
+}
+
+.errorPrefix {
+  color: var(--color-feedback-danger);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-min);
+  color: var(--color-text-accent);
+}
+
+.back:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-border-focus);
+  outline-offset: var(--focus-ring-offset);
+}
