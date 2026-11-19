@@ -6,6 +6,13 @@
 // The collection is the row aliased `c`, its organization the row aliased `o`.
 export const publishedCollection = `c.status = 'published' and o.status = 'approved'`;
 
+// "Discovered regions" (E9-3, D-34): a region counts only through a regional collection, so a
+// nationwide collection (`polska`, not in the list of voivodeships yet) adds none. One fragment
+// for every count of regions (the profile now, the home page when it counts them), so the numbers
+// cannot drift apart. The collection is
+// the row aliased `c`.
+export const regionalCollection = `c.region <> 'polska'`;
+
 // "The place lies in a public collection" (E12-1, D-E12-1a): spelled out wherever the home
 // page shows data of a place, whatever the role of the actor. The place must also belong to
 // an approved organization, as getPublishedPlace demands. The second condition is implied by

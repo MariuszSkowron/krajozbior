@@ -115,3 +115,45 @@
 .link:hover {
   border-color: var(--color-border-strong);
 }
+
+/* E9-3: kafelki liczb; lista definicji, jedna kolumna na telefonie. */
+.stats {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+@media (min-width: 48rem) {
+  .stats {
+    max-width: 40rem;
+  }
+}
+
+.stat {
+  /* Podpis nad liczbą, w tej samej kolejności w DOM i na ekranie. */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.stat dt {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.statsError {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.stat dd {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-strong);
+}

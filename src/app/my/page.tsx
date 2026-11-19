@@ -6,9 +6,15 @@ import { getRequestActor, loginHref } from "@/app/request-actor";
 import { LogoutForm } from "@/app/shell/logout-form";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
 import { roleLabels } from "@/features/identity/domain/role-home";
+import { logFailure } from "@/lib/log-failure";
 import { getMyProfile } from "@/features/profile/application/profile";
 import { avatarLetter, formatDisplayName } from "@/features/profile/domain/display-name";
-import { getProfileDeps } from "@/features/profile/infrastructure/profile-deps";
+import { getMyStats } from "@/features/profile/application/stats";
+import { formatKm } from "@/features/profile/domain/stats";
+import {
+  getProfileDeps,
+  getProfileStatsDeps,
+} from "@/features/profile/infrastructure/profile-deps";
 
 import styles from "./profile.module.css";
 
@@ -35,6 +41,19 @@ export default async function MyPage() {
   }
 
   const profile = loaded.value;
+  // A failure of the counting (database) must not take the whole profile down: the tiles say
+  // so, and the links and the logout stay usable. The actor is signed in here, so the
+  // "unauthenticated" outcome cannot happen; if it did, it is shown the same way.
+  let stats: Awaited<ReturnType<typeof getMyStats>> | null = null;
+
+  try {
+    stats = await getMyStats(actor, getProfileStatsDeps());
+  } catch (error) {
+    logFailure("Profile statistics", error);
+    stats = null;
+  }
+
+  const statsValue = stats !== null && stats.status === "ok" ? stats.value : null;
 
   return (
     <div className={`content-width ${styles.page}`}>
@@ -61,6 +80,30 @@ export default async function MyPage() {
           Twoja rola: <strong>{roleLabels[actor.role]}</strong>
         </p>
       </header>
+      <section className={styles.section} aria-labelledby="stats-title">
+        <h2 id="stats-title">Twoje liczby</h2>
+        {statsValue === null ? (
+          <p className={styles.statsError} data-testid="profile-stats-error">
+            Nie udało się teraz policzyć Twoich liczb. Odśwież stronę za chwilę.
+          </p>
+        ) : (
+          /* One definition list: a reader says "Odkryte miejsca, 12", the tiles only look like cards. */
+          <dl className={styles.stats} data-testid="profile-stats">
+            <div className={styles.stat}>
+              <dt>Odkryte miejsca</dt>
+              <dd data-testid="stat-places">{statsValue.visitedPlaces}</dd>
+            </div>
+            <div className={styles.stat}>
+              <dt>Odkryte regiony</dt>
+              <dd data-testid="stat-regions">{statsValue.regions}</dd>
+            </div>
+            <div className={styles.stat}>
+              <dt>km w trasie (w linii prostej)</dt>
+              <dd data-testid="stat-km">{formatKm(statsValue.kmInTransit)}</dd>
+            </div>
+          </dl>
+        )}
+      </section>
       <nav aria-labelledby="profile-title">
         <ul className={styles.links}>
           <li>

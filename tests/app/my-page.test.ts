@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getActor: vi.fn(),
   redirect: vi.fn(),
   getMyProfile: vi.fn(),
+  getMyStats: vi.fn(),
 }));
 
 vi.mock("@/app/request-actor", () => ({
@@ -20,8 +21,12 @@ vi.mock("next/navigation", () => ({
     throw new Error("NEXT_REDIRECT");
   },
 }));
-vi.mock("@/features/profile/infrastructure/profile-deps", () => ({ getProfileDeps: () => ({}) }));
+vi.mock("@/features/profile/infrastructure/profile-deps", () => ({
+  getProfileDeps: () => ({}),
+  getProfileStatsDeps: () => ({}),
+}));
 vi.mock("@/features/profile/application/profile", () => ({ getMyProfile: mocks.getMyProfile }));
+vi.mock("@/features/profile/application/stats", () => ({ getMyStats: mocks.getMyStats }));
 
 const { default: MyPage } = await import("@/app/my/page");
 
@@ -32,6 +37,9 @@ beforeEach(() => {
   mocks.getActor.mockReset().mockResolvedValue({ id, role: "user" });
   mocks.redirect.mockReset();
   mocks.getMyProfile.mockReset().mockResolvedValue({ status: "ok", value: empty });
+  mocks.getMyStats
+    .mockReset()
+    .mockResolvedValue({ status: "ok", value: { visitedPlaces: 0, regions: 0, kmInTransit: 0 } });
 });
 
 describe("profile page", () => {
@@ -82,6 +90,52 @@ describe("profile page", () => {
     mocks.getMyProfile.mockResolvedValue({ status: "unauthenticated" });
 
     await expect(MyPage()).rejects.toThrow("Profile could not be read");
+  });
+
+  it("shows the numbers as a definition list a screen reader can read, with the km caption", async () => {
+    mocks.getMyStats.mockResolvedValue({
+      status: "ok",
+      value: { visitedPlaces: 12, regions: 3, kmInTransit: 148.26 },
+    });
+
+    const html = renderToStaticMarkup(await MyPage());
+
+    expect(html).toMatch(/<dl[^>]*data-testid="profile-stats"/);
+    expect(html).toMatch(/<dt>Odkryte miejsca<\/dt><dd[^>]*>12<\/dd>/);
+    expect(html).toMatch(/<dt>Odkryte regiony<\/dt><dd[^>]*>3<\/dd>/);
+    expect(html).toMatch(/<dt>km w trasie \(w linii prostej\)<\/dt><dd[^>]*>148,3<\/dd>/);
+    // The tile of legendary cards waits for E6 (Q14).
+    expect(html).not.toContain("legendarn");
+  });
+
+  it.each([
+    ["the database fails", () => mocks.getMyStats.mockRejectedValue(new Error("db down"))],
+    [
+      "the outcome is not ok",
+      () => mocks.getMyStats.mockResolvedValue({ status: "unauthenticated" }),
+    ],
+  ])("keeps the profile working and says so in the tiles when %s", async (_name, arrange) => {
+    arrange();
+
+    const html = renderToStaticMarkup(await MyPage());
+
+    expect(html).toContain('data-testid="profile-stats-error"');
+    expect(html).toContain("Nie udało się teraz policzyć Twoich liczb");
+    expect(html).not.toContain('data-testid="profile-stats"');
+    // The rest of the profile stays: links and logout.
+    expect(html).toContain("/my/settings");
+    expect(html).toContain("Wyloguj");
+  });
+
+  it("logs a database failure by context and error class only", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.getMyStats.mockRejectedValue(new Error("db down"));
+
+    await MyPage();
+
+    expect(spy).toHaveBeenCalledWith("Profile statistics failed:", "Error");
+    expect(JSON.stringify(spy.mock.calls)).not.toContain("db down");
+    spy.mockRestore();
   });
 
   it("links only to existing screens", async () => {

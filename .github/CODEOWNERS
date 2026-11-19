@@ -59,6 +59,7 @@
 
 # Ekran Profil i wylogowanie (E9-1): test sprawdza, że po wylogowaniu ekrany prywatne odmawiają gościowi
 /e2e/profile.spec.ts               @MariuszSkowron
+/e2e/profile-stats.spec.ts         @MariuszSkowron
 
 # Profil odkrywcy (E9-2): imię, region, widoczność (dane „Prywatna z wyborem”); trasa
 # w /src/app/api/ i ekran w /src/app/my/ już mają właściciela
