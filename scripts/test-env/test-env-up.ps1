@@ -310,6 +310,7 @@ try {
     EMAIL_TRANSPORT         = 'outbox'
     EMAIL_OUTBOX_DIR        = '.data/e2e-email-outbox'
     EMAIL_OUTBOX_TEST_ONLY  = '1'
+    EMAIL_FROM              = 'noreply@krajozbior.local'
     E2E_PORT                = "$appPort"
     TEST_DATABASE_URL       = "postgres://${IntAdminUser}:$($s.IntAdmin)@127.0.0.1:$intPort/$IntDatabase"
   }

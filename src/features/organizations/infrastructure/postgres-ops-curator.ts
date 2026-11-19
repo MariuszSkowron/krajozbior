@@ -5,7 +5,7 @@ import { Client } from "pg";
 import {
   writeAuditEntry,
   type AuditErrorCode,
-  type AuditOperation,
+  type OperatorAuditOperation,
 } from "@/lib/db/operations-audit";
 
 import type {
@@ -69,7 +69,7 @@ async function findUserId(client: QueryClient, email: string): Promise<string | 
 
 async function reject(
   client: QueryClient,
-  operation: AuditOperation,
+  operation: OperatorAuditOperation,
   input: { operator: string; reason: string; orgSlug: string },
   code: AuditErrorCode,
   ids: { subjectUserId?: string | null; organizationId?: string | null },
