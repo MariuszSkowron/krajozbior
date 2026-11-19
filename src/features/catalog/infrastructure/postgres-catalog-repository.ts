@@ -413,7 +413,7 @@ export const postgresCatalogRepository: CatalogRepository = {
     }
 
     const places = await tx.em.execute<PublishedCollection["places"][number][]>(
-      `select p.id, p.name, p.address, cp.position
+      `select p.id, p.name, p.address, cp.position, p.latitude, p.longitude
          from public.collection_places cp
          join public.places p on p.id = cp.place_id
         where cp.collection_id = ?

@@ -17,7 +17,11 @@ import {
   type PastVisitDateForm,
 } from "@/features/visits/domain/past-visit-form";
 import { MAX_PAST_VISITS_PER_REQUEST } from "@/features/visits/domain/limits";
-import { albumHref, type StateFilter } from "@/features/catalog/domain/album-view";
+import {
+  albumHref,
+  type CollectionView,
+  type StateFilter,
+} from "@/features/catalog/domain/album-view";
 
 import styles from "../../catalog.module.css";
 import albumStyles from "./album.module.css";
@@ -43,12 +47,15 @@ export function CollectionPlaces({
   slug,
   stan,
   selectedId,
+  widok,
 }: {
   places: Place[];
   /** For the links of the cards: the collection, the chosen filter and the place in the panel. */
   slug: string;
   stan: StateFilter;
   selectedId: string | null;
+  /** The view (cards or map) stays when a card opens the panel. */
+  widok: CollectionView;
 }) {
   const router = useRouter();
   const [picking, setPicking] = useState(false);
@@ -196,7 +203,7 @@ export function CollectionPlaces({
                 <PlaceCardLink
                   className={styles.itemLink}
                   href={`/places/${place.id}`}
-                  selectHref={albumHref(slug, { stan, miejsce: place.id })}
+                  selectHref={albumHref(slug, { stan, miejsce: place.id, widok })}
                   selected={place.id === selectedId}
                 >
                   {title}

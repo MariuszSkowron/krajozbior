@@ -162,8 +162,22 @@ describe("public read of collections and places (guest context)", () => {
         region: "pomorskie",
         organization: { name: "Gmina A", slug: "gmina-a" },
         places: [
-          { id: first, name: "Pierwsze", address: "Tczew", position: 1 },
-          { id: second, name: "Drugie", address: "Tczew", position: 2 },
+          {
+            id: first,
+            name: "Pierwsze",
+            address: "Tczew",
+            position: 1,
+            latitude: 54.0928,
+            longitude: 18.7919,
+          },
+          {
+            id: second,
+            name: "Drugie",
+            address: "Tczew",
+            position: 2,
+            latitude: 54.0928,
+            longitude: 18.7919,
+          },
         ],
         placeCount: 2,
         contentUpdatedAt: expect.any(Date),
@@ -631,6 +645,46 @@ describe("public read of collections and places (guest context)", () => {
       expect((await listNearbyCandidates(deps)).map((entry) => entry.slug)).not.toContain(
         empty.slug,
       );
+    });
+  });
+
+  // E12-5 (own block of this PR): the map needs the coordinates of the places of a published
+  // collection; the guest read must give them for those places and for no other.
+  describe("coordinates of the places for the collection map (E12-5)", () => {
+    it("gives the coordinates of the places of a published collection and no place of a draft", async () => {
+      const open = await newCollection(curA, orgA, "Mapa: publiczna");
+      const draft = await newCollection(curA, orgA, "Mapa: szkic");
+      const inOpen = await newPlace(curA, orgA, "Mapa: w publicznej");
+      const onlyInDraft = await newPlace(curA, orgA, "Mapa: tylko w szkicu");
+
+      await link(curA, open.id, inOpen, orgA, 1);
+      await link(curA, draft.id, onlyInDraft, orgA, 1);
+      await publish(curA, open.id);
+
+      const result = await getPublishedCollection(open.slug, deps);
+
+      expect(result).toMatchObject({
+        status: "ok",
+        value: { places: [{ id: inOpen, latitude: 54.0928, longitude: 18.7919 }] },
+      });
+      expect(JSON.stringify(result)).not.toContain(onlyInDraft);
+      expect(await getPublishedCollection(draft.slug, deps)).toEqual({ status: "not_found" });
+    });
+
+    it("gives no coordinates of a withdrawn collection", async () => {
+      const withdrawn = await newCollection(curA, orgA, "Mapa: wycofana");
+      const place = await newPlace(curA, orgA, "Mapa: w wycofanej");
+
+      await link(curA, withdrawn.id, place, orgA, 1);
+      await publish(curA, withdrawn.id);
+      expect(await getPublishedCollection(withdrawn.slug, deps)).toMatchObject({ status: "ok" });
+
+      await unpublish(curA, withdrawn.id);
+
+      const result = await getPublishedCollection(withdrawn.slug, deps);
+
+      expect(result).toEqual({ status: "not_found" });
+      expect(JSON.stringify(result)).not.toContain(place);
     });
   });
 });

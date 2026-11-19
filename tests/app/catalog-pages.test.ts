@@ -54,7 +54,9 @@ const collection = {
   summary: "Krótki opis",
   region: "pomorskie",
   organization: { name: "Gmina A", slug: "gmina-a" },
-  places: [{ id: placeId, name: "Most", address: "Tczew", position: 1 }],
+  places: [
+    { id: placeId, name: "Most", address: "Tczew", position: 1, latitude: 54.09, longitude: 18.79 },
+  ],
   placeCount: 1,
   contentUpdatedAt: new Date("2026-11-18T10:00:00Z"),
 };
@@ -469,8 +471,12 @@ describe("public catalog pages", () => {
         expect(html).toMatch(/Odwiedzone<span[^>]*>\(2\)<\/span>/);
         expect(html).toMatch(/Do odwiedzenia<span[^>]*>\(1\)<\/span>/);
         expect(html).toMatch(/href="\/collections\/kolekcja-a1b2c3\?stan=odwiedzone"/);
-        expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+        // One chosen item in the view switch (Karty) and one in the filter (Wszystkie).
+        expect(html.match(/aria-current="page"/g)).toHaveLength(2);
         expect(html).toMatch(/aria-current="page"[^>]*>Wszystkie/);
+        expect(html).toMatch(/aria-current="page"[^>]*>Karty/);
+        expect(html).toContain('aria-label="Widok miejsc"');
+        expect(html).toMatch(/href="\/collections\/kolekcja-a1b2c3\?widok=mapa"/);
       });
 
       it("lists only the places of the chosen state, with their numbers", async () => {
