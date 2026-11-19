@@ -50,6 +50,9 @@ export type PublishedPlaceSummary = Readonly<{
   name: string;
   address: string;
   position: number;
+  /** Public, like on the place page; the collection map puts the marker here (E12-5). */
+  latitude: number;
+  longitude: number;
 }>;
 
 export type PublishedCollection = Readonly<{

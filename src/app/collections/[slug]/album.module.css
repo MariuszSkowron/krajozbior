@@ -44,6 +44,20 @@
   gap: var(--space-lg);
 }
 
+/* Widok mapy (E12-5): link „Pomiń mapę” nad mapą, mapa na całą szerokość. */
+.mapBlock {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.skipLink {
+  justify-self: start;
+  min-height: var(--size-touch-min);
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-accent);
+}
+
 .listColumn {
   display: grid;
   gap: var(--space-md);
@@ -57,6 +71,13 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* Informacja przy przełączniku Karty / Mapa (E12-5): drugorzędna, ale czytelna. */
+.mapNote {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
 }
 
 .empty {

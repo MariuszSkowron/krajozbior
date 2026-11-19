@@ -21,6 +21,7 @@ import {
   formatUpdateDate,
   parseSelectedPlace,
   parseStateFilter,
+  parseView,
   type VisitKind,
 } from "@/features/catalog/domain/album-view";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
@@ -35,6 +36,8 @@ import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-
 import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
 import panelStyles from "./album.module.css";
+import mapStyles from "./collection-map.module.css";
+import { CollectionMapLoader } from "./collection-map-loader";
 import { CollectionPlaces } from "./collection-places";
 import { PlaceCardLink } from "./place-card-link";
 import { PlacePanel, type PanelPlace } from "./place-panel";
@@ -182,6 +185,7 @@ export default async function CollectionPage({
   const album = await loadAlbum(collection.id, collection.slug);
   const kinds = album.kind === "explorer" ? album.kinds : null;
   const stan = kinds === null ? "wszystkie" : parseStateFilter(query.stan);
+  const widok = parseView(query.widok);
   const asked = parseSelectedPlace(query.miejsce);
   // A place that is not in this collection gives no panel and no error.
   const selectedId =
@@ -242,65 +246,121 @@ export default async function CollectionPage({
         {collection.places.length === 0 ? (
           <p>Ta kolekcja nie ma jeszcze miejsc.</p>
         ) : (
-          <div className={panelStyles.layout}>
-            <div className={panelStyles.listColumn}>
-              {counts === null ? null : (
-                <nav className={panelStyles.filter} aria-label="Filtr miejsc">
-                  {STATE_FILTERS.map((filter) => (
-                    <Link
-                      key={filter}
-                      className={panelStyles.filterLink}
-                      href={albumHref(collection.slug, { stan: filter, miejsce: selectedId })}
-                      aria-current={filter === stan ? "page" : undefined}
-                    >
-                      {STATE_FILTER_LABELS[filter]}
-                      <span className={panelStyles.filterCount}>({counts[filter]})</span>
-                    </Link>
-                  ))}
-                </nav>
-              )}
-              {shown.length === 0 ? (
-                <p className={panelStyles.empty}>Żadne miejsce nie pasuje do tego filtra.</p>
-              ) : kinds !== null ? (
-                <CollectionPlaces
-                  slug={collection.slug}
-                  stan={stan}
-                  selectedId={selectedId}
-                  places={shown.map((place) => ({
-                    id: place.id,
-                    name: place.name,
-                    address: place.address,
-                    position: place.position,
-                    kind: kinds.get(place.id) ?? null,
-                  }))}
-                />
-              ) : (
-                <ol className={panelStyles.grid}>
-                  {shown.map((place) => (
-                    <li
-                      key={place.id}
-                      className={`${styles.item} ${place.id === selectedId ? panelStyles.selected : ""}`}
-                    >
-                      <PlaceCardLink
-                        className={styles.itemLink}
-                        href={`/places/${place.id}`}
-                        selectHref={albumHref(collection.slug, { miejsce: place.id })}
-                        selected={place.id === selectedId}
+          <>
+            <nav className={panelStyles.filter} aria-label="Widok miejsc">
+              {(["karty", "mapa"] as const).map((option) => (
+                <Link
+                  key={option}
+                  className={panelStyles.filterLink}
+                  href={albumHref(collection.slug, { stan, miejsce: selectedId, widok: option })}
+                  aria-current={option === widok ? "page" : undefined}
+                  aria-describedby={option === "mapa" ? "uwaga-mapa" : undefined}
+                >
+                  {option === "karty" ? "Karty" : "Mapa"}
+                </Link>
+              ))}
+            </nav>
+            <p id="uwaga-mapa" className={panelStyles.mapNote}>
+              Mapę dostarcza OpenStreetMap; po jej włączeniu serwer OpenStreetMap widzi adres IP
+              urządzenia i oglądany obszar.
+            </p>
+            {widok === "mapa" ? (
+              <div className={panelStyles.mapBlock}>
+                <a className={panelStyles.skipLink} href="#lista-miejsc">
+                  Pomiń mapę
+                </a>
+                {shown.length === 0 ? null : (
+                  <CollectionMapLoader
+                    bounds={collection.places.map((place) => ({
+                      latitude: place.latitude,
+                      longitude: place.longitude,
+                    }))}
+                    places={shown.map((place) => ({
+                      id: place.id,
+                      name: place.name,
+                      address: place.address,
+                      position: place.position,
+                      latitude: place.latitude,
+                      longitude: place.longitude,
+                      state: kinds === null ? null : kinds.has(place.id) ? "visited" : "unvisited",
+                    }))}
+                  />
+                )}
+                <noscript>
+                  {/* Without JavaScript the "loading" line would never go away: hide it. */}
+                  <style>{`.${mapStyles.loading}{display:none}`}</style>
+                  <p className={panelStyles.empty}>
+                    Mapa wymaga JavaScriptu. Miejsca są na liście poniżej.
+                  </p>
+                </noscript>
+              </div>
+            ) : null}
+            <div id="lista-miejsc" className={panelStyles.layout}>
+              <div className={panelStyles.listColumn}>
+                {counts === null ? null : (
+                  <nav className={panelStyles.filter} aria-label="Filtr miejsc">
+                    {STATE_FILTERS.map((filter) => (
+                      <Link
+                        key={filter}
+                        className={panelStyles.filterLink}
+                        href={albumHref(collection.slug, {
+                          stan: filter,
+                          miejsce: selectedId,
+                          widok,
+                        })}
+                        aria-current={filter === stan ? "page" : undefined}
                       >
-                        <span className={styles.itemTitle}>
-                          <span className={styles.itemNumber}>{place.position}.</span> {place.name}
-                        </span>
-                        {place.address === "" ? null : (
-                          <span className={styles.itemMeta}>{place.address}</span>
-                        )}
-                      </PlaceCardLink>
-                    </li>
-                  ))}
-                </ol>
-              )}
+                        {STATE_FILTER_LABELS[filter]}
+                        <span className={panelStyles.filterCount}>({counts[filter]})</span>
+                      </Link>
+                    ))}
+                  </nav>
+                )}
+                {shown.length === 0 ? (
+                  <p className={panelStyles.empty}>Żadne miejsce nie pasuje do tego filtra.</p>
+                ) : kinds !== null ? (
+                  <CollectionPlaces
+                    slug={collection.slug}
+                    stan={stan}
+                    widok={widok}
+                    selectedId={selectedId}
+                    places={shown.map((place) => ({
+                      id: place.id,
+                      name: place.name,
+                      address: place.address,
+                      position: place.position,
+                      kind: kinds.get(place.id) ?? null,
+                    }))}
+                  />
+                ) : (
+                  <ol className={panelStyles.grid}>
+                    {shown.map((place) => (
+                      <li
+                        key={place.id}
+                        className={`${styles.item} ${place.id === selectedId ? panelStyles.selected : ""}`}
+                      >
+                        <PlaceCardLink
+                          className={styles.itemLink}
+                          href={`/places/${place.id}`}
+                          selectHref={albumHref(collection.slug, { miejsce: place.id, widok })}
+                          selected={place.id === selectedId}
+                        >
+                          <span className={styles.itemTitle}>
+                            <span className={styles.itemNumber}>{place.position}.</span>{" "}
+                            {place.name}
+                          </span>
+                          {place.address === "" ? null : (
+                            <span className={styles.itemMeta}>{place.address}</span>
+                          )}
+                        </PlaceCardLink>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+              <PlacePanel panel={panel} />
             </div>
-            <PlacePanel panel={panel} />
-          </div>
+          </>
         )}
       </section>
     </div>

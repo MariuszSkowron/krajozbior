@@ -15,7 +15,8 @@ export function contentSecurityPolicy(isDev: boolean): string {
     // React needs eval in development only (error stack reconstruction).
     `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    // The collection map (E12-5, D-35) loads tiles from this one host, nothing else.
+    "img-src 'self' data: blob: https://tile.openstreetmap.org",
     "font-src 'self'",
     "connect-src 'self'",
     "object-src 'none'",
