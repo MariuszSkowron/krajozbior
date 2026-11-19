@@ -57,6 +57,8 @@ export function decidePlace(
 export type StoredCollection = Readonly<{
   version: number;
   status: CollectionStatus;
+  /** Set once the collection was published, also after a withdrawal (L3). */
+  firstPublishedAt: Date | string | null;
   content: CollectionInput;
   placeIds: readonly string[];
 }>;
@@ -98,8 +100,14 @@ export function decideCollection(
   if (stored === null) {
     return { content: "kept_manual_delete", composition: "kept_manual_delete" };
   }
-  if (stored.status === "published") {
-    return { content: "skipped_already_published", composition: "skipped_already_published" };
+  // Published at any time (a withdrawn draft too): content and composition stay.
+  // The loader records the version it left after publishing, so a version that
+  // differs means the owner edited it in the panel since.
+  if (stored.status === "published" || stored.firstPublishedAt !== null) {
+    const edited = stored.version !== key.importedVersion;
+    const kind = edited ? "kept_manual_edit" : "skipped_already_published";
+
+    return { content: kind, composition: kind };
   }
 
   const untouched = stored.version === key.importedVersion;

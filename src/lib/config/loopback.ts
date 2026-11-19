@@ -23,6 +23,12 @@ export class NonLocalDatabaseError extends Error {
 export function isLocalDatabaseUrl(value: string | undefined): boolean {
   let url: URL;
 
+  // The URL parser strips some white and control characters, the driver does
+  // not: what it would read differs from what is checked here.
+  if (/[\s\u0000-\u001f\u007f-\u009f]/.test(value ?? "")) {
+    return false;
+  }
+
   try {
     url = new URL(value ?? "");
   } catch {

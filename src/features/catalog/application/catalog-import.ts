@@ -22,10 +22,17 @@ import type {
   ImportPreview,
   PlaceReport,
   PlaceResult,
+  PublicationResult,
+  RemovalReport,
 } from "./catalog-import-types";
 import type { CatalogDeps, CuratorOutcome } from "./catalog-types";
 import { addPlace, removePlaceFromCollection, reorderPlaces, updatePlace } from "./curator-places";
-import { createCollection, updateCollection } from "./curator-collections";
+import {
+  createCollection,
+  deleteDraftCollection,
+  publishCollection,
+  updateCollection,
+} from "./curator-collections";
 
 // Loading a validated file into the database of one organization, as a curator
 // and through the ordinary curator use cases (so the row policies and the
@@ -41,6 +48,14 @@ export type CatalogImportRequest = Readonly<{
   file: ValidImportFile;
   /** Only reads and reports what a load would do (information, not a plan). */
   preview: boolean;
+  /** After loading, publishes the collections marked `publish: true` that were never published and not edited by hand. */
+  publish?: boolean;
+}>;
+
+export type CatalogRemoveRequest = Readonly<{
+  actor: Actor;
+  orgSlug: string;
+  file: ValidImportFile;
 }>;
 
 // Raised when a use case was handed another actor than the one the
@@ -171,6 +186,7 @@ async function readCollection(
   return {
     version: row.version,
     status: row.status,
+    firstPublishedAt: row.firstPublishedAt,
     content: { title: row.title, summary: row.summary, region: row.region },
     placeIds: await deps.catalog.repository.listCollectionPlaceIds(tx, key.entityId),
   };
@@ -204,6 +220,7 @@ async function previewImport(
   organizationId: string,
   file: ValidImportFile,
   deps: CatalogImportDeps,
+  publish: boolean,
 ): Promise<CatalogImportOutcome> {
   return deps.catalog.withUserContext(actor, async (tx) => {
     await deps.imports.setReadOnly(tx);
@@ -217,6 +234,7 @@ async function previewImport(
 
     const collections: Record<string, number> = {};
     const places: Record<string, number> = {};
+    let publishable = 0;
 
     for (const place of file.places) {
       const key = keys.places.get(place.importKey);
@@ -231,14 +249,21 @@ async function previewImport(
       const key = keys.collections.get(collection.importKey);
       const stored = await readCollection(tx, deps, organizationId, key, false);
 
-      count(
-        collections,
-        decideCollection(keyState(key), stored, {
-          title: collection.title,
-          summary: collection.summary,
-          region: collection.region,
-        }).content,
-      );
+      const decision = decideCollection(keyState(key), stored, {
+        title: collection.title,
+        summary: collection.summary,
+        region: collection.region,
+      });
+
+      count(collections, decision.content);
+
+      if (
+        collection.publish &&
+        decision.composition === "sync" &&
+        (stored === null || stored.firstPublishedAt === null)
+      ) {
+        publishable += 1;
+      }
     }
 
     const existing = await deps.imports.countCollections(tx, organizationId);
@@ -247,6 +272,7 @@ async function previewImport(
       places,
       orphanedKeys: await deps.imports.countOrphanedKeys(tx, organizationId),
       collectionLimitExceeded: existing + (collections.create ?? 0) > MAX_COLLECTIONS_PER_LIST,
+      ...(publish ? { publishable } : {}),
     };
 
     return { kind: "preview", preview } as const;
@@ -275,6 +301,7 @@ async function loadCollection(
   collection: ImportCollection,
   filePlaces: ReadonlyMap<string, ImportPlace>,
   deps: CatalogImportDeps,
+  publish: boolean,
   tx: TransactionContext,
 ): Promise<CollectionReport> {
   const repository = deps.catalog.repository;
@@ -434,10 +461,47 @@ async function loadCollection(
   // What the loader leaves behind: the version and, when it synced the
   // composition, the places in order.
   const row = await repository.findEditableCollection(tx, collectionId);
+  let publication: PublicationResult | undefined;
+  let publicationRefusal: string | undefined;
+  let publishedVersion: number | undefined;
+
+  if (publish && collection.publish) {
+    // Only through the use case of the panel: it checks the version, the rule
+    // of at least one place and gives the address from the title (D-27). A
+    // refusal writes nothing, so the loaded draft stays.
+    if (
+      decision.content === "skipped_already_published" ||
+      decision.content === "kept_manual_edit" ||
+      decision.composition === "kept_manual_edit"
+    ) {
+      publication =
+        decision.content === "skipped_already_published"
+          ? "skipped_already_published"
+          : "kept_manual_edit";
+    } else {
+      const outcome = await publishCollection(
+        actor,
+        collectionId,
+        { version: (row as { version: number }).version },
+        bound,
+      );
+
+      if (outcome.status === "ok") {
+        publication = "published";
+        publishedVersion = outcome.value.version;
+      } else {
+        publication = "refused";
+        publicationRefusal =
+          "reason" in outcome ? `${outcome.status}:${outcome.reason}` : outcome.status;
+      }
+    }
+  }
+
   const importedVersion =
-    decision.content === "create" || decision.content === "update"
+    publishedVersion ??
+    (decision.content === "create" || decision.content === "update"
       ? (row as { version: number }).version
-      : (collectionKey as ImportKeyRow).importedVersion;
+      : (collectionKey as ImportKeyRow).importedVersion);
   const importedPlaces = sync
     ? await repository.listCollectionPlaceIds(tx, collectionId)
     : (collectionKey as ImportKeyRow).importedPlaces;
@@ -452,19 +516,22 @@ async function loadCollection(
     await deps.imports.updateKey(tx, organizationId, "collection", collection.importKey, values);
   }
 
-  return report(collectionResult(decision.content, composition), composition, placeReports);
+  return {
+    ...report(collectionResult(decision.content, composition), composition, placeReports),
+    ...(publication === undefined ? {} : { publication }),
+    ...(publicationRefusal === undefined ? {} : { publicationRefusal }),
+  };
 }
 
-export async function executeCatalogImport(
-  request: CatalogImportRequest,
+// The organization by its short name, and only when the actor may edit it:
+// a missing organization, a suspended one and a foreign one look the same.
+function resolveOrganization(
+  actor: Actor,
+  orgSlug: string,
   deps: CatalogImportDeps,
-): Promise<CatalogImportOutcome> {
-  const { actor, file } = request;
-
-  // The organization by its short name, and only when the actor may edit it:
-  // a missing organization, a suspended one and a foreign one look the same.
-  const organizationId = await deps.catalog.withUserContext(actor, async (tx) => {
-    const id = await deps.imports.findOrganizationIdBySlug(tx, request.orgSlug);
+): Promise<string | null> {
+  return deps.catalog.withUserContext(actor, async (tx) => {
+    const id = await deps.imports.findOrganizationIdBySlug(tx, orgSlug);
 
     if (id === null) {
       return null;
@@ -472,13 +539,127 @@ export async function executeCatalogImport(
 
     return (await deps.catalog.repository.permittedOrganizationIds(tx)).includes(id) ? id : null;
   });
+}
+
+/**
+ * `--remove`: removes what the file loaded, by its keys, only before
+ * publication (Q1). One transaction for the organization, the lock first.
+ * Collections go through `deleteDraftCollection` (a published or withdrawn
+ * one stays, with its key); a place goes only when it belongs to no
+ * collection (policy `places_delete`) and nobody visited it (23503 means it
+ * stays). Keys of entities that no longer exist are removed. Places named in
+ * the file only as keys of other loads are not candidates.
+ */
+export async function executeCatalogRemove(
+  request: CatalogRemoveRequest,
+  deps: CatalogImportDeps,
+): Promise<CatalogImportOutcome> {
+  const { actor, file } = request;
+  const organizationId = await resolveOrganization(actor, request.orgSlug, deps);
+
+  if (organizationId === null) {
+    return { kind: "refused", code: "organization_unavailable" };
+  }
+
+  try {
+    const reports = await deps.catalog.withUserContext(actor, async (tx) => {
+      await deps.imports.lockImport(tx, organizationId);
+
+      const keys = indexKeys(await deps.imports.readKeys(tx, organizationId));
+      const bound = bindDepsToTransaction(tx, actor, deps.catalog);
+      const out: RemovalReport[] = [];
+
+      for (const collection of file.collections) {
+        const key = keys.collections.get(collection.importKey);
+        const base = {
+          importKey: collection.importKey,
+          kind: "collection",
+          line: collection.line,
+        } as const;
+
+        if (key === undefined) {
+          out.push({ ...base, result: "noop" });
+          continue;
+        }
+
+        const outcome = await deleteDraftCollection(actor, key.entityId, bound);
+
+        if (outcome.status === "conflict" && outcome.reason === "was_published") {
+          out.push({ ...base, result: "kept_published" });
+          continue;
+        }
+
+        // Gone or invisible (deleted in the panel): only the orphaned key goes.
+        if (outcome.status !== "ok" && outcome.status !== "not_found") {
+          must(outcome);
+        }
+
+        await deps.imports.deleteKey(tx, organizationId, "collection", collection.importKey);
+        out.push({
+          ...base,
+          result: outcome.status === "ok" ? "removed" : "orphan_key_removed",
+        });
+      }
+
+      // After the collections: a place that was only in a removed draft is free now.
+      for (const place of file.places) {
+        const key = keys.places.get(place.importKey);
+        const base = { importKey: place.importKey, kind: "place", line: place.line } as const;
+
+        if (key === undefined) {
+          out.push({ ...base, result: "noop" });
+          continue;
+        }
+
+        if ((await readPlace(tx, deps, organizationId, key)) === null) {
+          await deps.imports.deleteKey(tx, organizationId, "place", place.importKey);
+          out.push({ ...base, result: "orphan_key_removed" });
+          continue;
+        }
+
+        const deleted = await deps.imports.deletePlace(tx, key.entityId);
+
+        if (deleted === "deleted") {
+          await deps.imports.deleteKey(tx, organizationId, "place", place.importKey);
+        }
+
+        out.push({
+          ...base,
+          result:
+            deleted === "deleted"
+              ? "removed"
+              : deleted === "blocked"
+                ? "kept_in_collection"
+                : "kept_r07",
+        });
+      }
+
+      return out;
+    });
+
+    return { kind: "removed", reports };
+  } catch (error) {
+    if (!(error instanceof CollectionRefusal)) {
+      throw error;
+    }
+
+    return { kind: "refused", code: "removal_refused", reason: error.reason };
+  }
+}
+
+export async function executeCatalogImport(
+  request: CatalogImportRequest,
+  deps: CatalogImportDeps,
+): Promise<CatalogImportOutcome> {
+  const { actor, file } = request;
+  const organizationId = await resolveOrganization(actor, request.orgSlug, deps);
 
   if (organizationId === null) {
     return { kind: "refused", code: "organization_unavailable" };
   }
 
   if (request.preview) {
-    return previewImport(actor, organizationId, file, deps);
+    return previewImport(actor, organizationId, file, deps, request.publish === true);
   }
 
   // Nothing is written when the file names a place the organization lacks.
@@ -512,6 +693,7 @@ export async function executeCatalogImport(
             collection,
             filePlaces,
             deps,
+            request.publish === true,
             tx,
           ),
         ),

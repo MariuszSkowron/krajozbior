@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   executeCatalogImport,
+  executeCatalogRemove,
   type ValidImportFile,
 } from "@/features/catalog/application/catalog-import";
 import { runCatalogImport } from "@/features/catalog/application/catalog-import-command";
@@ -82,12 +83,21 @@ const load = (
   actor: { id: string; role: "user" },
   slug: string,
   text = fixture,
-  options: { preview?: boolean; orm?: MikroORM } = {},
+  options: { preview?: boolean; orm?: MikroORM; publish?: boolean } = {},
 ) =>
   executeCatalogImport(
-    { actor, orgSlug: slug, file: parse(text), preview: options.preview ?? false },
+    {
+      actor,
+      orgSlug: slug,
+      file: parse(text),
+      preview: options.preview ?? false,
+      publish: options.publish ?? false,
+    },
     makeDeps(options.orm ?? appOrm),
   );
+
+const remove = (actor: { id: string; role: "user" }, slug: string, text = fixture) =>
+  executeCatalogRemove({ actor, orgSlug: slug, file: parse(text) }, makeDeps(appOrm));
 
 const done = (outcome: CatalogImportOutcome): readonly CollectionReport[] => {
   if (outcome.kind !== "done") {
@@ -691,6 +701,12 @@ describe("reloading a new version of the file", () => {
       `update collections set status = 'published', first_published_at = now(), version = version + 1
         where title = 'Kolekcja testowa jeden'`,
     );
+    // The loader records the version it left when it publishes (A4); this
+    // stands in for that, so only a later edit in the panel differs.
+    await admin$(
+      `update catalog_import_keys k set imported_version = c.version
+         from collections c where c.id = k.entity_id and c.title = 'Kolekcja testowa jeden'`,
+    );
 
     const lines = fileLines();
 
@@ -761,5 +777,479 @@ describe("reloading a new version of the file", () => {
       ),
     ).rejects.toThrow(/injected failure/);
     expect(await counts("gmina-l")).toEqual({ collections: 0, places: 0, keys: 0 });
+  });
+});
+
+// Publishing and removing (PR-A, step A4). Each test makes its own
+// organization and curator, so the tests do not depend on each other.
+describe("publishing and removing what a file loaded", () => {
+  const explorer = user("explorer");
+  const refusedOrg = { kind: "refused", code: "organization_unavailable" };
+
+  const newOrg = async (slug: string, suspended = false) => {
+    const curator = user(`cur-${slug}`);
+
+    await admin$(`insert into auth.users (id, name, email) values ($1, $2, $3)`, [
+      curator.id,
+      slug,
+      curator.email,
+    ]);
+
+    const [{ id }] = await admin$<{ id: string }>(
+      `insert into public.organizations (name, slug, kind, status) values ($1, $1, 'municipality', $2) returning id`,
+      [slug, suspended ? "suspended" : "approved"],
+    );
+
+    await admin$(
+      `insert into public.organization_members (organization_id, user_id) values ($1, $2)`,
+      [id, curator.id],
+    );
+
+    return { curator, id };
+  };
+
+  const collectionsOf = (slug: string) =>
+    admin$<{
+      title: string;
+      slug: string;
+      status: string;
+      first_published_at: Date | null;
+      version: number;
+    }>(
+      `select c.title, c.slug, c.status, c.first_published_at, c.version
+         from collections c join organizations o on o.id = c.organization_id
+        where o.slug = $1 order by c.title`,
+      [slug],
+    );
+  const keyVersions = (slug: string) =>
+    admin$<{ import_key: string; imported_version: number; version: number }>(
+      `select k.import_key, k.imported_version, c.version
+         from catalog_import_keys k
+         join collections c on c.id = k.entity_id
+         join organizations o on o.id = k.organization_id
+        where o.slug = $1 and k.entity_kind = 'collection' order by k.import_key`,
+      [slug],
+    );
+  const placeId = async (slug: string, name: string) =>
+    (
+      await admin$<{ id: string }>(
+        `select p.id from places p join organizations o on o.id = p.organization_id
+          where o.slug = $1 and p.name = $2`,
+        [slug, name],
+      )
+    )[0]!.id;
+  const placeExists = async (id: string) =>
+    (await admin$(`select 1 from places where id = $1`, [id])).length === 1;
+  const removal = (outcome: CatalogImportOutcome) => {
+    if (outcome.kind !== "removed") {
+      throw new Error(`expected removed, got ${outcome.kind}`);
+    }
+
+    return outcome.reports.map((r) => `${r.importKey}:${r.result}`);
+  };
+  const publications = (reports: readonly CollectionReport[]) =>
+    reports.map((r) => r.publication ?? null);
+
+  beforeAll(async () => {
+    db = await createScratchDatabase("krajozbior_integration_catalog_publish");
+    await db.migrate();
+    await admin$(`insert into auth.users (id, name, email) values ($1, $2, $3)`, [
+      explorer.id,
+      "explorer",
+      explorer.email,
+    ]);
+    appOrm = await MikroORM.init(createOrmConfig(db.urls.krajozbior_app));
+  }, 60_000);
+
+  afterAll(async () => {
+    await appOrm?.close(true);
+    await db?.drop();
+  });
+
+  it("--publish publishes only the collection marked publish: true, with an address from the title (D-27), and records the version it left", async () => {
+    const { curator } = await newOrg("pub-a");
+    const reports = done(await load(curator, "pub-a", fixture, { publish: true }));
+
+    expect(results(reports).map((r) => r.result)).toEqual(["created", "created"]);
+    expect(publications(reports)).toEqual(["published", null]);
+
+    const rows = await collectionsOf("pub-a");
+    const published = rows.find((r) => r.title === "Kolekcja testowa jeden")!;
+    const draft = rows.find((r) => r.title === "Kolekcja testowa dwa")!;
+
+    expect(published.status).toBe("published");
+    expect(published.first_published_at).not.toBeNull();
+    expect(published.slug).toMatch(/^kolekcja-testowa-jeden/);
+    expect(draft).toMatchObject({ status: "draft", first_published_at: null });
+    // F8: what the loader recorded is what the next load reads.
+    expect(await keyVersions("pub-a")).toEqual([
+      { import_key: "col:testowa-dwa", imported_version: draft.version, version: draft.version },
+      {
+        import_key: "col:testowa-jeden",
+        imported_version: published.version,
+        version: published.version,
+      },
+    ]);
+  });
+
+  it("loading again after --publish is a noop / skipped_already_published, with or without the flag", async () => {
+    const { curator } = await newOrg("pub-b");
+
+    done(await load(curator, "pub-b", fixture, { publish: true }));
+
+    const before = await collectionsOf("pub-b");
+    const keys = await keyVersions("pub-b");
+
+    for (const publish of [true, false]) {
+      const reports = done(await load(curator, "pub-b", fixture, { publish }));
+
+      expect(reports.map((r) => r.result)).toEqual(["skipped_already_published", "noop"]);
+      expect(publications(reports)).toEqual([publish ? "skipped_already_published" : null, null]);
+    }
+
+    expect(await collectionsOf("pub-b")).toEqual(before);
+    expect(await keyVersions("pub-b")).toEqual(keys);
+  });
+
+  it("an edit made in the panel after publication is kept_manual_edit", async () => {
+    const { curator } = await newOrg("pub-c");
+
+    done(await load(curator, "pub-c", fixture, { publish: true }));
+
+    const [published] = (await collectionsOf("pub-c")).filter((r) => r.status === "published");
+    const [{ id }] = await admin$<{ id: string }>(
+      `select c.id from collections c join organizations o on o.id = c.organization_id
+        where o.slug = 'pub-c' and c.title = 'Kolekcja testowa jeden'`,
+    );
+
+    expect(
+      (
+        await updateCollection(
+          curator,
+          id,
+          { title: "Tytuł z panelu", version: published!.version },
+          makeDeps(appOrm).catalog,
+        )
+      ).status,
+    ).toBe("ok");
+
+    const reports = done(await load(curator, "pub-c", fixture, { publish: true }));
+
+    expect(reports[0]).toMatchObject({
+      result: "kept_manual_edit",
+      publication: "kept_manual_edit",
+    });
+    expect((await collectionsOf("pub-c")).map((r) => r.title)).toContain("Tytuł z panelu");
+  });
+
+  it("--publish skips a draft edited by hand and publishes it when untouched", async () => {
+    const { curator } = await newOrg("pub-d");
+
+    done(await load(curator, "pub-d", fixture));
+
+    const [{ id, version }] = await admin$<{ id: string; version: number }>(
+      `select c.id, c.version from collections c where c.organization_id =
+         (select id from organizations where slug = 'pub-d') and c.title = 'Kolekcja testowa jeden'`,
+    );
+
+    await updateCollection(
+      curator,
+      id,
+      { title: "Zmieniona ręcznie", version },
+      makeDeps(appOrm).catalog,
+    );
+
+    const edited = done(await load(curator, "pub-d", fixture, { publish: true }));
+
+    expect(publications(edited)).toEqual(["kept_manual_edit", null]);
+    expect((await collectionsOf("pub-d")).every((r) => r.status === "draft")).toBe(true);
+
+    // A composition change in the panel (no version change) also blocks it.
+    const text = fixture.replace('"publish":true', '"publish":false');
+    const other = await newOrg("pub-e");
+
+    done(await load(other.curator, "pub-e", text));
+
+    const [{ cid }] = await admin$<{ cid: string }>(
+      `select c.id as cid from collections c where c.organization_id = $1 and c.title = 'Kolekcja testowa jeden'`,
+      [other.id],
+    );
+    const links = await admin$<{ place_id: string }>(
+      `select place_id from collection_places where collection_id = $1 order by position`,
+      [cid],
+    );
+
+    await reorderPlaces(
+      other.curator,
+      cid,
+      { placeIds: links.map((l) => l.place_id).reverse() },
+      makeDeps(appOrm).catalog,
+    );
+
+    const reordered = done(await load(other.curator, "pub-e", fixture, { publish: true }));
+
+    expect(publications(reordered)).toEqual(["kept_manual_edit", null]);
+    expect((await collectionsOf("pub-e")).every((r) => r.status === "draft")).toBe(true);
+  });
+
+  it("--publish refuses a collection without places, keeps the draft and goes on with the rest", async () => {
+    const { curator, id } = await newOrg("pub-f");
+    const lines = fileLines();
+    const empty = {
+      type: "collection",
+      import_key: "col:pusta",
+      title: "Kolekcja pusta",
+      summary: "Zostanie bez miejsc.",
+      region: "pomorskie",
+      places: ["ext:TEST-0003"],
+      publish: true,
+      review: { status: "approved" },
+    };
+
+    // Collection one stays as in the file; the new one holds only TEST-0003.
+    lines.splice(
+      lines.findIndex((l) => l.type === "place"),
+      0,
+      empty,
+    );
+    byKey(lines, "col:testowa-dwa").places = ["ext:TEST-0002"];
+
+    const text = fileText(lines);
+
+    done(await load(curator, "pub-f", text));
+    // The only place of the new collection is gone from the organization (a
+    // deletion that left the composition recorded as empty).
+    const gone = await placeId("pub-f", "Miejsce testowe trzecie");
+
+    await admin$(`delete from collection_places where place_id = $1`, [gone]);
+    await admin$(`delete from places where id = $1`, [gone]);
+    await admin$(
+      `update catalog_import_keys set imported_places = '{}'
+        where organization_id = $1 and import_key = 'col:pusta'`,
+      [id],
+    );
+
+    const reports = done(await load(curator, "pub-f", text, { publish: true }));
+    const emptyReport = reports.find((r) => r.importKey === "col:pusta")!;
+
+    expect(emptyReport.publication).toBe("refused");
+    expect(emptyReport.publicationRefusal).toMatch(/^unprocessable/);
+    expect(publications(reports).filter((p) => p === "published")).toHaveLength(1);
+
+    const rows = await collectionsOf("pub-f");
+
+    expect(rows.find((r) => r.title === "Kolekcja pusta")).toMatchObject({
+      status: "draft",
+      first_published_at: null,
+    });
+    expect(rows.find((r) => r.title === "Kolekcja testowa jeden")!.status).toBe("published");
+  });
+
+  it("--publish --dry-run counts what it would publish and writes nothing", async () => {
+    const { curator } = await newOrg("pub-g");
+    const outcome = await load(curator, "pub-g", fixture, { preview: true, publish: true });
+
+    expect(outcome).toMatchObject({ kind: "preview", preview: { publishable: 1 } });
+    expect(await counts("pub-g")).toEqual({ collections: 0, places: 0, keys: 0 });
+    expect(await load(curator, "pub-g", fixture, { preview: true })).toMatchObject({
+      kind: "preview",
+      preview: expect.not.objectContaining({ publishable: 1 }),
+    });
+  });
+
+  it("refuses publication and removal to another organization, a suspended one and an account without membership", async () => {
+    const owner = await newOrg("pub-h");
+    const other = await newOrg("pub-i");
+    const suspended = await newOrg("pub-j", true);
+    const outsider2 = user("outsider-2");
+
+    await admin$(`insert into auth.users (id, name, email) values ($1, $2, $3)`, [
+      outsider2.id,
+      "outsider-2",
+      outsider2.email,
+    ]);
+    done(await load(owner.curator, "pub-h", fixture));
+
+    const before = await collectionsOf("pub-h");
+
+    for (const [actor, slug] of [
+      [other.curator, "pub-h"],
+      [suspended.curator, "pub-j"],
+      [outsider2, "pub-h"],
+    ] as const) {
+      expect(await load(actor, slug, fixture, { publish: true })).toEqual(refusedOrg);
+      expect(await remove(actor, slug)).toEqual(refusedOrg);
+    }
+
+    expect(await collectionsOf("pub-h")).toEqual(before);
+    expect(await counts("pub-h")).toEqual({ collections: 2, places: 3, keys: 5 });
+    expect(await counts("pub-j")).toEqual({ collections: 0, places: 0, keys: 0 });
+  });
+
+  it("--remove removes drafts and free places, then a second run is a noop", async () => {
+    const { curator } = await newOrg("rem-a");
+
+    done(await load(curator, "rem-a"));
+
+    expect(removal(await remove(curator, "rem-a"))).toEqual([
+      "col:testowa-jeden:removed",
+      "col:testowa-dwa:removed",
+      "ext:TEST-0001:removed",
+      "ext:TEST-0002:removed",
+      "ext:TEST-0003:removed",
+    ]);
+    expect(await counts("rem-a")).toEqual({ collections: 0, places: 0, keys: 0 });
+    expect(removal(await remove(curator, "rem-a")).every((r) => r.endsWith(":noop"))).toBe(true);
+  });
+
+  it("--remove leaves a published collection alone; places of a collection that stays stay", async () => {
+    const { curator } = await newOrg("rem-b");
+
+    done(await load(curator, "rem-b", fixture, { publish: true }));
+
+    expect(removal(await remove(curator, "rem-b"))).toEqual([
+      "col:testowa-jeden:kept_published",
+      "col:testowa-dwa:removed",
+      "ext:TEST-0001:kept_in_collection",
+      "ext:TEST-0002:kept_in_collection",
+      "ext:TEST-0003:removed",
+    ]);
+
+    const rows = await collectionsOf("rem-b");
+
+    expect(rows.map((r) => [r.title, r.status])).toEqual([["Kolekcja testowa jeden", "published"]]);
+    expect(await counts("rem-b")).toEqual({ collections: 1, places: 2, keys: 3 });
+    expect(removal(await remove(curator, "rem-b"))).toEqual([
+      "col:testowa-jeden:kept_published",
+      "col:testowa-dwa:noop",
+      "ext:TEST-0001:kept_in_collection",
+      "ext:TEST-0002:kept_in_collection",
+      "ext:TEST-0003:noop",
+    ]);
+  });
+
+  it("--remove touches neither a withdrawn collection nor its place with a visit (R-07)", async () => {
+    const { curator } = await newOrg("rem-c");
+
+    done(await load(curator, "rem-c", fixture, { publish: true }));
+
+    const visited = await placeId("rem-c", "Miejsce testowe pierwsze");
+
+    await admin$(
+      `insert into public.visits (user_id, place_id, kind, date_precision)
+       values ($1, $2, 'past', 'unknown')`,
+      [explorer.id, visited],
+    );
+    // Withdrawn by the owner in the panel: a draft again, address and first publication stay.
+    await admin$(
+      `update collections set status = 'draft', version = version + 1
+        where title = 'Kolekcja testowa jeden' and organization_id =
+          (select id from organizations where slug = 'rem-c')`,
+    );
+
+    const result = removal(await remove(curator, "rem-c"));
+
+    expect(result.slice(0, 2)).toEqual([
+      "col:testowa-jeden:kept_published",
+      "col:testowa-dwa:removed",
+    ]);
+    expect(result).toContain("ext:TEST-0001:kept_in_collection");
+    expect(await placeExists(visited)).toBe(true);
+    expect((await collectionsOf("rem-c")).map((r) => r.status)).toEqual(["draft"]);
+    expect(await admin$(`select 1 from visits where place_id = $1`, [visited])).toHaveLength(1);
+  });
+
+  it("--remove keeps a place with a visit or on a want-to-see list outside every collection (23503) and goes on", async () => {
+    const { curator } = await newOrg("rem-d");
+
+    done(await load(curator, "rem-d"));
+
+    const visited = await placeId("rem-d", "Miejsce testowe trzecie");
+    const wanted = await placeId("rem-d", "Miejsce testowe pierwsze");
+
+    await admin$(
+      `insert into public.visits (user_id, place_id, kind, date_precision)
+       values ($1, $2, 'past', 'unknown')`,
+      [explorer.id, visited],
+    );
+    await admin$(`insert into public.want_to_see_places (user_id, place_id) values ($1, $2)`, [
+      explorer.id,
+      wanted,
+    ]);
+
+    // The place with a want-to-see entry comes first in the file: after its 23503
+    // the transaction must still delete the free place that follows.
+    expect(removal(await remove(curator, "rem-d"))).toEqual([
+      "col:testowa-jeden:removed",
+      "col:testowa-dwa:removed",
+      "ext:TEST-0001:kept_r07",
+      "ext:TEST-0002:removed",
+      "ext:TEST-0003:kept_r07",
+    ]);
+    expect(await counts("rem-d")).toEqual({ collections: 0, places: 2, keys: 2 });
+    expect(
+      removal(await remove(curator, "rem-d")).filter((r) => r.endsWith("kept_r07")),
+    ).toHaveLength(2);
+  });
+
+  it("--remove keeps a place that another collection of the organization holds", async () => {
+    const { curator } = await newOrg("rem-e");
+    const second = [
+      batchLine,
+      JSON.stringify({
+        type: "collection",
+        import_key: "col:inna",
+        title: "Kolekcja inna",
+        summary: "Zawiera miejsce z pierwszego pliku.",
+        region: "pomorskie",
+        places: ["ext:TEST-0003"],
+        review: { status: "approved" },
+      }),
+    ].join("\n");
+
+    done(await load(curator, "rem-e"));
+    done(await load(curator, "rem-e", second));
+
+    expect(removal(await remove(curator, "rem-e"))).toEqual([
+      "col:testowa-jeden:removed",
+      "col:testowa-dwa:removed",
+      "ext:TEST-0001:removed",
+      "ext:TEST-0002:removed",
+      "ext:TEST-0003:kept_in_collection",
+    ]);
+    expect((await collectionsOf("rem-e")).map((r) => r.title)).toEqual(["Kolekcja inna"]);
+
+    // A file with keys of other loads only removes the draft collection.
+    expect(removal(await remove(curator, "rem-e", second))).toEqual(["col:inna:removed"]);
+    expect(await counts("rem-e")).toEqual({ collections: 0, places: 1, keys: 1 });
+  });
+
+  it("--remove removes keys of entities deleted in the panel", async () => {
+    const { curator } = await newOrg("rem-f");
+
+    done(await load(curator, "rem-f"));
+
+    const deps = makeDeps(appOrm).catalog;
+    const [{ id }] = await admin$<{ id: string }>(
+      `select id from collections where title = 'Kolekcja testowa dwa' and organization_id =
+         (select id from organizations where slug = 'rem-f')`,
+    );
+
+    expect((await deleteDraftCollection(curator, id, deps)).status).toBe("ok");
+
+    // TEST-0003 is gone from the organization, together with its link.
+    const gone = await placeId("rem-f", "Miejsce testowe trzecie");
+
+    await admin$(`delete from places where id = $1`, [gone]);
+
+    expect(removal(await remove(curator, "rem-f"))).toEqual([
+      "col:testowa-jeden:removed",
+      "col:testowa-dwa:orphan_key_removed",
+      "ext:TEST-0001:removed",
+      "ext:TEST-0002:removed",
+      "ext:TEST-0003:orphan_key_removed",
+    ]);
+    expect(await counts("rem-f")).toEqual({ collections: 0, places: 0, keys: 0 });
+    expect(removal(await remove(curator, "rem-f")).every((r) => r.endsWith(":noop"))).toBe(true);
   });
 });

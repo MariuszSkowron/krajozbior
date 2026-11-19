@@ -9,7 +9,7 @@ import { initApplicationOrm } from "@/lib/db/client";
 import { createOrmConfig } from "@/lib/db/config";
 import { runInGuestContext, runInUserContext } from "@/lib/db/user-context";
 
-import { executeCatalogImport } from "../application/catalog-import";
+import { executeCatalogImport, executeCatalogRemove } from "../application/catalog-import";
 import { assertSafeImportEnvironment } from "../application/catalog-import-safety";
 import type { CatalogImportRunner } from "../application/catalog-import-command";
 import type { CatalogImportDeps } from "../application/catalog-import-types";
@@ -61,17 +61,18 @@ export async function connectCatalogImport(): Promise<CatalogImportRunner> {
   };
 
   return {
-    async run({ orgSlug, curatorEmail, file, preview }) {
+    async run({ orgSlug, curatorEmail, file, preview, publish, remove }) {
       const curatorId = await findCuratorId(opsUrl, curatorEmail);
 
       if (curatorId === undefined) {
         return { kind: "refused", code: "curator_not_found" };
       }
 
-      return executeCatalogImport(
-        { actor: { id: curatorId, role: "user" }, orgSlug, file, preview },
-        deps,
-      );
+      const actor = { id: curatorId, role: "user" } as const;
+
+      return remove
+        ? executeCatalogRemove({ actor, orgSlug, file }, deps)
+        : executeCatalogImport({ actor, orgSlug, file, preview, publish }, deps);
     },
     close: () => orm.close(true),
   };

@@ -115,6 +115,47 @@ export const postgresCatalogImportRepository: CatalogImportRepository = {
     }
   },
 
+  async deleteKey(tx, organizationId, kind, importKey) {
+    const rows = await tx.em.execute<unknown[]>(
+      `delete from public.catalog_import_keys
+        where organization_id = ? and entity_kind = ? and import_key = ?
+        returning import_key`,
+      [organizationId, kind, importKey],
+    );
+
+    if (rows.length !== 1) {
+      throw new Error("catalog_import_keys: the delete changed no row");
+    }
+  },
+
+  // The only write of the loader outside the curator use cases: there is no use
+  // case that deletes a place. The row policy `places_delete` (full edit, place
+  // in no collection), RLS and `on delete restrict` all still apply; a visit or
+  // a wish list entry of a user, which a curator cannot see, ends in 23503.
+  async deletePlace(tx, placeId) {
+    await tx.em.execute(`savepoint import_delete_place`, [], "run");
+
+    try {
+      const rows = await tx.em.execute<unknown[]>(
+        `delete from public.places where id = ? returning id`,
+        [placeId],
+      );
+
+      await tx.em.execute(`release savepoint import_delete_place`, [], "run");
+
+      return rows.length === 1 ? "deleted" : "blocked";
+    } catch (error) {
+      if ((error as { code?: unknown } | null)?.code !== "23503") {
+        throw error;
+      }
+
+      await tx.em.execute(`rollback to savepoint import_delete_place`, [], "run");
+      await tx.em.execute(`release savepoint import_delete_place`, [], "run");
+
+      return "referenced";
+    }
+  },
+
   async countCollections(tx, organizationId) {
     const rows = await tx.em.execute<{ count: number }[]>(
       `select count(*)::int as count from public.collections where organization_id = ?`,

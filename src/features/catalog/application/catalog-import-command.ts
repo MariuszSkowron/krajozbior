@@ -35,6 +35,8 @@ export type CatalogImportRunner = Readonly<{
       curatorEmail: string;
       file: ValidImportFile;
       preview: boolean;
+      publish: boolean;
+      remove: boolean;
     }>,
   ) => Promise<CatalogImportOutcome>;
   close: () => Promise<void>;
@@ -54,11 +56,17 @@ const USAGE = [
   "      walidacja i podgląd stanu bazy (tylko informacja, nic nie zapisuje)",
   "  catalog:import --file <plik> --org-slug <slug> --curator-email <e-mail>",
   "      wgranie (idempotentne; ręczne zmiany z panelu zostają)",
+  "  catalog:import --file <plik> --org-slug <slug> --curator-email <e-mail> --publish [--dry-run]",
+  "      wgranie, a potem publikacja kolekcji z publish: true (tylko szkice niepublikowane i nieedytowane ręcznie)",
+  "  catalog:import --file <plik> --org-slug <slug> --curator-email <e-mail> --remove",
+  "      usunięcie tego, co wgrano z pliku, tylko przed publikacją (opublikowane i miejsca z wizytami zostają)",
 ].join("\n");
 
 const argsSchema = z.strictObject({
   file: z.string().min(1).max(500),
   "dry-run": z.boolean().optional(),
+  publish: z.boolean().optional(),
+  remove: z.boolean().optional(),
   profile: z.enum(["full", "public"]).optional(),
   "org-slug": z
     .string()
@@ -122,6 +130,8 @@ export async function runCatalogImport(
       options: {
         file: { type: "string" },
         "dry-run": { type: "boolean" },
+        publish: { type: "boolean" },
+        remove: { type: "boolean" },
         profile: { type: "string" },
         "org-slug": { type: "string" },
         "curator-email": { type: "string" },
@@ -151,7 +161,21 @@ export async function runCatalogImport(
   }
   if (dryRun !== true && orgSlug === undefined) {
     return inputError(
-      "wgranie wymaga --org-slug i --curator-email (bez nich jest tylko --dry-run).",
+      "wgranie, publikacja i usuwanie wymagają --org-slug i --curator-email (bez nich jest tylko --dry-run).",
+    );
+  }
+
+  const publish = args.data.publish === true;
+  const remove = args.data.remove === true;
+
+  if (publish && remove) {
+    return inputError("--publish i --remove nie łączą się.");
+  }
+  // [P] The removal has no preview: what it keeps depends on visits the
+  // curator cannot see, which only the delete itself finds out.
+  if (remove && dryRun === true && orgSlug !== undefined) {
+    return inputError(
+      "--remove nie ma podglądu z bazą (sama walidacja pliku: bez flag organizacji).",
     );
   }
 
@@ -226,6 +250,8 @@ export async function runCatalogImport(
       curatorEmail,
       file: result,
       preview: dryRun === true,
+      publish,
+      remove,
     });
 
     return mapOutcome(outcome, summary);
@@ -244,13 +270,44 @@ function mapOutcome(
     case "refused":
       return {
         exitCode: 3,
-        stdout: [JSON.stringify({ outcome: "refused", code: outcome.code })],
+        stdout: [
+          JSON.stringify({
+            outcome: "refused",
+            code: outcome.code,
+            ...(outcome.reason === undefined ? {} : { reason: outcome.reason }),
+          }),
+        ],
         stderr: [
           outcome.code === "curator_not_found"
             ? "Odmowa: nie ma konta z tym adresem e-mail (osoba najpierw loguje się sama)."
-            : "Odmowa: organizacja jest niedostępna dla tego konta (brak, zawieszona albo brak uprawnień). Nic nie zapisano.",
+            : outcome.code === "removal_refused"
+              ? "Odmowa podczas usuwania; cała operacja wycofana, nic nie usunięto."
+              : "Odmowa: organizacja jest niedostępna dla tego konta (brak, zawieszona albo brak uprawnień). Nic nie zapisano.",
         ],
       };
+    case "removed": {
+      const counts: Record<string, Record<string, number>> = { collection: {}, place: {} };
+
+      for (const report of outcome.reports) {
+        const bucket = counts[report.kind]!;
+
+        bucket[report.result] = (bucket[report.result] ?? 0) + 1;
+      }
+
+      return {
+        exitCode: 0,
+        stdout: [
+          JSON.stringify({
+            outcome: "removed",
+            ...summary,
+            collectionResults: counts.collection,
+            placeResults: counts.place,
+          }),
+        ],
+        stderr: [],
+        report: { reports: outcome.reports },
+      };
+    }
     case "rejected":
       return {
         exitCode: 2,
@@ -271,6 +328,9 @@ function mapOutcome(
             placeStates: outcome.preview.places,
             orphanedKeys: outcome.preview.orphanedKeys,
             collectionLimitExceeded: outcome.preview.collectionLimitExceeded,
+            ...(outcome.preview.publishable === undefined
+              ? {}
+              : { publishable: outcome.preview.publishable }),
           }),
         ],
         stderr: [
@@ -282,36 +342,51 @@ function mapOutcome(
       };
     case "done": {
       const refused = outcome.collections.filter((c) => c.result === "refused");
+      const publicationRefused = outcome.collections.filter((c) => c.publication === "refused");
       const counts: Record<string, number> = {};
       const placeCounts: Record<string, number> = {};
+      const publicationCounts: Record<string, number> = {};
 
       for (const collection of outcome.collections) {
         counts[collection.result] = (counts[collection.result] ?? 0) + 1;
+
+        if (collection.publication !== undefined) {
+          publicationCounts[collection.publication] =
+            (publicationCounts[collection.publication] ?? 0) + 1;
+        }
 
         for (const place of collection.places) {
           placeCounts[place.result] = (placeCounts[place.result] ?? 0) + 1;
         }
       }
 
+      const anyRefused = refused.length > 0 || publicationRefused.length > 0;
+
       return {
-        exitCode: refused.length > 0 ? 3 : 0,
+        exitCode: anyRefused ? 3 : 0,
         stdout: [
           JSON.stringify({
-            outcome: refused.length > 0 ? "partial" : "applied",
+            outcome: anyRefused ? "partial" : "applied",
             batchId: outcome.batchId,
             ...summary,
             collectionResults: counts,
             placeResults: placeCounts,
+            ...(Object.keys(publicationCounts).length > 0
+              ? { publicationResults: publicationCounts }
+              : {}),
             refused: refused.map((c) => ({ line: c.line, reason: c.refusal })),
+            publicationRefused: publicationRefused.map((c) => ({
+              line: c.line,
+              reason: c.publicationRefusal,
+            })),
             entities: total(counts) + total(placeCounts),
           }),
         ],
-        stderr:
-          refused.length > 0
-            ? [
-                "Część kolekcji odmówiono (każda wycofana osobno); pozostałe wgrano. Szczegóły w raporcie.",
-              ]
-            : [],
+        stderr: anyRefused
+          ? [
+              "Część kolekcji lub publikacji odmówiono (kolekcja wycofana osobno; odmowa publikacji zostawia wgrany szkic); pozostałe wgrano. Szczegóły w raporcie.",
+            ]
+          : [],
         report: { batchId: outcome.batchId, collections: outcome.collections },
       };
     }

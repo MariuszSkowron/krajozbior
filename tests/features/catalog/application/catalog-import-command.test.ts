@@ -89,9 +89,11 @@ describe("catalog:import validation without a database", () => {
     [["--dry-run"], "file"],
     [["--dry-run", "--file", "x", "--org-slug", "gmina-a"], "razem"],
     [["--dry-run", "--file", "x", "--curator-email", "a@b.pl"], "razem"],
-    [["--file", "x"], "wgranie wymaga"],
-    [["--dry-run", "--file", "x", "--publish"], "nieznana flaga"],
-    [["--dry-run", "--file", "x", "--remove"], "nieznana flaga"],
+    [["--file", "x"], "wymagają"],
+    [["--file", "x", "--publish"], "wymagają"],
+    [["--file", "x", "--remove"], "wymagają"],
+    [["--dry-run", "--file", "x", ...withOrg, "--publish", "--remove"], "nie łączą"],
+    [["--dry-run", "--file", "x", ...withOrg, "--remove"], "nie ma podglądu"],
     [["--dry-run", "--file", "x", "--profile", "inny"], "profile"],
     [
       ["--dry-run", "--file", "x", "--org-slug", "Zła Nazwa", "--curator-email", "a@b.pl"],
@@ -218,6 +220,83 @@ describe("catalog:import with the database", () => {
 
     expect(result.exitCode).toBe(3);
     expect(JSON.parse(result.stdout[0]!).outcome).toBe("partial");
+  });
+
+  it("passes --publish and --remove to the runner and maps a refused publication to exit 3", async () => {
+    const collection = {
+      importKey: "col:a",
+      line: 2,
+      result: "created",
+      composition: "synced",
+      places: [],
+    } as const;
+    const { run, deps } = setup({
+      kind: "done",
+      batchId: "b",
+      collections: [
+        { ...collection, publication: "published" },
+        {
+          ...collection,
+          importKey: "col:b",
+          line: 3,
+          publication: "refused",
+          publicationRefusal: "unprocessable:no_places",
+        },
+      ],
+    });
+    const result = await runCatalogImport(["--file", "x", ...withOrg, "--publish"], deps);
+
+    expect(run).toHaveBeenCalledWith(expect.objectContaining({ publish: true, remove: false }));
+    expect(result.exitCode).toBe(3);
+    expect(JSON.parse(result.stdout[0]!)).toMatchObject({
+      outcome: "partial",
+      publicationResults: { published: 1, refused: 1 },
+      publicationRefused: [{ line: 3, reason: "unprocessable:no_places" }],
+    });
+  });
+
+  it("maps a removal to exit 0 with counts, and a refused removal to exit 3", async () => {
+    const removed = setup({
+      kind: "removed",
+      reports: [
+        { importKey: "col:a", kind: "collection", line: 2, result: "removed" },
+        { importKey: "ext:1", kind: "place", line: 4, result: "kept_r07" },
+      ],
+    });
+    const result = await runCatalogImport(["--file", "x", ...withOrg, "--remove"], removed.deps);
+
+    expect(removed.run).toHaveBeenCalledWith(expect.objectContaining({ remove: true }));
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout[0]!)).toMatchObject({
+      outcome: "removed",
+      collectionResults: { removed: 1 },
+      placeResults: { kept_r07: 1 },
+    });
+
+    const refused = setup({ kind: "refused", code: "removal_refused", reason: "forbidden" });
+    const denied = await runCatalogImport(["--file", "x", ...withOrg, "--remove"], refused.deps);
+
+    expect(denied.exitCode).toBe(3);
+    expect(JSON.parse(denied.stdout[0]!)).toMatchObject({ reason: "forbidden" });
+  });
+
+  it("prints how many collections a --publish preview would publish", async () => {
+    const { deps } = setup({
+      kind: "preview",
+      preview: {
+        collections: {},
+        places: {},
+        orphanedKeys: { collection: 0, place: 0 },
+        collectionLimitExceeded: false,
+        publishable: 4,
+      },
+    });
+    const result = await runCatalogImport(
+      ["--dry-run", "--file", "x", ...withOrg, "--publish"],
+      deps,
+    );
+
+    expect(JSON.parse(result.stdout[0]!).publishable).toBe(4);
   });
 
   it.each([

@@ -50,6 +50,23 @@ export interface CatalogImportRepository {
     importKey: string,
     values: ImportKeyValues,
   ): Promise<void>;
+  /** Removes one key row (a removed entity or an orphaned key); throws when no row went. */
+  deleteKey(
+    tx: TransactionContext,
+    organizationId: string,
+    kind: ImportEntityKind,
+    importKey: string,
+  ): Promise<void>;
+  /**
+   * Deletes a place in a savepoint: `deleted`; `blocked` when the row policy
+   * `places_delete` hides it (it belongs to a collection) so no row went;
+   * `referenced` on 23503 (a visit or a wish list entry, invisible to the
+   * curator): the savepoint is rolled back and the transaction stays usable.
+   */
+  deletePlace(
+    tx: TransactionContext,
+    placeId: string,
+  ): Promise<"deleted" | "blocked" | "referenced">;
   /** Collections of the organization the curator sees (no lock; for the preview). */
   countCollections(tx: TransactionContext, organizationId: string): Promise<number>;
   /** Keys whose entity is gone or not visible (deleted in the panel). */
@@ -85,6 +102,19 @@ export type CollectionResult =
 export type CompositionResult =
   "synced" | "noop" | "kept_manual_edit" | "kept_manual_delete" | "skipped_already_published";
 
+export type PublicationResult =
+  "published" | "skipped_already_published" | "kept_manual_edit" | "refused";
+
+export type RemovalResult =
+  "removed" | "orphan_key_removed" | "kept_published" | "kept_in_collection" | "kept_r07" | "noop";
+
+export type RemovalReport = Readonly<{
+  importKey: string;
+  kind: ImportEntityKind;
+  line: number;
+  result: RemovalResult;
+}>;
+
 export type PlaceReport = Readonly<{ importKey: string; result: PlaceResult }>;
 
 export type CollectionReport = Readonly<{
@@ -94,6 +124,9 @@ export type CollectionReport = Readonly<{
   composition: CompositionResult | null;
   /** Set when a use case refused (e.g. `conflict:too_many_collections`); the collection was rolled back. */
   refusal?: string;
+  /** Only with `--publish` for a collection marked `publish: true`; a refusal keeps the loaded draft. */
+  publication?: PublicationResult;
+  publicationRefusal?: string;
   places: readonly PlaceReport[];
 }>;
 
@@ -103,11 +136,19 @@ export type ImportPreview = Readonly<{
   orphanedKeys: Readonly<Record<ImportEntityKind, number>>;
   /** True when the new collections would not fit in the limit of the organization. */
   collectionLimitExceeded: boolean;
+  /** With `--publish`: collections marked `publish: true` that a load would publish now. */
+  publishable?: number;
 }>;
 
 export type CatalogImportOutcome =
   /** The organization is not found or the curator may not edit it (one answer for both). */
-  | Readonly<{ kind: "refused"; code: "organization_unavailable" | "curator_not_found" }>
+  | Readonly<{
+      kind: "refused";
+      code: "organization_unavailable" | "curator_not_found" | "removal_refused";
+      /** `status[:reason]` of the use case that refused (removal only). */
+      reason?: string;
+    }>
+  | Readonly<{ kind: "removed"; reports: readonly RemovalReport[] }>
   /** The file names a place outside it that the organization does not have. */
   | Readonly<{ kind: "rejected"; code: "unknown_external_key"; count: number }>
   | Readonly<{ kind: "preview"; preview: ImportPreview }>

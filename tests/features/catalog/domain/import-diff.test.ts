@@ -61,6 +61,7 @@ const colKey: ImportKeyState = { entityId: "c1", importedVersion: 1, importedPla
 const storedCollection = (over: Partial<StoredCollection> = {}): StoredCollection => ({
   version: 1,
   status: "draft",
+  firstPublishedAt: null,
   content: wantedCollection,
   placeIds: ["a", "b"],
   ...over,
@@ -83,11 +84,39 @@ describe("decideCollection", () => {
 
   it("leaves a published collection alone", () => {
     expect(
-      decideCollection(colKey, storedCollection({ status: "published" }), wantedCollection),
+      decideCollection(
+        colKey,
+        storedCollection({ status: "published", firstPublishedAt: new Date() }),
+        wantedCollection,
+      ),
     ).toEqual({
       content: "skipped_already_published",
       composition: "skipped_already_published",
     });
+  });
+
+  it("leaves a withdrawn draft that was published once alone, like a published one (L3)", () => {
+    expect(
+      decideCollection(colKey, storedCollection({ firstPublishedAt: new Date("2026-01-01") }), {
+        ...wantedCollection,
+        title: "Nowy tytuł",
+      }),
+    ).toEqual({
+      content: "skipped_already_published",
+      composition: "skipped_already_published",
+    });
+  });
+
+  it("reports an edit made in the panel after publication, published or withdrawn", () => {
+    for (const over of [
+      { status: "published" as const, version: 5, firstPublishedAt: new Date() },
+      { version: 5, firstPublishedAt: new Date() },
+    ]) {
+      expect(decideCollection(colKey, storedCollection(over), wantedCollection)).toEqual({
+        content: "kept_manual_edit",
+        composition: "kept_manual_edit",
+      });
+    }
   });
 
   it("does nothing for an untouched collection equal to the file", () => {
