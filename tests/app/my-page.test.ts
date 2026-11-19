@@ -1,10 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// E9-1: the profile screen. A guest is sent to /login; a signed-in user sees the
-// role, links to existing screens only (no dead entries, D-22 point 7) and a
-// native logout form.
-const mocks = vi.hoisted(() => ({ getActor: vi.fn(), redirect: vi.fn() }));
+// E9-1 and E9-2: the profile screen. A guest is sent to /login; a signed-in user
+// sees the name, region and visibility of the profile, the role, links to
+// existing screens only (no dead entries, D-22 point 7) and a native logout form.
+const mocks = vi.hoisted(() => ({
+  getActor: vi.fn(),
+  redirect: vi.fn(),
+  getMyProfile: vi.fn(),
+}));
 
 vi.mock("@/app/request-actor", () => ({
   getRequestActor: mocks.getActor,
@@ -16,14 +20,18 @@ vi.mock("next/navigation", () => ({
     throw new Error("NEXT_REDIRECT");
   },
 }));
+vi.mock("@/features/profile/infrastructure/profile-deps", () => ({ getProfileDeps: () => ({}) }));
+vi.mock("@/features/profile/application/profile", () => ({ getMyProfile: mocks.getMyProfile }));
 
 const { default: MyPage } = await import("@/app/my/page");
 
 const id = "11111111-1111-4111-8111-111111111111";
+const empty = { firstName: null, familyInitial: null, region: null, visibility: "private" };
 
 beforeEach(() => {
   mocks.getActor.mockReset().mockResolvedValue({ id, role: "user" });
   mocks.redirect.mockReset();
+  mocks.getMyProfile.mockReset().mockResolvedValue({ status: "ok", value: empty });
 });
 
 describe("profile page", () => {
@@ -32,6 +40,7 @@ describe("profile page", () => {
 
     await expect(MyPage()).rejects.toThrow("NEXT_REDIRECT");
     expect(mocks.redirect).toHaveBeenCalledWith("/login?returnTo=%2Fmy");
+    expect(mocks.getMyProfile).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -44,6 +53,35 @@ describe("profile page", () => {
 
     expect(html).toMatch(/<h1[^>]*>Profil<\/h1>/);
     expect(html).toContain(`Twoja rola: <strong>${label}</strong>`);
+  });
+
+  it("says Odkrywca, the letter O and a private profile when nothing was saved", async () => {
+    const html = renderToStaticMarkup(await MyPage());
+
+    expect(html).toContain(">Odkrywca<");
+    expect(html).toMatch(/aria-hidden="true">O<\/span>/);
+    expect(html).toContain("Profil niewidoczny");
+    expect(html).not.toContain("Profil widoczny");
+  });
+
+  it('shows "Anna K.", the region and a visible profile', async () => {
+    mocks.getMyProfile.mockResolvedValue({
+      status: "ok",
+      value: { firstName: "Anna", familyInitial: "K", region: "pomorskie", visibility: "public" },
+    });
+
+    const html = renderToStaticMarkup(await MyPage());
+
+    expect(html).toContain(">Anna K.<");
+    expect(html).toMatch(/aria-hidden="true">A<\/span>/);
+    expect(html).toContain("Pomorskie");
+    expect(html).toContain("Profil widoczny");
+  });
+
+  it("does not render when the profile cannot be read", async () => {
+    mocks.getMyProfile.mockResolvedValue({ status: "unauthenticated" });
+
+    await expect(MyPage()).rejects.toThrow("Profile could not be read");
   });
 
   it("links only to existing screens", async () => {

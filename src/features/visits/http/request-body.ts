@@ -19,6 +19,25 @@ export async function readJsonBody(
   request: Request,
   maxBytes: number,
 ): Promise<{ tooLarge: true } | { body: unknown }> {
+  const read = await readBoundedText(request, maxBytes);
+
+  if ("tooLarge" in read) {
+    return read;
+  }
+
+  try {
+    return { body: JSON.parse(read.text) as unknown };
+  } catch {
+    return { body: undefined };
+  }
+}
+
+// The body as text, never more than `maxBytes` of it (counted while reading, so
+// a missing or false Content-Length does not help).
+export async function readBoundedText(
+  request: Request,
+  maxBytes: number,
+): Promise<{ tooLarge: true } | { text: string }> {
   if (Number(request.headers.get("content-length") ?? "0") > maxBytes) {
     return { tooLarge: true };
   }
@@ -45,9 +64,5 @@ export async function readJsonBody(
     chunks.push(value);
   }
 
-  try {
-    return { body: JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown };
-  } catch {
-    return { body: undefined };
-  }
+  return { text: Buffer.concat(chunks).toString("utf8") };
 }

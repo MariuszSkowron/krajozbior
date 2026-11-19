@@ -75,7 +75,10 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
       <section aria-labelledby="deletion-gone">
         <h2 id="deletion-gone">Co zniknie</h2>
         <ul className={styles.list}>
-          <li>Twoje wizyty, zapisane kolekcje i lista „Chcę zobaczyć”.</li>
+          <li>
+            Twoje wizyty, zapisane kolekcje, lista „Chcę zobaczyć” oraz profil (imię, region i
+            widoczność).
+          </li>
           <li>Twój adres e-mail i dane logowania, a także wszystkie sesje na urządzeniach.</li>
         </ul>
       </section>
