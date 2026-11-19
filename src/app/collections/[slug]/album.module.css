@@ -44,6 +44,20 @@
   gap: var(--space-lg);
 }
 
+/* Widok mapy (E12-5): link „Pomiń mapę” nad mapą, mapa na całą szerokość. */
+.mapBlock {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.skipLink {
+  justify-self: start;
+  min-height: var(--size-touch-min);
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-accent);
+}
+
 .listColumn {
   display: grid;
   gap: var(--space-md);

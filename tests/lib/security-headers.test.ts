@@ -45,7 +45,18 @@ describe("security headers", () => {
     expect(csp).toContain("base-uri 'self'");
     expect(csp).toContain("form-action 'self'");
     expect(csp).toContain("font-src 'self'");
-    expect(csp).not.toMatch(/https?:|\*/);
+    // The one foreign host: the tiles of the collection map (E12-5, D-35), in img-src only.
+    expect(csp.match(/https?:\/\/[^\s;]+/g)).toEqual(["https://tile.openstreetmap.org"]);
+    expect(csp).not.toContain("*");
+  });
+
+  it("lets the collection map load tiles from one host and sends the referer to it (E12-5)", () => {
+    expect(contentSecurityPolicy(false)).toContain(
+      "img-src 'self' data: blob: https://tile.openstreetmap.org;",
+    );
+    expect(contentSecurityPolicy(false)).toContain("connect-src 'self';");
+    // The tile server refuses requests without a Referer: never tighten this to no-referrer.
+    expect(valueOf("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
   });
 
   it("allows eval only in development", () => {
