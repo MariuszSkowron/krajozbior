@@ -540,7 +540,7 @@ describe("loading a collection file", () => {
   });
 });
 
-// Reloading a new version of the file (M2 of the review): what the loader
+// Reloading a new version of the file: what the loader
 // writes after a change must be what the next load reads, or the next load
 // reports a false manual edit (and, later, overwrites a real one).
 type FileLine = Record<string, unknown>;
@@ -753,7 +753,7 @@ describe("reloading a new version of the file", () => {
     expect(await importedState("gmina-p")).toEqual(state);
   });
 
-  it("(L6) a refusal after a place was created rolls back the place and its key with the collection", async () => {
+  it("a refusal after a place was created rolls back the place and its key with the collection", async () => {
     const deps = makeDeps(appOrm);
     let inserted = 0;
     const failing: CatalogImportDeps = {
@@ -881,7 +881,7 @@ describe("publishing and removing what a file loaded", () => {
     expect(published.first_published_at).not.toBeNull();
     expect(published.slug).toMatch(/^kolekcja-testowa-jeden/);
     expect(draft).toMatchObject({ status: "draft", first_published_at: null });
-    // F8: what the loader recorded is what the next load reads.
+    // What the loader recorded is what the next load reads.
     expect(await keyVersions("pub-a")).toEqual([
       { import_key: "col:testowa-dwa", imported_version: draft.version, version: draft.version },
       {

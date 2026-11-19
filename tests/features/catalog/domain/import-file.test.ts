@@ -154,6 +154,30 @@ describe("lines and records", () => {
     expect(has(errorsOf(inKey), 4, "", "forbidden_character")).toBe(true);
   });
 
+  it.each([
+    ["DEL", "\u007f"],
+    ["C1 control (start)", "\u0080"],
+    ["C1 control (end)", "\u009f"],
+    ["bidi embedding start", "‪"],
+    ["bidi override end", "‮"],
+    ["bidi isolate start", "⁦"],
+    ["bidi isolate end", "⁩"],
+  ])("refuses %s in titles and texts", (_label, character) => {
+    const inName = edited((items) => {
+      items[3]!.name = `a${character}b`;
+    });
+    const inSummary = edited((items) => {
+      items[1]!.summary = `a${character}b`;
+    });
+    const inKey = edited((items) => {
+      items[3]!.notes = { [`k${character}`]: ["ok"] };
+    });
+
+    expect(has(errorsOf(inName), 4, "", "forbidden_character")).toBe(true);
+    expect(has(errorsOf(inSummary), 2, "", "forbidden_character")).toBe(true);
+    expect(has(errorsOf(inKey), 4, "", "forbidden_character")).toBe(true);
+  });
+
   it("refuses an unknown record type", () => {
     const content = edited((items) => {
       items.push({ type: "other" });

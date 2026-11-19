@@ -57,7 +57,7 @@ export function decidePlace(
 export type StoredCollection = Readonly<{
   version: number;
   status: CollectionStatus;
-  /** Set once the collection was published, also after a withdrawal (L3). */
+  /** Set once the collection was published, also after a withdrawal. */
   firstPublishedAt: Date | string | null;
   content: CollectionInput;
   placeIds: readonly string[];

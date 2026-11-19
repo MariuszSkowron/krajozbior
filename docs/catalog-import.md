@@ -44,7 +44,7 @@ Kolekcje powstają jako szkice, a miejsca w kolejności z pliku. Przy ponownym u
 - szkic usunięty w panelu: nie powstaje ponownie;
 - kolekcja już opublikowana: jej skład i treść nie są zmieniane.
 
-Klucz miejsca, którego nie ma w pliku (np. plik ogólnopolski wskazujący miejsca z innego pliku), musi istnieć w organizacji. Jeśli nie istnieje, cały plik jest odrzucany bez zapisu (kod 2).
+Kolekcja może wskazywać miejsce, które nie jest opisane w tym pliku (np. plik ogólnopolski odwołuje się do miejsc wgranych wcześniej z innego pliku). Takie miejsce musi już istnieć w bazie organizacji. Jeśli go nie ma, cały plik jest odrzucany bez zapisu (kod 2).
 
 ### Publikacja (`--publish`)
 
@@ -63,14 +63,14 @@ Usuwa to, co wgrano, według kluczy z pliku, w jednej transakcji:
 
 ## Kody wyjścia
 
-| Kod | Znaczenie                                                                                                                              |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 0   | Gotowe, bez zmian albo sam podgląd                                                                                                     |
-| 1   | Awaria (np. brak połączenia); dane zapisane wcześniej zostają, polecenie można ponowić                                                 |
-| 2   | Błąd wejścia: argumenty, plik nie przeszedł walidacji, za duży plik, miejsca spoza pliku, których nie ma w bazie                       |
-| 3   | Odmowa: organizacja niedostępna, brak konta kuratora, środowisko produkcyjne lub nielokalna baza, odmowa przy publikacji albo usuwaniu |
+| Kod | Znaczenie                                                                                                                                                |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | Gotowe, bez zmian albo sam podgląd                                                                                                                       |
+| 1   | Awaria (np. brak połączenia); dane zapisane wcześniej zostają, polecenie można ponowić                                                                   |
+| 2   | Błąd wejścia: argumenty, plik nie przeszedł walidacji, za duży plik, miejsca spoza pliku, których nie ma w bazie                                         |
+| 3   | Odmowa: organizacja niedostępna, brak konta kuratora, środowisko produkcyjne lub nielokalna baza, odmowa przy wgraniu kolekcji, publikacji albo usuwaniu |
 
-Na standardowe wyjście trafia podsumowanie w JSON (liczby i klucze, bez adresów e-mail), a na wyjście błędów krótkie wskazówki po polsku. Przy wgraniu, publikacji i usunięciu szczegółowy raport (wyniki dla każdej kolekcji i miejsca) zapisuje się do `.ai/tmp/catalog-import/` (katalog ignorowany przez git).
+Na standardowe wyjście trafia podsumowanie w JSON (liczby i klucze, a w podglądzie publikacji także tytuły kolekcji; bez adresów e-mail), a na wyjście błędów krótkie wskazówki po polsku. Przy wgraniu, publikacji i usunięciu szczegółowy raport (wyniki dla każdej kolekcji i miejsca) zapisuje się do `.ai/tmp/catalog-import/` (katalog ignorowany przez git).
 
 ## Format pliku
 
@@ -90,7 +90,7 @@ Plik składa się z linii, z których każda to obiekt JSON z polem `type`. Kole
 
 ## Wyniki w raporcie
 
-Wgranie: dla kolekcji `created`, `updated`, `noop`, `kept_manual_edit`, `kept_manual_delete`, `skipped_already_published`, `refused`; dla składu `synced`, `noop` i warianty zachowania; dla publikacji `published`, `skipped_already_published`, `kept_manual_edit`, `refused`. Usuwanie: `removed`, `orphan_key_removed`, `kept_published`, `kept_in_collection`, `kept_referenced`, `noop`.
+Wgranie: dla kolekcji `created`, `updated`, `noop`, `kept_manual_edit`, `kept_manual_delete`, `skipped_already_published`, `refused`; dla składu kolekcji (listy jej miejsc) `synced`, `noop`, `kept_manual_edit`, `kept_manual_delete` i `skipped_already_published`; dla publikacji `published`, `skipped_already_published`, `kept_manual_edit`, `refused`. Usuwanie: `removed`, `orphan_key_removed`, `kept_published`, `kept_in_collection`, `kept_referenced`, `noop`.
 
 ## Testy
 

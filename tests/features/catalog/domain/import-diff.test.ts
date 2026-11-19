@@ -95,7 +95,7 @@ describe("decideCollection", () => {
     });
   });
 
-  it("leaves a withdrawn draft that was published once alone, like a published one (L3)", () => {
+  it("leaves a withdrawn draft that was published once alone, like a published one", () => {
     expect(
       decideCollection(colKey, storedCollection({ firstPublishedAt: new Date("2026-01-01") }), {
         ...wantedCollection,

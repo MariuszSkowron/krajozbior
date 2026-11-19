@@ -48,7 +48,7 @@ describe("assertLocalDatabaseUrl", () => {
     "postgres://krajozbior_auth:hunter2@127.0.0.1/db?hostaddr=10.0.0.5",
     "postgres://krajozbior_auth:hunter2@localhost/db?%68ost=example.com",
     "postgres://krajozbior_auth:hunter2@localhost,example.com/db",
-    // L10: white or control characters (the URL parser strips some of them).
+    // White or control characters (the URL parser strips some of them).
     " postgres://krajozbior_auth:hunter2@localhost/db?host=example.com",
     "\tpostgres://krajozbior_auth:hunter2@localhost/db",
     "postgres://krajozbior_auth:hunter2@localhost/db\n?host=example.com",

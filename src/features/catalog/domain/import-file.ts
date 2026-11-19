@@ -318,9 +318,13 @@ function zodCode(issue: z.core.$ZodIssue, root: unknown): string {
   }
 }
 
+// NUL, "<", DEL, C1 controls (U+0080–U+009F) and text direction characters
+// (U+202A–U+202E, U+2066–U+2069) never belong in a title or a text.
+const FORBIDDEN_CHARACTER = /[\u0000<\u007f-\u009f‪-‮⁦-⁩]/;
+
 function hasForbiddenCharacter(value: unknown): boolean {
   if (typeof value === "string") {
-    return value.includes("\u0000") || value.includes("<");
+    return FORBIDDEN_CHARACTER.test(value);
   }
 
   if (Array.isArray(value)) {
