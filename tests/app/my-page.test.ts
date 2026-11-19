@@ -108,10 +108,23 @@ describe("profile page", () => {
     expect(html).not.toContain("legendarn");
   });
 
-  it("does not render when the statistics cannot be read", async () => {
-    mocks.getMyStats.mockResolvedValue({ status: "unauthenticated" });
+  it.each([
+    ["the database fails", () => mocks.getMyStats.mockRejectedValue(new Error("db down"))],
+    [
+      "the outcome is not ok",
+      () => mocks.getMyStats.mockResolvedValue({ status: "unauthenticated" }),
+    ],
+  ])("keeps the profile working and says so in the tiles when %s", async (_name, arrange) => {
+    arrange();
 
-    await expect(MyPage()).rejects.toThrow("Profile statistics could not be read");
+    const html = renderToStaticMarkup(await MyPage());
+
+    expect(html).toContain('data-testid="profile-stats-error"');
+    expect(html).toContain("Nie udało się teraz policzyć Twoich liczb");
+    expect(html).not.toContain('data-testid="profile-stats"');
+    // The rest of the profile stays: links and logout.
+    expect(html).toContain("/my/settings");
+    expect(html).toContain("Wyloguj");
   });
 
   it("links only to existing screens", async () => {

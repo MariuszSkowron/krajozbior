@@ -108,7 +108,7 @@ test.describe("statistics on the profile", () => {
     await expect(stats.getByTestId("stat-places")).toHaveText("0");
     await expect(stats.getByTestId("stat-regions")).toHaveText("0");
     await expect(stats.getByTestId("stat-km")).toHaveText("0");
-    await expect(page.getByText("km w trasie (w linii prostej)")).toBeVisible();
+    await expect(stats.getByText("km w trasie (w linii prostej)")).toBeVisible();
     await expect(page.getByRole("main")).not.toContainText("legendarn");
 
     await page.context().close();

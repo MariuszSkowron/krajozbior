@@ -181,25 +181,63 @@ describe("the statistics of the profile", () => {
   });
 
   it("adds no region for a place that only belongs to a nationwide collection (D-34)", async () => {
-    // The catalog does not know `polska` yet, so the constraint of the scratch database is lifted
-    // for this case only (it is the last one): the rule must hold the day the value appears.
-    await admin$(`alter table public.collections drop constraint collections_region_check`);
-    await admin$(`update public.collections set region = 'polska' where id = $1`, [
-      slaskieCollection,
+    // Own collections and places, so the case does not lean on the earlier ones: N is made
+    // nationwide, R stays regional (mazowieckie), and the place M is in both.
+    const national = await f.publishedCollection(curator, orgMain, 1);
+    const regional = await f.publishedCollection(curator, orgMain, 1);
+    const onlyNational = national.placeIds[0]!;
+    const inBoth = regional.placeIds[0]!;
+
+    await admin$(`update public.collections set region = 'mazowieckie' where id = $1`, [
+      regional.collectionId,
     ]);
+    await place(onlyNational, 0, 5);
+    await place(inBoth, 0, 6);
 
-    // A: Q1 (past) is only in the nationwide collection now: place still counts, region does not.
-    const stats = await statsOf(explorerA);
-
-    expect(stats.visitedPlaces).toBe(4);
-    expect(stats.regions).toBe(1);
-
-    // A place in both a nationwide and a regional collection adds the regional one.
-    await admin$(
-      `insert into public.collection_places (collection_id, place_id, organization_id, position)
-       values ($1, $2, $3, 10)`,
-      [slaskieCollection, pomorskiePlaces[0]!, orgMain],
+    // The catalog does not know `polska` yet, so the constraint of the scratch database is lifted
+    // and restored in `finally`: the rule must hold the day the value appears, and the case
+    // does not depend on the order of the cases.
+    const [{ def }] = await admin$<{ def: string }>(
+      `select pg_get_constraintdef(oid) as def from pg_constraint
+        where conrelid = 'public.collections'::regclass and conname = 'collections_region_check'`,
     );
-    expect((await statsOf(explorerA)).regions).toBe(1);
+
+    try {
+      await admin$(`alter table public.collections drop constraint collections_region_check`);
+      await admin$(`update public.collections set region = 'polska' where id = any($1)`, [
+        [slaskieCollection, national.collectionId],
+      ]);
+      await admin$(
+        `insert into public.collection_places (collection_id, place_id, organization_id, position)
+         values ($1, $2, $3, 10)`,
+        [national.collectionId, inBoth, orgMain],
+      );
+      await onSite(explorerA, onlyNational, "2026-07-12T08:00:00Z");
+      await onSite(explorerA, inBoth, "2026-07-13T08:00:00Z");
+
+      // The repository itself must not hand `polska` over (the use case filters through the
+      // list of voivodeships, which would hide a missing fragment of the SQL).
+      const data = await runInUserContext(app.em, explorerA, (tx) =>
+        postgresProfileStatsRepository.readVisitStats(tx),
+      );
+
+      expect(data.regions).not.toContain("polska");
+      // Pomorskie (P1-P3), mazowieckie only through the place in both collections.
+      expect([...data.regions].sort()).toEqual(["mazowieckie", "pomorskie"]);
+
+      // Q1 (past, only nationwide now) and the place only in N still count as places.
+      const stats = await statsOf(explorerA);
+
+      expect(stats.visitedPlaces).toBe(6);
+      expect(stats.regions).toBe(2);
+    } finally {
+      await admin$(`update public.collections set region = 'slaskie' where id = $1`, [
+        slaskieCollection,
+      ]);
+      await admin$(`update public.collections set region = 'pomorskie' where id = $1`, [
+        national.collectionId,
+      ]);
+      await admin$(`alter table public.collections add constraint collections_region_check ${def}`);
+    }
   });
 });

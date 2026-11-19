@@ -131,8 +131,9 @@
 }
 
 .stat {
+  /* Podpis nad liczbą, w tej samej kolejności w DOM i na ekranie. */
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
   gap: var(--space-xs);
   padding: var(--space-md);
   background: var(--color-surface-card);
@@ -143,6 +144,11 @@
 .stat dt {
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
+}
+
+.statsError {
+  margin: 0;
+  color: var(--color-text-secondary);
 }
 
 .stat dd {

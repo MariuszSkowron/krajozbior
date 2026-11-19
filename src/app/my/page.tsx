@@ -40,13 +40,18 @@ export default async function MyPage() {
   }
 
   const profile = loaded.value;
-  const statsLoaded = await getMyStats(actor, getProfileStatsDeps());
+  // A failure of the counting (database) must not take the whole profile down: the tiles say
+  // so, and the links and the logout stay usable. The actor is signed in here, so the
+  // "unauthenticated" outcome cannot happen; if it did, it is shown the same way.
+  let stats: Awaited<ReturnType<typeof getMyStats>> | null = null;
 
-  if (statsLoaded.status !== "ok") {
-    throw new Error("Profile statistics could not be read");
+  try {
+    stats = await getMyStats(actor, getProfileStatsDeps());
+  } catch {
+    stats = null;
   }
 
-  const stats = statsLoaded.value;
+  const statsValue = stats !== null && stats.status === "ok" ? stats.value : null;
 
   return (
     <div className={`content-width ${styles.page}`}>
@@ -75,21 +80,27 @@ export default async function MyPage() {
       </header>
       <section className={styles.section} aria-labelledby="stats-title">
         <h2 id="stats-title">Twoje liczby</h2>
-        {/* One definition list: a reader says "Odkryte miejsca, 12", the tiles only look like cards. */}
-        <dl className={styles.stats} data-testid="profile-stats">
-          <div className={styles.stat}>
-            <dt>Odkryte miejsca</dt>
-            <dd data-testid="stat-places">{stats.visitedPlaces}</dd>
-          </div>
-          <div className={styles.stat}>
-            <dt>Odkryte regiony</dt>
-            <dd data-testid="stat-regions">{stats.regions}</dd>
-          </div>
-          <div className={styles.stat}>
-            <dt>km w trasie (w linii prostej)</dt>
-            <dd data-testid="stat-km">{formatKm(stats.kmInTransit)}</dd>
-          </div>
-        </dl>
+        {statsValue === null ? (
+          <p className={styles.statsError} data-testid="profile-stats-error" role="status">
+            Nie udało się teraz policzyć Twoich liczb. Odśwież stronę za chwilę.
+          </p>
+        ) : (
+          /* One definition list: a reader says "Odkryte miejsca, 12", the tiles only look like cards. */
+          <dl className={styles.stats} data-testid="profile-stats">
+            <div className={styles.stat}>
+              <dt>Odkryte miejsca</dt>
+              <dd data-testid="stat-places">{statsValue.visitedPlaces}</dd>
+            </div>
+            <div className={styles.stat}>
+              <dt>Odkryte regiony</dt>
+              <dd data-testid="stat-regions">{statsValue.regions}</dd>
+            </div>
+            <div className={styles.stat}>
+              <dt>km w trasie (w linii prostej)</dt>
+              <dd data-testid="stat-km">{formatKm(statsValue.kmInTransit)}</dd>
+            </div>
+          </dl>
+        )}
       </section>
       <nav aria-labelledby="profile-title">
         <ul className={styles.links}>
