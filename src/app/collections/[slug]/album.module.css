@@ -73,6 +73,13 @@
   list-style: none;
 }
 
+/* Informacja przy przełączniku Karty / Mapa (E12-5): drugorzędna, ale czytelna. */
+.mapNote {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
 .empty {
   margin: 0;
   color: var(--color-text-secondary);

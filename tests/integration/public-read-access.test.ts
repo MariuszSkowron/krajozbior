@@ -670,5 +670,21 @@ describe("public read of collections and places (guest context)", () => {
       expect(JSON.stringify(result)).not.toContain(onlyInDraft);
       expect(await getPublishedCollection(draft.slug, deps)).toEqual({ status: "not_found" });
     });
+
+    it("gives no coordinates of a withdrawn collection", async () => {
+      const withdrawn = await newCollection(curA, orgA, "Mapa: wycofana");
+      const place = await newPlace(curA, orgA, "Mapa: w wycofanej");
+
+      await link(curA, withdrawn.id, place, orgA, 1);
+      await publish(curA, withdrawn.id);
+      expect(await getPublishedCollection(withdrawn.slug, deps)).toMatchObject({ status: "ok" });
+
+      await unpublish(curA, withdrawn.id);
+
+      const result = await getPublishedCollection(withdrawn.slug, deps);
+
+      expect(result).toEqual({ status: "not_found" });
+      expect(JSON.stringify(result)).not.toContain(place);
+    });
   });
 });

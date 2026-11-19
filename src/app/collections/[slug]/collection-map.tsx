@@ -17,6 +17,8 @@ export type MapPlace = {
   state: "visited" | "unvisited" | null;
 };
 
+export type MapPoint = { latitude: number; longitude: number };
+
 const TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 // The credit required by the tile policy (D-35); the link points to the OSM copyright page.
 const ATTRIBUTION =
@@ -76,15 +78,32 @@ function popupContent(place: MapPlace): HTMLElement {
 // The map of the places of a collection. Plain Leaflet on one DOM element (no react-leaflet):
 // created in an effect and removed on cleanup, which is safe for the double mount of React 19
 // in development. Loaded only when the explorer picks the map (collection-map-loader.tsx).
-export default function CollectionMap({ places }: { places: readonly MapPlace[] }) {
+//
+// `bounds` are the coordinates of ALL places of the collection: the view is fitted to them, never
+// to the markers shown, so the filter "visited" cannot reveal through the tile numbers (which
+// OpenStreetMap sees) which places the explorer visited (M1, privacy).
+export default function CollectionMap({
+  places,
+  bounds,
+}: {
+  places: readonly MapPlace[];
+  bounds: readonly MapPoint[];
+}) {
   const container = useRef<HTMLDivElement>(null);
   const [tilesFailed, setTilesFailed] = useState(false);
   const hasStates = places.some((place) => place.state !== null);
+  // The server sends new arrays on every render (router.refresh, navigation). The map is rebuilt
+  // only when the content changes, so a refresh with the same data keeps the zoom and position.
+  const signature = JSON.stringify({ places, bounds });
 
   useEffect(() => {
     const element = container.current;
+    const data = JSON.parse(signature) as {
+      places: MapPlace[];
+      bounds: MapPoint[];
+    };
 
-    if (element === null || places.length === 0) {
+    if (element === null || data.places.length === 0) {
       return;
     }
 
@@ -113,7 +132,9 @@ export default function CollectionMap({ places }: { places: readonly MapPlace[] 
     });
     tiles.addTo(map);
 
-    const points = places.map((place) => {
+    let opener: L.Marker | null = null;
+
+    for (const place of data.places) {
       const marker = L.marker([place.latitude, place.longitude], {
         icon: markerIcon(place),
         keyboard: true,
@@ -121,18 +142,49 @@ export default function CollectionMap({ places }: { places: readonly MapPlace[] 
         riseOnHover: true,
       });
 
-      marker.bindPopup(popupContent(place));
+      marker.bindPopup(popupContent(place), { closeButton: true });
+      marker.on("popupopen", (event: L.PopupEvent) => {
+        opener = marker;
+
+        const popup = event.popup.getElement();
+        const close = popup?.querySelector(".leaflet-popup-close-button");
+
+        close?.setAttribute("aria-label", "Zamknij okienko");
+        close?.setAttribute("title", "Zamknij okienko");
+        // Focus follows what appeared (WCAG 2.4.3): the keyboard user lands on the link.
+        popup?.querySelector<HTMLElement>("a[href^='/places/']")?.focus();
+        // Leaflet reacts to Escape only while the map container itself has the focus; the focus
+        // is now inside the popup, so close it from here.
+        popup?.addEventListener("keydown", (key) => {
+          if (key.key === "Escape") {
+            map.closePopup();
+          }
+        });
+      });
+      marker.on("popupclose", (event: L.PopupEvent) => {
+        // The focus was inside the popup (it fades out and leaves the DOM a moment later) or is
+        // lost: give it back to the marker that opened the popup. A click elsewhere keeps its focus.
+        const active = document.activeElement;
+        const inPopup = active !== null && event.popup.getElement()?.contains(active) === true;
+
+        if (opener === marker && (inPopup || active === document.body)) {
+          marker.getElement()?.focus();
+        }
+      });
       marker.addTo(map);
+    }
 
-      return marker.getLatLng();
+    const view = data.bounds.length > 0 ? data.bounds : data.places;
+
+    map.fitBounds(L.latLngBounds(view.map((point) => [point.latitude, point.longitude])), {
+      maxZoom: MAX_ZOOM,
+      padding: [ICON_SIZE, ICON_SIZE],
     });
-
-    map.fitBounds(L.latLngBounds(points), { maxZoom: MAX_ZOOM, padding: [ICON_SIZE, ICON_SIZE] });
 
     return () => {
       map.remove();
     };
-  }, [places]);
+  }, [signature]);
 
   return (
     <div className={styles.wrap}>

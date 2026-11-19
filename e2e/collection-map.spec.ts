@@ -147,6 +147,14 @@ test.describe("the map view of a collection", () => {
     await expect(page.locator(".leaflet-container")).toHaveCount(0);
     expect(tiles.stubbed).toEqual([]);
 
+    // The privacy note is there before the map is chosen, and tied to the switch.
+    await expect(
+      page.getByText(
+        "Mapę dostarcza OpenStreetMap; po jej włączeniu serwer OpenStreetMap widzi adres IP urządzenia i oglądany obszar.",
+      ),
+    ).toBeVisible();
+    await expect(views).toHaveAccessibleDescription(/OpenStreetMap widzi adres IP/);
+
     await views.getByRole("link", { name: "Mapa" }).click();
     await expect(page).toHaveURL(/\?widok=mapa$/);
     await expect(page.getByRole("region", { name: "Mapa miejsc kolekcji" })).toBeVisible();
@@ -207,12 +215,24 @@ test.describe("the map view of a collection", () => {
     await page.keyboard.press("Enter");
 
     const popup = page.locator(".leaflet-popup");
+    const link = popup.getByRole("link", { name: "Otwórz miejsce" });
 
     await expect(popup).toBeVisible();
-    await expect(popup.getByRole("link", { name: "Otwórz miejsce" })).toHaveAttribute(
-      "href",
-      /^\/places\/[0-9a-f-]{36}$/,
-    );
+    await expect(link).toHaveAttribute("href", /^\/places\/[0-9a-f-]{36}$/);
+    // WCAG 2.4.3: the focus moves to the link that appeared ...
+    await expect(link).toBeFocused();
+    await expect(popup.getByRole("button", { name: "Zamknij okienko" })).toBeVisible();
+
+    // ... and returns to the marker that opened the popup when it closes.
+    await page.keyboard.press("Escape");
+    await expect(popup).toHaveCount(0);
+    await expect(page.locator(`.leaflet-marker-icon[title="${marker}"]`)).toBeFocused();
+
+    await page.keyboard.press("Enter");
+    await expect(link).toBeFocused();
+    await popup.getByRole("button", { name: "Zamknij okienko" }).click();
+    await expect(popup).toHaveCount(0);
+    await expect(page.locator(`.leaflet-marker-icon[title="${marker}"]`)).toBeFocused();
 
     await page.getByRole("link", { name: "Pomiń mapę" }).click();
     await expect(page).toHaveURL(/#lista-miejsc$/);
@@ -277,14 +297,73 @@ test.describe("the map view of a collection", () => {
   });
 
   test("with reduced motion the map has no zoom, fade or marker animation", async ({ browser }) => {
-    const context = await browser.newContext({ reducedMotion: "reduce" });
-    const page = await context.newPage();
+    // Leaflet leaves lasting marks of its options in the DOM: `leaflet-fade-anim` on the
+    // container (fadeAnimation), the `leaflet-proxy` element (only with zoomAnimation) and
+    // `leaflet-zoom-hide` on the marker pane when markerZoomAnimation is off. Compare both
+    // settings, so the test fails when the map ignores prefers-reduced-motion.
+    const marks = async (reducedMotion: "reduce" | "no-preference") => {
+      const context = await browser.newContext({ reducedMotion });
+      const page = await context.newPage();
 
-    await stubTiles(page);
-    await page.goto(MAP);
-    await expect(page.locator(".leaflet-marker-icon")).toHaveCount(3);
-    await expect(page.locator(".leaflet-zoom-anim")).toHaveCount(0);
-    await context.close();
+      await stubTiles(page);
+      await page.goto(MAP);
+      await expect(page.locator(".leaflet-marker-icon")).toHaveCount(3);
+
+      const result = await page.evaluate(() => ({
+        fade: document.querySelector(".leaflet-container")?.classList.contains("leaflet-fade-anim"),
+        zoomAnimated: document.querySelectorAll(".leaflet-proxy").length,
+        markerPaneHidden: document
+          .querySelector(".leaflet-marker-pane")
+          ?.classList.contains("leaflet-zoom-hide"),
+      }));
+
+      await context.close();
+
+      return result;
+    };
+
+    const calm = await marks("reduce");
+    const normal = await marks("no-preference");
+
+    expect(normal.fade).toBe(true);
+    expect(normal.zoomAnimated).toBeGreaterThan(0);
+    expect(calm.fade).toBe(false);
+    expect(calm.zoomAnimated).toBe(0);
+    expect(calm.markerPaneHidden).toBe(true);
+  });
+
+  test("the filter does not change the map view: the tiles are the same with and without it (privacy)", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, EXPLORER);
+
+    await adminQuery(
+      `insert into public.visits (user_id, place_id, kind, date_precision)
+       select u.id, p.id, 'past', 'unknown'
+         from auth.users u, public.places p
+        where u.email = $1 and p.name = 'Most Tczewski'`,
+      [EXPLORER],
+    );
+
+    // A fresh page for each view, so the browser cache cannot hide a request.
+    const tilesOf = async (url: string): Promise<string[]> => {
+      const view = await page.context().newPage();
+      const tiles = await stubTiles(view);
+
+      await view.goto(url);
+      await expect(view.locator(".leaflet-marker-icon").first()).toBeVisible();
+      await expect.poll(() => tiles.stubbed.length).toBeGreaterThan(0);
+      await view.waitForLoadState("networkidle");
+      await view.close();
+
+      return [...new Set(tiles.stubbed)].sort();
+    };
+
+    const all = await tilesOf(MAP);
+    const visited = await tilesOf(`${MAP}&stan=odwiedzone`);
+
+    expect(visited).toEqual(all);
+    await page.context().close();
   });
 
   test("without JavaScript the list stays and the map says it needs it", async ({ browser }) => {

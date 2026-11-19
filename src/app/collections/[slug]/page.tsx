@@ -247,7 +247,11 @@ export default async function CollectionPage({
           <p>Ta kolekcja nie ma jeszcze miejsc.</p>
         ) : (
           <>
-            <nav className={panelStyles.filter} aria-label="Widok miejsc">
+            <nav
+              className={panelStyles.filter}
+              aria-label="Widok miejsc"
+              aria-describedby="uwaga-mapa"
+            >
               {(["karty", "mapa"] as const).map((option) => (
                 <Link
                   key={option}
@@ -259,6 +263,10 @@ export default async function CollectionPage({
                 </Link>
               ))}
             </nav>
+            <p id="uwaga-mapa" className={panelStyles.mapNote}>
+              Mapę dostarcza OpenStreetMap; po jej włączeniu serwer OpenStreetMap widzi adres IP
+              urządzenia i oglądany obszar.
+            </p>
             {widok === "mapa" ? (
               <div className={panelStyles.mapBlock}>
                 <a className={panelStyles.skipLink} href="#lista-miejsc">
@@ -266,6 +274,10 @@ export default async function CollectionPage({
                 </a>
                 {shown.length === 0 ? null : (
                   <CollectionMapLoader
+                    bounds={collection.places.map((place) => ({
+                      latitude: place.latitude,
+                      longitude: place.longitude,
+                    }))}
                     places={shown.map((place) => ({
                       id: place.id,
                       name: place.name,
