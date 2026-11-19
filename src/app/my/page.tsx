@@ -4,7 +4,11 @@ import { redirect } from "next/navigation";
 
 import { getRequestActor, loginHref } from "@/app/request-actor";
 import { LogoutForm } from "@/app/shell/logout-form";
+import { REGION_LABELS } from "@/features/catalog/domain/collection";
 import { roleLabels } from "@/features/identity/domain/role-home";
+import { getMyProfile } from "@/features/profile/application/profile";
+import { avatarLetter, formatDisplayName } from "@/features/profile/domain/display-name";
+import { getProfileDeps } from "@/features/profile/infrastructure/profile-deps";
 
 import styles from "./profile.module.css";
 
@@ -24,10 +28,35 @@ export default async function MyPage() {
     redirect(loginHref("/my"));
   }
 
+  const loaded = await getMyProfile(actor, getProfileDeps());
+
+  if (loaded.status !== "ok") {
+    throw new Error("Profile could not be read");
+  }
+
+  const profile = loaded.value;
+
   return (
     <div className={`content-width ${styles.page}`}>
       <header className={styles.header}>
         <h1 id="profile-title">Profil</h1>
+        <div className={styles.identity}>
+          {/* The circle stands in for a photo until E4; the name beside it says the same. */}
+          <span className={styles.avatar} aria-hidden="true">
+            {avatarLetter(profile.firstName)}
+          </span>
+          <div className={styles.identityText}>
+            <p className={styles.name} data-testid="profile-name">
+              {formatDisplayName(profile.firstName, profile.familyInitial)}
+            </p>
+            {profile.region === null ? null : (
+              <p className={styles.role}>{REGION_LABELS[profile.region]}</p>
+            )}
+            <p className={styles.visibility}>
+              {profile.visibility === "public" ? "Profil widoczny" : "Profil niewidoczny"}
+            </p>
+          </div>
+        </div>
         <p className={styles.role}>
           Twoja rola: <strong>{roleLabels[actor.role]}</strong>
         </p>

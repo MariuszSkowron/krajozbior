@@ -25,6 +25,14 @@ vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("@/features/identity/infrastructure", () => ({
   getIdentityProvider: () => ({ getSessionCreatedAt: mocks.getSessionCreatedAt }),
 }));
+// The profile section of the settings has its own test (my-profile-pages.test.ts).
+vi.mock("@/features/profile/infrastructure/profile-deps", () => ({ getProfileDeps: () => ({}) }));
+vi.mock("@/features/profile/application/profile", () => ({
+  getMyProfile: async () => ({
+    status: "ok",
+    value: { firstName: null, familyInitial: null, region: null, visibility: "private" },
+  }),
+}));
 
 const { default: SettingsPage } = await import("@/app/my/settings/page");
 const { default: DeleteAccountPage } = await import("@/app/my/delete-account/page");
@@ -43,12 +51,14 @@ describe("settings page", () => {
   it("sends a guest to the login page and back to /my/settings", async () => {
     mocks.getActor.mockResolvedValue(null);
 
-    await expect(SettingsPage()).rejects.toThrow("NEXT_REDIRECT");
+    await expect(SettingsPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
     expect(mocks.redirect).toHaveBeenCalledWith("/login?returnTo=%2Fmy%2Fsettings");
   });
 
-  it("holds the section Konto with the one link to the deletion screen, and nothing else", async () => {
-    const html = renderToStaticMarkup(await SettingsPage());
+  it("holds the sections Profil and Konto, and the one link of Konto leads to the deletion screen", async () => {
+    const html = renderToStaticMarkup(await SettingsPage({ searchParams: Promise.resolve({}) }));
     const hrefs = [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((match) => match[1]);
 
     expect(html).toMatch(/<h1[^>]*>Ustawienia<\/h1>/);

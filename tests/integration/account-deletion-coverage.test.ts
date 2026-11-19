@@ -26,6 +26,10 @@ type Behaviour = "cascade" | "set null";
 const foreignKeys: Record<string, { behaviour: Behaviour; why: string }> = {
   "auth.sessions.user_id": { behaviour: "cascade", why: "the sessions of the account end with it" },
   "auth.accounts.user_id": { behaviour: "cascade", why: "the login credentials go with it" },
+  "public.profiles.user_id": {
+    behaviour: "cascade",
+    why: "profile of the explorer: name, initial, region, visibility (E9-2)",
+  },
   "public.organization_members.user_id": {
     behaviour: "cascade",
     why: "the membership goes; the organization and its content stay (Q8)",
