@@ -50,8 +50,9 @@ describe("profile page", () => {
     const html = renderToStaticMarkup(await MyPage());
     const hrefs = [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((match) => match[1]);
 
-    expect(hrefs).toEqual(["/my/collections", "/my/want-to-see"]);
-    expect(html).not.toContain("Ustawienia");
+    // "Ustawienia" arrived with its screen (E9-5); "Napisz do nas" comes with E9-6.
+    expect(hrefs).toEqual(["/my/collections", "/my/want-to-see", "/my/settings"]);
+    expect(html).toContain("Ustawienia");
     expect(html).not.toContain("Napisz do nas");
   });
 

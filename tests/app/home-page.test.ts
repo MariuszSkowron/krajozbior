@@ -180,6 +180,18 @@ describe("home page of a guest", () => {
     expect(console.error).toHaveBeenCalledWith("Home nearby read failed:", "Error");
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
   });
+
+  it("confirms a deleted account (E9-5) only for the exact signal", async () => {
+    expect(await render({ konto: "usuniete" })).toMatch(
+      /role="status"[^>]*>Twoje konto zostało usunięte\./,
+    );
+    // Only the empty status region of "W okolicy" remains; no deletion message.
+    const other = await render({ konto: "inne" });
+
+    expect(other.match(/role="status"/g)).toHaveLength(1);
+    expect(other).toMatch(/<p role="status"><\/p>/);
+    expect(other).not.toContain("Twoje konto zostało usunięte.");
+  });
 });
 
 describe("home page of a signed-in explorer", () => {

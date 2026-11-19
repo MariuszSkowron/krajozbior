@@ -60,6 +60,14 @@
 # Ekran Profil i wylogowanie (E9-1): test sprawdza, że po wylogowaniu ekrany prywatne odmawiają gościowi
 /e2e/profile.spec.ts               @MariuszSkowron
 
+# Usunięcie konta (E9-5): przypadek użycia, trasa w /src/app/api/ już ma właściciela,
+# ekran Ustawienia, test dwóch przeglądarek i ponownego logowania
+/src/features/account/             @MariuszSkowron
+/tests/features/account/           @MariuszSkowron
+/src/app/my/settings/              @MariuszSkowron
+/src/app/my/delete-account/        @MariuszSkowron
+/e2e/account-deletion.spec.ts      @MariuszSkowron
+
 # Panel kuratora (ekrany zapisujące dane CUR przez trasy API), lista organizacji
 # konta w żądaniu i test dwóch kuratorów (kurator B nie widzi szkiców A)
 /src/app/curator/                  @MariuszSkowron
@@ -75,6 +83,7 @@
 /src/app/past-visit-message.tsx    @MariuszSkowron
 /src/app/past-visit.module.css     @MariuszSkowron
 /tests/app/past-visit-date-fields.test.ts @MariuszSkowron
+/tests/app/place-card-link.test.ts @MariuszSkowron
 # Test wyglądu i dostępności: czyści wizyty i listę „Chcę zobaczyć” konta demo
 /e2e/appearance.spec.ts            @MariuszSkowron
 
@@ -84,6 +93,9 @@
 /src/app/places/                   @MariuszSkowron
 /src/app/catalog.module.css        @MariuszSkowron
 /e2e/public-catalog.spec.ts        @MariuszSkowron
+# Kolekcja jako album (E12-4): filtr stanu i panel miejsca pokazują wizyty odkrywcy (dane PRIV);
+# test czyści wizyty i zapisy kont demo
+/e2e/collection-album.spec.ts      @MariuszSkowron
 
 # Strona główna: pokazuje dane PRIV odkrywcy (album, ulubione, ostatnie wizyty) i czyści
 # wizyty oraz zapisy kont demo

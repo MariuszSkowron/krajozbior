@@ -8,6 +8,8 @@ const provider = vi.hoisted(() => ({
   requestSignInCode: vi.fn(),
   signInWithCode: vi.fn(),
   signOut: vi.fn(),
+  getSessionCreatedAt: vi.fn(),
+  deleteAccount: vi.fn(),
 }));
 
 const throttle = vi.hoisted(() => ({
@@ -449,6 +451,43 @@ describe("POST /api/auth/logout", () => {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
         body: "",
+      }),
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("Location")).toBe("/?wylogowano=1");
+  });
+
+  it("sends a form post that names a same-site returnTo to the login screen (E9-5, Q7)", async () => {
+    provider.signOut.mockResolvedValue([]);
+
+    const post = (body: string) =>
+      logout(
+        new Request("http://localhost/api/auth/logout", {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body,
+        }),
+      );
+
+    expect((await post("returnTo=%2Fmy%2Fdelete-account")).headers.get("Location")).toBe(
+      `/login?returnTo=${encodeURIComponent("/my/delete-account")}`,
+    );
+    // An address that leaves the site falls back to "/", never to the foreign host.
+    expect((await post("returnTo=https%3A%2F%2Fevil.example")).headers.get("Location")).toBe(
+      `/login?returnTo=${encodeURIComponent("/")}`,
+    );
+    expect((await post("returnTo=")).headers.get("Location")).toBe("/?wylogowano=1");
+  });
+
+  it("ignores an unreadable form body and goes to the home page", async () => {
+    provider.signOut.mockResolvedValue([]);
+
+    const response = await logout(
+      new Request("http://localhost/api/auth/logout", {
+        method: "POST",
+        headers: { "content-type": "multipart/form-data; boundary=x" },
+        body: "not a multipart body",
       }),
     );
 

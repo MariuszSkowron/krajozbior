@@ -156,7 +156,9 @@ test.describe("the competition path", () => {
 
     await guest.goto(`/collections/${slug}`);
     await expect(guest.getByRole("heading", { level: 1, name: title })).toBeVisible();
-    await guest.getByRole("link", { name: /Most ze ścieżki/ }).click();
+    await guest.goto(
+      (await guest.getByRole("link", { name: /Most ze ścieżki/ }).getAttribute("href")) ?? "",
+    );
     await expect(guest.getByRole("heading", { level: 1, name: "Most ze ścieżki" })).toBeVisible();
     await expect(
       guest.getByRole("link", {
