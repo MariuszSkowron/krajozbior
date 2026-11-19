@@ -153,7 +153,10 @@ test.describe("the map view of a collection", () => {
         "Mapę dostarcza OpenStreetMap; po jej włączeniu serwer OpenStreetMap widzi adres IP urządzenia i oglądany obszar.",
       ),
     ).toBeVisible();
-    await expect(views).toHaveAccessibleDescription(/OpenStreetMap widzi adres IP/);
+    // Tied to the "Mapa" link itself: screen readers rarely announce a description on <nav>.
+    await expect(views.getByRole("link", { name: "Mapa" })).toHaveAccessibleDescription(
+      /OpenStreetMap widzi adres IP/,
+    );
 
     await views.getByRole("link", { name: "Mapa" }).click();
     await expect(page).toHaveURL(/\?widok=mapa$/);

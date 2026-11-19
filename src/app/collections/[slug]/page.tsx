@@ -247,17 +247,14 @@ export default async function CollectionPage({
           <p>Ta kolekcja nie ma jeszcze miejsc.</p>
         ) : (
           <>
-            <nav
-              className={panelStyles.filter}
-              aria-label="Widok miejsc"
-              aria-describedby="uwaga-mapa"
-            >
+            <nav className={panelStyles.filter} aria-label="Widok miejsc">
               {(["karty", "mapa"] as const).map((option) => (
                 <Link
                   key={option}
                   className={panelStyles.filterLink}
                   href={albumHref(collection.slug, { stan, miejsce: selectedId, widok: option })}
                   aria-current={option === widok ? "page" : undefined}
+                  aria-describedby={option === "mapa" ? "uwaga-mapa" : undefined}
                 >
                   {option === "karty" ? "Karty" : "Mapa"}
                 </Link>
