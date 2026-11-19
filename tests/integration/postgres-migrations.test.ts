@@ -307,6 +307,39 @@ describe("PostgreSQL migrations and transactions", () => {
     }
   });
 
+  it("reverts the catalog import migration alone and applies it again", async () => {
+    const owner = await MikroORM.init(createOrmConfig(db.urls.krajozbior_owner));
+    const importState = () =>
+      orm.em.execute<{ table: string | null; policies: number; delete: boolean }>(
+        `select to_regclass('public.catalog_import_keys')::text as "table",
+                (select count(*)::int from pg_policies
+                  where tablename = 'places' and policyname = 'places_delete') as policies,
+                has_table_privilege('krajozbior_app', 'public.places', 'delete') as "delete"`,
+        [],
+        "get",
+      );
+
+    try {
+      expect(await importState()).toEqual({
+        table: "catalog_import_keys",
+        policies: 1,
+        delete: true,
+      });
+
+      await owner.migrator.down({ to: "Migration20261118150000_last_member_guard" });
+      expect(await importState()).toEqual({ table: null, policies: 0, delete: false });
+
+      await owner.migrator.up();
+      expect(await importState()).toEqual({
+        table: "catalog_import_keys",
+        policies: 1,
+        delete: true,
+      });
+    } finally {
+      await owner.close(true);
+    }
+  });
+
   it("writes and reads a technical record, then rolls it back", async () => {
     await orm.em.execute(`create table integration_technical_records (
       id text primary key,
