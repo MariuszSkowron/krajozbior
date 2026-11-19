@@ -127,6 +127,17 @@ describe("profile page", () => {
     expect(html).toContain("Wyloguj");
   });
 
+  it("logs a database failure by context and error class only", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.getMyStats.mockRejectedValue(new Error("db down"));
+
+    await MyPage();
+
+    expect(spy).toHaveBeenCalledWith("Profile statistics failed:", "Error");
+    expect(JSON.stringify(spy.mock.calls)).not.toContain("db down");
+    spy.mockRestore();
+  });
+
   it("links only to existing screens", async () => {
     const html = renderToStaticMarkup(await MyPage());
     const hrefs = [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((match) => match[1]);

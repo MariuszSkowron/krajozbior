@@ -6,6 +6,7 @@ import { getRequestActor, loginHref } from "@/app/request-actor";
 import { LogoutForm } from "@/app/shell/logout-form";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
 import { roleLabels } from "@/features/identity/domain/role-home";
+import { logFailure } from "@/lib/log-failure";
 import { getMyProfile } from "@/features/profile/application/profile";
 import { avatarLetter, formatDisplayName } from "@/features/profile/domain/display-name";
 import { getMyStats } from "@/features/profile/application/stats";
@@ -47,7 +48,8 @@ export default async function MyPage() {
 
   try {
     stats = await getMyStats(actor, getProfileStatsDeps());
-  } catch {
+  } catch (error) {
+    logFailure("Profile statistics", error);
     stats = null;
   }
 
@@ -81,7 +83,7 @@ export default async function MyPage() {
       <section className={styles.section} aria-labelledby="stats-title">
         <h2 id="stats-title">Twoje liczby</h2>
         {statsValue === null ? (
-          <p className={styles.statsError} data-testid="profile-stats-error" role="status">
+          <p className={styles.statsError} data-testid="profile-stats-error">
             Nie udało się teraz policzyć Twoich liczb. Odśwież stronę za chwilę.
           </p>
         ) : (
