@@ -13,8 +13,9 @@ import { saveMyProfile } from "../application/profile";
 import type { ProfileDeps } from "../application/profile-types";
 import { PROFILE_BODY_MAX_BYTES } from "../domain/limits";
 import {
-  PROFILE_DRAFT_COOKIE,
   PROFILE_DRAFT_MAX_AGE_SECONDS,
+  clearedProfileDraftCookie,
+  profileDraftCookie,
   serializeProfileDraft,
 } from "../domain/profile-draft";
 import { getProfileDeps } from "../infrastructure/profile-deps";
@@ -27,12 +28,6 @@ import { getProfileDeps } from "../infrastructure/profile-deps";
 
 const SCREEN = "/my/settings";
 
-function draftCookie(value: string, maxAge: number): string {
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-
-  return `${PROFILE_DRAFT_COOKIE}=${value}; Path=${SCREEN}; Max-Age=${maxAge}; HttpOnly; SameSite=Lax${secure}`;
-}
-
 // `target` is the fragment: an error goes to the summary of errors (it takes focus,
 // also without JavaScript), a success to the section. `draft` carries the typed
 // values of a refused post in a cookie (never in the URL); every redirect clears it
@@ -43,7 +38,7 @@ function redirect(query: string, target: string, draft?: string | null): Respons
   headers.set("Location", `${SCREEN}?${query}#${target}`);
   headers.append(
     "Set-Cookie",
-    draft ? draftCookie(draft, PROFILE_DRAFT_MAX_AGE_SECONDS) : draftCookie("", 0),
+    draft ? profileDraftCookie(draft, PROFILE_DRAFT_MAX_AGE_SECONDS) : clearedProfileDraftCookie(),
   );
 
   return new Response(null, { status: 303, headers });

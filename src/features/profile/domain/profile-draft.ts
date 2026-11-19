@@ -5,6 +5,18 @@
 
 export const PROFILE_DRAFT_COOKIE = "profile-draft";
 export const PROFILE_DRAFT_MAX_AGE_SECONDS = 120;
+const PROFILE_DRAFT_PATH = "/my/settings";
+
+/** `Set-Cookie` value of the draft; max age 0 and an empty value clear it (also on sign-out and account deletion). */
+export function profileDraftCookie(value: string, maxAge: number): string {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+
+  return `${PROFILE_DRAFT_COOKIE}=${value}; Path=${PROFILE_DRAFT_PATH}; Max-Age=${maxAge}; HttpOnly; SameSite=Lax${secure}`;
+}
+
+export function clearedProfileDraftCookie(): string {
+  return profileDraftCookie("", 0);
+}
 
 const FIELDS = ["firstName", "familyInitial", "region", "visibility"] as const;
 const VALUE_MAX_LENGTH = 100;
