@@ -98,7 +98,7 @@ test.describe("public catalog pages", () => {
     expect(response?.headers()["cache-control"]).toBe("private, no-store");
     await expect(page).toHaveTitle(`${DEMO_TITLE} — Krajozbiór`);
     await expect(page.getByRole("heading", { level: 1, name: DEMO_TITLE })).toBeVisible();
-    await expect(page.getByText("Prowadzi: Gmina A (demo)")).toBeVisible();
+    await expect(page.getByText("Kurator: Gmina A (demo)")).toBeVisible();
 
     const places = page.getByRole("main").getByRole("list").getByRole("link");
 
@@ -106,12 +106,12 @@ test.describe("public catalog pages", () => {
     await expect(places.first()).toContainText("Most Tczewski");
     await expectNoAccessibilityViolations(page);
 
-    const placeResponse = await Promise.all([
-      page.waitForResponse((r) => r.url().includes("/places/")),
-      places.first().click(),
-    ]).then(([r]) => r);
+    // On a desktop screen a click on the card opens the panel (E12-4; e2e/collection-album.spec.ts),
+    // so this test goes by the address of the card, the way a phone or a browser without
+    // JavaScript does.
+    const placeResponse = await page.goto((await places.first().getAttribute("href")) ?? "");
 
-    expect(placeResponse.headers()["cache-control"]).toBe("private, no-store");
+    expect(placeResponse?.headers()["cache-control"]).toBe("private, no-store");
     await expect(page).toHaveURL(/\/places\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("heading", { level: 1, name: "Most Tczewski" })).toBeVisible();
     await expect(page.getByRole("link", { name: DEMO_TITLE })).toHaveAttribute(
