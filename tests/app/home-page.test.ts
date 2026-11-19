@@ -185,7 +185,12 @@ describe("home page of a guest", () => {
     expect(await render({ konto: "usuniete" })).toMatch(
       /role="status"[^>]*>Twoje konto zostało usunięte\./,
     );
-    expect(await render({ konto: "inne" })).not.toContain('role="status"');
+    // Only the empty status region of "W okolicy" remains; no deletion message.
+    const other = await render({ konto: "inne" });
+
+    expect(other.match(/role="status"/g)).toHaveLength(1);
+    expect(other).toMatch(/<p role="status"><\/p>/);
+    expect(other).not.toContain("Twoje konto zostało usunięte.");
   });
 });
 
