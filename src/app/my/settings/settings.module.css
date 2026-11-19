@@ -110,6 +110,12 @@
   font-weight: normal;
 }
 
+.fieldError {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
+}
+
 .errorPrefix {
   color: var(--color-feedback-danger);
 }

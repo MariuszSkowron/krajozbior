@@ -19,7 +19,8 @@ const render = (
   profile: Parameters<typeof ProfileForm>[0]["profile"] = empty,
   result?: string,
   fields?: string,
-) => renderToStaticMarkup(createElement(ProfileForm, { profile, result, fields }));
+  draft?: Parameters<typeof ProfileForm>[0]["draft"],
+) => renderToStaticMarkup(createElement(ProfileForm, { profile, result, fields, draft }));
 
 describe("ProfileForm", () => {
   it("is a native post to the profile route and names no owner", () => {
@@ -96,6 +97,47 @@ describe("ProfileForm", () => {
     expect(html).toContain("Region: wybierz województwo z listy.");
     expect(html).toContain("Widoczność: wybierz jedną z opcji.");
     expect(html).not.toContain("nonsense");
+  });
+
+  it("ties the message of each wrong field to it with aria-describedby, and the summary takes focus", () => {
+    const html = render(empty, "blad", "firstName,familyInitial,region,visibility");
+
+    expect(html).toMatch(/<div id="profile-error" role="alert" tabindex="-1"/);
+    for (const field of ["firstName", "familyInitial", "region", "visibility"]) {
+      const id = `profile-${field}-error`;
+
+      expect(html, field).toMatch(new RegExp(`<p id="${id}"`));
+      expect(html, field).toMatch(new RegExp(`aria-describedby="[^"]*${id}"`));
+    }
+    // The hint stays in the description next to the error.
+    expect(html).toMatch(/aria-describedby="profile-first-name-hint profile-firstName-error"/);
+    // No error element and no reference to it for a field that is fine.
+    const clean = render(empty, "blad", "region");
+
+    expect(clean).not.toContain("profile-firstName-error");
+    expect(clean).toMatch(/aria-describedby="profile-first-name-hint"/);
+  });
+
+  it("keeps what the person typed after a refusal instead of the saved profile", () => {
+    const html = render(
+      { firstName: "Anna", familyInitial: "K", region: "pomorskie", visibility: "private" },
+      "blad",
+      "firstName",
+      { firstName: "Anna2", familyInitial: "", region: "slaskie", visibility: "public" },
+    );
+
+    expect(html).toContain('value="Anna2"');
+    expect(html).not.toContain('value="Anna"');
+    expect(html).toMatch(/<option value="slaskie" selected/);
+    expect(html).toMatch(/<input [^>]*name="visibility" checked="" value="public"/);
+  });
+
+  it("does not break on a result code that is a key of Object.prototype", () => {
+    for (const code of ["__proto__", "constructor", "toString", "hasOwnProperty"]) {
+      const html = render(empty, code);
+
+      expect(html, code).not.toContain('role="alert"');
+    }
   });
 
   it("ignores an unknown result code and shows no field list for a failure without fields", () => {

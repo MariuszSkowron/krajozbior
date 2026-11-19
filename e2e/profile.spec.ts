@@ -207,7 +207,17 @@ test.describe("profile data: name, region, visibility", () => {
     await expect(
       page.getByRole("main").getByRole("alert").filter({ hasText: "Imię: wpisz do 40 liter" }),
     ).toBeVisible();
-    await expect(page.getByLabel("Imię", { exact: true })).toHaveAttribute("aria-invalid", "true");
+
+    const field = page.getByLabel("Imię", { exact: true });
+
+    await expect(field).toHaveAttribute("aria-invalid", "true");
+    // The typed value stays, and it never travels in the URL.
+    await expect(field).toHaveValue("Anna2");
+    expect(page.url()).not.toContain("Anna2");
+    // The message at the field is tied to it, and focus lands on the summary of errors.
+    await expect(field).toHaveAttribute("aria-describedby", /profile-firstName-error/);
+    await expect(page.locator("#profile-firstName-error")).toContainText("Wpisz do 40 liter");
+    await expect(page.locator("#profile-error")).toBeFocused();
 
     await page.goto("/my");
     await expect(page.getByTestId("profile-name")).toHaveText("Odkrywca");

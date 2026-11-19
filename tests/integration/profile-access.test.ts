@@ -163,6 +163,7 @@ describe("the profile", () => {
         "a name of 41 characters": { first_name: "A".repeat(41) },
         "a name with outer spaces": { first_name: " Anna" },
         "an empty name": { first_name: "" },
+        "a decomposed name (not NFC)": { first_name: "Zóra" },
         "a lowercase initial": { first_name: "Anna", family_initial: "k" },
         "an initial that is not a letter": { first_name: "Anna", family_initial: "1" },
         "two letters as the initial": { first_name: "Anna", family_initial: "KO" },

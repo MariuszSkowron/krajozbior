@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ProfileDeps } from "@/features/profile/application/profile-types";
+import { parseProfileDraft } from "@/features/profile/domain/profile-draft";
 
 const provider = vi.hoisted(() => ({ getActor: vi.fn() }));
 
@@ -135,6 +136,10 @@ describe("handleProfileSave", () => {
 
     expect(response.status).toBe(303);
     expect(response.headers.get("Location")).toBe("/my/settings?profil=zapisano#profil");
+    // A save clears the draft of an earlier refused post.
+    expect(response.headers.get("Set-Cookie")).toMatch(
+      /^profile-draft=; Path=\/my\/settings; Max-Age=0/,
+    );
     expect(save).toHaveBeenCalledOnce();
   });
 
@@ -145,31 +150,54 @@ describe("handleProfileSave", () => {
     );
 
     expect(response.status).toBe(303);
-    expect(response.headers.get("Location")).toBe("/my/settings?profil=blad&pola=firstName#profil");
+    // The summary of errors takes focus (fragment), the typed values travel in an
+    // HttpOnly cookie and never in the URL.
+    expect(response.headers.get("Location")).toBe(
+      "/my/settings?profil=blad&pola=firstName#profile-error",
+    );
+    expect(response.headers.get("Location")).not.toContain("Anna2");
+
+    const cookie = response.headers.get("Set-Cookie") ?? "";
+
+    expect(cookie).toMatch(/^profile-draft=/);
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("SameSite=Lax");
+    expect(cookie).toContain("Path=/my/settings");
+    expect(cookie).toContain("Max-Age=120");
+    expect(
+      parseProfileDraft(decodeURIComponent(cookie.split(";")[0]?.split("=")[1] ?? "")),
+    ).toEqual({ firstName: "Anna2", familyInitial: "", region: "", visibility: "public" });
     expect(save).not.toHaveBeenCalled();
   });
 
-  it("sends a form back for a limit, a large body and a failure; a guest still gets 401", async () => {
+  it("sends a form of a guest to the sign-in, and a JSON caller still gets 401", async () => {
+    provider.getActor.mockResolvedValue(null);
+
+    const response = await handleProfileSave(form("firstName=Anna"), deps);
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("Location")).toBe("/login?returnTo=%2Fmy%2Fsettings");
+    expect((await handleProfileSave(request(body), deps)).status).toBe(401);
+  });
+
+  it("sends a form back for a limit, a large body and a failure", async () => {
     reserve.mockResolvedValue({ allowed: false, retryAfterSeconds: 3 });
     expect(
       (await handleProfileSave(form("visibility=private"), deps)).headers.get("Location"),
-    ).toBe("/my/settings?profil=limit#profil");
+    ).toBe("/my/settings?profil=limit#profile-error");
 
     reserve.mockResolvedValue({ allowed: true });
     expect(
       (await handleProfileSave(form(`firstName=${"A".repeat(5000)}`), deps)).headers.get(
         "Location",
       ),
-    ).toBe("/my/settings?profil=blad#profil");
+    ).toBe("/my/settings?profil=blad#profile-error");
 
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     provider.getActor.mockRejectedValue(new Error("boom"));
     expect(
       (await handleProfileSave(form("visibility=private"), deps)).headers.get("Location"),
-    ).toBe("/my/settings?profil=niedostepny#profil");
-
-    provider.getActor.mockResolvedValue(null);
-    expect((await handleProfileSave(form("visibility=private"), deps)).status).toBe(401);
+    ).toBe("/my/settings?profil=niedostepny#profile-error");
   });
 
   it("treats a form in another encoding as a bad request, not an outage", async () => {
@@ -180,7 +208,7 @@ describe("handleProfileSave", () => {
     });
     const response = await handleProfileSave(other, deps);
 
-    expect(response.headers.get("Location")).toBe("/my/settings?profil=blad#profil");
+    expect(response.headers.get("Location")).toBe("/my/settings?profil=blad#profile-error");
     expect(save).not.toHaveBeenCalled();
   });
 });
