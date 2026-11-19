@@ -166,7 +166,10 @@ test.describe("deleting the account", () => {
     // A wrong word does nothing and says why.
     await confirmDeletion(page, "tak");
     await expect(page).toHaveURL(/blad=invalid_confirmation/);
-    await expect(page.getByRole("alert")).toContainText("Wpisz dokładnie słowo USUŃ");
+    // Filtered by text: Next.js adds its own role="alert" route announcer to every page.
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Wpisz dokładnie słowo USUŃ" }),
+    ).toBeVisible();
     expect(await accountId(email)).toBe(id);
 
     // The same account in a second browser, to see its session stop.
@@ -176,9 +179,13 @@ test.describe("deleting the account", () => {
 
     await confirmDeletion(page, "USUŃ");
     await expect(page).toHaveURL(/\/\?konto=usuniete$/);
-    await expect(page.getByRole("main").getByRole("status")).toContainText(
-      "Twoje konto zostało usunięte.",
-    );
+    // Filtered by text: the "W okolicy" section has its own, usually empty, role="status".
+    await expect(
+      page
+        .getByRole("main")
+        .getByRole("status")
+        .filter({ hasText: "Twoje konto zostało usunięte." }),
+    ).toBeVisible();
     expect((await page.request.get("/api/me")).status()).toBe(401);
 
     // The session of the second browser stops at its next request.
