@@ -8,6 +8,9 @@ import { Migration } from "@mikro-orm/migrations";
 //    curator edited in the panel. CUR class (metadata of the organization): the
 //    members of the organization read it, a member with `full_edit` writes it,
 //    a guest and a member of another organization see nothing.
+//    `entity_id` is unique per organization and kind, not globally, so a
+//    duplicate-key error never tells a curator anything about another
+//    organization.
 //    `entity_id` has no foreign key (it points at two tables); the loader
 //    removes the key in the same transaction as the entity.
 //    `imported_places` holds the composition and order of a collection as the
@@ -36,7 +39,7 @@ export class Migration20261119104409_catalog_import extends Migration {
         imported_places uuid[] null,
         imported_at timestamptz not null default now(),
         primary key (organization_id, entity_kind, import_key),
-        unique (entity_kind, entity_id),
+        unique (organization_id, entity_kind, entity_id),
         constraint catalog_import_keys_places_check
           check ((entity_kind = 'collection') or imported_places is null)
       );

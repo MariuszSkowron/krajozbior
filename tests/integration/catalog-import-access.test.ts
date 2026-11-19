@@ -315,6 +315,23 @@ describe("catalog import keys and place deletion", () => {
     ).rejects.toThrow(noPermission);
   });
 
+  it("keeps the uniqueness of an entity within the organization: another organization may reuse the id", async () => {
+    const entityId = randomUUID();
+    const insertWith = (actor: { id: string }, organizationId: string) =>
+      as(
+        actor,
+        `insert into public.catalog_import_keys
+           (organization_id, entity_kind, import_key, entity_id, batch_id, imported_version)
+         values (?, 'place', ?, ?, 'b', 1) returning import_key`,
+        [organizationId, key("pl"), entityId],
+      );
+
+    expect(await insertWith(curA, orgA)).toHaveLength(1);
+    // Another organization is not told that the id is taken elsewhere.
+    expect(await insertWith(curB, orgB)).toHaveLength(1);
+    await expect(insertWith(curA, orgA)).rejects.toThrow(/duplicate key/);
+  });
+
   it("does not let a curator of another organization read, change or delete the keys, even with raw SQL", async () => {
     const importKey = key("pl");
 
