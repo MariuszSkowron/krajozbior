@@ -83,6 +83,7 @@
 /src/app/past-visit-message.tsx    @MariuszSkowron
 /src/app/past-visit.module.css     @MariuszSkowron
 /tests/app/past-visit-date-fields.test.ts @MariuszSkowron
+/tests/app/place-card-link.test.ts @MariuszSkowron
 # Test wyglądu i dostępności: czyści wizyty i listę „Chcę zobaczyć” konta demo
 /e2e/appearance.spec.ts            @MariuszSkowron
 
@@ -92,6 +93,9 @@
 /src/app/places/                   @MariuszSkowron
 /src/app/catalog.module.css        @MariuszSkowron
 /e2e/public-catalog.spec.ts        @MariuszSkowron
+# Kolekcja jako album (E12-4): filtr stanu i panel miejsca pokazują wizyty odkrywcy (dane PRIV);
+# test czyści wizyty i zapisy kont demo
+/e2e/collection-album.spec.ts      @MariuszSkowron
 
 # Strona główna: pokazuje dane PRIV odkrywcy (album, ulubione, ostatnie wizyty) i czyści
 # wizyty oraz zapisy kont demo
