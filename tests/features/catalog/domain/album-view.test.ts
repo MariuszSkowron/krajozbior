@@ -6,6 +6,7 @@ import {
   filterByState,
   formatUpdateDate,
   parseSelectedPlace,
+  parseView,
   parseStateFilter,
   shortenDescription,
   type VisitKind,
@@ -84,6 +85,24 @@ describe("albumHref", () => {
     );
     expect(albumHref("kolekcja-1", { stan: "do-odwiedzenia", miejsce: PLACE })).toBe(
       `/collections/kolekcja-1?stan=do-odwiedzenia&miejsce=${PLACE}`,
+    );
+  });
+});
+
+describe("parseView and the map view in albumHref (E12-5)", () => {
+  it("knows only the map; anything else is the cards", () => {
+    expect(parseView("mapa")).toBe("mapa");
+    expect(parseView(["mapa", "karty"])).toBe("mapa");
+    expect(parseView("karty")).toBe("karty");
+    expect(parseView("MAPA")).toBe("karty");
+    expect(parseView(undefined)).toBe("karty");
+  });
+
+  it("writes the map view and keeps the other parts", () => {
+    expect(albumHref("kolekcja-1", { widok: "karty" })).toBe("/collections/kolekcja-1");
+    expect(albumHref("kolekcja-1", { widok: "mapa" })).toBe("/collections/kolekcja-1?widok=mapa");
+    expect(albumHref("kolekcja-1", { widok: "mapa", stan: "odwiedzone", miejsce: PLACE })).toBe(
+      `/collections/kolekcja-1?widok=mapa&stan=odwiedzone&miejsce=${PLACE}`,
     );
   });
 });

@@ -227,7 +227,8 @@ describe("collections, places and their links", () => {
          has_column_privilege('krajozbior_app', 'collections', 'status', 'insert, update') as c_status,
          has_column_privilege('krajozbior_app', 'collections', 'title', 'insert, update') as c_title,
          has_table_privilege('krajozbior_app', 'places', 'select') as p_select,
-         has_table_privilege('krajozbior_app', 'places', 'delete, truncate, references, trigger') as p_bad,
+         has_table_privilege('krajozbior_app', 'places', 'truncate, references, trigger') as p_bad,
+         has_table_privilege('krajozbior_app', 'places', 'delete') as p_delete,
          has_column_privilege('krajozbior_app', 'places', 'organization_id', 'update') as p_org_update,
          has_column_privilege('krajozbior_app', 'places', 'latitude', 'insert, update') as p_lat,
          has_table_privilege('krajozbior_app', 'collection_places', 'select') as l_select,
@@ -257,6 +258,8 @@ describe("collections, places and their links", () => {
       c_title: true,
       p_select: true,
       p_bad: false,
+      // The narrow `places_delete` policy (a place outside every collection).
+      p_delete: true,
       p_org_update: false,
       p_lat: true,
       l_select: true,

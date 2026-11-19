@@ -7,6 +7,11 @@ function expectSecurityHeaders(response: APIResponse) {
 
   expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
   expect(headers["content-security-policy"]).not.toContain("unsafe-eval");
+  // E12-5: the collection map loads tiles from this one host; connect-src stays 'self'.
+  expect(headers["content-security-policy"]).toContain(
+    "img-src 'self' data: blob: https://tile.openstreetmap.org;",
+  );
+  expect(headers["content-security-policy"]).toContain("connect-src 'self';");
   expect(headers["x-frame-options"]).toBe("DENY");
   expect(headers["x-content-type-options"]).toBe("nosniff");
   expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");

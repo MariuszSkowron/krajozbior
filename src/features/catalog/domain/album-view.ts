@@ -34,6 +34,13 @@ export function parseSelectedPlace(raw: Raw): string | null {
   return isUuid(value) ? value.toLowerCase() : null;
 }
 
+/** `?widok=`: the list of cards (default) or the map (E12-5). Anything else is the cards. */
+export type CollectionView = "karty" | "mapa";
+
+export function parseView(raw: Raw): CollectionView {
+  return firstValue(raw) === "mapa" ? "mapa" : "karty";
+}
+
 /** A place is "visited" with any visit of the explorer, on site or from the past (as in the progress). */
 export type VisitKind = "on_site" | "past";
 
@@ -71,9 +78,13 @@ export function filterByState<T extends Readonly<{ id: string }>>(
  */
 export function albumHref(
   slug: string,
-  view: Readonly<{ stan?: StateFilter; miejsce?: string | null }>,
+  view: Readonly<{ stan?: StateFilter; miejsce?: string | null; widok?: CollectionView }>,
 ): string {
   const query = new URLSearchParams();
+
+  if (view.widok === "mapa") {
+    query.set("widok", "mapa");
+  }
 
   if (view.stan !== undefined && view.stan !== "wszystkie") {
     query.set("stan", view.stan);

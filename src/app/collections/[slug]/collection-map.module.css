@@ -1,0 +1,159 @@
+/*
+ * Mapa miejsc kolekcji (E12-5): kontener, znaczniki i dostosowanie okienka Leaflet do motywów.
+ * Tylko tokeny. Znacznik niesie stan kształtem i znakiem (okrąg z numerem = do odwiedzenia,
+ * zaokrąglony kwadrat ze znakiem ✓ = odwiedzone), nie samym kolorem (WCAG 1.4.1).
+ */
+.wrap {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.map {
+  height: calc(var(--space-xl) * 12);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-image-placeholder);
+}
+
+@media (min-width: 48rem) {
+  .map {
+    height: calc(var(--space-xl) * 16);
+  }
+}
+
+.notice,
+.legend {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Wiersz „Wczytuję mapę…”; bez JavaScriptu chowa go <noscript> na stronie kolekcji. */
+.loading {
+  min-height: var(--size-touch-min);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Nocny motyw (także brak klasy): kafelki lekko przyciemnione, bez odwracania kolorów. */
+.map :global(.leaflet-tile-pane) {
+  filter: brightness(0.8) contrast(1.05);
+}
+
+:global(.theme-light) .map :global(.leaflet-tile-pane) {
+  filter: none;
+}
+
+.map :global(.leaflet-control-attribution) {
+  background: var(--color-surface-glass);
+  color: var(--color-text-secondary);
+}
+
+.map :global(.leaflet-control-attribution a) {
+  color: var(--color-text-accent);
+}
+
+.map :global(.leaflet-popup-content-wrapper),
+.map :global(.leaflet-popup-tip) {
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-overlay);
+}
+
+.map :global(.leaflet-popup-content-wrapper) {
+  border-radius: var(--radius-sm);
+}
+
+.map :global(.leaflet-popup-content) {
+  display: grid;
+  gap: var(--space-xs);
+  margin: var(--space-md);
+}
+
+.map :global(.leaflet-popup-content p) {
+  margin: 0;
+}
+
+.map :global(.leaflet-popup-content a) {
+  color: var(--color-text-accent);
+}
+
+.map :global(.leaflet-container) {
+  font-family: var(--font-family-base);
+}
+
+.popupName {
+  font-weight: var(--font-weight-strong);
+  color: var(--color-text-strong);
+}
+
+.popupAddress {
+  color: var(--color-text-secondary);
+}
+
+/* Znacznik: element divIcon bez domyślnego tła Leaflet. */
+.markerWrap {
+  background: none;
+  border: 0;
+}
+
+.marker {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: var(--size-touch-min);
+  height: var(--size-touch-min);
+  background: var(--color-surface-card);
+  color: var(--color-text-strong);
+  border: var(--border-width-state) solid var(--color-brand-accent);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
+  line-height: 1;
+}
+
+.markerVisited {
+  background: var(--color-feedback-success);
+  color: var(--color-text-on-accent);
+  border-color: var(--color-feedback-success);
+  border-radius: var(--radius-sm);
+}
+
+.markerWrap:focus-visible,
+.markerWrap:focus {
+  outline: var(--focus-ring-width) solid var(--color-border-focus);
+  outline-offset: var(--space-xs);
+}
+
+/* Legenda: te same kształty co znaczniki, mniejsze. */
+.legendMark {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: var(--space-lg);
+  height: var(--space-lg);
+  border: var(--border-width-state) solid var(--color-brand-accent);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+  color: var(--color-text-strong);
+  font-size: var(--font-size-xs);
+  line-height: 1;
+}
+
+.legendMarkVisited {
+  background: var(--color-feedback-success);
+  color: var(--color-text-on-accent);
+  border-color: var(--color-feedback-success);
+  border-radius: var(--radius-sm);
+}
