@@ -8,7 +8,7 @@ Jedna aplikacja Next.js z PostgreSQL, bez osobnych usług. Dane chronią dwie ba
 
 **Decyzja techniczna:** pojedyncza aplikacja Next.js App Router (wersja 16) z React 19 i TypeScript `strict`, PostgreSQL 17, MikroORM (migracje i połączenie), Zod, zmienne CSS i CSS Modules (bez Tailwind CSS i bez biblioteki komponentów; zob. `docs/design/ui-foundation.md`). Jeden kod aplikacji, bez monorepo i bez kontenera DI. Granice modułów i jawne parametry funkcji wystarczą na skalę małego zespołu.
 
-Build i praca nad UI nie wymagają działającej bazy. PostgreSQL jest potrzebny funkcjom z trwałymi danymi; lokalnie można użyć Docker Compose (`compose.yaml`), nigdy jako wymogu wdrożenia.
+Build i praca nad UI nie wymagają działającej bazy. PostgreSQL jest potrzebny funkcjom z trwałymi danymi; lokalną bazę deweloperską można postawić przez Docker Compose (`compose.yaml` w katalogu głównym), ale nie jest to wymóg pracy nad kodem. Osobny przypadek to wdrożenie: serwer i pokaz lokalny działają z obrazu Docker i plików `deploy/compose*.yaml` (`docs/deployment.md`); aplikacja nadal jest jednym procesem Next.js i nie zależy od Dockera w czasie działania.
 
 ## Granice aplikacji
 
