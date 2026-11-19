@@ -82,6 +82,6 @@ GitHub Actions w repozytorium publicznym jest bezpłatne, ale czas oczekiwania n
 - Każdy PR, także draft i zmiana samej dokumentacji, uruchamia pełny zestaw. Żaden job nie ma warunku pomijania (`if:`, filtr ścieżek), bo pominięty wymagany job GitHub liczy jako zaliczony. Przy pracy w wielu krokach wypychaj zmiany w paczkach: każdy push to kilkanaście minut kolejki.
 - Auto-merge włącza się dopiero po zakończeniu zielonego przebiegu CI ostatniego pushu (`docs/agent-workflow.md`, etap „Scalenie”). Nigdy nie scalaj przy wszystkich checkach pominiętych.
 - Ruleset wymaga gałęzi aktualnej względem `main`, więc po każdym scaleniu pozostałe PR-y trzeba zaktualizować (merge, nie rebase) i przepuścić przez CI. PR ze ścieżkami z `CODEOWNERS` traci przy tym zatwierdzenie właściciela i wymaga ponownego.
-- CodeQL (`.github/workflows/codeql.yml`) analizuje kod w PR-ach gotowych do przeglądu, po scaleniu i raz w tygodniu; wyniki są w zakładce **Security** repozytorium.
+- CodeQL (`.github/workflows/codeql.yml`) analizuje kod w każdym PR (także w szkicach), po scaleniu i raz w tygodniu; wyniki są w zakładce **Security** repozytorium.
 
 Nie dodawaj zielonych placeholderów. Nowy job lub check ma uruchamiać realne testy.
