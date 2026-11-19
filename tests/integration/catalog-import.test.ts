@@ -940,6 +940,25 @@ describe("publishing and removing what a file loaded", () => {
       publication: "kept_manual_edit",
     });
     expect((await collectionsOf("pub-c")).map((r) => r.title)).toContain("Tytuł z panelu");
+
+    // A new version of the file: the composition of the edited collection stays
+    // as it is and no place is created for the new key.
+    const lines = fileLines();
+
+    lines.push({
+      ...byKey(lines, "ext:TEST-0003"),
+      import_key: "ext:TEST-0004",
+      name: "Miejsce testowe czwarte",
+    });
+    byKey(lines, "col:testowa-jeden").places = ["ext:TEST-0002", "ext:TEST-0001", "ext:TEST-0004"];
+
+    const namesBefore = await placeNamesOf("Tytuł z panelu");
+    const placesBefore = (await counts("pub-c")).places;
+    const changed = done(await load(curator, "pub-c", fileText(lines), { publish: true }));
+
+    expect(changed[0]).toMatchObject({ result: "kept_manual_edit" });
+    expect(await placeNamesOf("Tytuł z panelu")).toEqual(namesBefore);
+    expect((await counts("pub-c")).places).toBe(placesBefore);
   });
 
   it("--publish skips a draft edited by hand and publishes it when untouched", async () => {
@@ -1045,16 +1064,27 @@ describe("publishing and removing what a file loaded", () => {
     expect(rows.find((r) => r.title === "Kolekcja testowa jeden")!.status).toBe("published");
   });
 
-  it("--publish --dry-run counts what it would publish and writes nothing", async () => {
+  it("--publish --dry-run lists what it would publish and writes nothing", async () => {
     const { curator } = await newOrg("pub-g");
     const outcome = await load(curator, "pub-g", fixture, { preview: true, publish: true });
 
-    expect(outcome).toMatchObject({ kind: "preview", preview: { publishable: 1 } });
-    expect(await counts("pub-g")).toEqual({ collections: 0, places: 0, keys: 0 });
-    expect(await load(curator, "pub-g", fixture, { preview: true })).toMatchObject({
+    expect(outcome).toMatchObject({
       kind: "preview",
-      preview: expect.not.objectContaining({ publishable: 1 }),
+      preview: {
+        publishable: [
+          expect.objectContaining({
+            importKey: "col:testowa-jeden",
+            title: "Kolekcja testowa jeden",
+          }),
+        ],
+      },
     });
+    expect(await counts("pub-g")).toEqual({ collections: 0, places: 0, keys: 0 });
+
+    const withoutPublish = await load(curator, "pub-g", fixture, { preview: true });
+
+    expect(withoutPublish).toMatchObject({ kind: "preview" });
+    expect(withoutPublish).not.toHaveProperty("preview.publishable");
   });
 
   it("refuses publication and removal to another organization, a suspended one and an account without membership", async () => {
@@ -1106,6 +1136,12 @@ describe("publishing and removing what a file loaded", () => {
     const { curator } = await newOrg("rem-b");
 
     done(await load(curator, "rem-b", fixture, { publish: true }));
+    await admin$(
+      `insert into public.saved_collections (user_id, collection_id)
+       select $1, c.id from collections c join organizations o on o.id = c.organization_id
+        where o.slug = 'rem-b' and c.title = 'Kolekcja testowa jeden'`,
+      [explorer.id],
+    );
 
     expect(removal(await remove(curator, "rem-b"))).toEqual([
       "col:testowa-jeden:kept_published",
@@ -1119,6 +1155,10 @@ describe("publishing and removing what a file loaded", () => {
 
     expect(rows.map((r) => [r.title, r.status])).toEqual([["Kolekcja testowa jeden", "published"]]);
     expect(await counts("rem-b")).toEqual({ collections: 1, places: 2, keys: 3 });
+    // The saved-collection entry of an explorer stays with the published collection.
+    expect(
+      await admin$(`select 1 from saved_collections where user_id = $1`, [explorer.id]),
+    ).toHaveLength(1);
     expect(removal(await remove(curator, "rem-b"))).toEqual([
       "col:testowa-jeden:kept_published",
       "col:testowa-dwa:noop",
@@ -1128,7 +1168,7 @@ describe("publishing and removing what a file loaded", () => {
     ]);
   });
 
-  it("--remove touches neither a withdrawn collection nor its place with a visit (R-07)", async () => {
+  it("--remove touches neither a withdrawn collection nor its place with a visit", async () => {
     const { curator } = await newOrg("rem-c");
 
     done(await load(curator, "rem-c", fixture, { publish: true }));
@@ -1182,13 +1222,13 @@ describe("publishing and removing what a file loaded", () => {
     expect(removal(await remove(curator, "rem-d"))).toEqual([
       "col:testowa-jeden:removed",
       "col:testowa-dwa:removed",
-      "ext:TEST-0001:kept_r07",
+      "ext:TEST-0001:kept_referenced",
       "ext:TEST-0002:removed",
-      "ext:TEST-0003:kept_r07",
+      "ext:TEST-0003:kept_referenced",
     ]);
     expect(await counts("rem-d")).toEqual({ collections: 0, places: 2, keys: 2 });
     expect(
-      removal(await remove(curator, "rem-d")).filter((r) => r.endsWith("kept_r07")),
+      removal(await remove(curator, "rem-d")).filter((r) => r.endsWith("kept_referenced")),
     ).toHaveLength(2);
   });
 
@@ -1222,6 +1262,36 @@ describe("publishing and removing what a file loaded", () => {
     // A file with keys of other loads only removes the draft collection.
     expect(removal(await remove(curator, "rem-e", second))).toEqual(["col:inna:removed"]);
     expect(await counts("rem-e")).toEqual({ collections: 0, places: 1, keys: 1 });
+  });
+
+  it("--remove rolls everything back when a use case refuses halfway", async () => {
+    const { curator } = await newOrg("rem-g");
+
+    done(await load(curator, "rem-g"));
+
+    const deps = makeDeps(appOrm);
+    let reserved = 0;
+    const refusing: CatalogImportDeps = {
+      ...deps,
+      catalog: {
+        ...deps.catalog,
+        // The first collection is deleted, the second one is refused.
+        limiter: {
+          reserve: async () =>
+            ++reserved === 1 ? { allowed: true } : { allowed: false, retryAfterSeconds: 60 },
+        },
+      },
+    };
+    const before = await counts("rem-g");
+    const outcome = await executeCatalogRemove(
+      { actor: curator, orgSlug: "rem-g", file: parse(fixture) },
+      refusing,
+    );
+
+    expect(outcome).toEqual({ kind: "refused", code: "removal_refused", reason: "rate_limited" });
+    expect(reserved).toBe(2);
+    expect(await counts("rem-g")).toEqual(before);
+    expect(await collectionsOf("rem-g")).toHaveLength(2);
   });
 
   it("--remove removes keys of entities deleted in the panel", async () => {

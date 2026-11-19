@@ -23,6 +23,7 @@ import type {
   PlaceReport,
   PlaceResult,
   PublicationResult,
+  PublishableCollection,
   RemovalReport,
 } from "./catalog-import-types";
 import type { CatalogDeps, CuratorOutcome } from "./catalog-types";
@@ -234,7 +235,7 @@ async function previewImport(
 
     const collections: Record<string, number> = {};
     const places: Record<string, number> = {};
-    let publishable = 0;
+    const publishable: PublishableCollection[] = [];
 
     for (const place of file.places) {
       const key = keys.places.get(place.importKey);
@@ -262,7 +263,11 @@ async function previewImport(
         decision.composition === "sync" &&
         (stored === null || stored.firstPublishedAt === null)
       ) {
-        publishable += 1;
+        publishable.push({
+          line: collection.line,
+          importKey: collection.importKey,
+          title: collection.title,
+        });
       }
     }
 
@@ -543,7 +548,7 @@ function resolveOrganization(
 
 /**
  * `--remove`: removes what the file loaded, by its keys, only before
- * publication (Q1). One transaction for the organization, the lock first.
+ * publication (a published collection is never deleted). One transaction for the organization, the lock first.
  * Collections go through `deleteDraftCollection` (a published or withdrawn
  * one stays, with its key); a place goes only when it belongs to no
  * collection (policy `places_delete`) and nobody visited it (23503 means it
@@ -584,6 +589,8 @@ export async function executeCatalogRemove(
 
         const outcome = await deleteDraftCollection(actor, key.entityId, bound);
 
+        // `was_published` is also what a concurrent change outside the import
+        // lock looks like (nothing is deleted, so the label is safe).
         if (outcome.status === "conflict" && outcome.reason === "was_published") {
           out.push({ ...base, result: "kept_published" });
           continue;
@@ -623,6 +630,8 @@ export async function executeCatalogRemove(
           await deps.imports.deleteKey(tx, organizationId, "place", place.importKey);
         }
 
+        // "blocked" means the row policy kept the place (it is in a collection);
+        // anything else is a reference from a visit or a want-to-see entry.
         out.push({
           ...base,
           result:
@@ -630,7 +639,7 @@ export async function executeCatalogRemove(
               ? "removed"
               : deleted === "blocked"
                 ? "kept_in_collection"
-                : "kept_r07",
+                : "kept_referenced",
         });
       }
 

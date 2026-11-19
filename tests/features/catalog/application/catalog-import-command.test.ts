@@ -260,7 +260,7 @@ describe("catalog:import with the database", () => {
       kind: "removed",
       reports: [
         { importKey: "col:a", kind: "collection", line: 2, result: "removed" },
-        { importKey: "ext:1", kind: "place", line: 4, result: "kept_r07" },
+        { importKey: "ext:1", kind: "place", line: 4, result: "kept_referenced" },
       ],
     });
     const result = await runCatalogImport(["--file", "x", ...withOrg, "--remove"], removed.deps);
@@ -270,7 +270,7 @@ describe("catalog:import with the database", () => {
     expect(JSON.parse(result.stdout[0]!)).toMatchObject({
       outcome: "removed",
       collectionResults: { removed: 1 },
-      placeResults: { kept_r07: 1 },
+      placeResults: { kept_referenced: 1 },
     });
 
     const refused = setup({ kind: "refused", code: "removal_refused", reason: "forbidden" });
@@ -280,7 +280,7 @@ describe("catalog:import with the database", () => {
     expect(JSON.parse(denied.stdout[0]!)).toMatchObject({ reason: "forbidden" });
   });
 
-  it("prints how many collections a --publish preview would publish", async () => {
+  it("lists the collections a --publish preview would publish", async () => {
     const { deps } = setup({
       kind: "preview",
       preview: {
@@ -288,7 +288,10 @@ describe("catalog:import with the database", () => {
         places: {},
         orphanedKeys: { collection: 0, place: 0 },
         collectionLimitExceeded: false,
-        publishable: 4,
+        publishable: [
+          { line: 2, importKey: "col:a", title: "Kolekcja A" },
+          { line: 5, importKey: "col:b", title: "Kolekcja B" },
+        ],
       },
     });
     const result = await runCatalogImport(
@@ -296,7 +299,10 @@ describe("catalog:import with the database", () => {
       deps,
     );
 
-    expect(JSON.parse(result.stdout[0]!).publishable).toBe(4);
+    expect(JSON.parse(result.stdout[0]!).publishable).toEqual([
+      { line: 2, importKey: "col:a", title: "Kolekcja A" },
+      { line: 5, importKey: "col:b", title: "Kolekcja B" },
+    ]);
   });
 
   it.each([

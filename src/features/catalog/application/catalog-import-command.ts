@@ -330,7 +330,10 @@ function mapOutcome(
             collectionLimitExceeded: outcome.preview.collectionLimitExceeded,
             ...(outcome.preview.publishable === undefined
               ? {}
-              : { publishable: outcome.preview.publishable }),
+              : {
+                  publishable: outcome.preview.publishable,
+                  publishableCount: outcome.preview.publishable.length,
+                }),
           }),
         ],
         stderr: [

@@ -106,7 +106,12 @@ export type PublicationResult =
   "published" | "skipped_already_published" | "kept_manual_edit" | "refused";
 
 export type RemovalResult =
-  "removed" | "orphan_key_removed" | "kept_published" | "kept_in_collection" | "kept_r07" | "noop";
+  | "removed"
+  | "orphan_key_removed"
+  | "kept_published"
+  | "kept_in_collection"
+  | "kept_referenced"
+  | "noop";
 
 export type RemovalReport = Readonly<{
   importKey: string;
@@ -130,6 +135,8 @@ export type CollectionReport = Readonly<{
   places: readonly PlaceReport[];
 }>;
 
+export type PublishableCollection = Readonly<{ line: number; importKey: string; title: string }>;
+
 export type ImportPreview = Readonly<{
   collections: Readonly<Record<string, number>>;
   places: Readonly<Record<string, number>>;
@@ -137,7 +144,7 @@ export type ImportPreview = Readonly<{
   /** True when the new collections would not fit in the limit of the organization. */
   collectionLimitExceeded: boolean;
   /** With `--publish`: collections marked `publish: true` that a load would publish now. */
-  publishable?: number;
+  publishable?: readonly PublishableCollection[];
 }>;
 
 export type CatalogImportOutcome =
