@@ -172,7 +172,12 @@ test.describe("profile data: name, region, visibility", () => {
 
       await saveProfile(page, { name: "Anna", initial: "k", region: "Pomorskie", visible: true });
       await expect(page).toHaveURL(/\/my\/settings\?profil=zapisano/);
-      await expect(page.getByRole("status")).toHaveText("Zapisano zmiany w profilu.");
+      await expect(
+        page
+          .getByRole("main")
+          .getByRole("status")
+          .filter({ hasText: "Zapisano zmiany w profilu." }),
+      ).toBeVisible();
 
       await page.goto("/my");
       await expect(main.getByTestId("profile-name")).toHaveText("Anna K.");
@@ -199,7 +204,9 @@ test.describe("profile data: name, region, visibility", () => {
 
     await saveProfile(page, { name: "Anna2", initial: "", region: "Nie podaję", visible: false });
     await expect(page).toHaveURL(/\/my\/settings\?profil=blad&pola=firstName/);
-    await expect(page.getByRole("alert")).toContainText("Imię: wpisz do 40 liter");
+    await expect(
+      page.getByRole("main").getByRole("alert").filter({ hasText: "Imię: wpisz do 40 liter" }),
+    ).toBeVisible();
     await expect(page.getByLabel("Imię", { exact: true })).toHaveAttribute("aria-invalid", "true");
 
     await page.goto("/my");
