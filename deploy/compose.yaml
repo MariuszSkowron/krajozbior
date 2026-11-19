@@ -17,13 +17,18 @@ x-logging: &logging
 
 services:
   db:
-    image: postgres:17
+    # Przypięte skrótem jak Node i Caddy. Odświeżenie: `docker pull postgres:17`, potem
+    # `docker inspect --format '{{index .RepoDigests 0}}' postgres:17`.
+    image: postgres:17@sha256:b8faeff7712663c2773a190181e1246e37e364b887611c04658c28b44e2408fe
     restart: unless-stopped
     logging: *logging
     environment:
       POSTGRES_USER: postgres
       POSTGRES_DB: krajozbior
       POSTGRES_PASSWORD_FILE: /run/secrets/pg_bootstrap
+      # Bez `trust` w pg_hba.conf: gniazdo tylko dla `peer` (docker exec -u postgres), TCP zawsze
+      # z hasłem (także z 127.0.0.1). Ustawienie zapisuje się przy pierwszej inicjalizacji wolumenu.
+      POSTGRES_INITDB_ARGS: "--auth-local=peer --auth-host=scram-sha-256"
     # Logi bez danych osobowych (D-E11-5): żadnych instrukcji, parametrów ani linii DETAIL.
     command:
       - postgres
@@ -100,6 +105,10 @@ services:
     env_file:
       - path: ${KRAJOZBIOR_ENV_FILE:-/srv/krajozbior/.env.production}
         required: false
+    # Na serwerze `catalog:import` i `db:seed:demo` odmawiają w produkcji niezależnie od adresu
+    # bazy. Kontener nie dzieli sieci z bazą (pilnuje tego test); tylko nakładka pokazu nadpisuje NODE_ENV.
+    environment:
+      NODE_ENV: production
     depends_on:
       db:
         condition: service_healthy

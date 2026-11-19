@@ -59,6 +59,8 @@ services:
     env_file: !override
       - showcase.env
     environment:
+      # Jedyne miejsce, gdzie wolno poluzować produkcyjny NODE_ENV z compose.yaml (pokaz wgrywa dane demo).
+      NODE_ENV: development
       DATABASE_ADMIN_URL: postgres://postgres:${SHOWCASE_PG_PASSWORD:?run showcase-up.ps1}@localhost:5432/krajozbior
       KRAJOZBIOR_OWNER_DB_PASSWORD: ${KRAJOZBIOR_OWNER_DB_PASSWORD:?run showcase-up.ps1}
       KRAJOZBIOR_APP_DB_PASSWORD: ${KRAJOZBIOR_APP_DB_PASSWORD:?run showcase-up.ps1}

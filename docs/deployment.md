@@ -19,6 +19,9 @@ Usługi `db` (PostgreSQL 17), `app`, `proxy` (Caddy, `deploy/Caddyfile`) i jedno
 - Każda usługa ma `restart: unless-stopped` i sterownik logów `journald`.
 - Baza startuje z ustawieniami logów bez danych osobowych: `log_statement=none`, `log_min_duration_statement=-1`, `log_parameter_max_length=0`, `log_parameter_max_length_on_error=0`, `log_error_verbosity=terse`, `log_connections=off`, `log_disconnections=off`.
 - Hasło superużytkownika bazy to jednorazowy plik (`POSTGRES_PASSWORD_FILE`), nie zmienna środowiska.
+- Baza jest inicjalizowana z `--auth-local=peer --auth-host=scram-sha-256`: w `pg_hba.conf` nie ma `trust`, połączenie TCP (także z `127.0.0.1` w kontenerze) wymaga hasła, a gniazdo działa tylko dla `peer` (`docker exec -u postgres`). Ustawienie zapisuje się przy pierwszej inicjalizacji wolumenu.
+- Kontener `ops` ma `NODE_ENV=production`, więc `catalog:import` i `db:seed:demo` odmawiają niezależnie od adresu bazy; plik nie ma `network_mode`. Tylko nakładka pokazu zmienia `NODE_ENV` na `development` i dzieli sieć z bazą.
+- Znane ograniczenie (do F-K4): jednorazowe hasło startowe leży w `/run/krajozbior/pg-bootstrap`, a `/run` znika po restarcie serwera, więc `db` mogłaby nie wstać (Docker nie uruchamia kontenera ze źródłem montowania, którego nie ma). Rozwiązuje to F-K4: osobna nakładka pierwszego uruchomienia z sekretem, a `compose.yaml` bez niego po inicjalizacji.
 - Plik nie zna flag demo (`ALLOW_DEMO_SEED`, `DEMO_ACCOUNTS_TEST_ONLY`, `EMAIL_OUTBOX_TEST_ONLY`): leżą wyłącznie w `deploy/showcase.env`.
 
 ## Pokaz lokalny
@@ -37,6 +40,7 @@ Co robi `showcase-up.ps1`: sprawdza Docker i port 3300; przy pierwszym uruchomie
 
 - **Konta demo:** `user@`, `user2@`, `admin@`, `curator-a@`, `curator-b@` w domenie `demo.krajozbior.local`; wspólne hasło jest w `DEMO_ACCOUNT_PASSWORD` w `.data/showcase/secrets.env`. Kody logowania e-mailem trafiają jako pliki `.eml` do `.data/showcase/outbox/`.
 - **Kolekcje:** pliki zostają poza repozytorium kodu (leżą w repozytorium dokumentacji); skrypt montuje katalog tylko do odczytu. Domyślnie wgrywa do organizacji `demo-gmina-a` jako kurator `curator-a@demo.krajozbior.local`; bez `-Publish` kolekcje są szkicami. Pliki `*-public.ndjson` są pomijane. Raporty wgrania trafiają do `.data/showcase/reports/`.
+- **Hasła pokazu:** `.data/showcase/secrets.env` leży w worktree, z którego uruchomiono pokaz, i nie podlega regule `.env*` ani zawężonym uprawnieniom; dane są lokalne i jednorazowe. Uruchamiaj pokaz z głównego katalogu repozytorium: usunięcie worktree kasuje hasła, a wolumen zostaje osierocony.
 - **Dane:** wolumen `krajozbior-showcase-pgdata` przeżywa `showcase-down` i restart komputera; usuwa go tylko `showcase-reset.ps1 -ConfirmDataLoss`.
 - **Wgrywanie kolekcji do bazy w sieci Compose:** kontener `ops` dzieli sieć z kontenerem bazy (`network_mode: service:db`), więc baza jest dla niego pod `localhost:5432`. Bezpieczniki `catalog:import` i `db:seed:demo` (adres bazy musi być lokalny) działają bez zmian i nie zostały osłabione.
 - **Flagi demo:** trzy flagi (`ALLOW_DEMO_SEED`, `DEMO_ACCOUNTS_TEST_ONLY`, `EMAIL_OUTBOX_TEST_ONLY`) są dozwolone tylko dlatego, że adres jest lokalny (`BETTER_AUTH_URL=http://localhost:3300`); `AUTH_CLIENT_IP_HEADER` nie jest ustawiany, bo bez pośrednika nagłówek podałaby przeglądarka.

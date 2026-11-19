@@ -43,7 +43,18 @@ function composeAvailable(): boolean {
   }
 }
 
-const dockerComposeIt = it.skipIf(!composeAvailable());
+// Without Docker Compose the tests that need it are skipped locally (with a message), but in CI
+// (`CI=true`) they run and fail when Compose is missing, so they never disappear silently.
+const composeInstalled = composeAvailable();
+const requireCompose = process.env.CI === "true";
+
+if (!composeInstalled && !requireCompose) {
+  console.warn(
+    "tests/deploy: Docker Compose is not installed, so the tests of the merged configuration are skipped.",
+  );
+}
+
+const dockerComposeIt = it.skipIf(!composeInstalled && !requireCompose);
 
 function composeConfig(files: string[], extra: string[] = [], envFile?: string): ComposeConfig {
   const args = ["compose", ...files.flatMap((file) => ["-f", file]), ...extra];
@@ -152,6 +163,46 @@ describe("server configuration (deploy/compose.yaml)", () => {
     expect(compose).toContain("POSTGRES_PASSWORD_FILE");
     expect(compose).not.toMatch(/^\s*POSTGRES_PASSWORD:/m);
   });
+
+  it("pins the database image by digest", () => {
+    expect(read("deploy/compose.yaml")).toMatch(/image: postgres:17@sha256:[0-9a-f]{64}/);
+  });
+
+  it("initialises the database without trust authentication (M2)", () => {
+    expect(read("deploy/compose.yaml")).toMatch(
+      /POSTGRES_INITDB_ARGS: "--auth-local=peer --auth-host=scram-sha-256"/,
+    );
+  });
+
+  it("never shares the network of the database with another service (M1)", () => {
+    expect(read("deploy/compose.yaml")).not.toContain("network_mode");
+  });
+
+  dockerComposeIt("keeps network_mode out of the merged server configuration (M1)", () => {
+    const config = composeConfig(SERVER, ["--profile", "ops"]);
+
+    for (const [name, service] of Object.entries(config.services)) {
+      expect(service.network_mode, `service ${name}`).toBeUndefined();
+    }
+  });
+
+  dockerComposeIt("starts the operator container in production mode (M1)", () => {
+    const config = composeConfig(SERVER, ["--profile", "ops"]);
+
+    expect(config.services.ops?.environment?.NODE_ENV).toBe("production");
+  });
+
+  dockerComposeIt("starts the database with scram authentication (M2)", () => {
+    const environment = composeConfig(SERVER).services.db?.environment ?? {};
+
+    expect(environment.POSTGRES_INITDB_ARGS).toBe("--auth-local=peer --auth-host=scram-sha-256");
+  });
+
+  dockerComposeIt("does not start the operator container with `up` (profile)", () => {
+    const config = composeConfig(SERVER);
+
+    expect(Object.keys(config.services).sort()).toEqual(["app", "db", "proxy"]);
+  });
 });
 
 describe("local showcase (deploy/compose.showcase.yaml)", () => {
@@ -195,6 +246,14 @@ describe("local showcase (deploy/compose.showcase.yaml)", () => {
 
     // The guards of catalog:import and the demo seed (a local database only) stay untouched.
     expect(config.services.ops?.network_mode).toBe("service:db");
+    // The showcase is the only place that relaxes NODE_ENV, and the only service sharing a network.
+    expect(environment.NODE_ENV).toBe("development");
+
+    const sharing = Object.entries(config.services)
+      .filter(([, service]) => service.network_mode !== undefined)
+      .map(([name]) => name);
+
+    expect(sharing).toEqual(["ops"]);
 
     for (const name of ["DATABASE_URL", "DATABASE_OPS_URL", "DATABASE_AUTH_URL"]) {
       expect(environment[name], name).toContain("@localhost:5432/");
@@ -284,6 +343,15 @@ describe("production image (Dockerfile)", () => {
     );
 
     expect(runtime).toMatch(/^USER node$/m);
+  });
+
+  it("installs only production dependencies in the runtime image", () => {
+    expect(dockerfile).toMatch(/AS prod-deps[\s\S]*npm ci --omit=dev/);
+    expect(dockerfile).toMatch(/COPY --from=prod-deps[^\n]*node_modules/);
+  });
+
+  it("drops the build cache from the image", () => {
+    expect(dockerfile).toContain("rm -rf .next/cache");
   });
 
   it("leaves secrets and local data out of the build context", () => {

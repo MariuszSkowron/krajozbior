@@ -24,7 +24,8 @@ RUN npm ci
 FROM deps AS build
 COPY next.config.ts tsconfig.json ./
 COPY src ./src
-RUN npm run build
+# Cache kompilacji nie jest potrzebny do `next start`, a zajmuje sporą część obrazu.
+RUN npm run build && rm -rf .next/cache
 
 # ---------------------------------------------------------------- prod-deps: tylko zależności produkcyjne
 FROM ${NODE_IMAGE} AS prod-deps
