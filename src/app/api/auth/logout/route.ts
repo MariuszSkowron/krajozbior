@@ -1,6 +1,7 @@
 import { isSameOrigin } from "@/features/identity/domain/origin";
 import { requestedReturnTo } from "@/features/identity/domain/return-to";
 import { getIdentityProvider } from "@/features/identity/infrastructure";
+import { clearedProfileDraftCookie } from "@/features/profile/domain/profile-draft";
 import { logFailure } from "@/lib/log-failure";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,9 @@ export async function POST(request: Request) {
   for (const cookie of cookies) {
     headers.append("Set-Cookie", cookie);
   }
+
+  // The typed profile form values must not stay on a shared device (L4).
+  headers.append("Set-Cookie", clearedProfileDraftCookie());
 
   if (isForm) {
     // The deletion screen asks for a fresh sign-in (E9-5, Q7): its logout form

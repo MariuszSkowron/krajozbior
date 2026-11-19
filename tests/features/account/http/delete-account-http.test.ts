@@ -57,7 +57,11 @@ describe("POST /api/me/account/deletion", () => {
     expect(response.status).toBe(303);
     expect(response.headers.get("Location")).toBe("/?konto=usuniete");
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
-    expect(response.headers.getSetCookie()).toEqual(["krajozbior.session_token=; Max-Age=0"]);
+    // The session cookie and the profile form draft of the shared device (L4).
+    expect(response.headers.getSetCookie()).toEqual([
+      "krajozbior.session_token=; Max-Age=0",
+      "profile-draft=; Path=/my/settings; Max-Age=0; HttpOnly; SameSite=Lax",
+    ]);
     expect(deleteAccount).toHaveBeenCalledWith(actor.id);
     // The log line holds the event only: no id, no address.
     expect(info).toHaveBeenCalledWith('{"event":"account.deleted"}');
@@ -71,7 +75,10 @@ describe("POST /api/me/account/deletion", () => {
     const response = await handleAccountDeletion(post({ confirmation: "USUŃ" }), deps);
 
     expect(response.status).toBe(303);
-    expect(response.headers.getSetCookie()).toEqual([]);
+    // The draft is still cleared when the session cookie headers are missing.
+    expect(response.headers.getSetCookie()).toEqual([
+      "profile-draft=; Path=/my/settings; Max-Age=0; HttpOnly; SameSite=Lax",
+    ]);
   });
 
   it("accepts a native form post", async () => {

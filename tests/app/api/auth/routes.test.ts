@@ -440,7 +440,11 @@ describe("POST /api/auth/logout", () => {
     );
 
     expect(response.status).toBe(204);
-    expect(response.headers.getSetCookie()).toEqual(["krajozbior.session_token=; Max-Age=0"]);
+    // Also the profile form draft of the shared device (L4).
+    expect(response.headers.getSetCookie()).toEqual([
+      "krajozbior.session_token=; Max-Age=0",
+      "profile-draft=; Path=/my/settings; Max-Age=0; HttpOnly; SameSite=Lax",
+    ]);
   });
 
   it("redirects a form post to the public home page", async () => {

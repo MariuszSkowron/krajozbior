@@ -2,6 +2,7 @@ import "server-only";
 
 import { isSameOrigin } from "@/features/identity/domain/origin";
 import { getIdentityProvider } from "@/features/identity/infrastructure";
+import { clearedProfileDraftCookie } from "@/features/profile/domain/profile-draft";
 import { logFailure } from "@/lib/log-failure";
 
 import { deleteOwnAccount } from "../application/delete-own-account";
@@ -113,7 +114,8 @@ export async function handleAccountDeletion(
     // The event only, without an account id or an address.
     console.info(JSON.stringify({ event: "account.deleted" }));
 
-    return redirect(DELETED_LOCATION, cookies);
+    // The profile form draft goes too (L4): the device may be shared.
+    return redirect(DELETED_LOCATION, [...cookies, clearedProfileDraftCookie()]);
   } catch (error) {
     logFailure("Account deletion", error);
 

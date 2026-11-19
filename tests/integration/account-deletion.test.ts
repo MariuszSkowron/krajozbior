@@ -71,6 +71,12 @@ async function populate(user: { id: string; email: string }) {
     `insert into public.want_to_see_places (user_id, place_id) values (app_current_user_id(), ?)`,
     [placeId],
   );
+  // The profile (E9-2): a name, an initial and a region the deletion must remove.
+  await as(
+    user,
+    `insert into public.profiles (first_name, family_initial, region, visibility)
+     values ('Anna', 'K', 'pomorskie', 'public')`,
+  );
   // A membership of its own organization, with a colleague, so the account may go.
   await f.newOrganization(`Gmina ${user.id}`, `gmina-${user.id}`, [user, orgOwner]);
   await admin$(
@@ -170,6 +176,7 @@ describe("account deletion on the real database", () => {
       expect(referencing.map(({ table }) => table)).toEqual(
         expect.arrayContaining([
           "public.organization_members",
+          "public.profiles",
           "public.saved_collections",
           "public.visits",
           "public.want_to_see_places",
@@ -235,7 +242,7 @@ describe("account deletion on the real database", () => {
       await populate(a);
       await deleteAccountRows(authPool, a.id);
 
-      for (const table of ["visits", "saved_collections", "want_to_see_places"]) {
+      for (const table of ["visits", "saved_collections", "want_to_see_places", "profiles"]) {
         expect(await as(a, `select * from public.${table}`), table).toEqual([]);
       }
     });

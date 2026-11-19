@@ -21,8 +21,48 @@
 }
 
 .header h1,
-.role {
+.role,
+.name,
+.visibility {
   margin: 0;
+}
+
+/* E9-2: kółko z literą zamiast zdjęcia (do E4), imię, region i znacznik widoczności. */
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.identityText {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: var(--size-touch-min);
+  height: var(--size-touch-min);
+  background: var(--color-surface-tint);
+  color: var(--color-text-strong);
+  font-weight: var(--font-weight-strong);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+}
+
+.name {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-strong);
+  overflow-wrap: anywhere;
+}
+
+.visibility {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
 }
 
 .role {
