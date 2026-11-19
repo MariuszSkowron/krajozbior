@@ -93,6 +93,11 @@
 # Test wyglądu i dostępności: czyści wizyty i listę „Chcę zobaczyć” konta demo
 /e2e/appearance.spec.ts            @MariuszSkowron
 
+# Pliki testowe wgrywania kolekcji z pliku (polecenie operatora zapisujące dane CUR):
+# fikstury są wejściem testów dostępu i idempotencji; sam kod ma właściciela przez
+# /src/features/catalog/ i /scripts/, testy przez /tests/integration/
+/tests/fixtures/curation/          @MariuszSkowron
+
 # Publiczne strony kolekcji i miejsc (dziś treść publiczna, w kolejnych krokach
 # także prywatny postęp odkrywcy) oraz ich wspólne style
 /src/app/collections/              @MariuszSkowron
