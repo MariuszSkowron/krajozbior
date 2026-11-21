@@ -2,10 +2,7 @@
   "permissions": {
     "defaultMode": "auto",
     "additionalDirectories": ["../krajozbior-docs"],
-    "allow": [
-      "Bash(gh api -X POST repos/*/statuses/* -f state=* -f context=agent-review *)",
-      "Bash(gh api -X POST repos/*/statuses/* -f state=* -f context=security-review *)"
-    ],
+    "allow": [],
     "deny": [
       "Bash(ssh)",
       "Bash(ssh *)",
