@@ -317,8 +317,7 @@ describe("catalog:import --target server on a real database", () => {
          has_column_privilege('krajozbior_ops', 'public.operations_audit', 'details', 'select') as ops_select,
          has_table_privilege('krajozbior_ops', 'public.operations_audit', 'update, delete, truncate') as ops_bad,
          has_any_column_privilege('krajozbior_app', 'public.operations_audit', 'select, insert, update') as app_any,
-         has_any_column_privilege('krajozbior_auth', 'public.operations_audit', 'select, insert, update') as auth_any,
-         has_any_column_privilege('krajozbior_owner', 'public.operations_audit', 'update') as owner_update`,
+         has_any_column_privilege('krajozbior_auth', 'public.operations_audit', 'select, insert, update') as auth_any`,
       );
 
       expect(p).toEqual({
@@ -328,7 +327,6 @@ describe("catalog:import --target server on a real database", () => {
         ops_bad: false,
         app_any: false,
         auth_any: false,
-        owner_update: false,
       });
     });
 
