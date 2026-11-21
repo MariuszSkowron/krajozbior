@@ -1,29 +1,41 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+import { performance } from "node:perf_hooks";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { findRemoteAccess } from "../../.claude/hooks/block-remote-access.mjs";
-
 // The Claude Code hook that refuses shell commands reaching a server or SSH keys
 // when the command text says so: SSH clients and relatives, rsync, PuTTY tools,
-// git used as an SSH transport, PowerShell remoting and encoded commands, any
-// `.ssh` folder, the folder with deployment secrets (`krajozbior-deploy`) and the
-// local showcase data (`.data/showcase`). It reads text only: the "known
-// limitations" list documents what it deliberately does not catch, so nobody
-// takes it for a security boundary (that is the deployment passphrase).
+// `user@host:` addresses, git talking to anything but `origin` or GitHub over
+// HTTPS, PowerShell remoting and encoded commands, any `.ssh` folder, the folder
+// with deployment secrets (`krajozbior-deploy`) and the local showcase data
+// (`.data/showcase`). It reads text only: the "known limitations" list documents
+// what it deliberately does not catch, so nobody takes it for a security
+// boundary (that is the deployment passphrase).
 // The process tests run the real script with a hook event on stdin, as Claude
 // Code does: exit 2 blocks (also a malformed event), exit 0 lets it through.
-const script = fileURLToPath(
-  new URL("../../.claude/hooks/block-remote-access.mjs", import.meta.url),
+//
+// BLOCK_REMOTE_ACCESS_HOOK (a path relative to the repository root) tests
+// another copy of the hook, e.g. a new version prepared outside `.claude/`
+// before the owner installs it; by default the installed hook is tested.
+const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
+const script = resolve(
+  repositoryRoot,
+  process.env.BLOCK_REMOTE_ACCESS_HOOK ?? ".claude/hooks/block-remote-access.mjs",
 );
-const settingsPath = fileURLToPath(new URL("../../.claude/settings.json", import.meta.url));
+const settingsPath = resolve(repositoryRoot, ".claude/settings.json");
+const { findRemoteAccess } = (await import(pathToFileURL(script).href)) as {
+  findRemoteAccess: (command: unknown) => string[];
+};
 
 function runHook(event: unknown) {
   const result = spawnSync(process.execPath, [script], {
     input: typeof event === "string" ? event : JSON.stringify(event),
     encoding: "utf8",
+    // Claude Code stops a hook after its 10 s limit and lets the command run.
+    timeout: 10_000,
   });
   return { status: result.status, stderr: result.stderr };
 }
@@ -90,6 +102,57 @@ const blocked = [
   "git fetch example.com:repo.git",
   "git remote add prod deploy@example.com:/srv/app.git",
   "git remote set-url origin 10.0.0.5:/srv/app.git",
+  // Git: a server path that starts with digits is not a port.
+  "git ls-remote deploy@example.com:22/repo.git",
+  "git clone deploy@example.com:1/../../srv/app.git copy",
+  "git fetch example.com:22/repo.git",
+  "git fetch 10.0.0.5:22/x",
+  "git fetch deploy@[::1]:repo",
+  // Git: any beginning of a long option that runs a command on the server.
+  "git ls-remote --upload-pa='touch /tmp/x' deploy@example.com:1/x",
+  "git ls-remote --upl=cmd origin",
+  "git ls-remote --u=cmd origin",
+  "git fetch --upload-pack cmd origin",
+  "git push --receive-pa=cmd origin main",
+  "git push --r=cmd origin main",
+  "git push --exe=cmd origin main",
+  "git pull --e=cmd origin main",
+  "git clone -qu cmd https://github.com/example/repo.git",
+  "git archive -u cmd --remote=origin HEAD",
+  "git fetch-pack --exec=cmd origin",
+  "git send-pack --exec=cmd origin",
+  "git fetch-pack prod:x",
+  "git send-pack prod:x",
+  // Git: any remote other than origin or GitHub over HTTPS.
+  "git fetch prod",
+  "git fetch prod:app.git",
+  "git pull prod main",
+  "git push prod main",
+  "git push --repo=prod",
+  "git fetch --multiple origin prod",
+  "git clone https://example.com/repo.git",
+  "git clone http://github.com/example/repo.git",
+  "git clone https://github.com.example.com/repo.git",
+  "git clone git://example.com/repo.git",
+  "git clone ../other copy",
+  "git ls-remote file:///srv/repo.git",
+  "git archive --remote=prod HEAD",
+  "git remote add prod https://example.com/repo.git",
+  "git remote show prod",
+  "git submodule update --init",
+  "git submodule add https://github.com/example/repo.git lib",
+  "git config remote.origin.url deploy@example.com:x",
+  "git config remote.prod.url example.com:x",
+  "git -c remote.origin.url=example.com:x fetch origin",
+  "git -c remote.origin.pushurl=example.com:x push origin main",
+  "git -c url.example.com:.insteadOf=https://github.com/ fetch https://github.com/a/b",
+  "git -c core.gitProxy=cmd fetch git://example.com/x",
+  "GIT_PROXY_COMMAND=cmd git fetch origin",
+  "git -c alias.f=fetch f prod",
+  "C:\\Program Files\\Git\\cmd\\git.exe fetch prod",
+  'git -c "user.name=A B" fetch prod',
+  'git -c "x=a;b" fetch prod',
+  "git -C 'C:\\My Repo' push prod main",
   // Behind another command or separator.
   "echo ok && ssh -V",
   "cd src; ssh -V",
@@ -118,6 +181,7 @@ const blocked = [
   "$p=@{HostName='example.com'}; Enter-PSSession @p",
   "$p = @{ UserName = 'jan'; HostName = 'example.com' }; & $c @p",
   "$p.HostName = 'example.com'",
+  "$p['HostName']='example.com'",
   "Some-Cmdlet -HostNa example.com",
   "Some-Cmdlet -SSHT",
   // PowerShell encoded commands (the agent never needs them).
@@ -127,6 +191,15 @@ const blocked = [
   "powershell.exe -NoProfile -e ZQBjAGgAbwA=",
   "pwsh /enc ZQBjAGgAbwA=",
   "Start-Process powershell -ArgumentList '-enc ZQBjAGgAbwA='",
+  "powershell -ExecutionPolicy Bypass -en ZQBjAGgAbwA=",
+  "powershell -encodedc ZQBjAGgAbwA=",
+  // Other programs that open SSH themselves.
+  "code --remote ssh-remote+example.com /srv",
+  "slogin example.com",
+  "dbclient example.com",
+  "sshuttle -r example.com 0/0",
+  "winscp.com /command",
+  "rsync -a ./x/ deploy@example.com:22/srv/",
   // The .ssh folder and keys in it.
   "cat ~/.ssh/config",
   "cat ~/.ssh/id_ed25519",
@@ -143,14 +216,18 @@ const blocked = [
   "echo ~/.ssh=x",
   "cat ~/.ssh_backup/id_rsa",
   "ls ~/.ssh-old",
+  "cat ~/.s*/id_ed25519",
+  "ls ~/.ss?",
+  "ls $HOME\\.s[s]h",
   // The folder with deployment secrets, also as a wildcard.
   "ls ../krajozbior-deploy",
-  "cat C:\\Users\\jan\\krajozbior-deploy\\wdroz.config",
+  "cat C:\\Users\\jan\\.config\\krajozbior-deploy\\wdroz.config",
   "Get-ChildItem KRAJOZBIOR-DEPLOY",
   "ls ../krajozbior-dep*",
   "cat ../krajozbior-d*/wdroz.config",
   "ls ..\\krajozbior*",
-  "Get-ChildItem C:\\x\\Krajozbior\\*",
+  "ls ~/.config/krajozbior-*",
+  "ls ~/.config/krajozbior-de?loy",
   // The local showcase data (sign-in codes in its outbox).
   "cat .data/showcase/outbox/latest.json",
   "Get-Content .data\\showcase\\outbox\\latest.json",
@@ -166,8 +243,104 @@ const blocked = [
   "grep -rn code .data/",
   "Get-ChildItem .data -Recurse -File | Get-Content",
   "rg code .data",
+  "cat .data/s*/outbox/latest.json",
+  "cat .data/show*/out*/latest.json",
+  "cat .data/showcas?/outbox/latest.json",
+  "cat .data/deploy/../showcase/secrets.env",
+  "Get-ChildItem .data -s",
+  "gci .data\\ -s",
+  "cmd /c dir /s .data",
+  "Get-ChildItem .data/deploy/.. -Recurse",
+  "ls -R .data",
+  "Get-ChildItem .data\\showcase\\outbox | Get-Content",
+  "Get-Content .data/showcase/secrets.env",
+  "New-Item -ItemType File .data\\showcase\\outbox\\latest.json -Value x",
+  "Copy-Item .data\\showcase\\secrets.env x.txt",
+  "docker run -v ./.data/showcase:/data app",
   // Strict by design: the hook reads the whole text of the command.
   "git commit -m 'opis ze slowem ssh'",
+];
+
+// Everyday commands of the orchestrator and the agents (from the logs of
+// 2026-11-21). A false block here stops ordinary work, so each must pass.
+const everyday = [
+  'gh pr list --author "krajozbior-bot[bot]"',
+  "gh pr list --author krajozbior-bot[bot] --state open",
+  "git log --author='krajozbior-bot[bot]' --oneline -5",
+  "gh api repos/example/repo/pulls/59/comments --jq '.[] | select(.user.login==\"krajozbior-bot[bot]\") | .body'",
+  "git -c user.name='krajozbior-bot[bot]' -c user.email=1+bot@users.noreply.github.com commit -F msg.txt",
+  'git -c user.name="Mariusz Skowron" -c user.email=218756461+MariuszSkowron@users.noreply.github.com commit -F .ai/tmp/k16-v3/msg.txt',
+  "Get-ChildItem C:\\Projekty\\Krajozbior\\krajozbior\\docs",
+  "Get-ChildItem C:\\Projekty\\Krajozbior\\krajozbior\\*.json",
+  "Get-ChildItem C:\\Projekty\\Krajozbior\\krajozbior-docs\\.ai\\runs\\*.md",
+  "Get-ChildItem C:\\Projekty\\Krajozbior\\krajozbior\\.worktrees\\*",
+  "Get-ChildItem C:\\x\\Krajozbior\\*",
+  "Get-Content -Encoding UTF8 plik.md",
+  'powershell -NoProfile -Command "Get-Content x.txt -Encoding UTF8"',
+  "npm run test:e2e -- -Environment e2e",
+  "powershell -ExecutionPolicy Bypass -File scripts/test-env/up.ps1 -Environment e2e",
+  "powershell -ExecutionPolicy Bypass -File scripts/bot-token.ps1",
+  "New-Item -ItemType Directory .data\\showcase\\outbox",
+  "New-Item -ItemType Directory -Force -Path .data/showcase, .data/showcase/outbox | Out-Null",
+  "mkdir -p .data/showcase/outbox",
+  "Test-Path .data\\showcase\\secrets.env",
+  "New-Item -ItemType Directory -Force .data",
+  "Get-ChildItem .data",
+  "Get-ChildItem .data | Select-Object -First 5",
+  "Test-Path .data",
+  "ls -la .data",
+  "docker run -v ./.data:/data app",
+  "Get-ChildItem .data/deploy/*.txt",
+  "git push -u origin feat/x",
+  "git push -q origin chore/k16-blokada-zdalnego-dostepu",
+  "git push --force-with-lease origin feat/x",
+  "git push --recurse-submodules=check origin feat/x",
+  "git fetch origin",
+  "git fetch --prune origin",
+  "git fetch --depth 1 origin main",
+  "git fetch",
+  "git fetch --all",
+  "git pull --no-rebase origin main",
+  "git pull --rebase origin main",
+  "git ls-remote origin chore/x",
+  "git ls-remote --heads origin",
+  "git merge --no-edit origin/main",
+  "git show origin/main:src/app/page.tsx",
+  "git remote get-url origin",
+  "git config --get remote.origin.url",
+  "git config remote.origin.url https://github.com/example/repo.git",
+  "git branch -r",
+  "git worktree list",
+  "git clone --depth 1 https://github.com/example/repo.git copy",
+  "git clone -b main https://github.com/example/repo.git",
+  "git submodule status",
+  "git -C c:\\Projekty\\Krajozbior\\krajozbior\\.worktrees\\ws-3 diff ef0a575..HEAD",
+  "git -C C:\\Projekty\\Krajozbior\\krajozbior\\.worktrees\\ws-6 diff origin/main...HEAD",
+  "git -C c:\\Projekty\\Krajozbior\\krajozbior-docs commit .ai/runs/2026-11-21-x.md -F msg.txt",
+  'git commit -m "docs: README.md: poprawka"',
+  "gh pr view 61 --json reviewDecision",
+  "gh pr checks 59",
+  "gh pr merge 61 --auto --squash",
+  "gh pr edit 59 --body-file .ai/tmp/k16-v3/pr-body.md",
+  "gh run view 123 --log-failed",
+  "docker compose -p krajozbior-showcase up -d",
+  "docker compose -f deploy/compose.yaml config",
+  "docker ps -a",
+  "docker volume rm krajozbior-showcase-pgdata",
+  "npx vitest run tests/scripts tests/deploy",
+  "npx prettier --check scripts tests/scripts",
+  "npx eslint tests/scripts scripts",
+  "npx vitest run --coverage",
+  "npm run legal:final",
+  "npm run db:roles",
+  "Resolve-DnsName krajozbior.pl",
+  "curl -sI https://krajozbior.pl",
+  "Get-CimInstance Win32_OperatingSystem",
+  "node -e \"console.log(require('os').hostname())\"",
+  "node -e \"if (u.hostname === 'x') process.exit(1)\"",
+  "cat scripts/showcase/showcase-lib.ps1",
+  "Get-Content docs/testing.md -Raw",
+  "ls ~/.config",
 ];
 
 const allowed = [
@@ -256,12 +429,36 @@ const knownLimitations = [
   // A script written to a file first, or another interpreter.
   "powershell -ExecutionPolicy Bypass -File .ai/tmp/connect.ps1",
   "node .ai/tmp/connect.mjs",
-  // A remote configured earlier (the URL is not in the text) or an SSH alias.
-  "git fetch prod",
-  "git fetch prod:app.git",
+  'python -c "import paramiko"',
+  // Git settings prepared outside the command (a file tool, an include).
+  "git -c include.path=.ai/tmp/x.cfg fetch origin",
+  // Other wildcard paths to keys and secrets.
+  "cat ~/.*/id_*",
+  "cat ~/*/id_ed25519",
+  "cat ~/.config/*/wdroz.config",
   // Reaching the protected folders step by step or from the parent folder.
   "cd .data; cd showcase; cat outbox/latest.json",
   "rg -uu secret ..",
+];
+
+// Long one-line commands without separators: every pattern must stay linear,
+// or the hook runs past its time limit (which does not block).
+const longCommands: Array<[string, string]> = [
+  ["spaces", " ".repeat(20_000)],
+  ["dashes", "-".repeat(20_000)],
+  ["repeated --u", "--u".repeat(6_667)],
+  ["repeated --u with spaces", "git ls-remote " + "--u ".repeat(5_000)],
+  ["repeated git clone", "git clone ".repeat(2_000)],
+  ["repeated git push", "git push ".repeat(2_223)],
+  ["repeated .data/", ".data/".repeat(3_334)],
+  ["repeated a@", "a@".repeat(10_000)],
+  ["repeated @[", "a@[".repeat(6_667)],
+  ["repeated krajozbior", "krajozbior".repeat(2_000)],
+  ["repeated @{", "@{".repeat(10_000)],
+  ["repeated quotes", "'".repeat(20_000) + "x"],
+  ["repeated remote.", "git config remote." + ".url=".repeat(4_000)],
+  ["repeated powershell", "powershell ".repeat(1_819)],
+  ["repeated ../", "cat " + "../".repeat(6_666)],
 ];
 
 describe("findRemoteAccess", () => {
@@ -270,6 +467,10 @@ describe("findRemoteAccess", () => {
   });
 
   it.each(allowed)("allows: %s", (command) => {
+    expect(findRemoteAccess(command)).toEqual([]);
+  });
+
+  it.each(everyday)("allows an everyday command: %s", (command) => {
     expect(findRemoteAccess(command)).toEqual([]);
   });
 
@@ -282,6 +483,28 @@ describe("findRemoteAccess", () => {
     expect(findRemoteAccess("grep -r code .data")).toEqual([".data (rekurencyjnie)"]);
   });
 
+  it.each([
+    "git",
+    "git -c",
+    "git -C",
+    "git fetch --depth",
+    "git push --repo",
+    "git remote",
+    "git remote add",
+    "git submodule",
+    "powershell",
+    "pwsh -",
+    'git "',
+    "'",
+    '"',
+    "\\",
+    "`",
+    "^",
+    "",
+  ])("does not throw on an unfinished command: %s", (command) => {
+    expect(() => findRemoteAccess(command)).not.toThrow();
+  });
+
   it("ignores a command that is not a string", () => {
     expect(findRemoteAccess(undefined)).toEqual([]);
     expect(findRemoteAccess(null)).toEqual([]);
@@ -292,6 +515,20 @@ describe("findRemoteAccess", () => {
 describe("known limitations (not caught, by design)", () => {
   it.each(knownLimitations)("not caught: %s", (command) => {
     expect(findRemoteAccess(command)).toEqual([]);
+  });
+});
+
+describe("speed on a 20 000-character line", () => {
+  it.each(longCommands)("checks %s in under 100 ms", (_, command) => {
+    findRemoteAccess(command);
+    const start = performance.now();
+    findRemoteAccess(command);
+    expect(performance.now() - start).toBeLessThan(100);
+  });
+
+  it("blocks a forbidden command followed by a long tail", () => {
+    const result = runHook(shellEvent("Bash", `ssh -V # ${"git clone ".repeat(2_000)}`));
+    expect(result.status).toBe(2);
   });
 });
 
