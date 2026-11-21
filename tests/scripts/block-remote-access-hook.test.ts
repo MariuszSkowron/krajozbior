@@ -919,20 +919,33 @@ describe("known limitations (not caught, by design)", () => {
   });
 });
 
-describe("speed on a 20 000-character line", () => {
-  it.each(longCommands)("checks %s in under 100 ms", (_, command) => {
-    findRemoteAccess(command);
+// Two warm-up runs skip the cold start; the median of several runs is compared
+// with the limit, not one run, so a single slow run under load (parallel tests,
+// a build) does not fail the test. A real slowdown moves the median too.
+function medianMilliseconds(command: string): number {
+  findRemoteAccess(command);
+  findRemoteAccess(command);
+  const times: number[] = [];
+  for (let i = 0; i < 9; i += 1) {
     const start = performance.now();
     findRemoteAccess(command);
-    expect(performance.now() - start).toBeLessThan(100);
+    times.push(performance.now() - start);
+  }
+  times.sort((a, b) => a - b);
+  return times[Math.floor(times.length / 2)];
+}
+
+describe("speed on a 20 000-character line", () => {
+  it.each(longCommands)("checks %s in under 100 ms (median)", (_, command) => {
+    expect(medianMilliseconds(command)).toBeLessThan(100);
   });
 
-  it.each(veryLongCommands)("checks %s (100 000 characters) in under 100 ms", (_, command) => {
-    findRemoteAccess(command);
-    const start = performance.now();
-    findRemoteAccess(command);
-    expect(performance.now() - start).toBeLessThan(100);
-  });
+  it.each(veryLongCommands)(
+    "checks %s (100 000 characters) in under 100 ms (median)",
+    (_, command) => {
+      expect(medianMilliseconds(command)).toBeLessThan(100);
+    },
+  );
 
   it("blocks a forbidden command followed by a long tail", () => {
     const result = runHook(shellEvent("Bash", `ssh -V # ${"git clone ".repeat(2_000)}`));
