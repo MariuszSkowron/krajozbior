@@ -131,6 +131,15 @@ describe("deletion screen", () => {
     expect(await render({ blad: "nieznany" })).not.toContain('role="alert"');
   });
 
+  it("ignores a code that is a property name of every object instead of crashing", async () => {
+    for (const code of ["constructor", "toString", "__proto__", "hasOwnProperty", "valueOf"]) {
+      const html = await render({ blad: code });
+
+      expect(html, code).not.toContain('role="alert"');
+      expect(html, code).toContain("Usuń konto na stałe");
+    }
+  });
+
   it("marks the field invalid after a wrong word and ties it to the error message", async () => {
     const html = await render({ blad: "invalid_confirmation" });
 

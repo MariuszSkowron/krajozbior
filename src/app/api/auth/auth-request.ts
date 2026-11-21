@@ -4,6 +4,7 @@ import type { SignInResult } from "@/features/identity/domain/identity-provider"
 import { roleHome } from "@/features/identity/domain/role-home";
 import type { SignInThrottle, ThrottleSubject } from "@/features/identity/domain/sign-in-throttle";
 import { getClientIpHeader } from "@/features/identity/infrastructure";
+import { readBoundedForm, readJsonBody } from "@/features/visits/http/request-body";
 import { isDemoSignInAllowed } from "@/lib/config/env";
 
 /**
@@ -39,14 +40,48 @@ export function isFormPost(request: Request): boolean {
   return type.includes("application/x-www-form-urlencoded") || type.includes("multipart/form-data");
 }
 
+// The sign-in bodies hold an address, a password or a code and a return path: far less.
+const INPUT_MAX_BYTES = 8 * 1024;
+
+/** Thrown by `readInput` for a body over the limit; the routes answer 413. */
+export class PayloadTooLargeError extends Error {}
+
 export async function readInput(request: Request): Promise<Record<string, unknown>> {
   if (isFormPost(request)) {
-    return Object.fromEntries(await request.formData());
+    const read = await readBoundedForm(request, INPUT_MAX_BYTES);
+
+    if ("tooLarge" in read) {
+      throw new PayloadTooLargeError();
+    }
+
+    if (read.form === null) {
+      throw new Error("The body is not a form");
+    }
+
+    return Object.fromEntries(read.form);
   }
 
-  const body: unknown = await request.json();
+  const read = await readJsonBody(request, INPUT_MAX_BYTES);
+
+  if ("tooLarge" in read) {
+    throw new PayloadTooLargeError();
+  }
+
+  // A body that is not JSON stays a bad request, as before.
+  if (read.body === undefined) {
+    throw new Error("The body is not JSON");
+  }
+
+  const body = read.body;
 
   return typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+}
+
+/** The refusal of a failed `readInput`: 413 for a body over the limit, 400 otherwise. */
+export function invalidInputResponse(error: unknown): Response {
+  return error instanceof PayloadTooLargeError
+    ? Response.json({ error: "payload_too_large" }, { status: 413, headers: NO_STORE })
+    : Response.json({ error: "invalid_request" }, { status: 400, headers: NO_STORE });
 }
 
 /** A refusal: the form goes back to /login with the code, a JSON client gets the status. */

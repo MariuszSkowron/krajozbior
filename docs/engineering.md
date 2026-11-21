@@ -77,6 +77,7 @@ Dokument rozdziela obowiązujące dziś zasady pracy od wymagań, które trzeba 
 - Wszystkie zmiany schematu przechodzą przez wersjonowane migracje. Utrzymuj FK, `NOT NULL`, `CHECK` i unikalności dla niezmienników domeny. Dodawaj indeksy dla FK, właściciela i kolumn używanych w filtrach.
 - Nie zmieniaj schematu produkcyjnego ręcznym DDL ani `schema:update`; migracje muszą dać się przeglądać i odtworzyć. Migracja z politykami RLS ma test „revert + apply” (`down()` i ponowne `up()`).
 - Tabela z danymi prywatnymi powstaje w tej samej migracji co jej RLS (`privateTableSecuritySql`); pilnuje tego hook `require-rls-in-migration`.
+- Do zapytania `tx.em.execute` trafiają wyłącznie wartości (parametry `?`), nigdy nazwy tabel, kolumn ani kierunku sortowania z danych użytkownika; element zapytania, który nie jest wartością, wybierasz ze stałej listy w kodzie. Wartość przed zapytaniem przechodzi walidację typu i długości. Cytowanie wartości robi biblioteka, więc ochrona zależy od obu warunków naraz. Nowe zapytanie z tekstem użytkownika ma test na prawdziwej bazie ze znakami specjalnymi (apostrof, ukośnik wsteczny, `?`, `:`, `$1`, `--`); wzór: `tests/integration/search-access.test.ts`.
 - Operacje wieloetapowe, które muszą się udać razem, wykonuj w jednej transakcji. Chroń zapis przed nieaktualnym stanem (wersja rekordu lub warunek aktualizacji); konflikt zwracaj jako konflikt do ponownego odczytu (np. HTTP 409), nie nadpisuj po cichu.
 
 ### Interfejs

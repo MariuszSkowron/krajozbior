@@ -48,7 +48,8 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
 
   const params = await searchParams;
   const code = first(params.blad);
-  const message = code === undefined ? undefined : messages[code];
+  // Only own keys: `?blad=constructor` must not pick a property of Object.prototype.
+  const message = code !== undefined && Object.hasOwn(messages, code) ? messages[code] : undefined;
 
   if (actor.role === "admin") {
     return (

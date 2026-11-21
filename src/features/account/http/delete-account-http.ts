@@ -3,6 +3,7 @@ import "server-only";
 import { isSameOrigin } from "@/features/identity/domain/origin";
 import { getIdentityProvider } from "@/features/identity/infrastructure";
 import { clearedProfileDraftCookie } from "@/features/profile/domain/profile-draft";
+import { readBoundedForm, readJsonBody } from "@/features/visits/http/request-body";
 import { logFailure } from "@/lib/log-failure";
 
 import { deleteOwnAccount } from "../application/delete-own-account";
@@ -49,16 +50,28 @@ function failure(code: Failure, isForm: boolean): Response {
   return isForm ? redirect(`${SCREEN}?blad=${code}`) : json(failureStatus[code], { error: code });
 }
 
-async function readBody(request: Request, isForm: boolean): Promise<unknown> {
+// The body holds the confirmation word only; anything near this size is not that.
+const BODY_MAX_BYTES = 4 * 1024;
+
+async function readBody(
+  request: Request,
+  isForm: boolean,
+): Promise<{ tooLarge: true } | { body: unknown }> {
   if (isForm) {
     // A damaged form body is a bad request, not an outage.
-    return request
-      .formData()
-      .then((data) => Object.fromEntries(data.entries()))
-      .catch(() => null);
+    const read = await readBoundedForm(request, BODY_MAX_BYTES);
+
+    if ("tooLarge" in read) {
+      return read;
+    }
+
+    return { body: read.form === null ? null : Object.fromEntries(read.form.entries()) };
   }
 
-  return request.json().catch(() => null);
+  const read = await readJsonBody(request, BODY_MAX_BYTES);
+
+  // `readJsonBody` answers `undefined` for a body that is not JSON: a bad request.
+  return "tooLarge" in read ? read : { body: read.body ?? null };
 }
 
 export async function handleAccountDeletion(
@@ -80,7 +93,15 @@ export async function handleAccountDeletion(
       return json(401, { error: "unauthenticated" });
     }
 
-    const body = parseDeletionRequest(await readBody(request, isForm));
+    const read = await readBody(request, isForm);
+
+    if ("tooLarge" in read) {
+      return isForm
+        ? redirect(`${SCREEN}?blad=invalid_request`)
+        : json(413, { error: "payload_too_large" });
+    }
+
+    const body = parseDeletionRequest(read.body);
 
     if (body === null) {
       return failure("invalid_request", isForm);
