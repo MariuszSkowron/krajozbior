@@ -181,6 +181,7 @@ describe("public read of collections and places (guest context)", () => {
         ],
         placeCount: 2,
         contentUpdatedAt: expect.any(Date),
+        cover: null,
       },
     });
 
@@ -512,6 +513,7 @@ describe("public read of collections and places (guest context)", () => {
       // Public fields only: the new ones are the number and the date, nothing of the draft.
       expect(result.status === "ok" ? Object.keys(result.value).sort() : []).toEqual([
         "contentUpdatedAt",
+        "cover",
         "id",
         "organization",
         "placeCount",
