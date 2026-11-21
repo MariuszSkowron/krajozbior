@@ -112,6 +112,22 @@ describe("parseSearchPhrase", () => {
     });
   });
 
+  // LIVE-6: PostgreSQL refuses a NUL in text, so the query failed (error 500 and the phrase in
+  // the database log). Control characters never reach the database; they separate words.
+  it("turns control characters, NUL included, into a space before the database", () => {
+    expect(parseSearchPhrase("wie\u0000ża")).toMatchObject({ status: "ok", display: "wie ża" });
+    expect(parseSearchPhrase("zam\u0007ek\u001b[0m\u0085x")).toMatchObject({
+      status: "ok",
+      display: "zam ek [0m x",
+    });
+    expect(parseSearchPhrase("\u0000\u0000")).toEqual({ status: "none" });
+    expect(parseSearchPhrase("a\u0000")).toEqual({ status: "too_short" });
+
+    const phrase = parseSearchPhrase("\u0000ab\u0000");
+
+    expect(phrase.status === "ok" && /\p{Cc}/u.test(phrase.contains + phrase.prefix)).toBe(false);
+  });
+
   it("gives the folded phrase and the escaped like patterns", () => {
     expect(parseSearchPhrase("  WIEŻA   50% ")).toEqual({
       status: "ok",
