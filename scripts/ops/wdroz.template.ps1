@@ -1,6 +1,8 @@
 # wdroz.ps1 - starter of Krajozbior deployments (E11 spec, D-E11-4). TEMPLATE in the public
 # repository; new-deploy-secrets.ps1 copies it once into the owner's secrets folder
-# (%USERPROFILE%\.config\krajozbior-deploy\wdroz.ps1). The copy does not change afterwards.
+# (%USERPROFILE%\.config\krajozbior-deploy\wdroz.ps1). The copy changes only when the owner runs
+# new-deploy-secrets.ps1 -OdswiezWdroz from the clean clone; this script says when the template
+# in repo\ differs from itself.
 #
 # It never trusts the code folder the agent works in. It updates its OWN copy of the repository
 # (repo\ next to this file), checks that the requested commit is on origin/main (so it went
@@ -12,6 +14,7 @@
 #   ... wdroz.ps1 -Bootstrap [-Commit <sha>]     first preparation of the server
 #   ... wdroz.ps1 -Initial [-Commit <sha>]       first deployment
 #   ... wdroz.ps1 -Admin | -Diagnoza | -Otworz | -OdtworzKopie
+#   ... wdroz.ps1 -Import <full path of a *-public.ndjson file> [-OrgSlug <slug>]
 # Without -Commit the newest origin/main is used.
 # Keep this file ASCII-only (Windows PowerShell 5.1 reads BOM-less files as ANSI).
 param(
@@ -22,7 +25,8 @@ param(
   [switch]$Diagnoza,
   [switch]$Otworz,
   [switch]$OdtworzKopie,
-  [string]$Import = ''
+  [string]$Import = '',
+  [string]$OrgSlug = ''
 )
 
 Set-StrictMode -Version Latest
@@ -37,8 +41,9 @@ if ($Otworz) { $modes += 'otworz' }
 if ($OdtworzKopie) { $modes += 'odtworz' }
 if ($Import -ne '') { $modes += 'import' }
 if ($modes.Count -gt 1) { throw 'Podaj jeden tryb naraz.' }
+if ($OrgSlug -ne '' -and $Import -eq '') { throw '-OrgSlug dziala tylko z -Import <plik>.' }
 if ($modes.Count -eq 0) {
-  if ($Commit -eq '') { throw 'Podaj -Commit <sha> albo tryb (-Bootstrap, -Initial, -Admin, -Diagnoza, -Otworz, -OdtworzKopie).' }
+  if ($Commit -eq '') { throw 'Podaj -Commit <sha> albo tryb (-Bootstrap, -Initial, -Admin, -Diagnoza, -Otworz, -OdtworzKopie, -Import <plik>).' }
   $modes = @('commit')
 }
 $mode = $modes[0]
@@ -73,6 +78,20 @@ Invoke-Git @('-c', 'advice.detachedHead=false', 'checkout', '--quiet', '--force'
 $repoUrl = Invoke-Git @('remote', 'get-url', 'origin')
 
 Write-Host "Kod: commit $sha (na origin/main)." -ForegroundColor Gray
-& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'scripts\ops\deploy.ps1') `
-  -SecretsDir $secretsDir -Mode $mode -Sha $sha -RepoUrl $repoUrl
+
+# A newer starter in the checked-out commit: say so (the copy is replaced only by the owner).
+$template = Join-Path $repo 'scripts\ops\wdroz.template.ps1'
+if ((Test-Path -LiteralPath $template) -and
+  (Get-FileHash -LiteralPath $template).Hash -ne (Get-FileHash -LiteralPath $PSCommandPath).Hash) {
+  Write-Host 'Uwaga: w tym commicie jest nowsza wersja wdroz.ps1. Odswiez ja poleceniem:' -ForegroundColor Yellow
+  Write-Host "  powershell -ExecutionPolicy Bypass -File `"$repo\scripts\ops\new-deploy-secrets.ps1`" -OdswiezWdroz" -ForegroundColor Yellow
+}
+
+$deployArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'scripts\ops\deploy.ps1'),
+  '-SecretsDir', $secretsDir, '-Mode', $mode, '-Sha', $sha, '-RepoUrl', $repoUrl)
+if ($mode -eq 'import') {
+  $deployArgs += @('-ImportFile', $Import)
+  if ($OrgSlug -ne '') { $deployArgs += @('-OrgSlug', $OrgSlug) }
+}
+& powershell @deployArgs
 exit $LASTEXITCODE

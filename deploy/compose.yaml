@@ -122,8 +122,10 @@ services:
     env_file:
       - path: ${KRAJOZBIOR_OPS_ENV_FILE:-/run/krajozbior/ops.env}
         required: false
-    # Na serwerze `catalog:import` i `db:seed:demo` odmawiają w produkcji niezależnie od adresu
-    # bazy. Kontener nie dzieli sieci z bazą (pilnuje tego test); tylko nakładka pokazu nadpisuje NODE_ENV.
+    # Na serwerze `db:seed:demo` odmawia w produkcji niezależnie od adresu bazy, a `catalog:import`
+    # też, chyba że dostanie jawny tryb `--target server` z potwierdzeniem hosta (F-K6; uruchamia go
+    # tylko tryb `-Import` skryptu wdrożenia, katalog z plikiem montowany tylko do odczytu).
+    # Kontener nie dzieli sieci z bazą (pilnuje tego test); tylko nakładka pokazu nadpisuje NODE_ENV.
     environment:
       NODE_ENV: production
     depends_on:

@@ -267,6 +267,187 @@ describe("payload end to end (PowerShell builds it, bash runs it)", () => {
 
     expect(output).toBe('mode=diagnoza pw=a b"c$d name=Krajozbiór\nstdin-empty\n');
   });
+
+  bothIt("carries an import file byte for byte (base64 + SHA-256 checked in bash)", () => {
+    const directory = mkdtempSync(join(tmpdir(), "krajozbior-payload-"));
+    const payloadFile = join(directory, "payload.sh");
+    const libFile = join(root, "scripts/ops/server/lib.sh");
+    const modeText =
+      "kz_main() { printf '%s' \"$KZ_IMPORT_B64\" | base64 -d | sha256sum | cut -d' ' -f1; echo \"$KZ_IMPORT_SHA256\"; }";
+    const build = ps(
+      `$b = [Text.Encoding]::UTF8.GetBytes('{"title":"Zamki ' + [char]0x0142 + 'ysiny"}' + [char]10); $p = New-RemotePayload ([IO.File]::ReadAllText(${psString(libFile)})) (New-RemotePreamble @{ KZ_IMPORT_B64 = [Convert]::ToBase64String($b); KZ_IMPORT_SHA256 = (Get-Sha256Hex $b) } @{}) ${psString(modeText)}; [IO.File]::WriteAllText(${psString(payloadFile)}, $p, (New-Object Text.UTF8Encoding($false)))`,
+    );
+
+    expect(build.status, build.stderr).toBe(0);
+
+    const [decoded, expected] = execFileSync(bash, ["-s"], {
+      input: readFileSync(payloadFile),
+      encoding: "utf8",
+    })
+      .trim()
+      .split("\n");
+    const original = createHash("sha256").update('{"title":"Zamki łysiny"}\n').digest("hex");
+
+    expect(decoded).toBe(original);
+    expect(expected).toBe(original);
+  });
+});
+
+describe("mode import: checks on the owner's computer (F-K6)", () => {
+  const IMPORT_DIR = "C:\\Projekty\\kolekcje";
+  const SECRETS = "C:\\Users\\a\\.config\\krajozbior-deploy";
+  const problem = (path: string, importDir = IMPORT_DIR, secrets = SECRETS) =>
+    psJson<string>(
+      `Get-ImportFileProblem ${psString(path)} ${psString(importDir)} ${psString(secrets)}`,
+    );
+
+  psIt("serwer.conf: ImportDir must be a full path", () => {
+    expect(
+      psJson<Record<string, unknown>>(
+        `Read-DeployConfig "Address=192.0.2.10\`nImportDir=C:\\x\\kolekcje"`,
+      ),
+    ).toMatchObject({ ImportDir: "C:\\x\\kolekcje" });
+
+    const relative = ps(`Read-DeployConfig "Address=192.0.2.10\`nImportDir=kolekcje"`);
+
+    expect(relative.status).not.toBe(0);
+    expect(relative.stderr).toContain("ImportDir must be a full path");
+  });
+
+  psIt("accepts a *-public.ndjson file inside ImportDir (any letter case of the folder)", () => {
+    expect(problem(`${IMPORT_DIR}\\fala-1-public.ndjson`)).toBe("");
+    expect(problem("c:\\projekty\\KOLEKCJE\\sub\\fala_2.v1-public.ndjson")).toBe("");
+  });
+
+  for (const [path, message] of [
+    ["", "Brak pliku"],
+    ["fala-1-public.ndjson", "pelna sciezke"],
+    [`${IMPORT_DIR}\\fala-1.ndjson`, "Zla nazwa pliku"],
+    [`${IMPORT_DIR}\\fala-1-public.ndjson.pem`, "Zla nazwa pliku"],
+    [`${IMPORT_DIR}\\-public.ndjson`, "Zla nazwa pliku"],
+    [`${SECRETS}\\ssh\\id_ed25519`, "Zla nazwa pliku"],
+    ["C:\\Projekty\\inne\\fala-1-public.ndjson", "folderze ImportDir"],
+    [`${IMPORT_DIR}\\..\\inne\\fala-1-public.ndjson`, "folderze ImportDir"],
+    ["C:\\Projekty\\kolekcje-obok\\fala-1-public.ndjson", "folderze ImportDir"],
+    [`${SECRETS}\\fala-1-public.ndjson`, "folderze sekretow"],
+  ] as const) {
+    psIt(`refuses ${path || "(empty)"}: ${message}`, () => {
+      expect(problem(path)).toContain(message);
+    });
+  }
+
+  psIt("refuses a file in the secrets folder even when ImportDir contains it", () => {
+    expect(problem(`${SECRETS}\\repo\\fala-1-public.ndjson`, "C:\\Users\\a")).toContain(
+      "folderze sekretow",
+    );
+  });
+
+  psIt("refuses without ImportDir in serwer.conf", () => {
+    expect(problem(`${IMPORT_DIR}\\fala-1-public.ndjson`, "")).toContain("nie ma ImportDir");
+  });
+
+  psIt("on disk: missing, empty and too large files are refused; a normal file passes", () => {
+    const directory = mkdtempSync(join(tmpdir(), "krajozbior-import-"));
+    const ok = join(directory, "fala-public.ndjson");
+    const empty = join(directory, "pusty-public.ndjson");
+    const big = join(directory, "duzy-public.ndjson");
+
+    writeFileSync(ok, '{"type":"batch"}\n');
+    writeFileSync(empty, "");
+    writeFileSync(big, Buffer.alloc(8 * 1024 * 1024 + 1, 0x20));
+
+    const disk = (path: string) =>
+      psJson<string>(`Get-ImportFileDiskProblem ${psString(path)} ${psString(directory)}`);
+
+    expect(disk(ok)).toBe("");
+    expect(disk(join(directory, "brak-public.ndjson"))).toContain("Nie ma takiego pliku");
+    expect(disk(empty)).toContain("pusty");
+    expect(disk(big)).toContain("8 MiB");
+    expect(disk(directory)).toContain("Nie ma takiego pliku");
+  });
+
+  psIt("organisation slug and the audit reason", () => {
+    expect(
+      psJson<boolean[]>(
+        "@((Test-OrgSlug 'krajozbior-redakcja'), (Test-OrgSlug 'Zla Org'), (Test-OrgSlug 'a--b'), (Test-OrgSlug ''))",
+      ),
+    ).toEqual([true, false, false, false]);
+    expect(psJson<string>("New-ImportReason 'fala-1-public.ndjson'")).toBe(
+      "Wgranie kolekcji z pliku fala-1-public.ndjson",
+    );
+  });
+
+  const flow = (answer: string, codes: string) =>
+    psJson<{ calls: string[]; code: number; result: string }>(
+      `$calls = New-Object System.Collections.Generic.List[string]; $codes = @{ ${codes} }; $r = Invoke-ImportFlow { param($p) $calls.Add($p); $codes[$p] } { ${answer} }; @{ calls = @($calls); code = $r.Code; result = $r.Result }`,
+    );
+
+  psIt('answer "nie": only the preview runs, nothing is loaded, exit code 0', () => {
+    expect(flow("$false", "preview = 0; apply = 0")).toEqual({
+      calls: ["preview"],
+      code: 0,
+      result: "declined",
+    });
+  });
+
+  psIt('answer "tak": preview, then the load', () => {
+    expect(flow("$true", "preview = 0; apply = 0")).toEqual({
+      calls: ["preview", "apply"],
+      code: 0,
+      result: "applied",
+    });
+    expect(flow("$true", "preview = 0; apply = 1")).toMatchObject({
+      code: 1,
+      result: "apply-failed",
+    });
+  });
+
+  psIt("a failed preview asks nothing and loads nothing", () => {
+    expect(flow("throw 'the question must not be asked'", "preview = 1; apply = 0")).toEqual({
+      calls: ["preview"],
+      code: 1,
+      result: "preview-failed",
+    });
+  });
+
+  psIt("summarises the JSON line of catalog:import in Polish, ignores other lines", () => {
+    const preview = JSON.stringify({
+      outcome: "preview",
+      dryRun: true,
+      collections: 2,
+      places: 5,
+      collectionStates: { create: 2 },
+      placeStates: { create: 4, noop: 1 },
+    });
+
+    expect(psJson<string>(`Format-ImportSummary ${psString(preview)}`)).toBe(
+      "Podglad (w pliku 2 kolekcji i 5 miejsc). Kolekcje: create=2. Miejsca: create=4, noop=1.",
+    );
+    expect(
+      psJson<string>(
+        `Format-ImportSummary ${psString(JSON.stringify({ outcome: "refused", code: "host_mismatch" }))}`,
+      ),
+    ).toBe("Odmowa: host_mismatch.");
+    expect(ps("$null -eq (Format-ImportSummary '[krajozbior] GOTOWE')").stdout).toBe("True");
+  });
+
+  it("deploy.ps1 checks the file before the vault and any connection; wdroz.ps1 passes it on", () => {
+    const deploy = withoutComments(readFileSync(join(OPS_DIR, "deploy.ps1"), "utf8"));
+    const starter = withoutComments(readFileSync(join(OPS_DIR, "wdroz.template.ps1"), "utf8"));
+    const secrets = withoutComments(readFileSync(join(OPS_DIR, "new-deploy-secrets.ps1"), "utf8"));
+    const check = deploy.indexOf("Get-ImportFileProblem $ImportFile");
+
+    expect(check).toBeGreaterThan(0);
+    expect(check).toBeLessThan(deploy.indexOf("Open-Vault"));
+    expect(check).toBeLessThan(deploy.indexOf("Get-Tool 'ssh.exe'"));
+    expect(deploy).not.toContain("bedzie dostepne po F-K6");
+    expect(deploy).toContain("Add-Secret 'KZ_CURATOR_EMAIL' $curator");
+    expect(deploy).not.toMatch(/KZ_CURATOR_EMAIL\s*=|\$plain\.KZ_CURATOR_EMAIL/);
+    expect(starter).toContain("'-ImportFile', $Import");
+    expect(secrets).toContain(
+      "Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'wdroz.template.ps1') -Destination $starterFile -Force",
+    );
+  });
 });
 
 describe("report masking (Protect-ReportLine)", () => {
