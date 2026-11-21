@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { APP_NAME, escapeHtml, renderSignInCodeEmail } from "@/lib/email/sign-in-code-email";
+import {
+  APP_NAME,
+  DATA_CONTROLLER_LINE,
+  escapeHtml,
+  PRIVACY_POLICY_PATH,
+  renderSignInCodeEmail,
+} from "@/lib/email/sign-in-code-email";
 
 const input = { code: "123456", siteUrl: "https://krajozbior.example" };
 
@@ -20,17 +26,37 @@ describe("renderSignInCodeEmail", () => {
     expect(email.html).not.toMatch(/\bsrc\s*=|url\(|@import/i);
   });
 
-  it("links only to the site", () => {
+  it("names only the site and its privacy policy, as plain text without links", () => {
     const urls = [...(email.html + email.text).matchAll(/https?:\/\/[^\s"'<)]+/g)].map(
       (match) => match[0],
     );
 
-    expect(new Set(urls)).toEqual(new Set([input.siteUrl]));
+    expect(new Set(urls)).toEqual(
+      new Set([input.siteUrl, `${input.siteUrl}${PRIVACY_POLICY_PATH}`]),
+    );
+    expect(email.html).not.toMatch(/<a\b|href\s*=/i);
   });
 
-  it("carries no data besides the code and the site link", () => {
+  it("ends with the data controller and the privacy policy in both bodies (E11 5.8)", () => {
+    const footer = [
+      "Administrator danych: Mariusz Skowron, kontakt@mariuszskowron.pl",
+      "Polityka prywatności: https://krajozbior.example/polityka-prywatnosci",
+    ];
+
+    expect(DATA_CONTROLLER_LINE).toBe(footer[0]);
+    expect(email.text.trimEnd().split("\n").slice(-2)).toEqual(footer);
+    for (const line of footer) expect(email.html).toContain(line);
+    expect(
+      renderSignInCodeEmail({ ...input, siteUrl: "https://krajozbior.example/" }).text,
+    ).toContain(footer[1]);
+  });
+
+  it("carries no data besides the code, the site address and the fixed footer", () => {
     const withoutKnown = (value: string) =>
-      value.replaceAll(input.code, "").replaceAll(input.siteUrl, "");
+      value
+        .replaceAll(input.code, "")
+        .replaceAll(input.siteUrl, "")
+        .replaceAll(DATA_CONTROLLER_LINE, "");
 
     // The template takes no recipient, so no address or name can leak in.
     expect(withoutKnown(email.text + email.html)).not.toMatch(/@|\d{4,}/);

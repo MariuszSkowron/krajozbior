@@ -28,6 +28,13 @@ Usługi `db` (PostgreSQL 17), `app`, `proxy` (Caddy, `deploy/Caddyfile`) i jedno
 
 Dopóki serwis stoi za hasłem, teksty prawne mogą mieć jeszcze znaczniki robocze (`[DO UZUPEŁNIENIA: …]`). Test jednostkowy (`tests/features/legal/legal-content.test.ts`) dopuszcza tylko znaczniki z jawnej listy otwartych pozycji, więc CI i budowa przechodzą, a każdy nowy znacznik je zatrzymuje. **Przed zdjęciem hasła** uruchom `npm run legal:final`: polecenie kończy się błędem i wypisuje znaczniki, jeśli którykolwiek tekst ma jeszcze choć jeden. Serwis otwierasz dopiero po wyniku „Teksty prawne nie mają znaczników roboczych.”; skrypt wdrożenia z krokiem otwarcia (kolejny krok wdrożenia) ma wywoływać to polecenie i przy błędzie odmawiać.
 
+### E-maile z kodami (Brevo)
+
+- Na serwerze `.env.production` ustawia `EMAIL_TRANSPORT=brevo`, `BREVO_API_KEY` i `EMAIL_FROM`. Wysyłka idzie przez API HTTP Brevo (`src/lib/email/brevo-email-sender.ts`): limit czasu 10 s, jedna ponowna próba przy błędzie sieci, przekroczeniu czasu albo odpowiedzi 5xx; odpowiedzi 4xx nie są ponawiane.
+- Serwer produkcyjny sprawdza konfigurację przy starcie (`src/instrumentation.ts`): bez klucza Brevo, nadawcy albo innego wymaganego ustawienia proces kończy się od razu z kodem 1 i komunikatem z samymi nazwami zmiennych (kontener wpada w pętlę restartów zamiast działać z błędem 500). Budowa obrazu (`next build`) tej kontroli nie uruchamia.
+- W logu są tylko zdarzenia z kodem odpowiedzi, nigdy adres odbiorcy ani kod: `email.brevo_rejected` (401, 403, 429: zły klucz, zawieszone konto, adres serwera spoza listy autoryzowanych, limit), `email.brevo_refused` (inny 4xx), `email.brevo_retry` i `email.brevo_failed` (błąd sieci, przekroczenie czasu, 5xx), a po innej nieudanej wysyłce `email.send_failed` (odmowa konta daje jedną linię, `email.brevo_rejected`, bez `email.send_failed`). Pula kodów: `auth.otp_global_limit_80` i `auth.otp_global_limit_100`.
+- Nieudana wysyłka nie zmienia odpowiedzi dla osoby, która prosi o kod (widzi „wysłaliśmy kod” z podpowiedzią o folderze spam i ponownej prośbie). Inaczej odpowiedź zdradzałaby, które adresy należą do administratorów, bo na nie kod nigdy nie wychodzi.
+
 ## Pokaz lokalny
 
 Wymaga uruchomionego Docker Desktop i około 3 GB wolnej pamięci przy pierwszej budowie obrazu. Polecenia (Windows PowerShell, z katalogu repozytorium):
