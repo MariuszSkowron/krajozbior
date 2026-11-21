@@ -157,11 +157,43 @@ describe("server configuration (deploy/compose.yaml)", () => {
     }
   });
 
-  it("gives the database superuser password as a file, not as an environment variable", () => {
+  it("gives the database superuser password as a file, only in the first-start overlay", () => {
     const compose = read("deploy/compose.yaml");
+    const init = read("deploy/compose.init.yaml");
 
-    expect(compose).toContain("POSTGRES_PASSWORD_FILE");
+    // F-K4: /run is empty after a server restart, so the everyday file must not need the secret.
+    expect(compose).not.toContain("POSTGRES_PASSWORD_FILE");
+    expect(compose).not.toMatch(/^secrets:/m);
     expect(compose).not.toMatch(/^\s*POSTGRES_PASSWORD:/m);
+    expect(init).toContain("POSTGRES_PASSWORD_FILE: /run/secrets/pg_bootstrap");
+    expect(init).toContain("${PG_BOOTSTRAP_FILE:-/run/krajozbior/pg-bootstrap}");
+    expect(init).not.toMatch(/^\s*POSTGRES_PASSWORD:/m);
+  });
+
+  dockerComposeIt(
+    "starts the database without the one-time secret unless the overlay is given",
+    () => {
+      const everyday = composeConfig(SERVER) as ComposeConfig & { secrets?: object };
+      const first = composeConfig([...SERVER, "deploy/compose.init.yaml"]) as ComposeConfig & {
+        secrets?: Record<string, { file?: string }>;
+      };
+
+      expect(everyday.secrets).toBeUndefined();
+      expect(everyday.services.db?.environment?.POSTGRES_PASSWORD_FILE).toBeUndefined();
+      expect(first.services.db?.environment?.POSTGRES_PASSWORD_FILE).toBe(
+        "/run/secrets/pg_bootstrap",
+      );
+      expect(first.secrets?.pg_bootstrap?.file).toBe("/run/krajozbior/pg-bootstrap");
+      // The overlay touches only the database.
+      expect(Object.keys(first.services).sort()).toEqual(["app", "db", "proxy"]);
+    },
+  );
+
+  it("keeps the site behind the password gate until the gate file is removed (spec 5.4a)", () => {
+    expect(read("deploy/Caddyfile")).toMatch(/^\timport \/etc\/caddy\/gate\/\*\.caddy$/m);
+    expect(read("deploy/compose.yaml")).toContain(
+      "${KRAJOZBIOR_CADDY_GATE_DIR:-/srv/krajozbior/caddy-gate}:/etc/caddy/gate:ro",
+    );
   });
 
   it("pins the database image by digest", () => {

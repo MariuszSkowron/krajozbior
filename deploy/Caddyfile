@@ -12,6 +12,12 @@ www.krajozbior.pl, http://krajozbior.pl, http://www.krajozbior.pl {
 }
 
 krajozbior.pl {
+	# Bramka hasła do otwarcia serwisu (spec 5.4a): `gate.caddy` z `basic_auth` na wszystkich
+	# ścieżkach poza /api/health kładzie skrypt wdrożenia, a zdejmuje go krok otwarcia
+	# (po `npm run legal:final`). Brak pliku (pusty katalog) = serwis otwarty; wzorzec z gwiazdką
+	# nie daje błędu, gdy nic nie pasuje.
+	import /etc/caddy/gate/*.caddy
+
 	# Adres klienta bierzemy z połączenia TCP, nie z nagłówka przysłanego przez klienta.
 	reverse_proxy app:3000 {
 		header_up X-Real-IP {remote_host}
