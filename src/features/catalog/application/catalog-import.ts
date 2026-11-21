@@ -11,6 +11,12 @@ import {
   type StoredPlace,
 } from "../domain/import-diff";
 import type { ImportCollection, ImportFileResult, ImportPlace } from "../domain/import-file";
+import {
+  decidePhoto,
+  photoContentOf,
+  photoImportKey,
+  type PhotoResult,
+} from "../domain/import-photo";
 import { MAX_COLLECTIONS_PER_LIST } from "../domain/limits";
 import {
   composeAttribution,
@@ -122,13 +128,21 @@ function must<T>(outcome: CuratorOutcome<T>): T {
 type KeyMaps = Readonly<{
   collections: Map<string, ImportKeyRow>;
   places: Map<string, ImportKeyRow>;
+  photos: Map<string, ImportKeyRow>;
 }>;
 
 function indexKeys(rows: readonly ImportKeyRow[]): KeyMaps {
-  const maps: KeyMaps = { collections: new Map(), places: new Map() };
+  const maps: KeyMaps = { collections: new Map(), places: new Map(), photos: new Map() };
 
   for (const row of rows) {
-    (row.kind === "collection" ? maps.collections : maps.places).set(row.importKey, row);
+    const target =
+      row.kind === "collection"
+        ? maps.collections
+        : row.kind === "photo"
+          ? maps.photos
+          : maps.places;
+
+    target.set(row.importKey, row);
   }
 
   return maps;
@@ -222,6 +236,112 @@ function count(counts: Record<string, number>, name: string): void {
   counts[name] = (counts[name] ?? 0) + 1;
 }
 
+/**
+ * The photo block of one place that already exists (E4-2a). Rows made earlier from a file whose
+ * key is not the wanted one are removed (the block went or the Commons file changed) unless edited
+ * by hand; the wanted photo is created, updated or left as `decidePhoto` says. `apply: false` only
+ * reports (the preview). A row the app cannot read in detail (no `commons_file`) is found by its key.
+ */
+async function syncPlacePhotos(
+  tx: TransactionContext,
+  deps: CatalogImportDeps,
+  organizationId: string,
+  batchId: string,
+  placeId: string,
+  filePlace: ImportPlace,
+  keys: KeyMaps,
+  apply: boolean,
+): Promise<PhotoResult[]> {
+  const rows = await deps.imports.readPlacePhotos(tx, placeId);
+  const results: PhotoResult[] = [];
+  const wanted = filePlace.image;
+  const wantedKey =
+    wanted === null ? null : photoImportKey(filePlace.importKey, wanted.commonsFile);
+  const keyByEntity = new Map([...keys.photos.values()].map((row) => [row.entityId, row] as const));
+
+  for (const row of rows) {
+    const key = keyByEntity.get(row.id);
+
+    if (key === undefined || key.importKey === wantedKey) {
+      continue;
+    }
+
+    if (row.version !== key.importedVersion) {
+      results.push("kept_manual_edit");
+      continue;
+    }
+
+    if (apply) {
+      await deps.imports.deletePlacePhoto(tx, row.id);
+      await deps.imports.deleteKey(tx, organizationId, "photo", key.importKey);
+    }
+
+    results.push("removed");
+  }
+
+  if (filePlace.imageSkipped) {
+    results.push("skipped_unknown_license");
+  }
+
+  if (wanted === null || wantedKey === null) {
+    return results;
+  }
+
+  const content = photoContentOf(wanted);
+  const key = keys.photos.get(wantedKey);
+  const stored = key === undefined ? null : (rows.find((row) => row.id === key.entityId) ?? null);
+  const decision = decidePhoto(keyState(key), stored, content);
+
+  if (decision === "create") {
+    if (!apply) {
+      results.push("created");
+    } else {
+      const inserted = await deps.imports.insertPlacePhoto(
+        tx,
+        organizationId,
+        placeId,
+        content,
+        wanted.retrievedAt,
+      );
+
+      if (inserted === null) {
+        // The place already has this Commons file, made outside the loader: nothing to add.
+        results.push("noop");
+      } else {
+        await deps.imports.insertKey(tx, organizationId, "photo", wantedKey, {
+          entityId: inserted.id,
+          batchId,
+          importedVersion: inserted.version,
+          importedPlaces: null,
+        });
+        results.push("created");
+      }
+    }
+  } else if (decision === "update") {
+    if (apply) {
+      const version = await deps.imports.updatePlacePhoto(
+        tx,
+        (stored as { id: string }).id,
+        content,
+        (stored as { version: number }).version,
+      );
+
+      await deps.imports.updateKey(tx, organizationId, "photo", wantedKey, {
+        entityId: (key as ImportKeyRow).entityId,
+        batchId,
+        importedVersion: version,
+        importedPlaces: null,
+      });
+    }
+
+    results.push("updated");
+  } else {
+    results.push(decision);
+  }
+
+  return results;
+}
+
 async function previewImport(
   actor: Actor,
   organizationId: string,
@@ -241,15 +361,37 @@ async function previewImport(
 
     const collections: Record<string, number> = {};
     const places: Record<string, number> = {};
+    const photos: Record<string, number> = {};
     const publishable: PublishableCollection[] = [];
 
     for (const place of file.places) {
       const key = keys.places.get(place.importKey);
-
-      count(
-        places,
-        decidePlace(keyState(key), await readPlace(tx, deps, organizationId, key), place.input),
+      const decision = decidePlace(
+        keyState(key),
+        await readPlace(tx, deps, organizationId, key),
+        place.input,
       );
+
+      count(places, decision);
+
+      if (decision === "create") {
+        // A new place has no photo rows yet: everything with a valid licence would be created.
+        if (place.image !== null) count(photos, "created");
+        if (place.imageSkipped) count(photos, "skipped_unknown_license");
+      } else if (decision !== "kept_manual_delete") {
+        for (const result of await syncPlacePhotos(
+          tx,
+          deps,
+          organizationId,
+          file.batch.batchId,
+          (key as ImportKeyRow).entityId,
+          place,
+          keys,
+          false,
+        )) {
+          count(photos, result);
+        }
+      }
     }
 
     for (const collection of file.collections) {
@@ -281,6 +423,7 @@ async function previewImport(
     const preview: ImportPreview = {
       collections,
       places,
+      photos,
       orphanedKeys: await deps.imports.countOrphanedKeys(tx, organizationId),
       collectionLimitExceeded: existing + (collections.create ?? 0) > MAX_COLLECTIONS_PER_LIST,
       ...(publish ? { publishable } : {}),
@@ -417,6 +560,8 @@ async function loadCollection(
     const storedPlace = await readPlace(tx, deps, organizationId, key);
     const placeDecision = decidePlace(keyState(key), storedPlace, filePlace.input);
     let result: PlaceResult;
+    // The place the photo block belongs to; stays `null` when the place was not loaded.
+    let photoPlaceId: string | null = null;
 
     if (placeDecision === "create") {
       if (!sync) {
@@ -435,6 +580,7 @@ async function loadCollection(
       });
       await writeSource(added.placeId, filePlace, "replace");
       desired.push(added.placeId);
+      photoPlaceId = added.placeId;
       changed = true;
       result = "created";
     } else if (placeDecision === "update") {
@@ -456,6 +602,7 @@ async function loadCollection(
       });
       await writeSource(entityId, filePlace, "replace");
       desired.push(entityId);
+      photoPlaceId = entityId;
       result = "updated";
     } else {
       if (placeDecision !== "kept_manual_delete") {
@@ -463,11 +610,30 @@ async function loadCollection(
         // source label or licence must reach the place), the description method stays.
         await writeSource((key as ImportKeyRow).entityId, filePlace, "refresh");
         desired.push((key as ImportKeyRow).entityId);
+        photoPlaceId = (key as ImportKeyRow).entityId;
       }
       result = placeDecision;
     }
 
-    placeReports.push({ importKey: placeKey, result });
+    const photos =
+      photoPlaceId === null
+        ? []
+        : await syncPlacePhotos(
+            tx,
+            deps,
+            organizationId,
+            batchId,
+            photoPlaceId,
+            filePlace,
+            keys,
+            true,
+          );
+
+    placeReports.push({
+      importKey: placeKey,
+      result,
+      ...(photos.length === 0 ? {} : { photos }),
+    });
   }
 
   let composition: CompositionResult | null;
@@ -663,10 +829,20 @@ export async function executeCatalogRemove(
           continue;
         }
 
+        // The photo rows go with the place (cascade); their keys go after it.
+        const photoIds = new Set(
+          (await deps.imports.readPlacePhotos(tx, key.entityId)).map((photo) => photo.id),
+        );
         const deleted = await deps.imports.deletePlace(tx, key.entityId);
 
         if (deleted === "deleted") {
           await deps.imports.deleteKey(tx, organizationId, "place", place.importKey);
+
+          for (const photoKey of keys.photos.values()) {
+            if (photoIds.has(photoKey.entityId)) {
+              await deps.imports.deleteKey(tx, organizationId, "photo", photoKey.importKey);
+            }
+          }
         }
 
         // "blocked" means the row policy kept the place (it is in a collection);

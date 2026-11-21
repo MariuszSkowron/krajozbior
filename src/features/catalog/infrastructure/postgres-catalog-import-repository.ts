@@ -192,6 +192,133 @@ export const postgresCatalogImportRepository: CatalogImportRepository = {
     );
   },
 
+  async readPlacePhotos(tx, placeId) {
+    const rows = await tx.em.execute<
+      {
+        id: string;
+        position: number;
+        version: number;
+        altText: string;
+        title: string | null;
+        authorText: string;
+        authorUrl: string | null;
+        sourceUrl: string;
+        licenseCode: string;
+        licenseUrl: string;
+        licenseLabel: string;
+        sourceWidth: number;
+      }[]
+    >(
+      `select id, position, version, alt_text as "altText", title, author_text as "authorText",
+              author_url as "authorUrl", source_url as "sourceUrl", license_code as "licenseCode",
+              license_url as "licenseUrl", license_label as "licenseLabel",
+              source_width as "sourceWidth"
+         from public.place_photos
+        where place_id = ? and source_kind = 'commons_import'
+        order by position`,
+      [placeId],
+    );
+
+    return rows.map(({ id, position, version, ...content }) => ({
+      id,
+      position,
+      version,
+      content: { ...content, title: content.title ?? "" },
+    }));
+  },
+
+  async insertPlacePhoto(tx, organizationId, placeId, content, retrievedAt) {
+    // At the end of the list; the unique key (place, Commons file) turns a repeat (23503-style
+    // refusal 23505 in a savepoint) into "nothing added". `ON CONFLICT` is not usable: the table
+    // has a deferrable unique key and the app has no SELECT on `commons_file`. The columns of the
+    // file and the state stay as the restrictive policy demands.
+    await tx.em.execute(`savepoint import_insert_photo`, [], "run");
+
+    try {
+      const rows = await tx.em.execute<{ id: string; version: number }[]>(
+        `insert into public.place_photos
+         (organization_id, place_id, position, file_state, source_kind, alt_text, title,
+          author_text, author_url, source_url, license_code, license_url, license_label,
+          rights_statement, commons_file, source_width, retrieved_at)
+       select ?::uuid, ?::uuid, coalesce(max(position), 0) + 1, 'pending_fetch', 'commons_import',
+              ?::text, ?::text, ?::text, ?::text, ?::text, ?::text, ?::text, ?::text,
+              'commons-import/1', ?::text, ?::integer, ?::timestamptz
+         from public.place_photos where place_id = ?::uuid
+       returning id, version`,
+        [
+          organizationId,
+          placeId,
+          content.altText,
+          content.title,
+          content.authorText,
+          content.authorUrl,
+          content.sourceUrl,
+          content.licenseCode,
+          content.licenseUrl,
+          content.licenseLabel,
+          content.commonsFile,
+          content.sourceWidth,
+          retrievedAt,
+          placeId,
+        ],
+      );
+
+      await tx.em.execute(`release savepoint import_insert_photo`, [], "run");
+
+      return rows[0] ?? null;
+    } catch (error) {
+      if ((error as { code?: unknown } | null)?.code !== "23505") {
+        throw error;
+      }
+
+      await tx.em.execute(`rollback to savepoint import_insert_photo`, [], "run");
+      await tx.em.execute(`release savepoint import_insert_photo`, [], "run");
+
+      return null;
+    }
+  },
+
+  async updatePlacePhoto(tx, photoId, content, version) {
+    const rows = await tx.em.execute<{ version: number }[]>(
+      `update public.place_photos
+          set alt_text = ?, title = ?, author_text = ?, author_url = ?, source_url = ?,
+              license_code = ?, license_url = ?, license_label = ?, source_width = ?,
+              version = version + 1, updated_at = now()
+        where id = ? and version = ?
+        returning version`,
+      [
+        content.altText,
+        content.title,
+        content.authorText,
+        content.authorUrl,
+        content.sourceUrl,
+        content.licenseCode,
+        content.licenseUrl,
+        content.licenseLabel,
+        content.sourceWidth,
+        photoId,
+        version,
+      ],
+    );
+
+    if (rows.length !== 1) {
+      throw new Error("place_photos: the update changed no row");
+    }
+
+    return rows[0]!.version;
+  },
+
+  async deletePlacePhoto(tx, photoId) {
+    const rows = await tx.em.execute<unknown[]>(
+      `delete from public.place_photos where id = ? returning id`,
+      [photoId],
+    );
+
+    if (rows.length !== 1) {
+      throw new Error("place_photos: the delete changed no row");
+    }
+  },
+
   async countCollections(tx, organizationId) {
     const rows = await tx.em.execute<{ count: number }[]>(
       `select count(*)::int as count from public.collections where organization_id = ?`,
@@ -202,7 +329,7 @@ export const postgresCatalogImportRepository: CatalogImportRepository = {
   },
 
   async countOrphanedKeys(tx, organizationId) {
-    const rows = await tx.em.execute<{ kind: ImportEntityKind; count: number }[]>(
+    const rows = await tx.em.execute<{ kind: "collection" | "place"; count: number }[]>(
       `select k.entity_kind as kind, count(*)::int as count
          from public.catalog_import_keys k
         where k.organization_id = ?
