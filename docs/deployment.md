@@ -24,6 +24,13 @@ Usługi `db` (PostgreSQL 17), `app`, `proxy` (Caddy, `deploy/Caddyfile`) i jedno
 - Znane ograniczenie (do F-K4): jednorazowe hasło startowe leży w `/run/krajozbior/pg-bootstrap`, a `/run` znika po restarcie serwera, więc `db` mogłaby nie wstać (Docker nie uruchamia kontenera ze źródłem montowania, którego nie ma). Rozwiązuje to F-K4: osobna nakładka pierwszego uruchomienia z sekretem, a `compose.yaml` bez niego po inicjalizacji.
 - Plik nie zna flag demo (`ALLOW_DEMO_SEED`, `DEMO_ACCOUNTS_TEST_ONLY`, `EMAIL_OUTBOX_TEST_ONLY`): leżą wyłącznie w `deploy/showcase.env`.
 
+### E-maile z kodami (Brevo)
+
+- Na serwerze `.env.production` ustawia `EMAIL_TRANSPORT=brevo`, `BREVO_API_KEY` i `EMAIL_FROM`. Wysyłka idzie przez API HTTP Brevo (`src/lib/email/brevo-email-sender.ts`): limit czasu 10 s, jedna ponowna próba przy błędzie sieci, przekroczeniu czasu albo odpowiedzi 5xx; odpowiedzi 4xx nie są ponawiane.
+- Serwer produkcyjny sprawdza konfigurację przy starcie (`src/instrumentation.ts`): bez klucza Brevo, nadawcy albo innego wymaganego ustawienia proces kończy się od razu z kodem 1 i komunikatem z samymi nazwami zmiennych (kontener wpada w pętlę restartów zamiast działać z błędem 500). Budowa obrazu (`next build`) tej kontroli nie uruchamia.
+- W logu są tylko zdarzenia z kodem odpowiedzi, nigdy adres odbiorcy ani kod: `email.brevo_rejected` (401, 403, 429: zły klucz, zawieszone konto, adres serwera spoza listy autoryzowanych, limit), `email.brevo_refused` (inny 4xx), `email.brevo_retry` i `email.brevo_failed` (błąd sieci, przekroczenie czasu, 5xx), a po innej nieudanej wysyłce `email.send_failed` (odmowa konta daje jedną linię, `email.brevo_rejected`, bez `email.send_failed`). Pula kodów: `auth.otp_global_limit_80` i `auth.otp_global_limit_100`.
+- Nieudana wysyłka nie zmienia odpowiedzi dla osoby, która prosi o kod (widzi „wysłaliśmy kod” z podpowiedzią o folderze spam i ponownej prośbie). Inaczej odpowiedź zdradzałaby, które adresy należą do administratorów, bo na nie kod nigdy nie wychodzi.
+
 ## Pokaz lokalny
 
 Wymaga uruchomionego Docker Desktop i około 3 GB wolnej pamięci przy pierwszej budowie obrazu. Polecenia (Windows PowerShell, z katalogu repozytorium):

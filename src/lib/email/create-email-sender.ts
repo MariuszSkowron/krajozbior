@@ -2,6 +2,7 @@ import "server-only";
 
 import { getEmailEnv } from "@/lib/config/env";
 
+import { BrevoEmailSender } from "./brevo-email-sender";
 import type { EmailSender } from "./email-sender";
 import { MemoryEmailSender } from "./memory-email-sender";
 import { OutboxEmailSender } from "./outbox-email-sender";
@@ -18,6 +19,8 @@ export function createEmailSender(): EmailSender {
       return new OutboxEmailSender({ directory: env.EMAIL_OUTBOX_DIR, from: env.EMAIL_FROM });
     case "memory":
       return memorySender;
+    case "brevo":
+      return new BrevoEmailSender({ apiKey: env.BREVO_API_KEY, from: env.EMAIL_FROM });
   }
 }
 
