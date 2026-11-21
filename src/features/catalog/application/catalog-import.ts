@@ -12,6 +12,12 @@ import {
 } from "../domain/import-diff";
 import type { ImportCollection, ImportFileResult, ImportPlace } from "../domain/import-file";
 import { MAX_COLLECTIONS_PER_LIST } from "../domain/limits";
+import {
+  composeAttribution,
+  descriptionMethodOf,
+  wikidataQidOf,
+  type SourceLabel,
+} from "../domain/place-sources";
 import type {
   CatalogImportDeps,
   CatalogImportOutcome,
@@ -305,6 +311,7 @@ async function loadCollection(
   batchId: string,
   collection: ImportCollection,
   filePlaces: ReadonlyMap<string, ImportPlace>,
+  sources: ReadonlyMap<string, SourceLabel>,
   deps: CatalogImportDeps,
   publish: boolean,
   tx: TransactionContext,
@@ -359,6 +366,33 @@ async function loadCollection(
     }
   }
 
+  // The source of a place of the file (`place_sources`): none when the record names no source.
+  const writeSource = async (
+    placeId: string,
+    filePlace: ImportPlace,
+    mode: "replace" | "refresh",
+  ): Promise<void> => {
+    const attribution = composeAttribution(filePlace.attribution, sources);
+
+    if (attribution === null) {
+      return;
+    }
+
+    await deps.imports.writePlaceSource(
+      tx,
+      organizationId,
+      placeId,
+      {
+        wikidataQid: wikidataQidOf(filePlace.importKey),
+        wikipediaUrl: filePlace.wikipediaUrl,
+        descriptionMethod: descriptionMethodOf(filePlace.descriptionMethod),
+        attribution,
+        retrievedAt: filePlace.retrievedAt,
+      },
+      mode,
+    );
+  };
+
   const sync = decision.composition === "sync";
   const desired: string[] = [];
   const external = new Map<string, string>();
@@ -399,6 +433,7 @@ async function loadCollection(
         importedVersion: (row as { version: number }).version,
         importedPlaces: null,
       });
+      await writeSource(added.placeId, filePlace, "replace");
       desired.push(added.placeId);
       changed = true;
       result = "created";
@@ -419,10 +454,14 @@ async function loadCollection(
         importedVersion: row.version,
         importedPlaces: null,
       });
+      await writeSource(entityId, filePlace, "replace");
       desired.push(entityId);
       result = "updated";
     } else {
       if (placeDecision !== "kept_manual_delete") {
+        // Unchanged or edited by hand: the signature and links follow the file (a change of a
+        // source label or licence must reach the place), the description method stays.
+        await writeSource((key as ImportKeyRow).entityId, filePlace, "refresh");
         desired.push((key as ImportKeyRow).entityId);
       }
       result = placeDecision;
@@ -689,6 +728,7 @@ export async function executeCatalogImport(
   }
 
   const filePlaces = new Map(file.places.map((place) => [place.importKey, place]));
+  const sources = new Map(file.batch.sources.map((source) => [source.key, source] as const));
   const reports: CollectionReport[] = [];
 
   for (const collection of file.collections) {
@@ -701,6 +741,7 @@ export async function executeCatalogImport(
             file.batch.batchId,
             collection,
             filePlaces,
+            sources,
             deps,
             request.publish === true,
             tx,

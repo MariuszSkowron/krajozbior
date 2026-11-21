@@ -13,6 +13,10 @@ import { isRegion, validateCollectionInput } from "@/features/catalog/domain/col
 import type { Region } from "@/features/catalog/domain/collection";
 import { PLACE_ACCESS_MAX_LENGTH, validatePlaceInput } from "@/features/catalog/domain/place";
 import type { PlaceField, PlaceInput } from "@/features/catalog/domain/place";
+import {
+  ATTRIBUTION_MAX_LENGTH,
+  composeAttribution,
+} from "@/features/catalog/domain/place-sources";
 
 export const IMPORT_SCHEMA_ID = "krajozbior.curation/1";
 
@@ -171,7 +175,12 @@ function placeSchema(profile: ImportProfile) {
       method: z.enum(["template", "curator"]),
       sources: z.array(sourceKey).max(20),
     }),
-    wikipedia_pl: httpsUrl(ALLOWED_HOSTS.article).nullish(),
+    // The same condition as the `CHECK` of `place_sources.wikipedia_url`: an article address.
+    wikipedia_pl: httpsUrl(ALLOWED_HOSTS.article)
+      .refine((value) => value.startsWith("https://pl.wikipedia.org/wiki/"), {
+        message: "bad_url",
+      })
+      .nullish(),
     access: z.strictObject({
       note: optionalText(PLACE_ACCESS_MAX_LENGTH),
       warning: optionalText(PLACE_ACCESS_MAX_LENGTH),
@@ -539,6 +548,9 @@ export function parseImportFile(
   }
 
   const sourceKeys = new Set((state.batch?.sources ?? []).map((item) => item.key));
+  const sourceLabels = new Map(
+    (state.batch?.sources ?? []).map((item) => [item.key, item] as const),
+  );
   const checkSource = (line: number, path: string, key: string) => {
     if (state.batch !== null && !sourceKeys.has(key)) {
       fail(line, path, "unknown_source");
@@ -590,6 +602,16 @@ export function parseImportFile(
     record.attribution.forEach((key, position) =>
       checkSource(line, `attribution[${position}]`, key),
     );
+
+    // The signature is kept in a column of 500 characters (`place_sources`).
+    const signature = composeAttribution(record.attribution, sourceLabels);
+
+    // A place without a source signature is refused: the licences (CC BY) require it.
+    if (signature === null) {
+      fail(line, "attribution", "missing_attribution");
+    } else if (signature.length > ATTRIBUTION_MAX_LENGTH) {
+      fail(line, "attribution", "length_or_range");
+    }
 
     for (const [position, ref] of (record.source_refs ?? []).entries()) {
       checkSource(line, `source_refs[${position}].source`, ref.source);

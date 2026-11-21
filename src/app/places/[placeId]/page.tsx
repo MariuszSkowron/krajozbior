@@ -17,6 +17,7 @@ import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-
 import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
 import { PinnedAction } from "./pinned-action";
+import { PlaceSources } from "./place-sources";
 import { VisitConfirmation } from "./visit-confirmation";
 import visitStyles from "./visit-confirmation.module.css";
 import { WantToSeeButton } from "./want-to-see-button";
@@ -133,6 +134,7 @@ export default async function PlacePage({ params }: { params: Params }) {
           </div>
         )}
       </dl>
+      <PlaceSources source={place.source} />
       <section className={styles.section} aria-labelledby="wizyta">
         <h2 id="wizyta">Wizyta</h2>
         {visit.kind === "guest" ? (

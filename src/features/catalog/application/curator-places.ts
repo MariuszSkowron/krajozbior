@@ -143,9 +143,16 @@ export async function updatePlace(
 
     const updated = await deps.repository.updatePlace(tx, placeId, version, form.value);
 
-    return updated === null
-      ? ({ status: "conflict", reason: "stale_version" } as const)
-      : ({ status: "ok", value: updated } as const);
+    if (updated === null) {
+      return { status: "conflict", reason: "stale_version" } as const;
+    }
+
+    // A description a person changed is no longer the one the file loaded (D-33).
+    if (form.value.description !== current.description) {
+      await deps.repository.markDescriptionCurated(tx, placeId);
+    }
+
+    return { status: "ok", value: updated } as const;
   });
 }
 
