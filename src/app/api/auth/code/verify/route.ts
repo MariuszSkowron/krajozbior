@@ -6,6 +6,7 @@ import { getCodeVerifyThrottle, getIdentityProvider } from "@/features/identity/
 import { logFailure } from "@/lib/log-failure";
 
 import {
+  accountThemeCookies,
   failure,
   isRefusedDemoAccount,
   NO_STORE,
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
     await throttle.clearAccount(attempt.subject);
     await provider.signOut(request.headers);
 
-    return signedIn(request, result, returnTo);
+    return signedIn(request, result, returnTo, await accountThemeCookies(result.actor));
   } catch (error) {
     logFailure("Sign-in with code", error);
     return failure(request, returnTo, 503, "code_unavailable");
