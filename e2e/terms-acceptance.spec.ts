@@ -332,7 +332,8 @@ test.describe("ekran „Zanim zaczniesz”", () => {
     expect(response.headers()["location"]).toBe("/?zgoda=wymagana");
 
     await page.goto("/?zgoda=wymagana");
-    await expect(page.getByRole("alert")).toContainText("Zaznacz pole");
+    // Next.js adds its own empty route announcer with role=alert, so pick ours by its text.
+    await expect(page.getByRole("alert").filter({ hasText: "Zaznacz pole" })).toBeVisible();
   });
 
   test("gość nie zapisze akceptacji", async ({ request }) => {
