@@ -44,11 +44,23 @@ Lokatory regionów ogłaszanych (`getByRole("status")`, `getByRole("alert")`) za
 
 ## Lokalne środowisko testowe (Windows)
 
-Skrypty w `scripts/test-env/` odtwarzają lokalnie joby `integration` i `e2e` z CI. Nie dotykają bazy deweloperskiej (`127.0.0.1:5432`) ani portu 3000.
+Skrypty w `scripts/test-env/` odtwarzają lokalnie joby `integration` i `e2e` z CI. Nie dotykają bazy deweloperskiej (`127.0.0.1:5432`), portu 3000, pokazu lokalnego (port 3300, `scripts/showcase/`) ani środowisk innych stanowisk.
 
 - `powershell -ExecutionPolicy Bypass -File scripts/test-env/test-env-test.ps1` — podnosi środowisko (albo używa działającego) i uruchamia `test:integration` oraz `test:e2e`. Argument `integration` lub `e2e` zawęża przebieg.
-- `scripts/test-env/test-env-up.ps1` — samo środowisko: dwa jednorazowe kontenery `postgres:17` (osobny klaster dla integracji, bo harness zmienia hasła ról), role, migracje, konta demo, build (pomijany, gdy kod się nie zmienił) i `next start` na `127.0.0.1` (preferowany port 3100), uruchomiony odłączonym procesem przez WMI. Adres i porty zapisuje w `.ai/qa/test-env.json`, jednorazowe hasła w `.ai/qa/test-env.env` (oba ignorowane przez git).
-- `scripts/test-env/test-env-down.ps1` — zatrzymuje aplikację i usuwa oba kontenery.
+- `scripts/test-env/test-env-up.ps1` — samo środowisko: dwa jednorazowe kontenery `postgres:17` z limitem `--memory=1g` (osobny klaster dla integracji, bo harness zmienia hasła ról), role, migracje, konta demo, build (pomijany, gdy kod się nie zmienił) i `next start` na `127.0.0.1`, uruchomiony odłączonym procesem przez WMI. Adres i porty zapisuje w `.data/test-env/<stanowisko>/test-env.json`, jednorazowe hasła w `.data/test-env/<stanowisko>/test-env.env` (oba ignorowane przez git). Gdy start się nie uda, skrypt sam usuwa to, co zdążył uruchomić (aplikację i kontenery swojego stanowiska).
+- `scripts/test-env/test-env-down.ps1` — zatrzymuje aplikację i usuwa oba kontenery **własnego** stanowiska; cudzych kontenerów nie rusza.
+
+**Stanowiska.** Każda kopia repozytorium ma własne środowisko, więc dwa stanowiska mogą testować jednocześnie. Nazwę stanowiska, porty i katalog stanu wylicza `scripts/test-env/test-env-station.mjs` (testy: `tests/scripts/test-env-station.test.ts`):
+
+| Kopia                        | Stanowisko     | Kontenery                                         | Aplikacja | Integracja  | E2E   |
+| ---------------------------- | -------------- | ------------------------------------------------- | --------- | ----------- | ----- |
+| główna (`.git` to katalog)   | `main`         | `krajozbior-testenv-main-e2e-pg`, `…-main-int-pg` | 3100      | 55432       | 55433 |
+| `.worktrees/ws-N` (N = 1–49) | `ws-N`         | `krajozbior-testenv-ws-N-e2e-pg`, `…-ws-N-int-pg` | 3100+N    | 55432+10·N  | +1    |
+| inna nazwa katalogu worktree | nazwa katalogu | `krajozbior-testenv-<nazwa>-e2e-pg`, `…-int-pg`   | 3150–3199 | 55932–56422 | +1    |
+
+Porty są preferowane: zajęty port skrypt zastępuje wolnym portem wskazanym przez system (z zakresu 49152–65535). Zmienna `TEST_ENV_STATION` nadpisuje nazwę stanowiska (np. drugie środowisko z jednej kopii do diagnozy). Kontenery sprzed podziału na stanowiska (`krajozbior-testenv-e2e-pg`, `krajozbior-testenv-int-pg`) skrypty pomijają; usuń je ręcznie, gdy nikt ich nie używa.
+
+**Blokady na cały komputer.** Start środowiska (`test-env-up.ps1`) i lokalny przebieg E2E (`test-env-test.ps1 e2e`) biorą blokadę wspólną dla wszystkich kopii (nazwany mutex Windows `Global\krajozbior-test-env-up` i `Global\krajozbior-test-env-e2e`). Drugi start czeka na koniec pierwszego (do 30 min), drugi przebieg E2E na koniec pierwszego (do 60 min); system zwalnia blokadę także wtedy, gdy proces padnie. Integracja nie bierze blokady, bo każde stanowisko ma własny klaster.
 
 Wymaga uruchomionego Docker Desktop. **Przed każdym przebiegiem środowisko musi być świeże:** najpierw `test-env-down.ps1`, potem `test-env-test.ps1`; ponowne użycie konta demo daje fałszywe porażki.
 
@@ -58,10 +70,10 @@ Komputer lokalny wystarcza dla dwóch agentów, które budują lub testują, i k
 
 - **Naraz najwyżej 2 agenty z testami lub buildem** i 1–2 lekkie (przegląd, dokumentacja). Kolejne zadanie startuje, gdy zwolni się miejsce.
 - **Jeden lokalny przebieg E2E naraz.** Playwright lokalnie zawsze w jednym workerze (skrypty z `scripts/test-env/` to wymuszają).
-- **Pełna integracja i E2E idą w CI.** Lokalnie autor uruchamia `npm run check` i testy ukierunkowane (`npx vitest run <pliki>`, `npm run test:integration -- <pliki>`, jeden spec E2E). Recenzent uruchamia tylko testy związane z diffem. Gdy agent musi uruchomić integrację lokalnie, używa jednorazowego kontenera na wolnym porcie (np. 55442) i usuwa go po przebiegu.
+- **Pełna integracja i E2E idą w CI.** Lokalnie autor uruchamia `npm run check` i testy ukierunkowane (`npx vitest run <pliki>`, `npm run test:integration -- <pliki>`, jeden spec E2E). Recenzent uruchamia tylko testy związane z diffem. Gdy agent musi uruchomić integrację lokalnie, używa środowiska swojego stanowiska (`test-env-test.ps1 integration`) albo jednorazowego kontenera na wolnym porcie spoza zakresów stanowisk (np. 57442) i usuwa go po przebiegu.
 - **Pula stanowisk `ws-1`, `ws-2`.** Stałe worktree (np. `.claude/worktrees/ws-1`) z zainstalowanym `node_modules`. Agent dostaje wolne stanowisko i przełącza w nim gałąź (`git switch -c <gałąź> origin/main`), zamiast tworzyć worktree i uruchamiać `npm ci` od nowa. Po zmianie `package-lock.json` na `main` stanowisko robi `npm ci` raz.
 - **Vitest uruchamiaj ze ścieżki zaczynającej się od `C:\`** (wielka litera dysku, np. `Set-Location 'C:\...'` w PowerShell). Przebiegi uruchomione ze ścieżki `c:\` (mała litera, tak otwiera folder m.in. VS Code) kończyły się błędami, których nie było przy `C:\`; przyczyna nie jest zbadana. Liczbę wątków ogranicz, gdy działa drugi agent: `npx vitest run --maxWorkers=2`.
-- **Docker z limitem pamięci.** Kontenery testowe dostają `--memory=1g`; Docker Desktop ma ustawiony limit pamięci (np. 6 GB), żeby nie zabrał jej przeglądarce i Node.
+- **Docker z limitem pamięci.** Kontenery `scripts/test-env/` startują z `--memory=1g` (dwa na stanowisko); jednorazowe kontenery uruchamiane ręcznie też dostają `--memory=1g`. Docker Desktop ma ustawiony limit pamięci (np. 6 GB), żeby nie zabrał jej przeglądarce i Node.
 - **Poprawki po przeglądzie sprawdza pełny `npm run test:unit`**, nie tylko testy zmienionego pliku: poprawka często psuje coś obok.
 - **Logi agentów w osobnych katalogach** (`.ai/tmp/<agent>/`, `test-results-<agent>/` nie są wspólne), żeby równoległe przebiegi nie nadpisywały sobie wyników.
 
