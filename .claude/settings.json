@@ -58,6 +58,11 @@
       "Edit(/scripts/bot-token.ps1)",
       "Write(/scripts/bot-token.ps1)",
       "Read(**/.data/showcase/**)",
+      "Edit(**/.data/showcase/**)",
+      "Write(**/.data/showcase/**)",
+      "Bash(ssh-copy-id*)",
+      "PowerShell(ssh-copy-id*)",
+
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Edit(**/.env)",

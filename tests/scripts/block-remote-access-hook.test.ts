@@ -7,7 +7,8 @@ import { findRemoteAccess } from "../../.claude/hooks/block-remote-access.mjs";
 
 // The Claude Code hook that refuses shell commands reaching a server or SSH keys:
 // ssh and related clients, PuTTY tools, PowerShell remoting over SSH, any `.ssh`
-// folder and the folder with deployment secrets (`krajozbior-deploy`). The
+// folder, the folder with deployment secrets (`krajozbior-deploy`) and the local
+// showcase data (`.data/showcase`). The
 // process tests run the real script with a hook event on stdin, as Claude Code
 // does: exit 2 blocks, exit 0 lets it through, exit 1 is a malformed event.
 const script = fileURLToPath(
@@ -43,6 +44,8 @@ const blocked = [
   "ssh-keyscan example.com",
   "ssh-add -l",
   "ssh-agent",
+  "ssh-copy-id user@example.com",
+  "ssh-copy-id.exe -i key.pub user@example.com",
   // PuTTY tools.
   "plink -V",
   "plink.exe user@example.com",
@@ -80,6 +83,11 @@ const blocked = [
   "ls ../krajozbior-deploy",
   "cat C:\\Users\\jan\\krajozbior-deploy\\wdroz.config",
   "Get-ChildItem KRAJOZBIOR-DEPLOY",
+  // The local showcase data (sign-in codes in its outbox).
+  "cat .data/showcase/outbox/latest.json",
+  "Get-Content .data\\showcase\\outbox\\latest.json",
+  "ls C:\\Projekty\\krajozbior\\.data\\showcase",
+  "Get-ChildItem .DATA/Showcase",
   // Strict by design: the hook reads the whole text of the command.
   "git commit -m 'opis ze slowem ssh'",
 ];
@@ -110,6 +118,8 @@ const allowed = [
   "ls .github",
   "scp-notes.txt",
   "cat deploy/wdroz.ps1",
+  "docker compose -f deploy/compose.showcase.yaml config",
+  "ls .data/deploy",
 ];
 
 describe("findRemoteAccess", () => {
@@ -159,6 +169,13 @@ describe("block-remote-access hook (real process)", () => {
 
   it("blocks the deployment secrets folder", () => {
     expect(runHook(shellEvent("PowerShell", "ls ..\\krajozbior-deploy")).status).toBe(2);
+  });
+
+  it("blocks ssh-copy-id and a read of the showcase data", () => {
+    expect(runHook(shellEvent("Bash", "ssh-copy-id user@example.com")).status).toBe(2);
+    expect(
+      runHook(shellEvent("PowerShell", "Get-Content .data\\showcase\\outbox\\latest.json")).status,
+    ).toBe(2);
   });
 
   it("lets an ordinary command through", () => {
