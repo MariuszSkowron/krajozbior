@@ -20,8 +20,12 @@ export const dynamic = "force-dynamic";
 const getActor = getRequestActor;
 
 // The title names the view a signed-in user actually sees (WCAG 2.4.2).
+// The login screen is kept out of search results (E11-Q15 A).
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getActor()) === null ? "Logowanie — Krajozbiór" : "Konto — Krajozbiór" };
+  return {
+    title: (await getActor()) === null ? "Logowanie — Krajozbiór" : "Konto — Krajozbiór",
+    robots: { index: false, follow: true },
+  };
 }
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -77,6 +81,17 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
     <div className={`content-width ${styles.page}`}>
       <h1>Logowanie</h1>
       <p>Zaloguj się, aby kontynuować.</p>
+      <p>
+        Zasady serwisu:{" "}
+        <Link href="/regulamin" className={styles.textLink}>
+          Regulamin
+        </Link>{" "}
+        i{" "}
+        <Link href="/polityka-prywatnosci" className={styles.textLink}>
+          Polityka prywatności
+        </Link>
+        . Nowe konto zakłada się pierwszym logowaniem; po nim poprosimy o akceptację regulaminu.
+      </p>
 
       <section aria-labelledby="code-sign-in" className={styles.section}>
         <h2 id="code-sign-in">Kod na e-mail</h2>

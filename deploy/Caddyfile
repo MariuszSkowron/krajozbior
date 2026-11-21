@@ -12,6 +12,12 @@ www.krajozbior.pl, http://krajozbior.pl, http://www.krajozbior.pl {
 }
 
 krajozbior.pl {
+	# Treść żądania najwyżej 1 MB (SEC-2): większe Caddy odrzuca kodem 413, zanim trafi do aplikacji.
+	# Aplikacja nie przyjmuje plików (zdjęcia wyłączone), a jej formularze mają po kilka KB.
+	request_body {
+		max_size 1MB
+	}
+
 	# Adres klienta bierzemy z połączenia TCP, nie z nagłówka przysłanego przez klienta.
 	reverse_proxy app:3000 {
 		header_up X-Real-IP {remote_host}

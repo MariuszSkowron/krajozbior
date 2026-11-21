@@ -124,6 +124,38 @@ describe("PostgresOtpSendLimiter", () => {
     ).toEqual([{ count: 3 }]);
   });
 
+  // OPS-6 / SEC-1: the warning at 80% of the daily pool, once, before the pool
+  // runs out; the hourly resource check (E11 5.7) reads these lines.
+  it("logs one warning at 80% of the global daily limit and one at 100%, without addresses", async () => {
+    globalLimit = 10;
+    const warn = vi.mocked(console.warn);
+    warn.mockClear();
+
+    const alarmsAfter: string[][] = [];
+    for (let i = 0; i < 10; i += 1) {
+      await reserveMany(
+        () => `osoba${i}@example.com`,
+        1,
+        () => i,
+      );
+      alarmsAfter.push(
+        warn.mock.calls
+          .map(([line]) => JSON.parse(String(line)) as { event: string })
+          .map(({ event }) => event)
+          .filter((event) => event.startsWith("auth.otp_global_limit_")),
+      );
+    }
+
+    expect(alarmsAfter[6]).toEqual([]);
+    expect(alarmsAfter[7]).toEqual(["auth.otp_global_limit_80"]);
+    expect(alarmsAfter[8]).toEqual(["auth.otp_global_limit_80"]);
+    expect(alarmsAfter[9]).toEqual(["auth.otp_global_limit_80", "auth.otp_global_limit_100"]);
+    expect(warn).toHaveBeenCalledWith(
+      JSON.stringify({ event: "auth.otp_global_limit_80", globalLimit: 10 }),
+    );
+    expect(JSON.stringify(warn.mock.calls)).not.toMatch(/osoba|example\.com|198\.51\./);
+  });
+
   it("counts nothing for a refused request", async () => {
     globalLimit = 1;
     await limiter().reserve({ email: "a@example.com", ip: "198.51.100.1" });

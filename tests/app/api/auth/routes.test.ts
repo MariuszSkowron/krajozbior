@@ -484,6 +484,25 @@ describe("POST /api/auth/logout", () => {
     expect((await post("returnTo=")).headers.get("Location")).toBe("/?wylogowano=1");
   });
 
+  it("tells the home page that the terms were declined (F-K3, E11-Q4 A)", async () => {
+    provider.signOut.mockResolvedValue([]);
+
+    const post = (body: string) =>
+      logout(
+        new Request("http://localhost/api/auth/logout", {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body,
+        }),
+      );
+
+    expect((await post("reason=terms-declined")).headers.get("Location")).toBe(
+      "/?wylogowano=odmowa",
+    );
+    // Any other reason changes nothing.
+    expect((await post("reason=whatever")).headers.get("Location")).toBe("/?wylogowano=1");
+  });
+
   it("ignores an unreadable form body and goes to the home page", async () => {
     provider.signOut.mockResolvedValue([]);
 

@@ -102,6 +102,13 @@ describe("ops:curator argument parsing", () => {
     expect(
       parseOpsCuratorArgs(["suspend", "--org-slug", "a", "--reason", "a\nb"], "op"),
     ).toMatchObject({ ok: false });
+    // DB-8: the audit is permanent, so no e-mail address in the reason (and none echoed back).
+    const withAddress = parseOpsCuratorArgs(
+      ["suspend", "--org-slug", "a", "--reason", "Skarga od jan@example.com"],
+      "op",
+    );
+
+    expect(withAddress).toEqual({ ok: false, hint: "nieprawidłowa lub brakująca flaga --reason" });
   });
 });
 

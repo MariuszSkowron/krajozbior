@@ -5,10 +5,13 @@
 # granica bezpieczeństwa: statusy `agent-review` i `security-review` może ustawić
 # każde konto z prawem zapisu, zatwierdzenia właściciela — nie.
 #
-# Lista jest jawna (nie „wszystko poza…”): zwykłe funkcje, ekrany i dokumentacja
-# scalają się same. Nowa funkcja z danymi prywatnymi albo nowa trasa API dopisuje
-# swoje ścieżki do tego pliku w tym samym PR. Ten plik też ma właściciela, więc
-# właściciel widzi każdą zmianę listy.
+# Od 2026-11-21 (decyzja D-39) właściciel jest domyślnym właścicielem całego
+# repozytorium (wzorzec `*` niżej), więc żaden PR nie scali się bez jego
+# zatwierdzenia. Jawna lista ścieżek zostaje: pokazuje, które zmiany są wrażliwe
+# (przegląd poziomu A), i chroni je, gdyby domyślny wpis kiedyś zniknął. Nowa
+# funkcja z danymi prywatnymi albo nowa trasa API nadal dopisuje swoje ścieżki do
+# tego pliku w tym samym PR. Ten plik też ma właściciela, więc właściciel widzi
+# każdą zmianę listy.
 #
 # Właściciel projektu: @MariuszSkowron (wpisany przy zakładaniu projektu).
 # Właściciel nie może być autorem PR-ów agentów: autorem jest
@@ -16,6 +19,9 @@
 # pozwala zatwierdzić własnego PR.
 #
 # Kolejność: późniejszy wzorzec wygrywa; każdy wpis wskazuje tego samego właściciela.
+
+# Domyślnie: wszystko, także ekrany, dokumentacja i dokumentacja dla oceniających
+*                                  @MariuszSkowron
 
 # Logowanie, sesje, role, autoryzacja i wszystkie trasy API
 /src/features/identity/            @MariuszSkowron
@@ -33,8 +39,33 @@
 /src/lib/config/                   @MariuszSkowron
 /src/lib/email/                    @MariuszSkowron
 /src/lib/log-failure.ts            @MariuszSkowron
+# Kontrola konfiguracji przy starcie serwera (bez klucza Brevo serwer nie wstaje)
+/src/instrumentation.ts            @MariuszSkowron
+/src/instrumentation-node.ts       @MariuszSkowron
 /next.config.ts                    @MariuszSkowron
 /tsconfig.json                     @MariuszSkowron
+
+# Akceptacja regulaminu (F-K3, dane PRIV: który odkrywca zaakceptował którą wersję i kiedy):
+# moduł, ekran „Zanim zaczniesz” w powłoce (/src/app/shell/ już ma właściciela), test dwóch
+# kont w przeglądarce i strony prawne (publiczne teksty, ale ich wersja jest dowodem w umowie
+# z odkrywcą). Trasa API w /src/app/api/ i migracja już mają właściciela.
+/src/features/terms/               @MariuszSkowron
+/tests/features/terms/             @MariuszSkowron
+/src/features/legal/               @MariuszSkowron
+/tests/features/legal/             @MariuszSkowron
+/src/app/legal/                    @MariuszSkowron
+/src/app/regulamin/                @MariuszSkowron
+/src/app/polityka-prywatnosci/     @MariuszSkowron
+/src/app/zasady/                   @MariuszSkowron
+/src/app/oswiadczenie-o-zdjeciach/ @MariuszSkowron
+/e2e/terms-acceptance.spec.ts      @MariuszSkowron
+/e2e/global-setup.ts               @MariuszSkowron
+# Testy powłoki i ekranu akceptacji (osłabienie ich przeszłoby bez zatwierdzenia) oraz
+# polskie strony błędu (nie mogą pokazywać szczegółów błędu)
+/tests/app/shell/                  @MariuszSkowron
+/src/app/error.tsx                 @MariuszSkowron
+/src/app/global-error.tsx          @MariuszSkowron
+/tests/app/error-pages.test.ts     @MariuszSkowron
 
 # Organizacje i członkostwa kuratorów (dane CUR, polecenie operatora)
 /src/features/organizations/       @MariuszSkowron
@@ -172,6 +203,8 @@
 # Ustawienia, skille i zasady agentów
 /.claude/                          @MariuszSkowron
 /.ai/                              @MariuszSkowron
+# Treść skilli: `.claude/skills/*` to tylko dowiązania do tego katalogu
+/.agents/                          @MariuszSkowron
 /skills-lock.json                  @MariuszSkowron
 /om-sandbox.toml                   @MariuszSkowron
 /AGENTS.md                         @MariuszSkowron

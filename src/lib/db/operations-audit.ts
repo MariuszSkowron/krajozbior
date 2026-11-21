@@ -52,7 +52,11 @@ const auditText = (max: number) =>
 
 export const AUDIT_REASON_MAX_LENGTH = 400;
 export const AUDIT_OPERATOR_MAX_LENGTH = 80;
-export const auditReasonSchema = auditText(AUDIT_REASON_MAX_LENGTH);
+// The audit cannot be edited or deleted, so the reason carries no personal data (DB-8): an
+// e-mail address (`@`) is refused; the subject of the operation is already its own column.
+export const auditReasonSchema = auditText(AUDIT_REASON_MAX_LENGTH).refine(
+  (reason) => !reason.includes("@"),
+);
 export const auditOperatorSchema = auditText(AUDIT_OPERATOR_MAX_LENGTH);
 
 export type AuditQueryClient = Readonly<{

@@ -53,6 +53,7 @@ const USAGE = [
   '  ops:curator suspend --org-slug <slug> --reason "<powód>" [--operator <etykieta>]',
   '  ops:curator approve --org-slug <slug> --reason "<powód>" [--operator <etykieta>]',
   `Rodzaje organizacji: ${ORGANIZATION_KINDS.join(", ")}.`,
+  "Powód trafia do dziennika na stałe: bez adresów e-mail (znak @).",
 ].join("\n");
 
 const FLAGS = ["org-slug", "email", "name", "kind", "reason", "operator"] as const;
