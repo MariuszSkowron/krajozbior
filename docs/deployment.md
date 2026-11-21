@@ -24,6 +24,10 @@ Usługi `db` (PostgreSQL 17), `app`, `proxy` (Caddy, `deploy/Caddyfile`) i jedno
 - Znane ograniczenie (do F-K4): jednorazowe hasło startowe leży w `/run/krajozbior/pg-bootstrap`, a `/run` znika po restarcie serwera, więc `db` mogłaby nie wstać (Docker nie uruchamia kontenera ze źródłem montowania, którego nie ma). Rozwiązuje to F-K4: osobna nakładka pierwszego uruchomienia z sekretem, a `compose.yaml` bez niego po inicjalizacji.
 - Plik nie zna flag demo (`ALLOW_DEMO_SEED`, `DEMO_ACCOUNTS_TEST_ONLY`, `EMAIL_OUTBOX_TEST_ONLY`): leżą wyłącznie w `deploy/showcase.env`.
 
+### Teksty prawne przed zdjęciem hasła (K-12, spec 5.4a)
+
+Dopóki serwis stoi za hasłem, teksty prawne mogą mieć jeszcze znaczniki robocze (`[DO UZUPEŁNIENIA: …]`). Test jednostkowy (`tests/features/legal/legal-content.test.ts`) dopuszcza tylko znaczniki z jawnej listy otwartych pozycji, więc CI i budowa przechodzą, a każdy nowy znacznik je zatrzymuje. **Przed zdjęciem hasła** uruchom `npm run legal:final`: polecenie kończy się błędem i wypisuje znaczniki, jeśli którykolwiek tekst ma jeszcze choć jeden. Serwis otwierasz dopiero po wyniku „Teksty prawne nie mają znaczników roboczych.”; skrypt wdrożenia z krokiem otwarcia (kolejny krok wdrożenia) ma wywoływać to polecenie i przy błędzie odmawiać.
+
 ### E-maile z kodami (Brevo)
 
 - Na serwerze `.env.production` ustawia `EMAIL_TRANSPORT=brevo`, `BREVO_API_KEY` i `EMAIL_FROM`. Wysyłka idzie przez API HTTP Brevo (`src/lib/email/brevo-email-sender.ts`): limit czasu 10 s, jedna ponowna próba przy błędzie sieci, przekroczeniu czasu albo odpowiedzi 5xx; odpowiedzi 4xx nie są ponawiane.
