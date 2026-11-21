@@ -166,6 +166,7 @@ async function readPlace(
       description: row.description,
       address: row.address,
       accessInfo: row.accessInfo,
+      accessRestriction: row.accessRestriction,
       latitude: row.latitude,
       longitude: row.longitude,
       visitRadiusM: row.visitRadiusM,

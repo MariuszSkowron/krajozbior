@@ -4,7 +4,7 @@ import type { TransactionContext } from "@/lib/db/user-context";
 
 import type { CollectionInput, CollectionStatus, Region } from "../domain/collection";
 import type { NearbyCandidate } from "../domain/nearby";
-import type { PlaceInput } from "../domain/place";
+import type { AccessRestriction, PlaceInput } from "../domain/place";
 
 // What a curator sees of a collection and a place of the own organization.
 export type CollectionRow = Readonly<{
@@ -110,6 +110,8 @@ export type PublishedPlace = Readonly<{
   description: string;
   address: string;
   accessInfo: string;
+  /** E1-S11: `none` or why the grounds should not be entered (private, fenced, ruin). */
+  accessRestriction: AccessRestriction;
   latitude: number;
   longitude: number;
   visitRadiusM: number;
