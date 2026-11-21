@@ -173,6 +173,8 @@ test.describe("W okolicy on the home page", () => {
       "Jedna kolekcja w promieniu 50 km.",
     );
     await expect(section(page).getByText(/^\d+ km · 3 miejsca$/)).toBeVisible();
+    // E12-S4: the demo collection was published a moment ago and lies within 50 km.
+    await expect(section(page).getByText("Nowa w okolicy", { exact: true })).toBeVisible();
     await expect(section(page).getByRole("button", { name: "Sprawdź ponownie" })).toBeVisible();
 
     const calls = await geoCalls(page);
