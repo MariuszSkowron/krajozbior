@@ -20,6 +20,17 @@ export type DatabaseRolePasswords = Record<DatabaseRole, string>;
 
 export const ROLE_PASSWORD_MIN_LENGTH = 16;
 
+export const APP_STATEMENT_TIMEOUT = "15s";
+export const AUTH_STATEMENT_TIMEOUT = "10s";
+
+// Per-role `statement_timeout` (D-43); null = no limit.
+export const statementTimeouts: Record<DatabaseRole, string | null> = {
+  krajozbior_owner: null,
+  krajozbior_app: APP_STATEMENT_TIMEOUT,
+  krajozbior_auth: AUTH_STATEMENT_TIMEOUT,
+  krajozbior_ops: null,
+};
+
 export const rolePasswordVariables: Record<DatabaseRole, string> = {
   krajozbior_owner: "KRAJOZBIOR_OWNER_DB_PASSWORD",
   krajozbior_app: "KRAJOZBIOR_APP_DB_PASSWORD",
@@ -96,6 +107,21 @@ export async function provisionDatabaseRoles(
     // membership from silently widening what the role can do.
     await client.query(
       `alter role ${role} with login noinherit nocreaterole nocreatedb password ${client.escapeLiteral(scramSha256Verifier(passwords[role]))}`,
+    );
+  }
+
+  // A hung or maliciously expensive query must not hold a pooled connection for
+  // good (D-43). The limit is a role setting, so it covers every new session of
+  // the role, and re-running this function brings existing databases up to date.
+  // owner (migrations) and ops (collection import) are reset: both run long
+  // statements by design.
+  for (const role of databaseRoles) {
+    const limit = statementTimeouts[role];
+
+    await client.query(
+      limit === null
+        ? `alter role ${role} reset statement_timeout`
+        : `alter role ${role} set statement_timeout = '${limit}'`,
     );
   }
 

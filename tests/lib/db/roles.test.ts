@@ -114,7 +114,7 @@ describe("provisionDatabaseRoles", () => {
     ]) {
       expect(queries.some((sql) => sql.includes(`create role ${role};`))).toBe(true);
     }
-    const alters = queries.filter((query) => query.startsWith("alter role"));
+    const alters = queries.filter((query) => query.includes(" with login "));
 
     expect(alters).toHaveLength(4);
     for (const sql of alters) {
@@ -125,6 +125,17 @@ describe("provisionDatabaseRoles", () => {
     for (const password of Object.values(passwords)) {
       expect(queries.some((sql) => sql.includes(password))).toBe(false);
     }
+  });
+
+  it("sets statement_timeout per role (D-43) and resets it for owner and ops", async () => {
+    const { client, queries } = fakeClient();
+
+    await provisionDatabaseRoles(client as never, readRolePasswords(validSource));
+
+    expect(queries).toContain("alter role krajozbior_app set statement_timeout = '15s'");
+    expect(queries).toContain("alter role krajozbior_auth set statement_timeout = '10s'");
+    expect(queries).toContain("alter role krajozbior_owner reset statement_timeout");
+    expect(queries).toContain("alter role krajozbior_ops reset statement_timeout");
   });
 
   it("keeps role verifiers out of the server log by switching statement logging off first", async () => {
