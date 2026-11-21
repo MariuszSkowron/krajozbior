@@ -3,7 +3,10 @@ import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// `docker compose config` takes more than 5 s under a full test:unit (review F-K4, N3).
+vi.setConfig({ testTimeout: 30_000 });
 
 // F-K1 (E11, D-E11-1, D-E11-5, D-E11-8): the configuration of the server and of the local
 // showcase is checked as files (always) and as the result of `docker compose config` (when
@@ -178,11 +181,43 @@ describe("server configuration (deploy/compose.yaml)", () => {
     expect(read("deploy/Caddyfile")).toMatch(/request_body \{\s*max_size 1MB\s*\}/);
   });
 
-  it("gives the database superuser password as a file, not as an environment variable", () => {
+  it("gives the database superuser password as a file, only in the first-start overlay", () => {
     const compose = read("deploy/compose.yaml");
+    const init = read("deploy/compose.init.yaml");
 
-    expect(compose).toContain("POSTGRES_PASSWORD_FILE");
+    // F-K4: /run is empty after a server restart, so the everyday file must not need the secret.
+    expect(compose).not.toContain("POSTGRES_PASSWORD_FILE");
+    expect(compose).not.toMatch(/^secrets:/m);
     expect(compose).not.toMatch(/^\s*POSTGRES_PASSWORD:/m);
+    expect(init).toContain("POSTGRES_PASSWORD_FILE: /run/secrets/pg_bootstrap");
+    expect(init).toContain("${PG_BOOTSTRAP_FILE:-/run/krajozbior/pg-bootstrap}");
+    expect(init).not.toMatch(/^\s*POSTGRES_PASSWORD:/m);
+  });
+
+  dockerComposeIt(
+    "starts the database without the one-time secret unless the overlay is given",
+    () => {
+      const everyday = composeConfig(SERVER) as ComposeConfig & { secrets?: object };
+      const first = composeConfig([...SERVER, "deploy/compose.init.yaml"]) as ComposeConfig & {
+        secrets?: Record<string, { file?: string }>;
+      };
+
+      expect(everyday.secrets).toBeUndefined();
+      expect(everyday.services.db?.environment?.POSTGRES_PASSWORD_FILE).toBeUndefined();
+      expect(first.services.db?.environment?.POSTGRES_PASSWORD_FILE).toBe(
+        "/run/secrets/pg_bootstrap",
+      );
+      expect(first.secrets?.pg_bootstrap?.file).toBe("/run/krajozbior/pg-bootstrap");
+      // The overlay touches only the database.
+      expect(Object.keys(first.services).sort()).toEqual(["app", "db", "proxy"]);
+    },
+  );
+
+  it("keeps the site behind the password gate until the gate file is removed (spec 5.4a)", () => {
+    expect(read("deploy/Caddyfile")).toMatch(/^\timport \/etc\/caddy\/gate\/\*\.caddy$/m);
+    expect(read("deploy/compose.yaml")).toContain(
+      "${KRAJOZBIOR_CADDY_GATE_DIR:-/srv/krajozbior/caddy-gate}:/etc/caddy/gate:ro",
+    );
   });
 
   it("pins the database image by digest", () => {
@@ -338,6 +373,54 @@ describe("local showcase (deploy/compose.showcase.yaml)", () => {
       expect(service.logging?.driver).toBe("local");
       expect(service.logging?.options?.["max-size"]).toBeDefined();
     }
+  });
+
+  // Target "showcase" of deploy.ps1 (rehearsal): third file from the running script.
+  const TARGET = [...SHOWCASE, "deploy/compose.showcase-target.yaml"];
+  const TARGET_VARIABLES = {
+    KZ_PROJECT: "krajozbior-rehearsal",
+    KZ_SHOWCASE_PORT: "3310",
+    KZ_SHOWCASE_DATA: "C:/r/.data/rehearsal",
+    IMAGE_TAG: "abcdef012345",
+  };
+
+  it("keeps the demo flags out of the rehearsal target overlay", () => {
+    const overlay = read("deploy/compose.showcase-target.yaml");
+
+    for (const flag of DEMO_FLAGS) {
+      expect(overlay, flag).not.toContain(flag);
+    }
+  });
+
+  dockerComposeIt("gives a rehearsal project its own names, port, volume and commit images", () => {
+    const config = composeConfig(
+      TARGET,
+      ["-p", "krajozbior-rehearsal", "--profile", "ops"],
+      dummySecretsFile(),
+      TARGET_VARIABLES,
+    ) as ComposeConfig & { services: Record<string, ComposeService & { image?: string }> };
+
+    expect(config.name).toBe("krajozbior-rehearsal");
+    expect(config.volumes?.pgdata?.name).toBe("krajozbior-rehearsal-pgdata");
+    expect(config.services.db?.container_name).toBe("krajozbior-rehearsal-db");
+    expect(config.services.app?.container_name).toBe("krajozbior-rehearsal-app");
+    expect(config.services.app?.image).toBe("krajozbior-rehearsal-app:abcdef012345");
+    expect(config.services.ops?.image).toBe("krajozbior-rehearsal-ops:abcdef012345");
+    // Only the rehearsal port: the showcase port 3300 is replaced, not added.
+    expect(config.services.app?.ports).toEqual([
+      expect.objectContaining({ host_ip: "127.0.0.1", published: "3310", target: 3000 }),
+    ]);
+    expect(config.services.app?.environment?.BETTER_AUTH_URL).toBe("http://localhost:3310");
+    expect(config.services.proxy).toBeUndefined();
+  });
+
+  dockerComposeIt("refuses the target overlay without a commit image tag", () => {
+    expect(() =>
+      composeConfig(TARGET, ["-p", "krajozbior-rehearsal"], dummySecretsFile(), {
+        ...TARGET_VARIABLES,
+        IMAGE_TAG: "",
+      }),
+    ).toThrow();
   });
 
   dockerComposeIt("restarts the services it runs", () => {
