@@ -8,16 +8,16 @@ Repozytorium kodu jest publiczne, więc nic prywatnego tu nie trafia. Specyfikac
 
 ## 1. Role
 
-| Rola                     | Kto                                               | Co robi                                                                                             | Czego nie robi                                              |
-| ------------------------ | ------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Właściciel               | człowiek                                          | akceptuje zakres i decyzje, zatwierdza i scala PR-y wrażliwe w przeglądarce, zatwierdza push        | nie uruchamia poleceń; nie jest autorem PR-ów agentów       |
-| Orkiestrator             | główna sesja Claude Code                          | dzieli pracę, przydziela stanowiska `ws-N`, dobiera poziom przeglądu, ustawia gotowość i auto-merge | nie implementuje dużych zmian sam; nie zatwierdza PR        |
-| Autor                    | subagent (zwykle Sonnet, przy projektowaniu Opus) | implementuje zadanie, uruchamia lokalną bramkę, otwiera draft PR                                    | nie oznacza PR jako gotowego, nie scala                     |
-| Recenzent kodu           | świeży subagent                                   | czyta diff, komentuje PR, ustawia status `agent-review`                                             | nie poprawia kodu; nie publikuje ustaleń bezpieczeństwa     |
-| Recenzent bezpieczeństwa | świeży subagent (Opus)                            | raport do `<docs>/.ai/security/`, zadanie w `<docs>`, status `security-review`                      | nie komentuje szczegółów w publicznym PR                    |
-| Agent poprawek           | świeży subagent                                   | wprowadza uwagi, wypycha jedną paczkę                                                               | nie ustawia statusów na własnych poprawkach                 |
-| Weryfikator poprawek     | kolejny świeży subagent                           | sprawdza poprawki niezależnie od autora, ustawia statusy na nowym commicie                          | nie poprawia sam                                            |
-| Bot                      | aplikacja GitHub `<app-slug>[bot]`                | jedyna tożsamość agentów na tym komputerze: push, PR-y, statusy, zadania w `<docs>`                 | nie ma uprawnień administratora; nie jest właścicielem kodu |
+| Rola                     | Kto                                               | Co robi                                                                                                                        | Czego nie robi                                              |
+| ------------------------ | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| Właściciel               | człowiek                                          | akceptuje zakres i decyzje, ustawia statusy przeglądu (`scripts/review-status.ps1`), zatwierdza PR-y wrażliwe, zatwierdza push | nie uruchamia poleceń; nie jest autorem PR-ów agentów       |
+| Orkiestrator             | główna sesja Claude Code                          | dzieli pracę, przydziela stanowiska `ws-N`, dobiera poziom przeglądu, ustawia gotowość i auto-merge                            | nie implementuje dużych zmian sam; nie zatwierdza PR        |
+| Autor                    | subagent (zwykle Sonnet, przy projektowaniu Opus) | implementuje zadanie, uruchamia lokalną bramkę, otwiera draft PR                                                               | nie oznacza PR jako gotowego, nie scala                     |
+| Recenzent kodu           | świeży subagent                                   | czyta diff, komentuje PR, zgłasza werdykt do statusu `agent-review`                                                            | nie poprawia kodu; nie publikuje ustaleń bezpieczeństwa     |
+| Recenzent bezpieczeństwa | świeży subagent (Opus)                            | raport do `<docs>/.ai/security/`, zadanie w `<docs>`, werdykt do statusu `security-review`                                     | nie komentuje szczegółów w publicznym PR                    |
+| Agent poprawek           | świeży subagent                                   | wprowadza uwagi, wypycha jedną paczkę                                                                                          | nie ustawia statusów na własnych poprawkach                 |
+| Weryfikator poprawek     | kolejny świeży subagent                           | sprawdza poprawki niezależnie od autora, zgłasza werdykt do statusów na nowym commicie                                         | nie poprawia sam                                            |
+| Bot                      | aplikacja GitHub `<app-slug>[bot]`                | jedyna tożsamość agentów na tym komputerze: push, PR-y, statusy, zadania w `<docs>`                                            | nie ma uprawnień administratora; nie jest właścicielem kodu |
 
 ## 2. Etapy
 
@@ -58,17 +58,17 @@ Zasady przeglądu:
 
 ### Etap 5. Statusy przeglądu
 
-Ruleset wymaga dwóch statusów commita. Ustawia się je na **bieżącym** commicie PR (każdy push tworzy nowy commit bez statusów):
+Ruleset wymaga dwóch statusów commita. Ustawia się je na **bieżącym** commicie PR (każdy push tworzy nowy commit bez statusów).
 
-```bash
-SHA=$(gh pr view <n> --json headRefOid --jq .headRefOid)
-gh api -X POST repos/<konto>/<repo>/statuses/$SHA -f state=success -f context=agent-review -f description="Przegląd kodu: bez uwag blokujących"
-gh api -X POST repos/<konto>/<repo>/statuses/$SHA -f state=success -f context=security-review -f description="Przegląd bezpieczeństwa: bez uwag"
+**Statusy ustawia właściciel skryptem** `scripts/review-status.ps1`, bo tryb automatyczny Claude Code blokuje agentowi ustawianie statusów przeglądu na własnym PR jako omijanie nadzoru. Agent kończy przegląd werdyktem w komentarzu lub raporcie i prosi właściciela o statusy; reguły `allow` w ustawieniach agenta nie poszerzamy. Skrypt odświeża token aplikacji, czyta SHA bieżącego commitu i ustawia oba statusy:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/review-status.ps1 -Pr <n>[,<n>...]
 ```
 
-Polecenia uruchamiaj narzędziem Bash, w jednej linii i dokładnie w tej kolejności argumentów (`<konto>/<repo>` wpisane wprost, bez cudzysłowu). Tryb automatyczny Claude Code blokuje agentowi ustawianie statusów przeglądu na własnym PR jako omijanie nadzoru. Właściciel zgodził się na to (decyzja 2026-11-17, próba generalna), więc `.claude/settings.json` ma regułę `allow` tylko dla tych dwóch statusów w tym zapisie. Inny zapis polecenia nie pasuje do reguły i zostanie zablokowany.
+Opcje: `-CarryOver` (po aktualizacji gałęzi o `main` bez konfliktów; dopisuje do opisu „przeniesione po aktualizacji z main”), `-Only agent-review|security-review` (jeden status), `-State failure` (opis „do poprawy”), `-DryRun` (tylko wypisuje polecenia, bez połączenia z GitHub), `-SkipToken` (bez odświeżania tokenu).
 
-| Status            | `success`                             | `failure`                             | Kto ustawia                                                                                    |
+| Status            | `success`                             | `failure`                             | Czyj werdykt                                                                                   |
 | ----------------- | ------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `agent-review`    | „Przegląd kodu: bez uwag blokujących” | „Przegląd kodu: do poprawy”           | recenzent kodu, po poprawkach weryfikator (poziom A) albo orkiestrator (B, C)                  |
 | `security-review` | „Przegląd bezpieczeństwa: bez uwag”   | „Przegląd bezpieczeństwa: do poprawy” | recenzent bezpieczeństwa (A), recenzent łączony (B), orkiestrator (C); po poprawkach jak wyżej |
@@ -77,7 +77,7 @@ Opis statusu `security-review` jest zawsze neutralny: bez nazwy podatności, pli
 
 **Statusy to bramka wygody, nie zabezpieczenie.** Ruleset przyjmuje statusy `agent-review` i `security-review` tylko od aplikacji projektu (`integration_id` = App ID, ustawia `scripts/setup-github.ps1`), ale aplikacja to właśnie agent: bot ustawia je także na własnym PR. Statusy chronią przed scaleniem PR-a, którego nikt nie przejrzał przez pomyłkę. Przed złośliwym lub zmanipulowanym agentem chroni wyłącznie `CODEOWNERS` z zatwierdzeniem właściciela (sekcja 3).
 
-**Aktualizacja gałęzi o nowy `main`.** Po każdym scaleniu innego PR-a gałąź trzeba zaktualizować (ruleset wymaga gałęzi aktualnej). Robi to orkiestrator przez merge, bez rebase i bez force-push. Gdy merge przeszedł bez konfliktów, orkiestrator przenosi oba statusy na nowy commit z opisem „…, przeniesione po aktualizacji z main”. Gdy były konflikty, ich rozwiązanie przechodzi przegląd poziomu B. Aktualizacja (także przycisk **Update branch** w GitHub) tworzy nowy commit, a ruleset unieważnia wtedy zatwierdzenie właściciela (`dismiss_stale_reviews_on_push: true`). PR ze ścieżkami z `CODEOWNERS` trzeba więc po każdej aktualizacji zatwierdzić ponownie. To świadomy wybór: bezpieczeństwo przed wygodą, bo inaczej po zatwierdzeniu dałoby się dopisać do PR-a dowolną zmianę.
+**Aktualizacja gałęzi o nowy `main`.** Po każdym scaleniu innego PR-a gałąź trzeba zaktualizować (ruleset wymaga gałęzi aktualnej). Robi to orkiestrator przez merge, bez rebase i bez force-push. Gdy merge przeszedł bez konfliktów, orkiestrator prosi właściciela o przeniesienie obu statusów na nowy commit (`scripts/review-status.ps1 -Pr <n> -CarryOver`, opis „…, przeniesione po aktualizacji z main”). Gdy były konflikty, ich rozwiązanie przechodzi przegląd poziomu B. Aktualizacja (także przycisk **Update branch** w GitHub) tworzy nowy commit, a ruleset unieważnia wtedy zatwierdzenie właściciela (`dismiss_stale_reviews_on_push: true`). PR ze ścieżkami z `CODEOWNERS` trzeba więc po każdej aktualizacji zatwierdzić ponownie. To świadomy wybór: bezpieczeństwo przed wygodą, bo inaczej po zatwierdzeniu dałoby się dopisać do PR-a dowolną zmianę.
 
 ### Etap 6. Scalenie
 
