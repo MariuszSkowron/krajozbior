@@ -35,6 +35,7 @@
 /src/lib/log-failure.ts            @MariuszSkowron
 # Kontrola konfiguracji przy starcie serwera (bez klucza Brevo serwer nie wstaje)
 /src/instrumentation.ts            @MariuszSkowron
+/src/instrumentation-node.ts       @MariuszSkowron
 /next.config.ts                    @MariuszSkowron
 /tsconfig.json                     @MariuszSkowron
 
