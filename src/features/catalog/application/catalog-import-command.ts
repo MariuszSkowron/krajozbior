@@ -203,7 +203,14 @@ export async function runCatalogImport(
           errors: result.errors.slice(0, MAX_LISTED_ERRORS),
         }),
       ],
-      stderr: ["Plik nie przeszedł walidacji (numery linii i ścieżki pól w wyniku)."],
+      stderr: [
+        "Plik nie przeszedł walidacji (numery linii i ścieżki pól w wyniku).",
+        ...(result.errors.some((error) => error.code === "missing_attribution")
+          ? [
+              "Miejsce bez podpisu źródła (pole attribution) jest odrzucane: licencje źródeł wymagają podpisu.",
+            ]
+          : []),
+      ],
     };
   }
 

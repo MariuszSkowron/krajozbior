@@ -638,6 +638,14 @@ describe("source keys", () => {
     expect(parseImportFile(fits).ok).toBe(true);
   });
 
+  it("refuses a place without a source signature", () => {
+    const content = edited((items) => {
+      items[3]!.attribution = [];
+    });
+
+    expect(has(errorsOf(content), 4, "attribution", "missing_attribution")).toBe(true);
+  });
+
   it("checks the shape of references and their number", () => {
     const content = edited((items) => {
       items[3]!.source_refs = [{ source: "zrodlo_a", ref: " padded " }];

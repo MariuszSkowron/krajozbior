@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   title: "Źródła danych — Krajozbiór",
 };
 
+// Miesiąc pobrania danych ze źródeł. Aktualizuj tę stałą przy każdym wgraniu nowych danych
+// (np. nowej kolekcji z pliku); to jedyne miejsce, z którego strona bierze tę informację.
+const DATA_RETRIEVED = "listopad 2026";
+
 type Source = Readonly<{
   id: string;
   name: string;
@@ -58,6 +62,7 @@ export default function SourcesPage() {
         bierzemy i na jakich zasadach możesz z nich korzystać. Pod opisem każdego takiego miejsca
         widać też podpis jego źródeł.
       </p>
+      <p>Dane pobrano: {DATA_RETRIEVED}.</p>
 
       <section aria-labelledby="skad-dane" className={styles.section}>
         <h2 id="skad-dane">Skąd pochodzą dane</h2>

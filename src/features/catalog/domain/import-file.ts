@@ -601,7 +601,10 @@ export function parseImportFile(
     // The signature is kept in a column of 500 characters (`place_sources`).
     const signature = composeAttribution(record.attribution, sourceLabels);
 
-    if (signature !== null && signature.length > ATTRIBUTION_MAX_LENGTH) {
+    // A place without a source signature is refused: the licences (CC BY) require it.
+    if (signature === null) {
+      fail(line, "attribution", "missing_attribution");
+    } else if (signature.length > ATTRIBUTION_MAX_LENGTH) {
       fail(line, "attribution", "length_or_range");
     }
 
