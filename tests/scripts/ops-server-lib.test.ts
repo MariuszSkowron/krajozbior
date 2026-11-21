@@ -580,6 +580,25 @@ describe("mode import: collection file to the server (remote.sh, F-K6)", () => {
     });
   }
 
+  bashIt("a new run removes folders left by a killed run, and only run-* folders", () => {
+    const result = runImport(
+      { KZ_IMPORT_PHASE: "preview" },
+      `${READY}\n${opsStub(0)}\nmkdir -p "$KZ_IMPORTS/run-20200101-000000-1" "$KZ_IMPORTS/inny"; echo x >"$KZ_IMPORTS/run-20200101-000000-1/stary-public.ndjson"`,
+    );
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).not.toContain("stary-public.ndjson");
+    expect(result.leftovers).toEqual(["inny"]);
+  });
+
+  bashIt("code 3 tells that part of the drafts may already be on the server", () => {
+    const result = runImport({ KZ_IMPORT_PHASE: "apply" }, `${READY}\n${opsStub(3)}`);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("czesc szkicow juz jest na serwerze");
+    expect(result.stdout).toContain("mozna powtorzyc");
+  });
+
   bashIt("an exit inside the operator command removes the file through the EXIT trap", () => {
     const result = runImport(
       { KZ_IMPORT_PHASE: "apply" },

@@ -122,9 +122,17 @@ if (Test-Path -LiteralPath $configFile) {
 
 # 3. Starter script, copied from the clean clone (this script's own folder).
 if ((Test-Path -LiteralPath $starterFile) -and $OdswiezWdroz) {
-  Copy-Item -LiteralPath $starterFile -Destination "$starterFile.poprzedni" -Force
-  Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'wdroz.template.ps1') -Destination $starterFile -Force
-  Write-Host "wdroz.ps1 odswiezony z commita $headSha (poprzednia wersja: wdroz.ps1.poprzedni)." -ForegroundColor Green
+  $newTemplate = Join-Path $PSScriptRoot 'wdroz.template.ps1'
+  if ((Get-FileHash -LiteralPath $newTemplate).Hash -eq (Get-FileHash -LiteralPath $starterFile).Hash) {
+    Write-Host 'wdroz.ps1 jest juz w aktualnej wersji - bez zmian.'
+  } else {
+    # Never overwrite an earlier backup: a dated copy next to it.
+    $backup = "$starterFile.poprzedni"
+    if (Test-Path -LiteralPath $backup) { $backup = "$starterFile.poprzedni-$(Get-Date -Format 'yyyyMMdd-HHmmss')" }
+    Copy-Item -LiteralPath $starterFile -Destination $backup -Force
+    Copy-Item -LiteralPath $newTemplate -Destination $starterFile -Force
+    Write-Host "wdroz.ps1 odswiezony z commita $headSha (poprzednia wersja: $(Split-Path -Leaf $backup))." -ForegroundColor Green
+  }
 } elseif (Test-Path -LiteralPath $starterFile) {
   Write-Host 'wdroz.ps1 juz istnieje - bez zmian (nowsza wersja: -OdswiezWdroz).'
 } else {

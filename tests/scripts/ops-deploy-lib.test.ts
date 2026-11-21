@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -322,6 +322,9 @@ describe("mode import: checks on the owner's computer (F-K6)", () => {
   for (const [path, message] of [
     ["", "Brak pliku"],
     ["fala-1-public.ndjson", "pelna sciezke"],
+    ["\\Projekty\\kolekcje\\fala-1-public.ndjson", "pelna sciezke"],
+    ["C:fala-1-public.ndjson", "pelna sciezke"],
+    ["\\\\serwer\\udzial\\fala-1-public.ndjson", "pelna sciezke"],
     [`${IMPORT_DIR}\\fala-1.ndjson`, "Zla nazwa pliku"],
     [`${IMPORT_DIR}\\fala-1-public.ndjson.pem`, "Zla nazwa pliku"],
     [`${IMPORT_DIR}\\-public.ndjson`, "Zla nazwa pliku"],
@@ -364,6 +367,39 @@ describe("mode import: checks on the owner's computer (F-K6)", () => {
     expect(disk(empty)).toContain("pusty");
     expect(disk(big)).toContain("8 MiB");
     expect(disk(directory)).toContain("Nie ma takiego pliku");
+  });
+
+  // Symbolic links need no privilege on Linux (the CI); on Windows creating them does, and the
+  // same branches (reparse points) are checked by the owner's real run, so the test is skipped.
+  const psUnixIt = process.platform === "win32" ? it.skip : psIt;
+
+  psUnixIt("on disk: a link to the file and a link to a folder on the way are refused", () => {
+    const directory = mkdtempSync(join(tmpdir(), "krajozbior-import-"));
+    const elsewhere = mkdtempSync(join(tmpdir(), "krajozbior-import-elsewhere-"));
+    const real = join(elsewhere, "prawdziwy-public.ndjson");
+
+    writeFileSync(real, '{"type":"batch"}\n');
+    symlinkSync(real, join(directory, "skrot-public.ndjson"));
+    symlinkSync(elsewhere, join(directory, "podfolder"));
+
+    const disk = (path: string) =>
+      psJson<string>(`Get-ImportFileDiskProblem ${psString(path)} ${psString(directory)}`);
+
+    expect(disk(join(directory, "skrot-public.ndjson"))).toContain("skrotem");
+    expect(disk(join(directory, "podfolder", "prawdziwy-public.ndjson"))).toContain(
+      "Folder pliku jest skrotem",
+    );
+  });
+
+  psIt("content: only a file starting with { is sent (a key or the vault is not)", () => {
+    const content = (bytes: number[]) =>
+      psJson<string>(`Get-ImportContentProblem ([byte[]]@(${bytes.join(",")}))`);
+
+    expect(content([0x7b, 0x22, 0x74])).toBe("");
+    expect(content([0x2d, 0x2d, 0x2d, 0x2d, 0x2d])).toContain("nie wyglada na kolekcje");
+    expect(content([...Buffer.from("age-encryption.org/v1")])).toContain("nie wyglada");
+    expect(content([0xef, 0xbb, 0xbf, 0x7b])).toContain("nie wyglada");
+    expect(content([])).toContain("pusty");
   });
 
   psIt("organisation slug and the audit reason", () => {
@@ -445,8 +481,10 @@ describe("mode import: checks on the owner's computer (F-K6)", () => {
     expect(deploy).not.toMatch(/KZ_CURATOR_EMAIL\s*=|\$plain\.KZ_CURATOR_EMAIL/);
     expect(starter).toContain("'-ImportFile', $Import");
     expect(secrets).toContain(
-      "Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'wdroz.template.ps1') -Destination $starterFile -Force",
+      "Copy-Item -LiteralPath $newTemplate -Destination $starterFile -Force",
     );
+    expect(secrets).toContain("$newTemplate = Join-Path $PSScriptRoot 'wdroz.template.ps1'");
+    expect(secrets).toContain('"$starterFile.poprzedni-$(Get-Date');
   });
 });
 

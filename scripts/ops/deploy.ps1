@@ -97,6 +97,11 @@ $secrets = New-Object System.Collections.Generic.List[string]
 if ($Mode -eq 'import') {
   $importDir = if ($config.ContainsKey('ImportDir')) { $config.ImportDir } else { '' }
   $problem = Get-ImportFileProblem $ImportFile $importDir $SecretsDir
+  if (-not $problem) {
+    # From here on only the resolved path is used (checks, Get-Item, ReadAllBytes).
+    $ImportFile = Resolve-WinPath $ImportFile
+    $problem = Get-ImportFileProblem $ImportFile $importDir $SecretsDir
+  }
   if (-not $problem) { $problem = Get-ImportFileDiskProblem $ImportFile $importDir }
   if ($problem) { throw "$problem Nic nie zrobiono." }
   if ($OrgSlug -and -not (Test-OrgSlug $OrgSlug)) { throw 'Nieprawidlowy slug organizacji (male litery, cyfry i -). Nic nie zrobiono.' }
@@ -197,8 +202,14 @@ switch ($Mode) {
     if (-not (Test-OrgSlug $slug)) { throw 'Nieprawidlowy slug organizacji (male litery, cyfry i -). Nic nie zrobiono.' }
     $curator = (Read-Host 'Adres e-mail kuratora (konto, na ktore logujesz sie do panelu kuratora)').Trim().ToLowerInvariant()
     if (-not (Test-EmailAddress $curator)) { throw 'Nieprawidlowy adres e-mail. Nic nie zrobiono.' }
+    # Checked again right before reading: the owner answered two questions since the first check,
+    # time enough to swap the file or its folder for a shortcut (review S2).
+    $problem = Get-ImportFileDiskProblem $ImportFile $importDir
+    if ($problem) { throw "$problem Nic nie zrobiono." }
     $bytes = [IO.File]::ReadAllBytes($ImportFile)
     if ($bytes.Length -lt 1 -or $bytes.Length -gt $ImportMaxBytes) { throw 'Plik jest pusty albo wiekszy niz 8 MiB. Nic nie zrobiono.' }
+    $problem = Get-ImportContentProblem $bytes
+    if ($problem) { throw "$problem Nic nie zrobiono." }
     $importName = Get-WinPathLeaf $ImportFile
     $plain.KZ_IMPORT_NAME = $importName
     $plain.KZ_IMPORT_SHA256 = Get-Sha256Hex $bytes
@@ -258,7 +269,10 @@ function Invoke-RemoteConnection {
     }
     if ($Mode -eq 'import') {
       $summary = Format-ImportSummary $safe
-      if ($summary) { Write-Say (Write-Report "podsumowanie: $summary") 'Cyan' }
+      if ($summary) {
+        Write-Say (Write-Report "podsumowanie: $summary") 'Cyan'
+        if ($summary.StartsWith('Wgrane czesciowo')) { $script:importPartial = $true }
+      }
     }
   }
   $process.WaitForExit()
@@ -266,6 +280,7 @@ function Invoke-RemoteConnection {
 }
 
 $importResult = ''
+$importPartial = $false
 if ($Mode -eq 'import') {
   $flow = Invoke-ImportFlow {
     param($phase)
@@ -304,9 +319,15 @@ if ($code -eq 0 -and $importResult -eq 'declined') {
     Write-Say 'Szkice sa na serwerze. Obejrzyj je w panelu kuratora; publikujesz je sam, gdy beda gotowe.'
   }
 } else {
-  Write-Report "wynik: BLAD (kod $code)" | Out-Null
   Write-Say ''
-  Write-Say "BLAD (kod $code). Napisz agentowi: blad. Raport jest zapisany." 'Red'
+  if ($importPartial) {
+    Write-Report 'wynik: CZESCIOWO (kod 3): czesc szkicow jest na serwerze' | Out-Null
+    Write-Say 'CZESCIOWO WGRANE (kod 3): czesc szkicow jest juz na serwerze, czesc kolekcji zostala odrzucona.' 'Yellow'
+    Write-Say 'To nie jest awaria. Napisz agentowi: czesciowo (z raportem); po ustaleniu przyczyny to samo wgranie mozna powtorzyc.' 'Yellow'
+  } else {
+    Write-Report "wynik: BLAD (kod $code)" | Out-Null
+    Write-Say "BLAD (kod $code). Napisz agentowi: blad. Raport jest zapisany." 'Red'
+  }
 }
 Write-Say "Raport: $reportFile"
 exit $code

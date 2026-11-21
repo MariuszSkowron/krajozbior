@@ -400,6 +400,12 @@ function Test-OrgSlug([string]$value) {
   return ($value.Length -le 64 -and $value -cmatch '^[a-z0-9]+(-[a-z0-9]+)*$')
 }
 
+# Only `C:\...` (drive, backslash). IsPathRooted also accepts `\folder\x` and `C:x`, which are
+# relative to the current drive or folder, so two checks could read them differently (review S3).
+function Test-WinDrivePath([string]$path) {
+  return ($path -cmatch '^[A-Za-z]:\\')
+}
+
 function Get-WinPathLeaf([string]$path) {
   return (($path -replace '/', '\').TrimEnd('\').Split('\')[-1])
 }
@@ -418,7 +424,7 @@ function Get-ImportFileProblem([string]$path, [string]$importDir, [string]$secre
   if (-not $importDir) {
     return 'serwer.conf nie ma ImportDir (folder z plikami kolekcji). Dopisze go new-deploy-secrets.ps1 -OdswiezWdroz -ImportDir <folder>.'
   }
-  if (-not (Test-WinPathRooted $path)) { return 'Podaj pelna sciezke pliku (np. C:\...\nazwa-public.ndjson).' }
+  if (-not (Test-WinDrivePath $path)) { return 'Podaj pelna sciezke pliku z litera dysku (np. C:\...\nazwa-public.ndjson).' }
   if (-not (Test-ImportFileName (Get-WinPathLeaf $path))) {
     return 'Zla nazwa pliku: oczekiwane <nazwa>-public.ndjson (litery, cyfry, kropka, _ i -).'
   }
@@ -433,8 +439,11 @@ function Get-ImportFileProblem([string]$path, [string]$importDir, [string]$secre
 
 # Checks on disk (deploy.ps1, after Get-ImportFileProblem): a plain file, 1 B - 8 MiB, and no
 # shortcut (reparse point) on the way from ImportDir to the file, so a junction cannot lead
-# out of the folder. Returns a Polish message, or ''.
+# out of the folder. ImportDir itself and the folders above it are the owner's configuration and
+# are not checked. Returns a Polish message, or ''. The caller passes the path already resolved
+# by Resolve-WinPath (on Windows it is resolved again here, a no-op for a full path).
 function Get-ImportFileDiskProblem([string]$path, [string]$importDir) {
+  if ([IO.Path]::DirectorySeparatorChar -eq '\') { $path = Resolve-WinPath $path }
   if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return "Nie ma takiego pliku: $path" }
   $item = Get-Item -LiteralPath $path -Force
   if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { return 'Plik jest skrotem (dowiazaniem); podaj zwykly plik.' }
@@ -446,6 +455,16 @@ function Get-ImportFileDiskProblem([string]$path, [string]$importDir) {
   }
   if ($item.Length -lt 1) { return 'Plik jest pusty.' }
   if ($item.Length -gt $ImportMaxBytes) { return 'Plik jest wiekszy niz 8 MiB.' }
+  return ''
+}
+
+# Content check on the bytes about to be sent (review S1): a collection file is NDJSON, so its
+# first byte is `{`. A private key (`-----BEGIN`, `AGE-SECRET-KEY-`) or the vault (`age-encryption`)
+# starts otherwise, so a hard link to one of them is refused. A BOM is refused too: the payload
+# and catalog:import expect plain UTF-8. Returns a Polish message, or ''.
+function Get-ImportContentProblem([byte[]]$bytes) {
+  if ($null -eq $bytes -or $bytes.Length -lt 1) { return 'Plik jest pusty.' }
+  if ($bytes[0] -ne 0x7B) { return 'Plik nie wyglada na kolekcje (pierwszy znak to nie {). Nic nie wyslano.' }
   return ''
 }
 

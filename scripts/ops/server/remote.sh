@@ -350,6 +350,9 @@ kz_import_prepare() {
   local file sum
   mkdir -p "$KZ_IMPORTS"
   chmod 700 "$KZ_IMPORTS"
+  # Leftovers of an earlier run killed in the middle (KILL signal, server restart): there is one
+  # operator, so no other run can be using them.
+  find "$KZ_IMPORTS" -mindepth 1 -maxdepth 1 -type d -name 'run-*' -exec rm -rf -- {} + 2>/dev/null || true
   KZ_IMPORT_DIR="$KZ_IMPORTS/run-$(date -u +%Y%m%d-%H%M%S)-$$"
   mkdir -m 755 "$KZ_IMPORT_DIR"
   file="$KZ_IMPORT_DIR/$KZ_IMPORT_NAME"
@@ -394,7 +397,7 @@ kz_mode_import() {
     0)
       if [ "$KZ_IMPORT_PHASE" = "preview" ]; then kz_step "GOTOWE: podglad (nic nie zapisano)"; else kz_step "GOTOWE: szkice wgrane"; fi ;;
     2) kz_fail "plik odrzucony (kod 2): bledy w pliku albo miejsca spoza pliku, ktorych nie ma w bazie; nic nie wgrano" ;;
-    3) kz_fail "odmowa (kod 3): organizacja, konto kuratora, nazwa hosta albo czesc kolekcji odrzucona; szczegoly wyzej" ;;
+    3) kz_fail "odmowa (kod 3): organizacja, konto kuratora, nazwa hosta albo czesc kolekcji odrzucona; gdy wyzej jest 'Wgrane czesciowo', czesc szkicow juz jest na serwerze (to samo wgranie mozna powtorzyc po usunieciu przyczyny)" ;;
     *) kz_fail "wgrywanie nieudane (kod $status); dane zapisane wczesniej zostaja, to samo wgranie mozna powtorzyc" ;;
   esac
 }

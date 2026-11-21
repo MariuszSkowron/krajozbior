@@ -80,8 +80,11 @@ $repoUrl = Invoke-Git @('remote', 'get-url', 'origin')
 Write-Host "Kod: commit $sha (na origin/main)." -ForegroundColor Gray
 
 # A newer starter in the checked-out commit: say so (the copy is replaced only by the owner).
+# Only when the commit is the newest origin/main: after `-Commit <older sha>` a different template
+# is the older one, and the hint would invite going back.
 $template = Join-Path $repo 'scripts\ops\wdroz.template.ps1'
-if ((Test-Path -LiteralPath $template) -and
+$newestMain = Invoke-Git @('rev-parse', 'origin/main')
+if (($sha -eq $newestMain) -and (Test-Path -LiteralPath $template) -and
   (Get-FileHash -LiteralPath $template).Hash -ne (Get-FileHash -LiteralPath $PSCommandPath).Hash) {
   Write-Host 'Uwaga: w tym commicie jest nowsza wersja wdroz.ps1. Odswiez ja poleceniem:' -ForegroundColor Yellow
   Write-Host "  powershell -ExecutionPolicy Bypass -File `"$repo\scripts\ops\new-deploy-secrets.ps1`" -OdswiezWdroz" -ForegroundColor Yellow
