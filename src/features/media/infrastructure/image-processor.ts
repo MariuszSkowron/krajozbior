@@ -4,7 +4,15 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { detectImageType } from "../domain/image-type";
-import { PROCESS_TIMEOUT_MS } from "../domain/limits";
+import {
+  MAIN_LONG_SIDE,
+  MAX_INPUT_BYTES,
+  MAX_MAIN_BYTES,
+  MAX_OG_BYTES,
+  MIN_QUALITY,
+  PROCESS_TIMEOUT_MS,
+  START_QUALITY,
+} from "../domain/limits";
 import {
   isProcessingErrorCode,
   MediaProcessingError,
@@ -49,6 +57,65 @@ function baseEnvironment(): Record<string, string> {
   return systemRoot ? { SystemRoot: systemRoot } : {};
 }
 
+const OK_KEYS = ["ok", "result"];
+const FAIL_KEYS = ["ok", "code"];
+const RESULT_KEYS = ["main", "thumb", "og", "width", "height", "quality"];
+
+function hasOnlyKeys(value: object, allowed: string[]): boolean {
+  return Object.keys(value).every((key) => allowed.includes(key));
+}
+
+function isBytesWithin(value: unknown, maxBytes: number): value is Uint8Array {
+  return value instanceof Uint8Array && value.length > 0 && value.length <= maxBytes;
+}
+
+function isDimension(value: unknown): value is number {
+  return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= MAIN_LONG_SIDE;
+}
+
+/**
+ * Odpowiedź procesu potomnego jest daną niezaufaną (proces mógł zostać przejęty): przyjmujemy
+ * tylko dokładnie oczekiwany kształt, typy i rozmiary; wszystko inne to `processing_failed`.
+ */
+export function parseWorkerReply(
+  reply: unknown,
+): { ok: true; result: ProcessedImage } | { ok: false; code: ProcessingErrorCode } {
+  const invalid = { ok: false, code: "processing_failed" } as const;
+  if (typeof reply !== "object" || reply === null || Array.isArray(reply)) return invalid;
+  const message = reply as Record<string, unknown>;
+  if (message.ok !== true) {
+    if (!hasOnlyKeys(message, FAIL_KEYS)) return invalid;
+    return {
+      ok: false,
+      code: isProcessingErrorCode(message.code) ? message.code : "processing_failed",
+    };
+  }
+  const result = message.result;
+  if (!hasOnlyKeys(message, OK_KEYS)) return invalid;
+  if (typeof result !== "object" || result === null || Array.isArray(result)) return invalid;
+  const candidate = result as Record<string, unknown>;
+  if (!hasOnlyKeys(candidate, RESULT_KEYS)) return invalid;
+  if (!isBytesWithin(candidate.main, MAX_MAIN_BYTES)) return invalid;
+  if (!isBytesWithin(candidate.thumb, MAX_MAIN_BYTES)) return invalid;
+  if (candidate.og !== undefined && !isBytesWithin(candidate.og, MAX_OG_BYTES)) return invalid;
+  if (!isDimension(candidate.width) || !isDimension(candidate.height)) return invalid;
+  if (!Number.isInteger(candidate.quality) || (candidate.quality as number) < MIN_QUALITY) {
+    return invalid;
+  }
+  if ((candidate.quality as number) > START_QUALITY) return invalid;
+  return {
+    ok: true,
+    result: {
+      main: candidate.main,
+      thumb: candidate.thumb,
+      ...(candidate.og ? { og: candidate.og } : {}),
+      width: candidate.width,
+      height: candidate.height,
+      quality: candidate.quality as number,
+    },
+  };
+}
+
 /**
  * Uruchamia obróbkę pliku w procesie potomnym: bez połączenia z bazą i bez zmiennych środowiska
  * poza jawnie podanymi, ze stderr odciętym od logów, z limitem czasu i `SIGKILL` (D-E4-4, 5.3 krok 5).
@@ -78,15 +145,14 @@ export function runImageWorker(options: RunWorkerOptions): Promise<ProcessedImag
     const timer = setTimeout(() => fail("processing_failed"), timeoutMs);
 
     child.once("message", (reply) => {
-      const message = reply as { ok?: boolean; code?: unknown; result?: ProcessedImage };
-      if (message.ok && message.result) {
-        const result = message.result;
+      const parsed = parseWorkerReply(reply);
+      if (parsed.ok) {
         finish(() => {
           child.kill("SIGKILL");
-          resolve(result);
+          resolve(parsed.result);
         });
       } else {
-        fail(isProcessingErrorCode(message.code) ? message.code : "processing_failed");
+        fail(parsed.code);
       }
     });
     child.once("error", () => fail("processing_failed"));
@@ -109,6 +175,8 @@ export async function processImageBytes(
       tmpDirectory: string;
     },
 ): Promise<ProcessedImage> {
+  // Obrona niezależna od trasy: za duże wejście nie trafia na dysk ani do procesu potomnego.
+  if (bytes.length > MAX_INPUT_BYTES) throw new MediaProcessingError("processing_failed");
   const detected = detectImageType(bytes);
   if (!detected.ok) throw new MediaProcessingError(detected.code);
   await mkdir(options.tmpDirectory, { recursive: true, mode: 0o700 });

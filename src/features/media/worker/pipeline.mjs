@@ -35,32 +35,71 @@ export class PipelineError extends Error {
   }
 }
 
+/** Licznik dekodowań wejścia (test pilnuje, że strategia budżetu nie dekoduje w pętli). */
+export const decodeStats = { decodes: 0 };
+
 /** @param {Buffer | Uint8Array} input */
-const decoder = (input) =>
-  sharp(input, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "error", sequentialRead: true });
+const decoder = (input) => {
+  decodeStats.decodes += 1;
+  return sharp(input, {
+    limitInputPixels: MAX_INPUT_PIXELS,
+    failOn: "error",
+    sequentialRead: true,
+  });
+};
 
 /**
+ * Potwierdza format i liczbę stron według libvips (obrona na wypadek rozjazdu z własnym
+ * rozpoznaniem typu po zawartości).
+ * @param {{ format?: string, pages?: number }} metadata
+ */
+export function assertSupportedMetadata(metadata) {
+  if (metadata.format !== "jpeg" && metadata.format !== "png") {
+    throw new PipelineError("unsupported_type");
+  }
+  if ((metadata.pages ?? 1) > 1) throw new PipelineError("processing_failed");
+}
+
+/**
+ * Dekoduje wejście jeden raz: obrót według EXIF, sRGB i zmniejszenie do dłuższego boku
+ * `MAIN_LONG_SIDE`; wynik to surowe piksele, z których pętla budżetu tylko koduje WebP.
  * @param {Buffer | Uint8Array} input
+ */
+async function decodeOnce(input) {
+  const { data, info } = await decoder(input)
+    .rotate()
+    .toColourspace("srgb")
+    .resize({
+      width: MAIN_LONG_SIDE,
+      height: MAIN_LONG_SIDE,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  return { data, raw: { width: info.width, height: info.height, channels: info.channels } };
+}
+
+/**
+ * @param {{ data: Buffer, raw: { width: number, height: number, channels: import("sharp").Channels } }} decoded
  * @param {number} longSide
  * @param {number} quality
  */
-async function encodeMain(input, longSide, quality) {
-  return decoder(input)
-    .rotate()
-    .toColourspace("srgb")
+async function encodeMain(decoded, longSide, quality) {
+  return sharp(decoded.data, { raw: decoded.raw })
     .resize({ width: longSide, height: longSide, fit: "inside", withoutEnlargement: true })
     .webp({ quality })
     .toBuffer({ resolveWithObject: true });
 }
 
 /**
- * @param {Buffer | Uint8Array} input
+ * @param {Parameters<typeof encodeMain>[0]} decoded
  * @param {number} startQuality
  * @param {number} longSide
  */
-async function encodeWithinBudget(input, startQuality, longSide) {
+async function encodeWithinBudget(decoded, startQuality, longSide) {
   for (let quality = startQuality; quality >= MIN_QUALITY; quality -= QUALITY_STEP) {
-    const result = await encodeMain(input, longSide, quality);
+    const result = await encodeMain(decoded, longSide, quality);
     if (result.data.length <= MAX_MAIN_BYTES) return { ...result, quality };
   }
   return null;
@@ -73,14 +112,15 @@ async function encodeWithinBudget(input, startQuality, longSide) {
  * @param {number} longestSide dłuższy bok wejścia
  */
 async function encodeMainFile(input, longestSide) {
+  const decoded = await decodeOnce(input);
   let current = Math.min(MAIN_LONG_SIDE, longestSide);
-  const first = await encodeWithinBudget(input, START_QUALITY, MAIN_LONG_SIDE);
+  const first = await encodeWithinBudget(decoded, START_QUALITY, MAIN_LONG_SIDE);
   if (first) return first;
   for (;;) {
     const next = Math.max(MIN_LONG_SIDE, Math.floor(current * SHRINK_FACTOR));
     if (next >= current) throw new PipelineError("too_complex");
     current = next;
-    const result = await encodeWithinBudget(input, RESHRINK_QUALITY, current);
+    const result = await encodeWithinBudget(decoded, RESHRINK_QUALITY, current);
     if (result) return result;
   }
 }
@@ -118,6 +158,7 @@ export async function processImage(input, options = {}) {
   if (type === "apng") throw new PipelineError("animated_png");
   try {
     const metadata = await decoder(input).metadata();
+    assertSupportedMetadata(metadata);
     const rawWidth = metadata.width ?? 0;
     const rawHeight = metadata.height ?? 0;
     const swapped = (metadata.orientation ?? 1) >= 5;

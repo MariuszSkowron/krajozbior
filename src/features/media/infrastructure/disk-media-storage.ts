@@ -35,19 +35,38 @@ export class DiskMediaStorage implements MediaStorage {
     if (files.og) entries.push(["og", files.og]);
     await mkdir(this.tmpDirectory, { recursive: true, mode: DIRECTORY_MODE });
     await mkdir(this.inside(mediaDirectory(kind, key)), { recursive: true, mode: DIRECTORY_MODE });
-    const staged: { tmp: string; target: string }[] = [];
+    const staged: { tmp: string; target: string; backup?: string; placed: boolean }[] = [];
     try {
+      // 1. Komplet do plików tymczasowych; cel może istnieć tylko jako zwykły plik.
       for (const [variant, bytes] of entries) {
         const tmp = join(this.tmpDirectory, `${randomUUID()}.tmp`);
-        staged.push({ tmp, target: this.inside(mediaFilePath(kind, key, variant)) });
+        const target = this.inside(mediaFilePath(kind, key, variant));
+        staged.push({ tmp, target, placed: false });
         await writeSynced(tmp, bytes);
+        const existing = await stat(target).catch(() => undefined);
+        if (existing && !existing.isFile()) throw new Error("Cel zapisu nie jest plikiem.");
       }
-      for (const { tmp, target } of staged) await rename(tmp, target);
+      // 2. Podmiana: stare pliki idą do kopii w tmp/, żeby błąd mógł je przywrócić.
+      for (const item of staged) {
+        if (await exists(item.target)) {
+          item.backup = join(this.tmpDirectory, `${randomUUID()}.bak`);
+          await rename(item.target, item.backup);
+        }
+        await rename(item.tmp, item.target);
+        item.placed = true;
+      }
+      await syncDirectory(dirname(staged[0].target));
     } catch (error) {
-      await Promise.all(staged.map(({ tmp }) => unlink(tmp).catch(() => undefined)));
-      await this.remove(kind, key);
+      for (const item of staged) {
+        await unlink(item.tmp).catch(() => undefined);
+        if (item.placed) await unlink(item.target).catch(() => undefined);
+        if (item.backup) await rename(item.backup, item.target).catch(() => undefined);
+      }
       throw error;
     }
+    await Promise.all(
+      staged.map(({ backup }) => (backup ? unlink(backup).catch(() => undefined) : undefined)),
+    );
   }
 
   async remove(kind: MediaKind, key: string): Promise<void> {
@@ -78,6 +97,25 @@ export class DiskMediaStorage implements MediaStorage {
       throw new Error("Ścieżka poza katalogiem zdjęć.");
     }
     return full;
+  }
+}
+
+async function exists(path: string): Promise<boolean> {
+  return (await stat(path).catch(() => undefined)) !== undefined;
+}
+
+/** `fsync` katalogu po `rename` (trwałość po zaniku zasilania); na Windows nie jest dostępny. */
+async function syncDirectory(path: string): Promise<void> {
+  if (process.platform === "win32") return;
+  try {
+    const handle = await open(path, "r");
+    try {
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+  } catch {
+    // Platforma albo system plików nie pozwala: trwałość katalogu to dodatek, nie warunek zapisu.
   }
 }
 

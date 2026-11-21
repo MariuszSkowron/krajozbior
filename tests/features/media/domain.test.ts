@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluateFreeSpace, parseMinFreePercent } from "@/features/media/domain/free-space";
+import {
+  checkFreeSpace,
+  evaluateFreeSpace,
+  parseMinFreePercent,
+} from "@/features/media/domain/free-space";
 import { detectImageType } from "@/features/media/domain/image-type";
 import {
   DEFAULT_MIN_FREE_PERCENT,
@@ -132,6 +136,15 @@ describe("strażnik wolnego miejsca", () => {
       ok: false,
       freePercent: 0,
     });
+  });
+
+  it("awaria odczytu miejsca (statfs) wstrzymuje wgrywanie zamiast je przepuścić", async () => {
+    const failing = async () => {
+      throw new Error("statfs padł");
+    };
+    expect(await checkFreeSpace(failing, 15)).toEqual({ ok: false, reason: "space_unreadable" });
+    const healthy = async () => ({ freeBytes: 50, totalBytes: 100 });
+    expect(await checkFreeSpace(healthy, 15)).toEqual({ ok: true, freePercent: 50 });
   });
 
   it("parsuje MEDIA_MIN_FREE_PERCENT z wartością domyślną 15", () => {

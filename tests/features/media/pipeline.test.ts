@@ -2,7 +2,12 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
 import { MAX_MAIN_BYTES, MAX_OG_BYTES } from "@/features/media/domain/limits";
-import { PipelineError, processImage } from "@/features/media/worker/pipeline.mjs";
+import {
+  assertSupportedMetadata,
+  decodeStats,
+  PipelineError,
+  processImage,
+} from "@/features/media/worker/pipeline.mjs";
 import {
   buildGrayPng,
   FAKE_AUTHOR,
@@ -170,6 +175,49 @@ describe("potok obróbki zdjęć (prawdziwy sharp)", () => {
       expect(og.format).toBe("jpeg");
       expect(Math.max(og.width ?? 0, og.height ?? 0)).toBe(1200);
       expect(result.og?.length).toBeLessThanOrEqual(MAX_OG_BYTES);
+    },
+    SLOW,
+  );
+
+  it(
+    "dekoduje wejście najwyżej dwa razy (metadane i jedno pełne), choć kodowań jest wiele",
+    async () => {
+      const input = await randomImage(1000, 750).png().toBuffer();
+      decodeStats.decodes = 0;
+      expect(await failureOf(input)).toBe("too_complex");
+      expect(decodeStats.decodes).toBeLessThanOrEqual(2);
+    },
+    SLOW,
+  );
+
+  it("potwierdza format i liczbę stron według libvips", () => {
+    expect(() => assertSupportedMetadata({ format: "jpeg" })).not.toThrow();
+    expect(() => assertSupportedMetadata({ format: "png", pages: 1 })).not.toThrow();
+    expect(() => assertSupportedMetadata({ format: "gif" })).toThrow(PipelineError);
+    expect(() => assertSupportedMetadata({})).toThrow(PipelineError);
+    expect(() => assertSupportedMetadata({ format: "png", pages: 3 })).toThrow(PipelineError);
+  });
+
+  it(
+    "usuwa profil ICC i metadane także z og:image (fikstura z profilem ICC)",
+    async () => {
+      const input = await noiseImage(1600, 1000, 10)
+        .withIccProfile("p3")
+        .withExif({ IFD0: { Copyright: FAKE_AUTHOR } })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+      const before = await sharp(input).metadata();
+      expect(before.icc).toBeDefined();
+      expect(before.exif).toBeDefined();
+      const result = await processImage(input, { ogJpeg: true });
+      expect(result.og).toBeDefined();
+      for (const file of [result.main, result.thumb, result.og as Buffer]) {
+        const metadata = await sharp(file).metadata();
+        expect(metadata.icc).toBeUndefined();
+        expect(metadata.exif).toBeUndefined();
+        expect(metadata.xmp).toBeUndefined();
+        expect(file.includes(FAKE_AUTHOR)).toBe(false);
+      }
     },
     SLOW,
   );

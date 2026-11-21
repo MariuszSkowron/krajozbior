@@ -1,10 +1,11 @@
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { MAX_INPUT_BYTES } from "@/features/media/domain/limits";
 import { MediaProcessingError } from "@/features/media/domain/processing-error";
 import {
   defaultWorkerPath,
@@ -133,6 +134,57 @@ describe("proces potomny obróbki zdjęć", () => {
     ).toBe("processing_failed");
   });
 
+  it("przyjmuje poprawną odpowiedź procesu potomnego (kontrola kształtu przepuszcza dobre dane)", async () => {
+    const result = await runImageWorker({
+      inputPath: "x",
+      workerPath: worker("fake-result.mjs"),
+      env: { FAKE_MODE: "good" },
+    });
+    expect([result.width, result.height, result.quality]).toEqual([100, 80, 80]);
+    expect(result.main.length).toBe(10);
+  });
+
+  it.each([
+    "extra-field",
+    "extra-top",
+    "oversize",
+    "og-oversize",
+    "text-main",
+    "bad-width",
+    "huge-width",
+    "bad-quality",
+    "no-result",
+    "array",
+  ])("odrzuca odpowiedź procesu potomnego łamiącą kontrakt (%s)", async (mode) => {
+    expect(
+      await codeOf(
+        runImageWorker({
+          inputPath: "x",
+          workerPath: worker("fake-result.mjs"),
+          env: { FAKE_MODE: mode },
+        }),
+      ),
+    ).toBe("processing_failed");
+  });
+
+  it("odrzuca za duże wejście po stronie rodzica, bez zapisu na dysk i bez procesu", async () => {
+    const huge = new Uint8Array(MAX_INPUT_BYTES + 1);
+    huge.set([0xff, 0xd8, 0xff]);
+    let spawned = false;
+    expect(
+      await codeOf(
+        processImageBytes(huge, {
+          tmpDirectory,
+          onSpawn: () => {
+            spawned = true;
+          },
+        }),
+      ),
+    ).toBe("processing_failed");
+    expect(spawned).toBe(false);
+    expect(await readdir(tmpDirectory)).toEqual([]);
+  });
+
   it("proces potomny nie dziedziczy środowiska rodzica (brak sekretów)", async () => {
     const names = ["FAKE_ENV_VALUE", "DATABASE_URL", "SESSION_PASSPHRASE", "NODE_OPTIONS"];
     const saved = names.map((name) => process.env[name]);
@@ -141,10 +193,12 @@ describe("proces potomny obróbki zdjęć", () => {
     process.env.SESSION_PASSPHRASE = "fikcyjne";
     process.env.NODE_OPTIONS = "--max-old-space-size=512";
     try {
-      const result = (await runImageWorker({
-        inputPath: "x",
-        workerPath: worker("env-dump.mjs"),
-      })) as unknown as { envKeys: string[]; execArgv: string[] };
+      const dumpPath = join(tmpDirectory, "env.json");
+      await runImageWorker({ inputPath: dumpPath, workerPath: worker("env-dump.mjs") });
+      const result = JSON.parse(await readFile(dumpPath, "utf8")) as {
+        envKeys: string[];
+        execArgv: string[];
+      };
       for (const name of names) expect(result.envKeys).not.toContain(name);
       // Dozwolone jest tylko to, co dopisuje sam system Windows (ścieżki profilu, nie sekrety).
       const systemOwned = new Set(
@@ -176,11 +230,13 @@ describe("proces potomny obróbki zdjęć", () => {
   });
 
   it("przekazuje tylko jawnie podane zmienne środowiska", async () => {
-    const result = (await runImageWorker({
-      inputPath: "x",
+    const dumpPath = join(tmpDirectory, "env.json");
+    await runImageWorker({
+      inputPath: dumpPath,
       workerPath: worker("env-dump.mjs"),
       env: { FAKE_ENV_VALUE: "jawnie" },
-    })) as unknown as { envKeys: string[] };
+    });
+    const result = JSON.parse(await readFile(dumpPath, "utf8")) as { envKeys: string[] };
     expect(result.envKeys).toContain("FAKE_ENV_VALUE");
   });
 });

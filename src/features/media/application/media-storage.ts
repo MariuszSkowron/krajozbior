@@ -15,6 +15,9 @@ export interface MediaStorage {
   /** Usuwa katalog zdjęcia; brak katalogu nie jest błędem. */
   remove(kind: MediaKind, key: string): Promise<void>;
   exists(kind: MediaKind, key: string, variant: MediaVariant): Promise<boolean>;
-  /** Wolne i całkowite miejsce na wolumenie zdjęć (strażnik z 5.7). */
+  /**
+   * Wolne i całkowite miejsce na wolumenie zdjęć (strażnik z 5.7). Może rzucić wyjątek; wywołujący
+   * używa `checkFreeSpace`, który zamienia awarię odczytu na wstrzymanie (`space_unreadable`).
+   */
   diskSpace(): Promise<DiskSpace>;
 }
