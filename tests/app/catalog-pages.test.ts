@@ -72,6 +72,7 @@ const place = {
   visitRadiusM: 200,
   organization: { name: "Gmina A", slug: "gmina-a" },
   collections: [{ slug: "kolekcja-a1b2c3", title: "Wieże Tczewa" }],
+  source: null,
 };
 
 // Each case uses its own address: the pages read through React's per-request cache.
@@ -205,6 +206,73 @@ describe("public catalog pages", () => {
     expect(
       await placePage.generateMetadata({ params: Promise.resolve({ placeId: next() }) }),
     ).toEqual({ title: "Most Tczewski — Krajozbiór" });
+  });
+
+  describe("the sources line of a place page", () => {
+    const render = async () =>
+      renderToStaticMarkup(
+        await placePage.default({ params: Promise.resolve({ placeId: next() }) }),
+      );
+
+    it("shows the signature, the licence page and the links when the place has sources", async () => {
+      mocks.place.mockResolvedValue({
+        status: "ok",
+        value: {
+          ...place,
+          source: {
+            attribution: "Źródło testowe A (CC BY 4.0)",
+            wikipediaUrl: "https://pl.wikipedia.org/wiki/Most_Tczewski",
+            wikidataQid: "Q123",
+          },
+        },
+      });
+
+      const html = await render();
+
+      expect(html).toContain("Źródło testowe A (CC BY 4.0)");
+      expect(html).toContain('href="/zrodla"');
+      expect(html).toContain('href="https://pl.wikipedia.org/wiki/Most_Tczewski"');
+      expect(html).toContain('href="https://www.wikidata.org/wiki/Q123"');
+    });
+
+    it("leaves out the links the place does not have", async () => {
+      mocks.place.mockResolvedValue({
+        status: "ok",
+        value: {
+          ...place,
+          source: { attribution: "Dane własne", wikipediaUrl: null, wikidataQid: null },
+        },
+      });
+
+      const html = await render();
+
+      expect(html).toContain("Dane własne");
+      expect(html).not.toContain("Więcej w Wikipedii");
+      expect(html).not.toContain("Wikidanych");
+    });
+
+    it("renders no empty list when the place has neither link", async () => {
+      const { PlaceSources } = await import("@/app/places/[placeId]/place-sources");
+      const source = { attribution: "Dane własne", wikipediaUrl: null, wikidataQid: null };
+
+      expect(renderToStaticMarkup(createElement(PlaceSources, { source }))).not.toContain("<ul");
+    });
+
+    it("takes the heading level from the place it is shown in", async () => {
+      const { PlaceSources } = await import("@/app/places/[placeId]/place-sources");
+      const source = { attribution: "Dane własne", wikipediaUrl: null, wikidataQid: null };
+
+      expect(renderToStaticMarkup(createElement(PlaceSources, { source }))).toContain("<h2");
+      expect(
+        renderToStaticMarkup(createElement(PlaceSources, { source, headingLevel: 3 })),
+      ).toContain("<h3");
+    });
+
+    it("shows no sources section for a place without a source row", async () => {
+      mocks.place.mockResolvedValue({ status: "ok", value: place });
+
+      expect(await render()).not.toContain("Licencje i szczegóły");
+    });
   });
 
   describe("the visit part of a place page", () => {

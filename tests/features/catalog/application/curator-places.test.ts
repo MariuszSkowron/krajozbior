@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { CatalogDeps } from "@/features/catalog/application/catalog-types";
-import { addPlace, removePlaceFromCollection } from "@/features/catalog/application/curator-places";
+import {
+  addPlace,
+  removePlaceFromCollection,
+  updatePlace,
+} from "@/features/catalog/application/curator-places";
 
 // The rule "a published collection keeps at least one place" without a database.
 const actor = { id: "11111111-1111-4111-8111-111111111111", role: "user" as const };
@@ -70,6 +74,77 @@ describe("addPlace and the limit of places in one collection", () => {
       value: { placeId: placeA, position: 500 },
     });
     expect(linkPlace).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("updatePlace and the way the description was written", () => {
+  const stored = {
+    id: placeA,
+    organizationId: "org",
+    name: "Zamek",
+    description: "Opis z pliku.",
+    address: "",
+    accessInfo: "",
+    latitude: 54.1,
+    longitude: 18.7,
+    visitRadiusM: 200,
+    version: 3,
+  };
+
+  function setupUpdate(updated: typeof stored | null) {
+    const markDescriptionCurated = vi.fn(async () => undefined);
+    const deps = {
+      withUserContext: (_who: unknown, work: (tx: unknown) => Promise<unknown>) => work({}),
+      limiter: { reserve: async () => ({ allowed: true }) },
+      repository: {
+        permittedOrganizationIds: async () => ["org"],
+        findEditablePlace: async () => stored,
+        updatePlace: async () => updated,
+        markDescriptionCurated,
+      },
+    } as unknown as CatalogDeps;
+
+    return { deps, markDescriptionCurated };
+  }
+
+  it("marks the description as written by a curator when the description changed", async () => {
+    const { deps, markDescriptionCurated } = setupUpdate({ ...stored, version: 4 });
+
+    const result = await updatePlace(
+      actor,
+      placeA,
+      { description: "Poprawiony opis.", version: 3 },
+      deps,
+    );
+
+    expect(result.status).toBe("ok");
+    expect(markDescriptionCurated).toHaveBeenCalledWith({}, placeA);
+  });
+
+  it("leaves the mark alone when only another field changed", async () => {
+    const { deps, markDescriptionCurated } = setupUpdate({ ...stored, version: 4 });
+
+    const result = await updatePlace(
+      actor,
+      placeA,
+      { name: "Zamek w Krasiczynie", version: 3 },
+      deps,
+    );
+
+    expect(result.status).toBe("ok");
+    expect(markDescriptionCurated).not.toHaveBeenCalled();
+  });
+
+  it("does not mark anything when the save lost the race for the version", async () => {
+    const { deps, markDescriptionCurated } = setupUpdate(null);
+
+    expect(
+      await updatePlace(actor, placeA, { description: "Inny opis.", version: 3 }, deps),
+    ).toEqual({
+      status: "conflict",
+      reason: "stale_version",
+    });
+    expect(markDescriptionCurated).not.toHaveBeenCalled();
   });
 });
 

@@ -115,6 +115,17 @@ export type PublishedPlace = Readonly<{
   visitRadiusM: number;
   organization: Readonly<{ name: string; slug: string }>;
   collections: readonly Readonly<{ slug: string; title: string }>[];
+  /** Only a place made from a loaded file has one (`place_sources`); other places keep `null`. */
+  source: PublishedPlaceSource | null;
+}>;
+
+export type PublishedPlaceSource = Readonly<{
+  /** "Label (licence); …": the signature of the data the place was made from. */
+  attribution: string;
+  /** Article in the Polish Wikipedia, when the place has one. */
+  wikipediaUrl: string | null;
+  /** Element of Wikidata (`Q123`), when the place has one. */
+  wikidataQid: string | null;
 }>;
 
 export type CollectionChanges = Partial<CollectionInput>;
@@ -203,6 +214,11 @@ export interface CatalogRepository {
     version: number,
     values: PlaceInput,
   ): Promise<PlaceRow | null>;
+  /**
+   * After a curator changed the description: the source row of the place (if it has one)
+   * says the description was written by a person (`curator`).
+   */
+  markDescriptionCurated(tx: TransactionContext, placeId: string): Promise<void>;
   /** `false` when the place is already in the collection. */
   linkPlace(
     tx: TransactionContext,
