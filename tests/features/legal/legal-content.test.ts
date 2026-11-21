@@ -32,25 +32,12 @@ function inlinesOf(blocks: readonly Block[]): Inline[] {
 // the password comes off the service (spec 5.4a, docs/deployment.md).
 const OPEN_LEGAL_MARKERS: readonly Readonly<{ marker: string; owner: string }>[] = [
   {
-    marker: "polityka-prywatnosci: [DO UZUPEŁNIENIA: adres z umowy powierzenia]",
-    owner: "właściciel, z umowy powierzenia Brevo (D-41 pkt 2)",
-  },
-  {
     marker: "polityka-prywatnosci: [DO UZUPEŁNIENIA: potwierdzić w panelu Brevo]",
     owner: "właściciel, z panelu Brevo (D-41 pkt 2)",
   },
   {
-    marker: "polityka-prywatnosci: [DO UZUPEŁNIENIA: dostawca skrzynki kontakt@mariuszskowron.pl]",
-    owner: "właściciel (D-41 pkt 2)",
-  },
-  {
     marker: "polityka-prywatnosci: [DO UZUPEŁNIENIA: państwa i zabezpieczenia]",
     owner: "z publicznej polityki prywatności OpenStreetMap Foundation, po sprawdzeniu źródła",
-  },
-  {
-    marker:
-      "polityka-prywatnosci: [DO UZUPEŁNIENIA: czy podwykonawcy Brevo przetwarzają dane poza EOG i na jakiej podstawie]",
-    owner: "właściciel, z umowy powierzenia Brevo (D-41 pkt 2)",
   },
   {
     marker: "regulamin: [DO UZUPEŁNIENIA: data pierwszego wdrożenia]",

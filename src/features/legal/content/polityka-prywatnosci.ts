@@ -1,7 +1,7 @@
 // Polityka prywatności: tekst publiczny, przeniesiony z roboczej wersji 0.2 (19 listopada 2026 r.)
 // bez zmian merytorycznych. Wartości z E11-Q12 (okresy przechowywania, czas sesji) są wpisane;
-// miejsca z napisem „DO UZUPEŁNIENIA” czekają na dane od właściciela (umowa Brevo,
-// dostawca skrzynki), a test w tests/features/legal/legal-content.test.ts pilnuje, żeby
+// miejsca z napisem „DO UZUPEŁNIENIA” czekają na dane od właściciela (śledzenie w panelu
+// Brevo, państwa OpenStreetMap), a test w tests/features/legal/legal-content.test.ts pilnuje, żeby
 // żadne nie trafiło do ruchu publicznego.
 export const POLITYKA_PRYWATNOSCI = `
 ## 1. Kto odpowiada za Twoje dane
@@ -72,8 +72,8 @@ Jeśli przetwarzamy dane na podstawie naszego prawnie uzasadnionego interesu, mo
 - **Administrator serwisu** ma dostęp do danych w zakresie potrzebnym do utrzymania serwisu, moderacji i rozpatrywania zgłoszeń.
 - **Firmy przetwarzające dane na nasze zlecenie** (podmioty przetwarzające) na podstawie umowy powierzenia:
   - netcup GmbH, Daimlerstraße 25, 76185 Karlsruhe, Niemcy — serwer: baza danych, zdjęcia i kopie zapasowe w centrum danych w Norymberdze;
-  - Brevo (Sendinblue SAS), Francja [DO UZUPEŁNIENIA: adres z umowy powierzenia] — wysyłka e-maili z kodami logowania i innych wiadomości dotyczących konta. Wyłączamy w nim śledzenie otwarć wiadomości i kliknięć w linki [DO UZUPEŁNIENIA: potwierdzić w panelu Brevo];
-  - [DO UZUPEŁNIENIA: dostawca skrzynki kontakt@mariuszskowron.pl].
+  - Brevo SAS, 17 rue Salneuve, 75017 Paryż, Francja — wysyłka e-maili z kodami logowania i innych wiadomości dotyczących konta. Wyłączamy w nim śledzenie otwarć wiadomości i kliknięć w linki [DO UZUPEŁNIENIA: potwierdzić w panelu Brevo];
+  - Hostido.pl Gałązka spółka jawna, ul. Kartuska 5, 80-103 Gdańsk — obsługa skrzynki pocztowej kontakt@mariuszskowron.pl, na którą przychodzą wiadomości od Ciebie.
 - **Organy publiczne**, jeśli zażądają danych na podstawie przepisów prawa.
 
 Nie sprzedajemy Twoich danych i nie przekazujemy ich do celów reklamowych.
@@ -90,7 +90,10 @@ Jeśli nie chcesz przekazywać tych danych, nie wybieraj widoku „Mapa”; list
 
 ## 8. Przekazywanie danych poza Europejski Obszar Gospodarczy
 
-Nasz serwer i kopie zapasowe znajdują się w Niemczech. Poza Europejski Obszar Gospodarczy dane mogą trafić w sytuacji opisanej w punkcie 7. [DO UZUPEŁNIENIA: czy podwykonawcy Brevo przetwarzają dane poza EOG i na jakiej podstawie]
+Nasz serwer i kopie zapasowe znajdują się w Niemczech. Poza Europejski Obszar Gospodarczy dane mogą trafić w dwóch sytuacjach:
+
+- gdy wybierzesz widok „Mapa” (punkt 7);
+- przy wysyłce e-maili: Brevo korzysta z podwykonawców, z których część ma siedzibę lub serwery w Stanach Zjednoczonych (np. Cloudflare — ochrona i przyspieszanie ruchu sieciowego, Zendesk — obsługa zgłoszeń). Podstawą przekazania jest decyzja Komisji Europejskiej o odpowiednim stopniu ochrony danych w ramach EU-US Data Privacy Framework (wobec firm, które do niego przystąpiły) oraz standardowe klauzule umowne zatwierdzone przez Komisję Europejską. Aktualną listę podwykonawców Brevo podaje w swojej umowie powierzenia (załącznik do regulaminu Brevo): <https://www.brevo.com/legal/termsofuse/>.
 
 ## 9. Jak długo przechowujemy dane
 
