@@ -17,6 +17,11 @@
 #                     (catalog:import --dry-run), the owner answers tak/nie, then the load of
 #                     drafts. The file travels in the payload (base64 + SHA-256), lives on the
 #                     server only for one command and is mounted read-only into `ops`.
+#   -Mode zdjecia     photos from Wikimedia Commons (spec 5.11.5, E4-2z): `photos:fetch` in the
+#                     `ops` container (volume krajozbior-media), optional -PhotoLimit,
+#                     -PhotoRetryFailed, -PhotoRefetchMissing. One connection, only the `ops`
+#                     role password in the payload, no question (the command only adds files for
+#                     rows already in the database and can be repeated).
 #
 # -Target showcase (default: server) is the agent's rehearsal on the local showcase: modes
 # initial and commit only, without -SecretsDir and -RepoUrl. It hands over to
@@ -31,7 +36,7 @@
 param(
   [string]$SecretsDir = '',
   [Parameter(Mandatory = $true)]
-  [ValidateSet('bootstrap', 'initial', 'commit', 'admin', 'diagnoza', 'otworz', 'odtworz', 'import')]
+  [ValidateSet('bootstrap', 'initial', 'commit', 'admin', 'diagnoza', 'otworz', 'odtworz', 'import', 'zdjecia')]
   [string]$Mode,
   [Parameter(Mandatory = $true)][string]$Sha,
   [string]$RepoUrl = '',
@@ -39,7 +44,10 @@ param(
   [string]$ShowcaseProject = 'krajozbior-showcase',
   [int]$ShowcasePort = 3300,
   [string]$ImportFile = '',
-  [string]$OrgSlug = ''
+  [string]$OrgSlug = '',
+  [int]$PhotoLimit = 0,
+  [switch]$PhotoRetryFailed,
+  [switch]$PhotoRefetchMissing
 )
 
 Set-StrictMode -Version Latest
@@ -77,6 +85,10 @@ if ($Mode -eq 'import' -and -not $ImportFile) {
     'odswiez ja (new-deploy-secrets.ps1 -OdswiezWdroz, docs/deployment.md "Wgrywanie kolekcji"). Nic nie zrobiono.')
 }
 if ($Mode -ne 'import' -and ($ImportFile -or $OrgSlug)) { throw '-ImportFile i -OrgSlug dzialaja tylko w trybie import.' }
+if ($Mode -ne 'zdjecia' -and ($PhotoLimit -ne 0 -or $PhotoRetryFailed -or $PhotoRefetchMissing)) {
+  throw '-PhotoLimit, -PhotoRetryFailed i -PhotoRefetchMissing dzialaja tylko w trybie zdjecia.'
+}
+if ($PhotoLimit -ne 0 -and -not (Test-PhotoLimit $PhotoLimit)) { throw '-PhotoLimit musi byc liczba od 1 do 5000.' }
 if (-not (Test-CommitSha $Sha)) { throw 'Nieprawidlowy commit (oczekiwane 40 znakow 0-9a-f).' }
 if ($RepoUrl -notmatch '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?(\.git)?$') {
   throw 'Adres repozytorium musi byc publicznym adresem https://github.com/...'
@@ -223,8 +235,19 @@ switch ($Mode) {
     # In the payload only (base64), masked in the report; never written to the report.
     Add-Secret 'KZ_CURATOR_EMAIL' $curator
   }
+  'zdjecia' {
+    # The command's own limits stay in force (default --limit, space check); nothing from the
+    # owner's computer reaches the server except these three numbers and switches.
+    if ($PhotoLimit -ne 0) { $plain.KZ_PHOTO_LIMIT = [string]$PhotoLimit }
+    if ($PhotoRetryFailed) { $plain.KZ_PHOTO_RETRY_FAILED = '1' }
+    if ($PhotoRefetchMissing) { $plain.KZ_PHOTO_REFETCH_MISSING = '1' }
+    $plain.KZ_REASON = New-PhotosReason
+    # The ops password only (photos:fetch writes as krajozbior_ops): no owner password.
+    $vault = Open-Vault
+    Add-Secret 'KZ_OPS_PW' $vault.Ops
+  }
   'odtworz' {
-    $key = (Read-Secret 'Klucz kopii (AGE-SECRET-KEY-1..., z menedzera hasel albo wydruku)').Trim()
+    $key =(Read-Secret 'Klucz kopii (AGE-SECRET-KEY-1..., z menedzera hasel albo wydruku)').Trim()
     if (-not (Test-AgeSecretKey $key)) { throw 'To nie wyglada na klucz kopii (AGE-SECRET-KEY-1 + 58 znakow).' }
     Add-Secret 'KZ_RESTORE_KEY' $key
   }
@@ -274,6 +297,13 @@ function Invoke-RemoteConnection {
         if ($summary.StartsWith('Wgrane czesciowo')) { $script:importPartial = $true }
       }
     }
+    if ($Mode -eq 'zdjecia') {
+      $summary = Format-PhotosSummary $safe
+      if ($summary) {
+        Write-Say (Write-Report "podsumowanie: $summary") 'Cyan'
+        if ($summary -match 'Zostalo do pobrania: [1-9]') { $script:photosRemaining = $true }
+      }
+    }
   }
   $process.WaitForExit()
   return $process.ExitCode
@@ -281,6 +311,7 @@ function Invoke-RemoteConnection {
 
 $importResult = ''
 $importPartial = $false
+$photosRemaining = $false
 if ($Mode -eq 'import') {
   $flow = Invoke-ImportFlow {
     param($phase)
@@ -317,6 +348,13 @@ if ($code -eq 0 -and $importResult -eq 'declined') {
   }
   if ($Mode -eq 'import') {
     Write-Say 'Szkice sa na serwerze. Obejrzyj je w panelu kuratora; publikujesz je sam, gdy beda gotowe.'
+  }
+  if ($Mode -eq 'zdjecia') {
+    if ($photosRemaining) {
+      Write-Say 'Czesc zdjec czeka jeszcze na pobranie. To nie blad: uruchom to samo polecenie ponownie (-Zdjecia).' 'Yellow'
+    } else {
+      Write-Say 'Zdjecia sa na serwerze. Jesli ktores sie nie pobraly, powody sa w podsumowaniu wyzej (-PonowBledy ponowi nieudane).'
+    }
   }
 } else {
   Write-Say ''

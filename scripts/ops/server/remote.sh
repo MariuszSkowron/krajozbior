@@ -12,6 +12,8 @@
 #   import    collection file (spec 5.6, F-K6): KZ_IMPORT_PHASE=preview runs catalog:import
 #             --dry-run, apply loads drafts; the file comes in the payload and lives in a
 #             one-time folder under imports/ only for that one command
+#   zdjecia   photos from Wikimedia Commons (spec 5.11.5, E4-2z): `photos:fetch` in the `ops`
+#             container (only the ops role password in the payload), repeatable
 # Keep this file ASCII-only.
 
 kz_require_deploy() {
@@ -402,6 +404,44 @@ kz_mode_import() {
   esac
 }
 
+# --- zdjecia (spec 5.11.5, E4-2z) ---------------------------------------------------------
+
+# The running version must have the command and the photo volume of the `ops` service (it is the
+# code of the running version, no checkout here), so an older deployment refuses before anything runs.
+kz_require_photos_support() {
+  grep -q '"photos:fetch"' "$KZ_SRC/package.json" 2>/dev/null ||
+    kz_fail "dzialajaca wersja nie ma polecenia photos:fetch. Najpierw wdroz commit z E4-2a (-Commit <sha>); nic nie pobrano"
+  grep -q 'MEDIA_ROOT' "$KZ_SRC/deploy/compose.yaml" 2>/dev/null ||
+    kz_fail "dzialajaca wersja nie ma wolumenu zdjec (E4-0b1). Najpierw wdroz commit z wolumenem (-Commit <sha>); nic nie pobrano"
+}
+
+kz_photos_check_inputs() {
+  [ -n "${KZ_REASON:-}" ] || kz_fail "brak powodu do dziennika operacji; nic nie pobrano"
+  if [ -n "${KZ_PHOTO_LIMIT:-}" ]; then
+    [[ "$KZ_PHOTO_LIMIT" =~ ^[0-9]{1,4}$ ]] && [ "$KZ_PHOTO_LIMIT" -ge 1 ] && [ "$KZ_PHOTO_LIMIT" -le 5000 ] ||
+      kz_fail "nieprawidlowy limit zdjec (1-5000); nic nie pobrano"
+  fi
+}
+
+kz_mode_zdjecia() {
+  kz_require_initialized
+  kz_require_photos_support
+  kz_photos_check_inputs
+  local -a args=(--operator wlasciciel --reason "$KZ_REASON")
+  [ -z "${KZ_PHOTO_LIMIT:-}" ] || args+=(--limit "$KZ_PHOTO_LIMIT")
+  [ "${KZ_PHOTO_RETRY_FAILED:-}" != "1" ] || args+=(--retry-failed)
+  [ "${KZ_PHOTO_REFETCH_MISSING:-}" != "1" ] || args+=(--refetch-missing)
+  kz_step "pobieranie zdjec z Wikimedia Commons (wpis w dzienniku operacji; moze potrwac kilka minut)"
+  local status=0
+  kz_ops photos:fetch -- "${args[@]}" || status=$?
+  case "$status" in
+    0) kz_step "GOTOWE: pobieranie zakonczone (liczby w podsumowaniu)" ;;
+    2) kz_fail "bledne argumenty polecenia (kod 2); nic nie pobrano" ;;
+    3) kz_fail "poprzednie pobieranie jeszcze trwa (kod 3); poczekaj kilka minut i uruchom ponownie" ;;
+    *) kz_fail "pobieranie nieudane (kod $status); pobrane wczesniej zdjecia zostaja, to samo polecenie mozna powtorzyc" ;;
+  esac
+}
+
 kz_main() {
   trap kz_cleanup EXIT
   kz_require_deploy
@@ -413,6 +453,7 @@ kz_main() {
     otworz) kz_mode_otworz ;;
     odtworz) kz_mode_odtworz ;;
     import) kz_mode_import ;;
+    zdjecia) kz_mode_zdjecia ;;
     *) kz_fail "nieznany tryb: $KZ_MODE" ;;
   esac
 }
