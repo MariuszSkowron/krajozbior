@@ -38,6 +38,7 @@ const discover = [
     region: "pomorskie",
     organization: { name: "Gmina A" },
     placeCount: 3,
+    cover: null,
   },
 ];
 

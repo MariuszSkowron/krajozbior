@@ -59,6 +59,7 @@ const collection = {
   ],
   placeCount: 1,
   contentUpdatedAt: new Date("2026-11-18T10:00:00Z"),
+  cover: null,
 };
 
 const place = {

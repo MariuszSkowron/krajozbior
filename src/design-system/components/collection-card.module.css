@@ -35,12 +35,21 @@
 /* Okładka zastępcza: gradient z dwóch kolorów zastępczych obrazu. */
 .cover {
   display: block;
+  overflow: hidden;
   aspect-ratio: 16 / 7;
   background: linear-gradient(
     135deg,
     var(--color-image-placeholder),
     var(--color-image-placeholder-alt)
   );
+}
+
+/* Zdjęcie okładki wypełnia pole 16:7 (przycięcie tylko w wyświetlaniu; plik zostaje cały). */
+.coverImage {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
 }
 
 .body {

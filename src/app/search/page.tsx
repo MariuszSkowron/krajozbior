@@ -12,6 +12,7 @@ import {
   searchPublicCatalog,
 } from "@/features/catalog/application/public-search";
 import { REGION_LABELS, type Region } from "@/features/catalog/domain/collection";
+import { cardCoverImage } from "@/features/catalog/domain/collection-cover";
 import { MAX_COLLECTIONS_PER_LIST } from "@/features/catalog/domain/limits";
 import { formatPlaceCount } from "@/features/catalog/domain/place-count";
 import {
@@ -72,6 +73,7 @@ function CollectionResults({
             href={`/collections/${collection.slug}`}
             title={collection.title}
             regionLabel={REGION_LABELS[collection.region]}
+            cover={cardCoverImage(collection.cover)}
           />
           <p className={home.cardNote}>
             {formatPlaceCount(collection.placeCount)} · {collection.organization.name}
