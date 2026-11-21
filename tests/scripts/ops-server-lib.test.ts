@@ -837,6 +837,60 @@ exit 0
   }
 });
 
+// The hourly resource check (health-report.sh) with stubbed df, docker and journalctl: the
+// application log of the last hour is a sample file. Memory comes from the real /proc/meminfo
+// (Git Bash has no MemAvailable), so only the text of the report is asserted, not the exit code.
+describe("hourly resource check: daily pool of sign-in codes (health-report.sh)", () => {
+  const DF = "printf 'Use%%\\n 10%%\\n'\n";
+  const DOCKER = "printf true\n";
+  const JOURNALCTL = 'cat "$JOURNAL_SAMPLE"\n';
+  const ALARM_TEXT = "pula dziennych kodow logowania";
+
+  function runReport(journal: string): string {
+    const box = sandbox(ENV_PRODUCTION.replace("https://krajozbior.example", ""));
+    const sample = join(box.root, "journal.log");
+
+    writeFileSync(sample, journal);
+    const result = spawnSync(bash ?? "bash", ["-c", `${WITH_STUBS} bash "$KZ_REPORT"`], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        KZ_ROOT: box.root,
+        KZ_RUN: box.run,
+        KZ_REPORT: join(SERVER_DIR, "health-report.sh").replaceAll("\\", "/"),
+        JOURNAL_SAMPLE: sample,
+        STUB_BIN: stubBin({ df: DF, docker: DOCKER, journalctl: JOURNALCTL }),
+      },
+    });
+
+    return `${result.stdout}${result.stderr}`;
+  }
+
+  bashIt("raises an alarm when the application logged the 80% mark", () => {
+    const output = runReport(
+      `{"event":"auth.otp_global_limit_80","globalLimit":300}\n{"event":"other"}\n`,
+    );
+
+    expect(output).toContain("ALARM");
+    expect(output).toContain(ALARM_TEXT);
+    expect(output).toContain("alarm 1 razy");
+  });
+
+  bashIt("raises an alarm when the application logged the 100% mark too", () => {
+    const output = runReport(
+      `{"event":"auth.otp_global_limit_80","globalLimit":300}\n{"event":"auth.otp_global_limit_100","globalLimit":300}\n`,
+    );
+
+    expect(output).toContain("alarm 2 razy");
+  });
+
+  bashIt("says nothing about the pool when the log has no such event", () => {
+    const output = runReport(`{"event":"account.deleted"}\n`);
+
+    expect(output).not.toContain(ALARM_TEXT);
+  });
+});
+
 describe("small helpers", () => {
   bashIt("writes the Caddy gate with an exception for /api/health", () => {
     const result = runLib("kz_gate_content '$2a$14$abc'");

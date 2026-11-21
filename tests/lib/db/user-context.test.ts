@@ -1,9 +1,11 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
+import { DriverException } from "@mikro-orm/core";
 import type { EntityManager } from "@mikro-orm/postgresql";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DatabaseQueryError } from "@/lib/db/database-error";
 import {
   InvalidActorIdError,
   NestedUserContextError,
@@ -130,6 +132,53 @@ describe("runInGuestContext", () => {
 
 // The actor reaches PostgreSQL in one place only (issue #44): any other
 // set_config('app.user_id', ...) would bypass the nesting guard of the wrapper.
+describe("a database error leaving a context (production)", () => {
+  beforeEach(() => {
+    vi.stubEnv("NODE_ENV", "production");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const secret = "wartosc-uzytkownika-12345";
+  const failing = () =>
+    new DriverException(
+      Object.assign(new Error(`select 1 where note = '${secret}' - failed`), { code: "57014" }),
+    );
+
+  it("loses the query text and keeps the SQLSTATE, in the user and the guest context", async () => {
+    for (const run of [
+      (em: EntityManager) =>
+        runInUserContext(em, { id: actorId }, async () => {
+          throw failing();
+        }),
+      (em: EntityManager) =>
+        runInGuestContext(em, async () => {
+          throw failing();
+        }),
+    ]) {
+      const { em } = fakeEntityManager();
+      const error = await run(em).catch((caught: unknown) => caught as Error);
+
+      expect(error).toBeInstanceOf(DatabaseQueryError);
+      expect(String(error.stack)).not.toContain(secret);
+      expect((error as DatabaseQueryError).code).toBe("57014");
+    }
+  });
+
+  it("passes on an error of the work itself unchanged", async () => {
+    const { em } = fakeEntityManager();
+    const own = new RangeError("own");
+
+    await expect(
+      runInUserContext(em, { id: actorId }, async () => {
+        throw own;
+      }),
+    ).rejects.toBe(own);
+  });
+});
+
 describe("user context setting", () => {
   const sourceRoot = join(process.cwd(), "src");
   const files = (dir: string): string[] =>

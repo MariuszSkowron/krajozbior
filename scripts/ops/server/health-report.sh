@@ -3,7 +3,8 @@
 # Alarm (healthchecks.io "fail" on HC_HEALTH_URL, i.e. an e-mail to the owner) when: free disk
 # below 20%, available memory below 10%, a service is not running, the TLS certificate expires
 # in less than 14 days, or Brevo refused at least one e-mail in the last hour
-# (`email.brevo_rejected`), or the newest backup is older than 26 hours. Prints only counts and
+# (`email.brevo_rejected`), the daily pool of sign-in codes reached 80% or 100%
+# (`auth.otp_global_limit_*`), or the newest backup is older than 26 hours. Prints only counts and
 # names. Keep this file ASCII-only.
 set -euo pipefail
 # shellcheck source=lib.sh
@@ -43,6 +44,14 @@ fi
 rejected="$(journalctl CONTAINER_NAME="$KZ_PROJECT-app-1" --since '-1h' -o cat --no-pager 2>/dev/null |
   grep -c 'email.brevo_rejected' || true)"
 [ "${rejected:-0}" -eq 0 ] || problems+=("Brevo odmowilo $rejected razy w ostatniej godzinie")
+
+# The daily pool of sign-in codes reached 80% or 100% (`auth.otp_global_limit_80` and `_100`, logged
+# once each per day by the application). At 100% nobody new can sign in until midnight UTC, so the
+# owner learns about it from the e-mail; the check runs hourly, so an alarm logged earlier in the
+# same day shows up for one hour only.
+otp_alarms="$(journalctl CONTAINER_NAME="$KZ_PROJECT-app-1" --since '-1h' -o cat --no-pager 2>/dev/null |
+  grep -c 'auth\.otp_global_limit_' || true)"
+[ "${otp_alarms:-0}" -eq 0 ] || problems+=("pula dziennych kodow logowania wyczerpana w co najmniej 80% (alarm $otp_alarms razy w ostatniej godzinie)")
 
 if [ "${#problems[@]}" -eq 0 ]; then
   kz_step "zasoby w porzadku (dysk ${used}%, pamiec wolna ${mem}%)"

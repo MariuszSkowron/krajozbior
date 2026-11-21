@@ -181,6 +181,18 @@ describe("server configuration (deploy/compose.yaml)", () => {
     expect(read("deploy/Caddyfile")).toMatch(/request_body \{\s*max_size 1MB\s*\}/);
   });
 
+  it("sets explicit connection timeouts in Caddy (NOWE-1)", () => {
+    const caddyfile = read("deploy/Caddyfile");
+    const timeouts = /servers \{\s*timeouts \{([^}]*)\}\s*\}/.exec(caddyfile)?.[1] ?? "";
+
+    expect(timeouts).toMatch(/^\s*read_header 10s$/m);
+    expect(timeouts).toMatch(/^\s*read_body 30s$/m);
+    expect(timeouts).toMatch(/^\s*write 60s$/m);
+    expect(timeouts).toMatch(/^\s*idle 2m$/m);
+    // The timeouts live in the global options block, before the first site.
+    expect(caddyfile.indexOf("timeouts {")).toBeLessThan(caddyfile.indexOf("www.krajozbior.pl"));
+  });
+
   it("gives the database superuser password as a file, only in the first-start overlay", () => {
     const compose = read("deploy/compose.yaml");
     const init = read("deploy/compose.init.yaml");
