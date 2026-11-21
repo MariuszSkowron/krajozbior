@@ -1,5 +1,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
+import { waitForHydration } from "../tests/support/e2e-hydration";
+
 // E3-2a: powłoka i nawigacja. Dolny pasek zalogowanego odkrywcy na telefonie (4 pozycje,
 // aria-current, cele dotykowe 44 × 44 px, fokus niezasłonięty przez pasek), menu boczne
 // na komputerze oraz menu i komunikat panelu kuratora. Logowanie kontami demo wymaga
@@ -118,7 +120,7 @@ test.describe("dolny pasek na telefonie", () => {
     for (const path of ["/my/collections", "/my/want-to-see"]) {
       await page.goto(path);
       await page.addStyleTag({ content: "html { font-size: 200%; }" });
-      await page.waitForLoadState("networkidle");
+      await waitForHydration(page);
 
       // Etykieta zawija się i pasek rośnie ponad 50 px; treść i przewijanie do fokusu muszą
       // zostawiać pod spodem co najmniej tyle miejsca, ile zajmuje pasek.
@@ -158,7 +160,7 @@ test.describe("dolny pasek na telefonie", () => {
 
       for (const path of ["/my/collections", "/my/want-to-see"]) {
         await page.goto(path);
-        await page.waitForLoadState("networkidle");
+        await waitForHydration(page);
         // Odstęp przed treścią ustawia pierwszy element z fokusem tuż nad dolną krawędzią
         // ekranu, czyli pod paskiem, ale w całości w oknie przeglądarki. Przeglądarka przewija
         // do fokusu tylko element, który uważa za niewidoczny; bez scroll-padding-bottom

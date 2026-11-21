@@ -3,6 +3,7 @@ import axe from "axe-core";
 import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+import { waitForHydration } from "../tests/support/e2e-hydration";
 
 // E2-S2 / E2-S3, PR7: "Potwierdź wizytę" on the place page, with the position
 // of the device set by Playwright (setGeolocation). Most Tczewski of the demo
@@ -91,7 +92,7 @@ async function openBridge(page: Page) {
   );
   await expect(page.getByRole("heading", { level: 1, name: "Most Tczewski" })).toBeVisible();
   // The button is a client component: wait until the page is interactive.
-  await page.waitForLoadState("networkidle");
+  await waitForHydration(page);
 }
 
 const visitCount = async (email: string) =>

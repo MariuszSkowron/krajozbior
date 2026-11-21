@@ -1,6 +1,8 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import axe from "axe-core";
 
+import { waitForHydration as waitForReactHydration } from "../tests/support/e2e-hydration";
+
 // E1, PR3: the curator panel with two curators of different organizations
 // (seeded demo accounts) and an explorer. Needs a migrated, seeded database
 // like the login specs; without it the spec is skipped.
@@ -48,9 +50,9 @@ async function expectNoAccessibilityViolations(page: Page) {
   expect(violations).toEqual([]);
 }
 
-// Fields typed before React hydrates the form are reset by it; wait for the page to settle.
+// Fields typed before React hydrates the form are reset by it; wait for the hydration.
 async function waitForHydration(page: Page) {
-  await page.waitForLoadState("networkidle");
+  await waitForReactHydration(page);
 }
 
 async function createDraft(page: Page, title: string): Promise<string> {
