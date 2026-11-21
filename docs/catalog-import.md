@@ -2,7 +2,7 @@
 
 ## W skrócie
 
-Polecenie `npm run catalog:import` wczytuje plik z zatwierdzonymi kolekcjami i miejscami do lokalnej bazy jednej organizacji jako szkice. Można je uruchamiać wielokrotnie: ten sam plik nie zmienia niczego drugi raz, a ręczne zmiany kuratora z panelu zostają. Publikacja kolekcji i usuwanie wgranych danych to osobne, jawne polecenia. Polecenie jest przeznaczone dla operatora na jego komputerze, nie dla produkcji.
+Polecenie `npm run catalog:import` wczytuje plik z zatwierdzonymi kolekcjami i miejscami do lokalnej bazy jednej organizacji jako szkice. Można je uruchamiać wielokrotnie: ten sam plik nie zmienia niczego drugi raz, a ręczne zmiany kuratora z panelu zostają. Publikacja kolekcji i usuwanie wgranych danych to osobne, jawne polecenia. Domyślnie polecenie jest przeznaczone dla operatora na jego komputerze i odmawia produkcji. Jedyna droga na serwer to jawny tryb `--target server` (sekcja „Wgrywanie na serwer”): tylko szkice, z potwierdzeniem hosta i wpisami w dzienniku operacji.
 
 ## Zasady bezpieczeństwa
 
@@ -61,6 +61,23 @@ Usuwa to, co wgrano, według kluczy z pliku, w jednej transakcji:
 
 `--remove` nie ma podglądu z bazą, bo o tym, co zostaje, decydują wizyty niewidoczne dla kuratora. Sam `--remove --dry-run --file <plik>` bez flag organizacji sprawdza tylko plik. Opcji `--publish` i `--remove` nie łączy się.
 
+## Wgrywanie na serwer (`--target server`)
+
+Tryb dla operatora w kontenerze `ops` na serwerze (`docs/deployment.md`); uruchamia go skrypt wdrożenia właściciela, nie agent. Bez `--target server` obowiązują zasady lokalne z góry (odmowa produkcji i bazy poza `localhost`, kod 3).
+
+```
+npm run catalog:import -- --target server --confirm-host <host> --profile public \
+  --file <plik> --org-slug <slug> --curator-email <adres> \
+  --operator "<etykieta>" --reason "<powód>" [--dry-run | --remove]
+```
+
+- **Potwierdzenie hosta.** `--confirm-host` musi być równe nazwie hosta z `BETTER_AUTH_URL`; w terminalu polecenie dodatkowo prosi o jej przepisanie. Przy złym hoście albo braku `BETTER_AUTH_URL` odmawia przed połączeniem z bazą (kod 3).
+- **Tylko profil `public` i tylko szkice.** Inny profil albo `--publish` kończą się odmową (kod 3): kolekcje publikuje właściciel w panelu kuratora (E11-Q5).
+- **Dziennik operacji.** Wgranie i usunięcie wymagają `--operator` i `--reason` (jak inne polecenia operatora: bez adresu e-mail w powodzie). Polecenie zapisuje rolą `krajozbior_ops` wpis „rozpoczęcie” (operacja `catalog_import` albo `catalog_remove`; w `details`: identyfikator partii, skrót SHA-256 pliku, liczby kolekcji i miejsc) **przed** pierwszym zapisem, a po zakończeniu wpis z wynikiem (liczby wyników; odmowa lub awaria to wpis `rejected` z kodem `import_refused` albo `import_failed`). Gdy wpisu „rozpoczęcie” nie da się zapisać, nic nie jest wgrywane (kod 1). Do dziennika nie trafia ani adres e-mail, ani tytuł, ani klucz miejsca.
+- **Podgląd** (`--dry-run`) wymaga potwierdzenia hosta, niczego nie zmienia i nie zostawia wpisu.
+- **Raport** na serwerze idzie tylko na standardowe wyjście (drugi wiersz JSON z kluczem `report`), nie do pliku.
+- **Zmienne w pliku operatora** (`ops.env`): polecenie wymaga trzech: `DATABASE_OPS_URL` (dziennik i wyszukanie konta kuratora), `DATABASE_URL` (rola `krajozbior_app`, tak jak aplikacja; przez nią idzie samo wgranie) i `BETTER_AUTH_URL` (host do potwierdzenia). Wpis `catalog:import` w liście poleceń skryptu wdrożenia (`kz_ops_env_vars`) oraz tryb `-Import` należą do skryptów wdrożenia (K-4), nie do tego PR.
+
 ## Kody wyjścia
 
 | Kod | Znaczenie                                                                                                                                                |
@@ -94,4 +111,4 @@ Wgranie: dla kolekcji `created`, `updated`, `noop`, `kept_manual_edit`, `kept_ma
 
 ## Testy
 
-Fikstury są w `tests/fixtures/curation/` (dane fikcyjne). Test z bazą: `npm run test:integration -- tests/integration/catalog-import.test.ts` (zasady uruchamiania: `docs/testing.md`).
+Fikstury są w `tests/fixtures/curation/` (dane fikcyjne). Test z bazą: `npm run test:integration -- tests/integration/catalog-import.test.ts` (zasady uruchamiania: `docs/testing.md`). Tryb serwera: `tests/features/catalog/application/catalog-import-server.test.ts` (jednostkowy: odmowy przed połączeniem, kolejność wpisów) i `tests/integration/catalog-import-server.test.ts` (dwa wpisy po wgraniu, brak wpisu po podglądzie i odmowie, brak wgrania przy awarii dziennika, odmowa zapisu dziennika dla innych ról).

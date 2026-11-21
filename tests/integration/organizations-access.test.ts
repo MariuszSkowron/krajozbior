@@ -578,7 +578,9 @@ describe("organizations, membership and operator command", () => {
           where c.conrelid = $1::regclass and c.contype = 'c'`,
         [table],
       );
-      const found = rows.find(({ def }) => def.includes(`(${column} = ANY`));
+      // The constraint of the column itself (`CHECK ((column = ANY ...`), not one that
+      // only mentions it, such as the `details` check of the loader operations.
+      const found = rows.find(({ def }) => def.startsWith(`CHECK ((${column} = ANY`));
 
       return [...(found?.def.matchAll(/'([a-z_]+)'::text/g) ?? [])].map((match) => match[1]);
     };
