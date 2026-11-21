@@ -1,0 +1,39 @@
+# Nakładka celu „showcase” skryptu wdrożenia (próba generalna na pokazie lokalnym, D-E11-7, D-E11-8).
+# Dokłada ją wyłącznie scripts/ops/server/showcase.sh jako trzeci plik:
+#   compose.yaml (wdrażanego commita) + compose.showcase.yaml (wdrażanego commita) + ten plik
+# (z kodu uruchomionego skryptu, nie z wdrażanego commita: starsze commity mają obraz `:local`).
+# Zmienne podaje scripts/ops/deploy-showcase.ps1; dla projektu `krajozbior-showcase` nazwy są
+# takie same jak w pokazie, a projekt próby (np. `krajozbior-rehearsal`) ma własne nazwy, port,
+# wolumen i folder danych, więc nie dotyka danych pokazu.
+# Obrazy mają etykietę commita (powrót do poprzedniej wersji = poprzedni obraz). Ścieżki są
+# bezwzględne.
+services:
+  db:
+    container_name: ${KZ_PROJECT:?}-db
+
+  app:
+    container_name: ${KZ_PROJECT:?}-app
+    image: ${KZ_PROJECT:?}-app:${IMAGE_TAG:?}
+    ports: !override
+      - "127.0.0.1:${KZ_SHOWCASE_PORT:?}:3000"
+    environment:
+      BETTER_AUTH_URL: http://localhost:${KZ_SHOWCASE_PORT:?}
+    volumes: !override
+      - ${KZ_SHOWCASE_DATA:?}/outbox:/app/.data/outbox
+
+  ops:
+    image: ${KZ_PROJECT:?}-ops:${IMAGE_TAG:?}
+    volumes: !override
+      - ${KZ_SHOWCASE_DATA:?}/reports:/app/.ai/tmp/catalog-import
+
+secrets:
+  pg_bootstrap:
+    file: ${KZ_SHOWCASE_DATA:?}/pg-bootstrap
+
+volumes:
+  pgdata:
+    name: ${KZ_PROJECT:?}-pgdata
+  caddy-data:
+    name: ${KZ_PROJECT:?}-caddy-data
+  caddy-config:
+    name: ${KZ_PROJECT:?}-caddy-config

@@ -171,6 +171,12 @@
 /deploy/                           @MariuszSkowron
 /tests/deploy/                     @MariuszSkowron
 /docs/deployment.md                @MariuszSkowron
+# Skrypty wdrożenia na serwer (F-K4, D-E11-4): wdroz.ps1 uruchamia tylko commit z origin/main,
+# więc każda zmiana tych plików musi przejść przez zatwierdzenie właściciela. Pokryte już przez
+# /scripts/; wpisy jawne, żeby nie zniknęły przy zmianie tamtej reguły.
+/scripts/ops/                      @MariuszSkowron
+/tests/scripts/ops-deploy-lib.test.ts @MariuszSkowron
+/tests/scripts/ops-server-lib.test.ts @MariuszSkowron
 
 # Tożsamość agentów: aplikacja GitHub (bot), jej token i jawne identyfikatory.
 # Pokryte już przez /scripts/ i /.github/; wpisy jawne, żeby nie zniknęły przy
