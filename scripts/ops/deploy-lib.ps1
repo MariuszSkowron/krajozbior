@@ -7,7 +7,7 @@
 Set-StrictMode -Version Latest
 
 $DeployConfigKeys = @('Address', 'Port', 'SiteHost', 'EmailFrom', 'BackupPublicKey', 'ReportDir',
-  'HealthcheckBackupUrl', 'HealthcheckRestoreUrl', 'HealthcheckHealthUrl')
+  'HealthcheckBackupUrl', 'HealthcheckRestoreUrl', 'HealthcheckHealthUrl', 'ImportDir')
 
 # serwer.conf in the owner's secrets folder: KEY=VALUE lines, '#' comments. The server address
 # lives only there (never in the public repository).
@@ -42,6 +42,11 @@ function Read-DeployConfig([string]$text) {
     if ($config.ContainsKey($key) -and $config[$key] -notmatch '^https://[A-Za-z0-9./_-]+$') {
       throw "serwer.conf: $key must be an https:// address"
     }
+  }
+  # Folder of the collection files that -Import may send (F-K6); a full Windows path.
+  if ($config.ContainsKey('ImportDir') -and
+    (-not (Test-WinPathRooted $config.ImportDir) -or $config.ImportDir -match "['`"]")) {
+    throw 'serwer.conf: ImportDir must be a full path (C:\...)'
   }
   return $config
 }
@@ -378,4 +383,149 @@ function Get-ShowcaseEnvironment([string]$project, [int]$port, [string]$dataDir,
     KZ_IMAGE_REPOS      = "$project-app $project-ops"
     KZ_DUMP_SUFFIX      = 'dump'
   }
+}
+
+# --- Mode import: a collection file to the server (spec 5.6, F-K6) ------------------------------
+
+# Same limit as catalog:import (MAX_IMPORT_FILE_BYTES).
+$ImportMaxBytes = 8 * 1024 * 1024
+
+# Only files of the public profile, named like the files in the documentation repository.
+function Test-ImportFileName([string]$name) {
+  return ($name -cmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,100}-public\.ndjson$')
+}
+
+# Organisation slug as catalog:import and ops:curator accept it.
+function Test-OrgSlug([string]$value) {
+  return ($value.Length -le 64 -and $value -cmatch '^[a-z0-9]+(-[a-z0-9]+)*$')
+}
+
+# Only `C:\...` (drive, backslash). IsPathRooted also accepts `\folder\x` and `C:x`, which are
+# relative to the current drive or folder, so two checks could read them differently (review S3).
+function Test-WinDrivePath([string]$path) {
+  return ($path -cmatch '^[A-Za-z]:\\')
+}
+
+function Get-WinPathLeaf([string]$path) {
+  return (($path -replace '/', '\').TrimEnd('\').Split('\')[-1])
+}
+
+function Test-WinPathInside([string]$path, [string]$folder) {
+  $prefix = (Resolve-WinPath $folder).TrimEnd('\', '/') + '\'
+  return (Resolve-WinPath $path).StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)
+}
+
+# Checks of the path alone, before anything is read (text only, so the same on Linux CI). A
+# command line handed to the owner must not be able to send another file (a key, the vault):
+# the file has a fixed name pattern, lies in ImportDir from serwer.conf and never in the secrets
+# folder. Returns a Polish message, or '' when the path is acceptable.
+function Get-ImportFileProblem([string]$path, [string]$importDir, [string]$secretsDir) {
+  if (-not $path) { return 'Brak pliku: podaj -Import <pelna sciezka pliku>.' }
+  if (-not $importDir) {
+    return 'serwer.conf nie ma ImportDir (folder z plikami kolekcji). Dopisze go new-deploy-secrets.ps1 -OdswiezWdroz -ImportDir <folder>.'
+  }
+  if (-not (Test-WinDrivePath $path)) { return 'Podaj pelna sciezke pliku z litera dysku (np. C:\...\nazwa-public.ndjson).' }
+  if (-not (Test-ImportFileName (Get-WinPathLeaf $path))) {
+    return 'Zla nazwa pliku: oczekiwane <nazwa>-public.ndjson (litery, cyfry, kropka, _ i -).'
+  }
+  if ($secretsDir -and (Test-WinPathInside $path $secretsDir)) {
+    return 'Plik lezy w folderze sekretow; takiego pliku skrypt nie wysyla.'
+  }
+  if (-not (Test-WinPathInside $path $importDir)) {
+    return "Plik musi lezec w folderze ImportDir z serwer.conf ($importDir)."
+  }
+  return ''
+}
+
+# Checks on disk (deploy.ps1, after Get-ImportFileProblem): a plain file, 1 B - 8 MiB, and no
+# shortcut (reparse point) on the way from ImportDir to the file, so a junction cannot lead
+# out of the folder. ImportDir itself and the folders above it are the owner's configuration and
+# are not checked. Returns a Polish message, or ''. The caller passes the path already resolved
+# by Resolve-WinPath (on Windows it is resolved again here, a no-op for a full path).
+function Get-ImportFileDiskProblem([string]$path, [string]$importDir) {
+  if ([IO.Path]::DirectorySeparatorChar -eq '\') { $path = Resolve-WinPath $path }
+  if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return "Nie ma takiego pliku: $path" }
+  $item = Get-Item -LiteralPath $path -Force
+  if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { return 'Plik jest skrotem (dowiazaniem); podaj zwykly plik.' }
+  $top = (Resolve-WinPath $importDir).TrimEnd('\', '/')
+  $dir = $item.Directory
+  while ($null -ne $dir -and $dir.FullName.TrimEnd('\', '/').Length -gt $top.Length) {
+    if ($dir.Attributes -band [IO.FileAttributes]::ReparsePoint) { return 'Folder pliku jest skrotem (dowiazaniem); podaj zwykly folder.' }
+    $dir = $dir.Parent
+  }
+  if ($item.Length -lt 1) { return 'Plik jest pusty.' }
+  if ($item.Length -gt $ImportMaxBytes) { return 'Plik jest wiekszy niz 8 MiB.' }
+  return ''
+}
+
+# Content check on the bytes about to be sent (review S1): a collection file is NDJSON, so its
+# first byte is `{`. A private key (`-----BEGIN`, `AGE-SECRET-KEY-`) or the vault (`age-encryption`)
+# starts otherwise, so a hard link to one of them is refused. A BOM is refused too: the payload
+# and catalog:import expect plain UTF-8. Returns a Polish message, or ''.
+function Get-ImportContentProblem([byte[]]$bytes) {
+  if ($null -eq $bytes -or $bytes.Length -lt 1) { return 'Plik jest pusty.' }
+  if ($bytes[0] -ne 0x7B) { return 'Plik nie wyglada na kolekcje (pierwszy znak to nie {). Nic nie wyslano.' }
+  return ''
+}
+
+function Get-Sha256Hex([byte[]]$bytes) {
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try { $hash = $sha.ComputeHash($bytes) } finally { $sha.Dispose() }
+  return (($hash | ForEach-Object { $_.ToString('x2') }) -join '')
+}
+
+# Reason stored for ever in the operations audit: the file name only (no e-mail, no quote).
+function New-ImportReason([string]$fileName) {
+  $reason = "Wgranie kolekcji z pliku $fileName"
+  if (-not (Test-AuditReason $reason)) { throw 'Nazwa pliku nie nadaje sie do powodu w dzienniku.' }
+  return $reason
+}
+
+# Preview -> question -> load. $runPhase gets 'preview' or 'apply' and returns the exit code of
+# that connection; $ask returns $true only for the answer "tak". Without "tak" there is no second
+# connection, so nothing is loaded and the file is not sent again.
+function Invoke-ImportFlow([scriptblock]$runPhase, [scriptblock]$ask) {
+  $code = [int](& $runPhase 'preview')
+  if ($code -ne 0) { return @{ Code = $code; Result = 'preview-failed' } }
+  if (-not (& $ask)) { return @{ Code = 0; Result = 'declined' } }
+  $code = [int](& $runPhase 'apply')
+  $result = if ($code -eq 0) { 'applied' } else { 'apply-failed' }
+  return @{ Code = $code; Result = $result }
+}
+
+function Get-JsonField($object, [string]$name) {
+  $property = $object.PSObject.Properties[$name]
+  if ($null -eq $property) { return $null }
+  return $property.Value
+}
+
+function Format-JsonCounts($object) {
+  if ($null -eq $object) { return 'brak' }
+  $pairs = @($object.PSObject.Properties | ForEach-Object { "$($_.Name)=$($_.Value)" })
+  if ($pairs.Count -eq 0) { return 'brak' }
+  return ($pairs -join ', ')
+}
+
+# One Polish line for the summary line of catalog:import (JSON on standard output), or $null for
+# any other line. Counts and codes only; the JSON never holds an e-mail address.
+function Format-ImportSummary([string]$line) {
+  $text = $line.Trim()
+  if (-not $text.StartsWith('{"outcome"')) { return $null }
+  try { $o = $text | ConvertFrom-Json } catch { return $null }
+  $inFile = "w pliku $(Get-JsonField $o 'collections') kolekcji i $(Get-JsonField $o 'places') miejsc"
+  switch ([string](Get-JsonField $o 'outcome')) {
+    'preview' {
+      return "Podglad ($inFile). Kolekcje: $(Format-JsonCounts (Get-JsonField $o 'collectionStates')). Miejsca: $(Format-JsonCounts (Get-JsonField $o 'placeStates'))."
+    }
+    'applied' {
+      return "Wgrane szkice ($inFile). Kolekcje: $(Format-JsonCounts (Get-JsonField $o 'collectionResults')). Miejsca: $(Format-JsonCounts (Get-JsonField $o 'placeResults'))."
+    }
+    'partial' {
+      return "Wgrane czesciowo ($inFile): czesc kolekcji odrzucona. Kolekcje: $(Format-JsonCounts (Get-JsonField $o 'collectionResults'))."
+    }
+    'invalid' { return "Plik nie przeszedl kontroli: $(Get-JsonField $o 'errorCount') bledow (numery linii wyzej)." }
+    'refused' { return "Odmowa: $(Get-JsonField $o 'code')." }
+    'rejected' { return "Odmowa: $(Get-JsonField $o 'code')." }
+  }
+  return $null
 }
