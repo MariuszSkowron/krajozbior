@@ -31,8 +31,12 @@ services:
       # z hasłem (także z 127.0.0.1). Ustawienie zapisuje się przy pierwszej inicjalizacji wolumenu.
       POSTGRES_INITDB_ARGS: "--auth-local=peer --auth-host=scram-sha-256"
     # Logi bez danych osobowych (D-E11-5): żadnych instrukcji, parametrów ani linii DETAIL.
+    # log_min_error_statement=panic: przy błędzie zapytania baza nie dopisuje jego tekstu. MikroORM
+    # wkleja wartości w tekst zapytania, więc same ustawienia parametrów ich nie ukrywają (DB-5).
     command:
       - postgres
+      - -c
+      - log_min_error_statement=panic
       - -c
       - log_statement=none
       - -c
@@ -63,9 +67,13 @@ services:
       target: runtime
     restart: unless-stopped
     logging: *logging
+    # Tylko zmienne aplikacji (D-E11-4). Haseł ról `owner` i `ops` ani adresów
+    # DATABASE_MIGRATION_URL, DATABASE_OPS_URL, DATABASE_ADMIN_URL tu nie ma: operator ma własny plik.
     env_file:
       - path: ${KRAJOZBIOR_ENV_FILE:-/srv/krajozbior/.env.production}
         required: false
+    # Górna granica pamięci: nadużycie aplikacji nie zabiera pamięci bazie na tym samym serwerze.
+    mem_limit: 1g
     depends_on:
       db:
         condition: service_healthy
@@ -104,8 +112,15 @@ services:
     logging: *logging
     profiles:
       - ops
+    # Własny plik operatora, nie `.env.production` aplikacji: hasła ról `owner` i `ops` (adresy
+    # DATABASE_MIGRATION_URL, DATABASE_OPS_URL, DATABASE_ADMIN_URL) nie trafiają do procesu
+    # wystawionego do internetu. Poleceniom `auth:create-admin` i `auth:throttle` plik musi też
+    # dać DATABASE_AUTH_URL, BETTER_AUTH_SECRET (identyczny jak w aplikacji), BETTER_AUTH_URL
+    # i AUTH_CLIENT_IP_HEADER (przy NODE_ENV=production ustawienia logowania wymagają obu, jak w aplikacji);
+    # klucza poczty nie potrzebuje żadne polecenie operatora (lista: docs/deployment.md).
+    # Domyślnie w /run (pamięć RAM, znika po restarcie): skrypt wdrożenia kładzie go na czas poleceń.
     env_file:
-      - path: ${KRAJOZBIOR_ENV_FILE:-/srv/krajozbior/.env.production}
+      - path: ${KRAJOZBIOR_OPS_ENV_FILE:-/run/krajozbior/ops.env}
         required: false
     # Na serwerze `catalog:import` i `db:seed:demo` odmawiają w produkcji niezależnie od adresu
     # bazy. Kontener nie dzieli sieci z bazą (pilnuje tego test); tylko nakładka pokazu nadpisuje NODE_ENV.

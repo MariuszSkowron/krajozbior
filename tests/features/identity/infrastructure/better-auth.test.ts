@@ -1,9 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  AUTH_POOL_CONNECTION_TIMEOUT_MS,
+  authPoolConfig,
   BetterAuthIdentityProvider,
   type Auth,
 } from "@/features/identity/infrastructure/better-auth";
+
+// SEC-3: these time limits keep a flood of sign-in requests from leaving the auth pool
+// waiting without end.
+describe("time limits of the auth pool", () => {
+  it("gives up waiting for a connection after a few seconds", () => {
+    expect(AUTH_POOL_CONNECTION_TIMEOUT_MS).toBe(5000);
+    expect(authPoolConfig("postgres://auth")).toEqual({
+      connectionString: "postgres://auth",
+      max: 5,
+      connectionTimeoutMillis: 5000,
+    });
+  });
+});
 
 const userId = "11111111-1111-4111-8111-111111111111";
 
