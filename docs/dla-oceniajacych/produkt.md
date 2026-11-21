@@ -8,6 +8,13 @@ Krajozbiór to album odwiedzonych miejsc. Odkrywca zbiera miejsca w tematycznych
 
 Krajozbiór traktuje zbieranie miejsc jak osobisty dziennik: co odwiedziłem, kiedy i ile zostało mi do skończenia kolekcji. Kolekcje kuratorów prowadzą do mało znanych obiektów w małych miejscowościach, takich jak wieże ciśnień, kapliczki czy stare dworce.
 
+## Dla kogo
+
+- **Turysta weekendowy:** chce szybko znaleźć ciekawe miejsca w okolicy, bez skomplikowanego startu.
+- **Kolekcjoner:** chce skończyć kolekcję w całości i oczekuje, że aplikacja nie zawiedzie w terenie.
+- **Pasjonat:** czyta opisy i ceni rzetelne treści bardziej niż grywalizację.
+- **Kurator instytucjonalny i społecznościowy:** gmina, oddział PTTK, organizacja turystyczna, przewodnik albo historyk; chce prosto pokazać lokalne dziedzictwo i mieć kontrolę nad tym, jak jest przedstawione.
+
 ## Kto korzysta
 
 - **Gość** (bez konta) ogląda opublikowane kolekcje i miejsca. Zapis kolekcji, wizyta i lista „Chcę zobaczyć” wymagają konta; przycisk prowadzi do logowania, a po nim z powrotem na tę samą stronę.
@@ -29,9 +36,22 @@ Krajozbiór traktuje zbieranie miejsc jak osobisty dziennik: co odwiedziłem, ki
 
 ## Zakres pierwszej wersji
 
-Pierwsza wersja obejmuje wszystkie ekrany z makiet właściciela: album i kolekcje, stronę miejsca z potwierdzaniem wizyty, listę „Chcę zobaczyć”, zdjęcia z moderacją, zgłoszenia poprawek, wydarzenia i karty legendarne, aktualności, własne kolekcje odkrywców (prywatne i publiczne po akceptacji administratora), profil i ustawienia oraz pełny panel kuratora. Kolejność prac i to, co już działa, opisuje [Stan realizacji](stan-realizacji.md).
+Pierwsza wersja obejmuje wszystkie ekrany z makiet właściciela: album i kolekcje, stronę miejsca z potwierdzaniem wizyty, listę „Chcę zobaczyć”, zdjęcia z moderacją, zgłoszenia poprawek, wydarzenia i karty legendarne, aktualności, własne kolekcje odkrywców (prywatne i publiczne po akceptacji administratora), profil i ustawienia oraz pełny panel kuratora. Podział na epiki i historyjki opisuje [Backlog](backlog.md), a to, co już działa, [Stan realizacji](stan-realizacji.md).
 
 Później przyjdzie m.in. aplikacja na Androida.
+
+## MVP: wersja konkursowa
+
+Najmniejsza wersja, która pokazuje sens produktu od początku do końca, to jedna pełna ścieżka z kontrolą uprawnień:
+
+1. Administrator nadaje organizacji status kuratora.
+2. Kurator tworzy kolekcję z miejscami, ustala promień potwierdzania i ją publikuje.
+3. Gość znajduje kolekcję na stronie głównej albo w wyszukiwarce i ogląda ją bez konta.
+4. Odkrywca zakłada konto kodem z e-maila, akceptuje regulamin, zapisuje kolekcję i widzi postęp 0/N.
+5. Odkrywca potwierdza wizytę lokalizacją na miejscu albo zaznacza wizytę z przeszłości, a postęp rośnie.
+6. Kurator innej organizacji ani inny odkrywca nie widzą jego danych.
+
+Do wersji konkursowej należą też strona główna z albumem, wyszukiwarka, kolekcja jako album z mapą, lista „Chcę zobaczyć”, profil ze statystykami, usunięcie konta, regulamin i polityka prywatności. Zdjęcia, zgłoszenia, wydarzenia i karty legendarne, aktualności, własne kolekcje odkrywców i ekrany administratora przychodzą w kolejnych wydaniach.
 
 ## Czego nie robimy
 
