@@ -3,7 +3,8 @@
 # Alarm (healthchecks.io "fail" on HC_HEALTH_URL, i.e. an e-mail to the owner) when: free disk
 # below 20%, available memory below 10%, a service is not running, the TLS certificate expires
 # in less than 14 days, or Brevo refused at least one e-mail in the last hour
-# (`email.brevo_rejected`). Prints only counts and names. Keep this file ASCII-only.
+# (`email.brevo_rejected`), or the newest backup is older than 26 hours. Prints only counts and
+# names. Keep this file ASCII-only.
 set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
@@ -31,6 +32,12 @@ if [ -n "$site_host" ]; then
     days=$((($(date -d "$end" +%s) - $(date +%s)) / 86400))
     [ "$days" -ge 14 ] || problems+=("certyfikat wygasa za $days dni")
   fi
+fi
+
+# No backup from the last 26 hours, once the first night after the first deployment has passed.
+if [ -n "$(find "$KZ_STATE/initialized" -mmin +1560 2>/dev/null)" ] &&
+  [ -z "$(find "$KZ_BACKUPS" -maxdepth 1 -name 'krajozbior-*.dump.age' -mmin -1560 2>/dev/null)" ]; then
+  problems+=("brak kopii z ostatnich 26 godzin")
 fi
 
 rejected="$(journalctl CONTAINER_NAME="$KZ_PROJECT-app-1" --since '-1h' -o cat --no-pager 2>/dev/null |

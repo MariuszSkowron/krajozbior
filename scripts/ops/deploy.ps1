@@ -95,7 +95,7 @@ if (-not (Test-Path -LiteralPath $knownHosts)) {
 }
 
 # 2. Mode inputs, asked locally before connecting.
-$plain = @{ KZ_MODE = $Mode; KZ_COMMIT = $Sha; KZ_REPO_URL = $RepoUrl; KZ_SITE_HOST = $config.SiteHost }
+$plain = @{ KZ_MODE = $Mode; KZ_COMMIT = $Sha; KZ_REPO_URL = $RepoUrl; KZ_SITE_HOST = $config.SiteHost; KZ_SSH_PORT = [string]$config.Port }
 $secretVars = @{}
 
 function Add-Secret([string]$name, [string]$value) {
@@ -204,7 +204,10 @@ if ($code -eq 0) {
   Write-Report "wynik: GOTOWE (kod 0)" | Out-Null
   Write-Say ''
   Write-Say 'GOTOWE' 'Green'
-  if ($Mode -eq 'bootstrap') { Write-Say 'Kolejne polaczenia ida jako deploy; logowanie roota przez SSH jest wylaczone.' }
+  if ($Mode -eq 'bootstrap') {
+    Write-Say 'Kolejne polaczenia ida jako deploy; logowanie roota przez SSH jest wylaczone.'
+    Write-Say 'Po aktualizacji systemu serwer moze sam zrestartowac sie najblizszej nocy o 4:30 (czas serwera). To normalne.'
+  }
 } else {
   Write-Report "wynik: BLAD (kod $code)" | Out-Null
   Write-Say ''

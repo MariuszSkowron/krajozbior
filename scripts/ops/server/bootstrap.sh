@@ -59,13 +59,28 @@ EOF
   systemctl restart ssh
 }
 
+# Port of this connection (serwer.conf `Port`, sent as KZ_SSH_PORT). The firewall must open the
+# port sshd really listens on, or the owner is locked out after `ufw enable` (review F-K4, S6).
+kz_ssh_port() { printf '%s' "${KZ_SSH_PORT:-22}"; }
+
+kz_bootstrap_check_ssh_port() {
+  local port ports
+  port="$(kz_ssh_port)"
+  [[ "$port" =~ ^[0-9]{1,5}$ ]] || kz_fail "nieprawidlowy port SSH"
+  ports="$(sshd -T 2>/dev/null </dev/null | awk '$1 == "port" {print $2}' || true)"
+  case $'\n'"$ports"$'\n' in
+    *$'\n'"$port"$'\n'*) ;;
+    *) kz_fail "sshd nie slucha na porcie $port z serwer.conf; nic nie zmieniono" ;;
+  esac
+}
+
 kz_bootstrap_firewall() {
   kz_step "zapora ufw i fail2ban"
   sed -i 's/^IPV6=.*/IPV6=yes/' /etc/default/ufw
   ufw --force reset >/dev/null
   ufw default deny incoming >/dev/null
   ufw default allow outgoing >/dev/null
-  ufw limit 22/tcp >/dev/null
+  ufw limit "$(kz_ssh_port)/tcp" >/dev/null
   ufw allow 80/tcp >/dev/null
   ufw allow 443/tcp >/dev/null
   ufw allow 443/udp >/dev/null
@@ -92,17 +107,21 @@ EOF
 Unattended-Upgrade::Automatic-Reboot "true";
 Unattended-Upgrade::Automatic-Reboot-Time "04:30";
 EOF
-  # Freeze 27.11 12:00 - 30.11: patches keep installing, restarts are switched off.
+  # Freeze 26.11 evening - 30.11: patches keep installing, restarts are switched off. It starts
+  # before the morning upgrade run of 27.11, and `shutdown -c` cancels a reboot that an earlier
+  # upgrade already scheduled for 4:30 (review F-K4, S1). Timer times use the server's time
+  # zone (Ubuntu images default to UTC: 20:00 UTC = 21:00 in Poland in November).
   cat >/etc/systemd/system/krajozbior-freeze-on.service <<'EOF'
 [Unit]
 Description=Krajozbior: no automatic reboot during the contest freeze
 [Service]
 Type=oneshot
 ExecStart=/bin/sh -c 'printf "Unattended-Upgrade::Automatic-Reboot \"false\";\n" > /etc/apt/apt.conf.d/53krajozbior-freeze'
+ExecStart=-/sbin/shutdown -c
 EOF
   cat >/etc/systemd/system/krajozbior-freeze-on.timer <<'EOF'
 [Timer]
-OnCalendar=2026-11-27 12:00:00
+OnCalendar=2026-11-26 20:00:00
 Persistent=true
 [Install]
 WantedBy=timers.target
@@ -143,7 +162,7 @@ kz_bootstrap_dirs() {
 }
 
 # .env.production: generated once, never printed, never overwritten (D-E11-4). Owned by deploy,
-# because the `docker compose` client that reads env_file runs as deploy.
+# because the `docker compose` client that reads env_file runs as deploy (D-43 pt 4).
 kz_bootstrap_env() {
   if [ -f "$KZ_ENV" ]; then
     kz_step ".env.production juz istnieje (bez zmian)"
@@ -166,8 +185,11 @@ kz_bootstrap_env() {
         printf 'EMAIL_TRANSPORT=brevo\n'
         printf 'EMAIL_FROM=%s\n' "$KZ_EMAIL_FROM"
         printf 'BREVO_API_KEY=%s\n' "$KZ_BREVO_KEY"
-      } >"$KZ_ENV"
+      } >"$KZ_ENV.part"
     )
+    # Renamed only when complete: an interrupted write must not leave a half file that the
+    # next attempt would keep as "already there".
+    mv "$KZ_ENV.part" "$KZ_ENV"
     kz_step "Zapisano klucz Brevo"
   fi
   chown deploy:deploy "$KZ_ENV"
@@ -214,12 +236,13 @@ EOF
 # Ports of public TCP listeners other than 22, 80 and 443, read from `ss -H -ltn` on stdin.
 # Columns: State Recv-Q Send-Q Local-Address:Port Peer-Address:Port, so the listening address
 # is column 4 (column 5 is the peer, `0.0.0.0:*`; review F-K4, B2).
+# The SSH port from serwer.conf counts as 22.
 kz_public_ports() {
   awk '{print $4}' | grep -v -E '^(127\.[0-9.]+|\[::1\]|127\.0\.0\.53%lo|127\.0\.0\.54):' |
-    sed -E 's/.*:([0-9]+)$/\1/' | sort -u | grep -v -x -E '22|80|443' || true
+    sed -E 's/.*:([0-9]+)$/\1/' | sort -u | grep -v -x -E "22|80|443|$(kz_ssh_port)" || true
 }
 
-# Public TCP listeners must be 22, 80 and 443 only (D-E11-10, K-17).
+# Public TCP listeners must be SSH, 80 and 443 only (D-E11-10, K-17).
 kz_listeners_ok() {
   local bad
   bad="$(ss -H -ltn | kz_public_ports)"
@@ -232,6 +255,7 @@ kz_listeners_ok() {
 
 kz_main() {
   [ "$(id -u)" = "0" ] || kz_fail "przygotowanie serwera wymaga konta root (pierwsze polaczenie)"
+  kz_bootstrap_check_ssh_port
   kz_bootstrap_packages
   kz_bootstrap_deploy_user
   kz_bootstrap_journald

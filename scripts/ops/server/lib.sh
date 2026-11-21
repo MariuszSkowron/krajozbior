@@ -134,15 +134,18 @@ kz_ops() {
 }
 
 # Refuses to continue when a demo flag is named in .env.production or in the merged config.
+# The merged configuration (with the values of .env.production) stays in memory, never in /tmp.
 kz_assert_no_demo_flags() {
-  local found merged
+  local found merged flag
   found="$(kz_find_demo_flags "$KZ_ENV")"
   [ -z "$found" ] || kz_fail "zakazana flaga demo w .env.production: $(echo "$found" | tr '\n' ' ')"
-  merged="$(mktemp)"
-  kz_compose --profile ops config >"$merged" 2>/dev/null || { rm -f "$merged"; kz_fail "docker compose config nie dziala"; }
-  found="$(kz_find_demo_flags "$merged")"
-  rm -f "$merged"
-  [ -z "$found" ] || kz_fail "zakazana flaga demo w konfiguracji Compose: $(echo "$found" | tr '\n' ' ')"
+  merged="$(kz_compose --profile ops config 2>/dev/null)" || kz_fail "docker compose config nie dziala"
+  found=""
+  for flag in "${KZ_DEMO_FLAGS[@]}"; do
+    case "$merged" in *"$flag"*) found+="$flag " ;; esac
+  done
+  merged=""
+  [ -z "$found" ] || kz_fail "zakazana flaga demo w konfiguracji Compose: $found"
 }
 
 # Checks out exactly one commit of the public repository (no credentials needed).
@@ -188,7 +191,10 @@ kz_gate_write() {
   local password="$1" image hash
   image="$(sed -n 's/^[[:space:]]*image:[[:space:]]*\(caddy:[^[:space:]]*\)$/\1/p' "$KZ_SRC/deploy/compose.yaml" | head -n 1)"
   [ -n "$image" ] || kz_fail "brak obrazu Caddy w compose.yaml"
-  hash="$(docker run --rm "$image" caddy hash-password --plaintext "$password" </dev/null)"
+  # The password goes through standard input, never into argv (`ps`, `docker inspect`; review
+  # F-K4, S5). Caddy reads one line from a non-terminal stdin and drops the new line (checked
+  # with caddy:2: a hash made this way accepts the password in basic_auth).
+  hash="$(printf '%s\n' "$password" | docker run --rm -i "$image" caddy hash-password)"
   [[ "$hash" =~ ^\$2[aby]\$ ]] || kz_fail "nie udalo sie przygotowac hasla Caddy"
   mkdir -p "$KZ_GATE_DIR"
   kz_gate_content "$hash" >"$KZ_GATE_DIR/gate.caddy"

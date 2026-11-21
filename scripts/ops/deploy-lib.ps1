@@ -186,12 +186,17 @@ function New-KnownHostsLine([string]$address, [int]$port, [string]$type, [string
 }
 
 # Arguments of the remote-shell client for one connection. Fixed options: our key only, no agent,
-# the pinned host key only (StrictHostKeyChecking=yes), keep-alive during long builds.
+# never a password prompt (a typed root password would let the bootstrap copy a wrong key file
+# to `deploy`; review F-K4, S6), the pinned host key only (StrictHostKeyChecking=yes),
+# keep-alive during long builds.
 function Get-RemoteShellArgs([string]$keyFile, [string]$knownHosts, [string]$user, [string]$address, [int]$port) {
   return @(
     '-i', $keyFile,
     '-o', 'IdentitiesOnly=yes',
     '-o', 'IdentityAgent=none',
+    '-o', 'PreferredAuthentications=publickey',
+    '-o', 'PasswordAuthentication=no',
+    '-o', 'KbdInteractiveAuthentication=no',
     '-o', "UserKnownHostsFile=$knownHosts",
     '-o', 'StrictHostKeyChecking=yes',
     '-o', 'ServerAliveInterval=30',

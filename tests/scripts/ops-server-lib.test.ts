@@ -290,8 +290,10 @@ describe("deployment modes with stubbed docker, git and network (remote.sh)", ()
     'kz_backup() { echo "backup $1"; }',
     'kz_compose() { echo "compose $* tag=${IMAGE_TAG:-}"; }',
     'kz_ops() { echo "ops $1"; [ "$1" != "legal:final" ] || [ "${LEGAL_OK:-1}" = "1" ]; }',
-    'kz_site_ok() { echo "site-check"; [ "${SITE_OK:-1}" = "1" ]; }',
+    // SITE_SEQ: results of consecutive site checks (1 = ok), e.g. "0 1" = swap fails, rollback ok.
+    'SITE_N=0; kz_site_ok() { echo "site-check"; SITE_N=$((SITE_N + 1)); [ "$(echo "${SITE_SEQ:-1 1 1}" | cut -d" " -f"$SITE_N")" = "1" ]; }',
     'kz_wait_http() { echo "http $1 $2"; }',
+    'kz_prune_images() { echo "prune $1 $2"; }',
   ].join("\n");
   const SHA = "c".repeat(40);
 
@@ -313,37 +315,109 @@ describe("deployment modes with stubbed docker, git and network (remote.sh)", ()
     return { ...result, root: box.root };
   }
 
-  const initialized = 'kz_state_set initialized x; kz_state_set current-tag "aaaaaaaaaaaa"';
+  const PREVIOUS = "a".repeat(40);
+  // A checked-out compose.yaml with the operator file of PR #60 and the Caddy password gate.
+  const checkedOut =
+    'mkdir -p "$KZ_SRC/deploy" "$KZ_GATE_DIR"; echo "path: \\${KRAJOZBIOR_OPS_ENV_FILE:-/run/krajozbior/ops.env}" >"$KZ_SRC/deploy/compose.yaml"; echo gate >"$KZ_GATE_DIR/gate.caddy"';
+  const initialized = `kz_state_set initialized x; kz_state_set current-tag "aaaaaaaaaaaa"; kz_state_set current-commit "${PREVIOUS}"; ${checkedOut}`;
+  const steps = (stdout: string) =>
+    stdout
+      .split("\n")
+      .filter((line) => !line.startsWith("[krajozbior]"))
+      .filter(Boolean);
 
   bashIt("commit: backup before the build, migrations before the swap, new tag recorded", () => {
     const result = runMode("commit", {}, initialized);
 
     expect(result.status, result.stdout).toBe(0);
-    const steps = result.stdout
-      .split("\n")
-      .filter((line) => !line.startsWith("[krajozbior]"))
-      .filter(Boolean);
-
-    expect(steps).toEqual([
+    expect(steps(result.stdout)).toEqual([
+      "backup predeploy",
       `checkout ${SHA}`,
       "flags-ok",
-      "backup predeploy",
       "compose --profile ops build app ops tag=cccccccccccc",
       "ops db:migrate",
       "compose up -d --wait app proxy tag=cccccccccccc",
       "site-check",
+      "prune cccccccccccc aaaaaaaaaaaa",
     ]);
     expect(readFileSync(join(result.root, "state/current-tag"), "utf8")).toBe("cccccccccccc\n");
     expect(readFileSync(join(result.root, "state/previous-tag"), "utf8")).toBe("aaaaaaaaaaaa\n");
+    expect(readFileSync(join(result.root, "state/previous-commit"), "utf8")).toBe(`${PREVIOUS}\n`);
   });
 
-  bashIt("commit: goes back to the previous image when the site check fails", () => {
-    const result = runMode("commit", { SITE_OK: "0" }, initialized);
+  bashIt("commit: goes back to the previous code, app and proxy, and checks the site (S2)", () => {
+    const result = runMode("commit", { SITE_SEQ: "0 1" }, initialized);
 
     expect(result.status).toBe(1);
-    expect(result.stdout).toContain("compose up -d --wait app tag=aaaaaaaaaaaa");
-    expect(result.stdout).toContain("BLAD: wdrozenie cccccccccccc nieudane; dziala aaaaaaaaaaaa");
+    expect(steps(result.stdout).slice(-4)).toEqual([
+      "site-check",
+      `checkout ${PREVIOUS}`,
+      "compose up -d --wait app proxy tag=aaaaaaaaaaaa",
+      "site-check",
+    ]);
+    expect(result.stdout).toContain(
+      "BLAD: wdrozenie cccccccccccc nieudane; przywrocono aaaaaaaaaaaa i strona odpowiada. Baza jest juz po migracjach cccccccccccc",
+    );
     expect(readFileSync(join(result.root, "state/current-tag"), "utf8")).toBe("aaaaaaaaaaaa\n");
+  });
+
+  bashIt("commit: says so when the rollback fails too (S2)", () => {
+    const result = runMode("commit", { SITE_SEQ: "0 0" }, initialized);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain(
+      "BLAD: wdrozenie cccccccccccc nieudane i powrot do aaaaaaaaaaaa tez nieudany",
+    );
+    expect(result.stdout).not.toContain("przywrocono");
+  });
+
+  bashIt("commit: a failed pre-deployment backup stops before the checkout", () => {
+    const result = runMode(
+      "commit",
+      {},
+      `${initialized}; kz_backup() { echo "backup $1"; return 1; }`,
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("kopia przed wdrozeniem nieudana; nic nie zmieniono");
+    expect(result.stdout).not.toContain("checkout");
+  });
+
+  for (const mode of ["initial", "commit"]) {
+    bashIt(`${mode}: refuses without the operator file of PR #60, before any build (S7)`, () => {
+      const prepare = mode === "initial" ? checkedOut : initialized;
+      const result = runMode(
+        mode,
+        {},
+        `${prepare}; echo "path: /srv/krajozbior/.env.production" >"$KZ_SRC/deploy/compose.yaml"`,
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("Najpierw scal PR #60");
+      expect(result.stdout).not.toContain("build");
+    });
+
+    bashIt(
+      `${mode}: refuses to start the proxy without the password gate before opening (S3)`,
+      () => {
+        const prepare = mode === "initial" ? checkedOut : initialized;
+        const result = runMode(mode, {}, `${prepare}; rm -f "$KZ_GATE_DIR/gate.caddy"`);
+
+        expect(result.status).toBe(1);
+        expect(result.stdout).toContain("brak bramki hasla");
+        expect(result.stdout).not.toContain("build");
+      },
+    );
+  }
+
+  bashIt("commit: runs without the gate file once the service was opened", () => {
+    const result = runMode(
+      "commit",
+      {},
+      `${initialized}; rm -f "$KZ_GATE_DIR/gate.caddy"; kz_state_set opened x`,
+    );
+
+    expect(result.status, result.stdout).toBe(0);
   });
 
   bashIt("commit: refuses before the first deployment", () => {
@@ -390,6 +464,13 @@ describe("deployment modes with stubbed docker, git and network (remote.sh)", ()
     );
     expect(result.stdout).toContain("http / 200");
     expect(existsSync(join(result.root, "caddy-gate/gate.caddy"))).toBe(false);
+  });
+
+  bashIt("otworz: reloads Caddy also when an earlier attempt already removed the gate (S3)", () => {
+    const result = runMode("otworz", {}, `${initialized}; rm -f "$KZ_GATE_DIR/gate.caddy"`);
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain("compose exec -T proxy caddy reload");
   });
 
   bashIt("admin: refuses without the address, password or reason", () => {
@@ -677,6 +758,29 @@ describe("small helpers", () => {
     expect(runLib(`kz_b64 '${encoded}'`).stdout).toBe("Krajozbiór — redakcja");
     expect(runLib("kz_b64 ''").stdout).toBe("");
   });
+
+  // S3: before -Otworz the home page must ask for the password; 200 then means a missing gate.
+  for (const [opened, code, ok] of [
+    [false, "401", true],
+    [false, "200", false],
+    [true, "200", true],
+    [true, "401", false],
+  ] as const) {
+    bashIt(
+      `site check: home page ${code} ${opened ? "after" : "before"} opening is ${ok ? "ok" : "an error"}`,
+      () => {
+        const box = sandbox(ENV_PRODUCTION);
+        const remote = join(SERVER_DIR, "remote.sh").replaceAll("\\", "/");
+        const result = runLib(
+          `. "${remote}"; kz_wait_http() { :; }; kz_http_code() { echo ${code}; }; ${opened ? "kz_state_set opened x;" : ""} if kz_site_ok; then echo OK; else echo NOT-OK; fi`,
+          { KZ_ROOT: box.root },
+        );
+
+        expect(result.stdout).toContain(ok ? "OK" : "NOT-OK");
+        if (ok) expect(result.stdout).not.toContain("NOT-OK");
+      },
+    );
+  }
 
   bashIt("checks out only full commit hashes", () => {
     const result = runLib("kz_checkout main");

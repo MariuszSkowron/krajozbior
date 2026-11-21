@@ -346,6 +346,10 @@ describe("connection arguments", () => {
         "IdentitiesOnly=yes",
         "IdentityAgent=none",
         "StrictHostKeyChecking=yes",
+        // S6 (review F-K4): never a password prompt, also not for root during the bootstrap.
+        "PreferredAuthentications=publickey",
+        "PasswordAuthentication=no",
+        "KbdInteractiveAuthentication=no",
         "UserKnownHostsFile=C:\\Users\\x\\kh",
         "deploy@192.0.2.10",
       ]),

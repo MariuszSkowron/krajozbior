@@ -23,8 +23,14 @@ kz_require_initialized() {
   [ -n "$IMAGE_TAG" ] || kz_fail "brak zapisanej wersji obrazu"
 }
 
+KZ_RESTORE_COMMIT=""
+
 kz_cleanup() {
   rm -f "$KZ_OPS_ENV" "$KZ_RUN/pg-bootstrap" "$KZ_RUN/restore.key"
+  if [ -n "$KZ_RESTORE_COMMIT" ]; then
+    (kz_checkout "$KZ_RESTORE_COMMIT") >/dev/null 2>&1 &&
+      kz_step "kod na serwerze wrocil do dzialajacej wersji" || true
+  fi
 }
 
 kz_compose_init() {
@@ -32,19 +38,35 @@ kz_compose_init() {
     -f "$KZ_SRC/deploy/compose.init.yaml" "$@" </dev/null
 }
 
-# Site checks through Caddy: health must be 200, the home page 200 (open) or 401 (gate).
+# Site checks through Caddy: health must be 200; the home page 401 (password gate) until
+# -Otworz has succeeded, 200 afterwards. A 200 before the opening means the gate is missing,
+# which breaks the legal condition of spec 5.4a (review F-K4, S3).
 kz_site_ok() {
   kz_wait_http /api/health 200 "${1:-24}" || return 1
   local code
   code="$(kz_http_code /)"
-  case "$code" in
-    200) kz_step "strona glowna: 200 (serwis otwarty)" ;;
-    401) kz_step "strona glowna: 401 (serwis za haslem)" ;;
-    *)
-      kz_step "strona glowna odpowiada kodem ${code:-brak}"
-      return 1
-      ;;
-  esac
+  if [ -f "$KZ_STATE/opened" ]; then
+    [ "$code" = "200" ] && { kz_step "strona glowna: 200 (serwis otwarty)"; return 0; }
+  else
+    [ "$code" = "401" ] && { kz_step "strona glowna: 401 (serwis za haslem)"; return 0; }
+    [ "$code" = "200" ] && { kz_step "strona glowna: 200 BEZ HASLA przed otwarciem (bramka nie dziala)"; return 1; }
+  fi
+  kz_step "strona glowna odpowiada kodem ${code:-brak}"
+  return 1
+}
+
+# The proxy may start only behind the password gate, unless the service was opened (5.4a).
+kz_require_gate() {
+  [ -f "$KZ_GATE_DIR/gate.caddy" ] || [ -f "$KZ_STATE/opened" ] ||
+    kz_fail "brak bramki hasla ($KZ_GATE_DIR/gate.caddy), a serwis nie byl otwierany (-Otworz); nic nie uruchamiam"
+}
+
+# The `ops` service must read its own operator file (/run/krajozbior/ops.env), not
+# .env.production: otherwise db:roles and db:migrate get no owner/ops passwords and the first
+# deployment stops halfway (review F-K4, S7). The file arrives with PR #60.
+kz_require_ops_env_file() {
+  grep -q 'KRAJOZBIOR_OPS_ENV_FILE' "$KZ_SRC/deploy/compose.yaml" 2>/dev/null ||
+    kz_fail "deploy/compose.yaml tego commita nie ma osobnego pliku operatora (KRAJOZBIOR_OPS_ENV_FILE). Najpierw scal PR #60 i wdrazaj commit po scaleniu; nic nie uruchamiam"
 }
 
 # Name of the database volume (deploy/compose.yaml, volumes.pgdata.name).
@@ -84,6 +106,8 @@ kz_mode_initial() {
   kz_write_healthchecks_env
   IMAGE_TAG="$(kz_tag_of "$KZ_COMMIT")"
   export IMAGE_TAG
+  kz_require_ops_env_file
+  kz_require_gate
   kz_assert_no_demo_flags
 
   kz_step "budowa obrazow $IMAGE_TAG (kilka minut)"
@@ -125,15 +149,35 @@ kz_check_secrets_absent() {
   kz_step "K-7: brak hasel w zmiennych kontenerow, superuzytkownik bez hasla"
 }
 
+# Removes app/ops images other than the two given tags (current and previous) and old build
+# cache, so repeated deployments do not fill the disk (review F-K4, S2 d). Never fails.
+kz_prune_images() {
+  local repo tag
+  for repo in krajozbior-app krajozbior-ops; do
+    for tag in $(docker image ls "$repo" --format '{{.Tag}}' </dev/null 2>/dev/null || true); do
+      [ "$tag" = "$1" ] || [ "$tag" = "$2" ] || docker image rm "$repo:$tag" >/dev/null 2>&1 </dev/null || true
+    done
+  done
+  docker builder prune -f --filter until=168h >/dev/null 2>&1 </dev/null || true
+}
+
 kz_mode_commit() {
   kz_require_initialized
-  local previous="$IMAGE_TAG"
-  kz_checkout "$KZ_COMMIT"
-  kz_write_healthchecks_env
-  kz_assert_no_demo_flags
+  local previous="$IMAGE_TAG" previous_commit failed
+  previous_commit="$(kz_state_get current-commit)"
 
+  # Before anything changes, with the code of the running version.
   kz_step "kopia przed wdrozeniem"
   kz_backup predeploy || kz_fail "kopia przed wdrozeniem nieudana; nic nie zmieniono (dziala $previous)"
+
+  kz_checkout "$KZ_COMMIT"
+  # Until the swap succeeds, any exit puts the code folder (compose.yaml, Caddyfile, timer
+  # scripts) back on the running version (kz_cleanup).
+  KZ_RESTORE_COMMIT="$previous_commit"
+  kz_write_healthchecks_env
+  kz_require_ops_env_file
+  kz_require_gate
+  kz_assert_no_demo_flags
 
   IMAGE_TAG="$(kz_tag_of "$KZ_COMMIT")"
   export IMAGE_TAG
@@ -145,16 +189,28 @@ kz_mode_commit() {
 
   kz_step "podmiana aplikacji"
   if kz_compose up -d --wait app proxy && kz_site_ok; then
+    KZ_RESTORE_COMMIT=""
     kz_state_set previous-tag "$previous"
+    kz_state_set previous-commit "$previous_commit"
     kz_state_set current-tag "$IMAGE_TAG"
     kz_state_set current-commit "$KZ_COMMIT"
+    kz_prune_images "$IMAGE_TAG" "$previous"
     kz_step "GOTOWE: wdrozono $IMAGE_TAG (poprzednio $previous)"
     return 0
   fi
 
-  kz_step "powrot do poprzedniego obrazu $previous (migracji nie cofam)"
-  IMAGE_TAG="$previous" kz_compose up -d --wait app || true
-  kz_fail "wdrozenie $IMAGE_TAG nieudane; dziala $previous. Cofniecie migracji = odtworzenie kopii przed wdrozeniem (decyzja czlowieka)"
+  # Back to the previous version as a whole: code (compose.yaml, Caddyfile), app image and
+  # proxy, then the same site check. Migrations are not rolled back (D-E11-7).
+  failed="$IMAGE_TAG"
+  KZ_RESTORE_COMMIT=""
+  IMAGE_TAG="$previous"
+  export IMAGE_TAG
+  kz_step "powrot do poprzedniej wersji $previous: kod, aplikacja i Caddy (migracji nie cofam)"
+  if [ -n "$previous_commit" ] && (kz_checkout "$previous_commit") &&
+    kz_compose up -d --wait app proxy && kz_site_ok; then
+    kz_fail "wdrozenie $failed nieudane; przywrocono $previous i strona odpowiada. Baza jest juz po migracjach $failed (poprzedni kod dziala na nowym schemacie). Cofniecie migracji = odtworzenie kopii przed wdrozeniem (decyzja czlowieka)"
+  fi
+  kz_fail "wdrozenie $failed nieudane i powrot do $previous tez nieudany: serwis moze nie dzialac. Uruchom -Diagnoza i napisz agentowi"
 }
 
 kz_mode_admin() {
@@ -206,10 +262,10 @@ kz_mode_otworz() {
   if ! kz_ops legal:final; then
     kz_fail "teksty prawne maja znaczniki robocze; serwis zostaje za haslem"
   fi
-  if [ -f "$KZ_GATE_DIR/gate.caddy" ]; then
-    rm -f "$KZ_GATE_DIR/gate.caddy"
-    kz_compose exec -T proxy caddy reload --config /etc/caddy/Caddyfile
-  fi
+  rm -f "$KZ_GATE_DIR/gate.caddy"
+  # Always: when an earlier attempt removed the file but the reload failed, a repeat must
+  # still reload (review F-K4, S3).
+  kz_compose exec -T proxy caddy reload --config /etc/caddy/Caddyfile
   kz_wait_http / 200 12 || kz_fail "strona glowna nie odpowiada 200 po zdjeciu hasla"
   kz_state_set opened "$(date -u +%FT%TZ)"
   kz_step "GOTOWE: serwis otwarty"
