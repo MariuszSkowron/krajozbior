@@ -2,7 +2,7 @@
 
 ## W skrócie
 
-Każda większa zmiana zaczyna się od specyfikacji: opisu celu, wymagań, rozwiązania, testów i podziału pracy na małe PR-y (propozycje zmian w kodzie). Specyfikację pisze jeden model AI, a przegląda inny; pytania otwarte rozstrzyga właściciel, zanim powstanie kod. Do dziś powstały trzy specyfikacje. Poniżej są ich streszczenia; pełne wersje są w prywatnym repozytorium dokumentacji, bo zawierają decyzje i plany właściciela.
+Każda większa zmiana zaczyna się od specyfikacji: opisu celu, wymagań, rozwiązania, testów i podziału pracy na małe PR-y (propozycje zmian w kodzie). Specyfikację pisze jeden model AI, a przegląda inny; pytania otwarte rozstrzyga właściciel, zanim powstanie kod. Poniżej są streszczenia specyfikacji, według których powstała ścieżka konkursowa, dziennik operacji i wygląd aplikacji. Specyfikacja epiku E12 („Odkrywanie”) ma osobny, dokładniejszy plik: [Specyfikacja E12](specyfikacja-e12-odkrywanie.md). Specyfikacje kolejnych epików (zdjęcia, zgłoszenia, wydarzenia, aktualności, własne kolekcje, profil, administracja, wdrożenie) też przeszły przegląd innego modelu, ale jeszcze nie mają jawnych streszczeń. Pełne wersje wszystkich specyfikacji są w prywatnym repozytorium dokumentacji, bo zawierają decyzje i plany właściciela.
 
 Oznaczenia z pełnych specyfikacji: wymaganie właściciela, propozycja agenta (czeka na akceptację) i decyzja techniczna są zawsze rozdzielone.
 
@@ -32,6 +32,8 @@ Oznaczenia z pełnych specyfikacji: wymaganie właściciela, propozycja agenta (
 **Podział pracy.** Osiem PR-ów obowiązkowych i jeden opcjonalny: organizacje i polecenie operatora; katalog kolekcji i miejsc; panel kuratora; strony publiczne; album w bazie; „Moje kolekcje”; wizyta na miejscu z testem całej ścieżki; „Chcę zobaczyć”; opcjonalnie wizyta z przeszłości. Specyfikacja wskazuje też, co wyciąć najpierw, gdy zabraknie czasu (zaczynając od wizyty z przeszłości), i czego nie wycinać nigdy (testów uprawnień).
 
 **Poza zakresem tej specyfikacji:** zdjęcia i moderacja, zgłoszenia, wydarzenia i karty legendarne, aktualności, własne kolekcje odkrywców, profil, ekrany administratora, współzarządzanie kolekcją, mapa i wyszukiwarka. Zostają w zakresie pierwszej wersji, w kolejnych specyfikacjach.
+
+**Przegląd specyfikacji.** Specyfikację napisał Opus, przejrzał Sonnet, a każdą rundę poprawek sprawdzał kolejny, niezależny agent (Sonnet albo Opus), aż do zatwierdzenia. Przed pierwszym PR-em osobny przegląd gotowości sprawdził, czy specyfikacja jest kompletna i zgodna z zasadami repozytorium.
 
 ## 2. Dziennik operacji odporny na rolę, która do niego zapisuje
 
