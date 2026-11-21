@@ -28,6 +28,9 @@ export const decodeStats: { decodes: number };
 /** Potwierdza format (jpeg/png) i liczbę stron (najwyżej 1) według libvips. */
 export function assertSupportedMetadata(metadata: { format?: string; pages?: number }): void;
 
+/** JPEG 1200 px do `og:image` z pliku głównego (WebP własnego wytworu); `too_complex` ponad budżet. */
+export function encodeOgJpeg(main: Buffer): Promise<Buffer>;
+
 export function processImage(
   input: Buffer | Uint8Array,
   options?: ProcessImageOptions,

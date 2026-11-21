@@ -126,9 +126,10 @@ async function encodeMainFile(input, longestSide) {
 }
 
 /**
+ * JPEG 1200 px do `og:image` z pliku głównego (WebP, który sami wytworzyliśmy); budżet 200 KB.
  * @param {Buffer} main
  */
-async function encodeOgJpeg(main) {
+export async function encodeOgJpeg(main) {
   for (let quality = START_QUALITY; quality >= MIN_QUALITY; quality -= QUALITY_STEP) {
     const data = await sharp(main)
       .resize({
