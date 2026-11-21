@@ -48,6 +48,9 @@ describe("tab titles", () => {
 
       expect(metadata.title).toBe(title);
     },
-    20_000,
+    // Each case is a cold dynamic import of a whole page; under load (parallel tests or a
+    // build) it can take far longer than on an idle machine. Test timeout for tests that
+    // start heavy imports is 30 s (docs/testing.md).
+    30_000,
   );
 });
