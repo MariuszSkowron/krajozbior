@@ -77,6 +77,8 @@ async function populate(user: { id: string; email: string }) {
     `insert into public.profiles (first_name, family_initial, region, visibility)
      values ('Anna', 'K', 'pomorskie', 'public')`,
   );
+  // The theme remembered on the account (E9-4).
+  await as(user, `insert into public.account_settings (theme) values ('light')`);
   // The acceptance of the terms (F-K3): evidence that goes with the account.
   await as(user, `insert into public.terms_acceptance (terms_version) values ('0.2')`);
   // A membership of its own organization, with a colleague, so the account may go.
@@ -179,6 +181,7 @@ describe("account deletion on the real database", () => {
         expect.arrayContaining([
           "public.organization_members",
           "public.profiles",
+          "public.account_settings",
           "public.saved_collections",
           "public.terms_acceptance",
           "public.visits",
@@ -250,6 +253,7 @@ describe("account deletion on the real database", () => {
         "saved_collections",
         "want_to_see_places",
         "profiles",
+        "account_settings",
         "terms_acceptance",
       ]) {
         expect(await as(a, `select * from public.${table}`), table).toEqual([]);
