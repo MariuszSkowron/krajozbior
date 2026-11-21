@@ -45,7 +45,7 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?run showcase-up.ps1}
     volumes:
       - ../.data/showcase/outbox:/app/.data/outbox
-      # `!override` wyżej w pliku zastępuje listę z compose.yaml, więc wolumen zdjęć dopisujemy tu.
+      # Listy wolumenów z compose.yaml i tego pliku się scalają; wpis zdjęć jest tu jawnie dla czytelności.
       - media:/var/lib/krajozbior/media:ro
 
   # Bez Caddy: nie startuje, a jego porty 80 i 443 nie są publikowane.
