@@ -4,7 +4,36 @@ import type { SignInResult } from "@/features/identity/domain/identity-provider"
 import { roleHome } from "@/features/identity/domain/role-home";
 import type { SignInThrottle, ThrottleSubject } from "@/features/identity/domain/sign-in-throttle";
 import { getClientIpHeader } from "@/features/identity/infrastructure";
+import { getMyTheme } from "@/features/settings/application/settings";
+import type { SettingsDeps } from "@/features/settings/application/settings-types";
+import { getSettingsDeps } from "@/features/settings/infrastructure/settings-deps";
 import { isDemoSignInAllowed } from "@/lib/config/env";
+import { logFailure } from "@/lib/log-failure";
+
+import { themeSetCookieHeader } from "../../shell/theme";
+
+/**
+ * The `Set-Cookie` of the theme saved on the account of the person who just signed in (E9-4,
+ * Q11 variant A): the choice comes back on every device. An account that never chose gets no
+ * cookie (the one of the browser stays). A failure never blocks the sign-in: the person keeps
+ * the theme of the browser and the failure goes to the log.
+ */
+export async function accountThemeCookies(
+  actor: SignInResult["actor"],
+  deps: SettingsDeps = getSettingsDeps(),
+): Promise<string[]> {
+  try {
+    const outcome = await getMyTheme(actor, deps);
+
+    return outcome.status === "ok" && outcome.value !== null
+      ? [themeSetCookieHeader(outcome.value)]
+      : [];
+  } catch (error) {
+    logFailure("Theme read after sign-in", error);
+
+    return [];
+  }
+}
 
 /**
  * True when the address is a demo account and this deployment must not sign it
@@ -100,11 +129,16 @@ export async function reserveAttempt(
 }
 
 /** The response of a successful sign-in: the session cookies and the destination. */
-export function signedIn(request: Request, result: SignInResult, returnTo: string | null) {
+export function signedIn(
+  request: Request,
+  result: SignInResult,
+  returnTo: string | null,
+  extraCookies: readonly string[] = [],
+) {
   const headers = new Headers(NO_STORE);
   const destination = returnTo ?? roleHome(result.actor.role);
 
-  for (const cookie of result.setCookies) {
+  for (const cookie of [...result.setCookies, ...extraCookies]) {
     headers.append("Set-Cookie", cookie);
   }
 
