@@ -275,7 +275,11 @@ const blocked = [
   "git push --tags origin",
   "git push origin feat/x feat/y",
   "git push origin $branch",
-  'git push -u origin "$(git branch --show-current)"',
+  // Only the exact command that prints the current branch passes (version 6).
+  'git push -u origin "$(git branch)"',
+  'git push -u origin "$(echo example.com:x)"',
+  'git push -u origin "$(git branch --show-current; echo x)"',
+  'git push -u origin "x$(git branch --show-current)"',
   "git push origin -- feat/x",
   "git fetch upstream",
   "git fetch origin --upload-pack=x",
@@ -434,6 +438,94 @@ const bypassesFromFourthReview = [
   "git init --templ=.ai/tmp/hooks x",
   // A printed text that an interpreter in the same command runs.
   "echo 'git fetch prod' | bash",
+];
+
+// Bypasses found by the fifth review (`review-k16-59-weryfikacja-v5.md`,
+// B1–B5): each passed version 5 and each must be blocked.
+const bypassesFromFifthReview = [
+  // B1: an output format option of `git config` does not make a read.
+  "git config -z remote.origin.pushurl example.com:x",
+  "git config --null remote.origin.pushurl example.com:x",
+  "git config --show-scope remote.origin.pushurl example.com:x",
+  "git config --show-names remote.origin.pushurl example.com:x",
+  "git config --show-origin remote.origin.pushurl example.com:x",
+  "git config --name-only remote.origin.pushurl example.com:x",
+  "git config --all remote.origin.pushurl example.com:x",
+  "git config --regexp remote.origin.pushurl example.com:x",
+  "git config -z core.hooksPath .ai/tmp/hooks",
+  "git config --null core.pager x",
+  "git config --show-scope alias.f fetch",
+  "git config --bool core.hooksPath x",
+  // B2: a printed text that `source` or `.` runs.
+  "echo git fetch example.com:x | source /dev/stdin",
+  "source <(echo git fetch example.com:x)",
+  ". <(echo git fetch example.com:x)",
+  "echo git fetch example.com:x | . /dev/stdin",
+  "echo git fetch example.com:x | ash",
+  "echo git fetch example.com:x | dash",
+  "echo git fetch example.com:x | ksh",
+  "echo git fetch example.com:x | zsh",
+  "echo git fetch example.com:x | busybox sh",
+  "printf 'git fetch example.com:x' | source /dev/stdin",
+  // B3: git without a subcommand, the arguments come from another program.
+  "echo fetch example.com:x | xargs git",
+  "echo fetch example.com:x | xargs -n2 git",
+  'xargs git <<< "fetch example.com:x"',
+  "printf 'fetch example.com:x' | xargs git -C .",
+  "echo fetch example.com:x | xargs -I{} git {}",
+  "Start-Process -ArgumentList 'fetch example.com:x' -FilePath git",
+  "Start-Process -ArgumentList 'fetch example.com:x' -FilePath git -NoNewWindow -Wait",
+  "Start-Process -FilePath git -ArgumentList 'fetch example.com:x'",
+  "saps -ArgumentList 'fetch example.com:x' git",
+  // B4: a quoted text given to an interpreter otherwise than as an argument.
+  "'git fetch example.com:x' | iex",
+  "'git fetch example.com:x' | Invoke-Expression",
+  "'git fetch example.com:x' | powershell -Command -",
+  "'git fetch example.com:x' | cmd",
+  "bash <<< 'git fetch example.com:x'",
+  'sh <<<"git fetch example.com:x"',
+  "cat <<< 'git fetch example.com:x' | bash",
+  'c=x; bash <<< "$c git"',
+  "$c = 'git fetch example.com:x'; iex $c",
+  "Invoke-Expression ('git fetch ' + 'prod')",
+  // B5: a program that git runs, set in a variable.
+  "GIT_EDITOR='git fetch example.com:x #' git commit --amend",
+  "GIT_SEQUENCE_EDITOR='git fetch example.com:x #' git rebase -i HEAD~1",
+  "GIT_EXTERNAL_DIFF='git fetch example.com:x #' git diff",
+  "GIT_PAGER='git fetch example.com:x #' git log",
+  "$env:GIT_EDITOR='git fetch example.com:x #'; git commit --amend",
+  "export GIT_EDITOR='git fetch example.com:x #'; git commit --amend",
+  "EDITOR='git fetch example.com:x #' git commit --amend",
+  "VISUAL=x.cmd git commit --amend",
+  "PAGER=x.cmd git log",
+  "$env:PAGER = 'x.cmd'; git log",
+  "git -c core.editor=x.cmd commit --amend",
+  "git -c sequence.editor=x.cmd rebase -i HEAD~1",
+  "git -c diff.external=x.cmd diff",
+  "git -c core.pager=x.cmd log",
+];
+
+// False blocks from the fifth review (S2) that version 6 lets through, and
+// harmless values of the program variables (B5).
+const falseBlocksFromFifthReview = [
+  'git push origin "$(git branch --show-current)"',
+  'git push -u origin "$(git branch --show-current)"',
+  "git push origin $(git branch --show-current)",
+  "git push -u origin $(git rev-parse --abbrev-ref HEAD)",
+  "git commit --template=x",
+  "git commit --template .ai/tmp/msg-template.txt",
+  "git config --type=bool --get core.autocrlf",
+  "git config --type bool --get core.autocrlf",
+  "git config --bool --get core.autocrlf",
+  "git config --bool core.autocrlf",
+  "git config --show-origin --get user.name",
+  "git config --list --show-origin",
+  "git config -z --get-regexp remote",
+  "GIT_PAGER=cat git log --oneline -5",
+  "$env:GIT_PAGER='cat'; git log -1",
+  "GIT_EDITOR=true git rebase --continue",
+  "echo done | Out-Null",
+  "command -v git",
 ];
 
 // False blocks from the fourth review (S1): a bare `git` in the arguments of
@@ -681,8 +773,12 @@ const knownLimitations = [
   // Git settings prepared outside the command with a file tool: `origin` of
   // another repository.
   "git -C ../prepared-repo fetch origin",
-  // Arguments assembled at run time.
-  "Invoke-Expression ('git fetch ' + 'prod')",
+  // Obscured names of git (fifth review, S1).
+  "$'git' fetch example.com:x",
+  "& ('git') fetch example.com:x",
+  "bin/git fetch example.com:x",
+  "Set-Alias g git; g fetch example.com:x",
+  "npx -c 'git fetch example.com:x'",
   // Other wildcard paths to keys and secrets.
   "cat ~/.*/id_*",
   "cat ~/*/id_ed25519",
@@ -753,6 +849,14 @@ describe("findRemoteAccess", () => {
 
   it.each(bypassesFromFourthReview)("blocks a bypass from the fourth review: %s", (command) => {
     expect(findRemoteAccess(command).length).toBeGreaterThan(0);
+  });
+
+  it.each(bypassesFromFifthReview)("blocks a bypass from the fifth review: %s", (command) => {
+    expect(findRemoteAccess(command).length).toBeGreaterThan(0);
+  });
+
+  it.each(falseBlocksFromFifthReview)("allows (fifth review, S2): %s", (command) => {
+    expect(findRemoteAccess(command)).toEqual([]);
   });
 
   it.each(searchesForTheWordGit)("allows a search for the word git: %s", (command) => {
