@@ -30,6 +30,10 @@ const foreignKeys: Record<string, { behaviour: Behaviour; why: string }> = {
     behaviour: "cascade",
     why: "profile of the explorer: name, initial, region, visibility (E9-2)",
   },
+  "public.terms_acceptance.user_id": {
+    behaviour: "cascade",
+    why: "which version of the terms the account accepted and when; evidence for the account only (F-K3)",
+  },
   "public.organization_members.user_id": {
     behaviour: "cascade",
     why: "the membership goes; the organization and its content stay (Q8)",

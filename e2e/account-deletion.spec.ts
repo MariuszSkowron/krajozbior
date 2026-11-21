@@ -102,6 +102,21 @@ async function signInWithCode(page: Page, email: string, from = "/login") {
   await page.locator("#code-verify-code").fill(await codeFor(email, known));
   await page.getByRole("button", { name: "Zaloguj się kodem" }).click();
   await expect(page).not.toHaveURL(/\/login/);
+  await acceptTermsWhenAsked(page);
+}
+
+// A new account first sees „Zanim zaczniesz” (F-K3); this spec tests the deletion, so it
+// accepts the terms and goes on. The screen itself is tested by terms-acceptance.spec.ts.
+async function acceptTermsWhenAsked(page: Page) {
+  await page.waitForLoadState();
+
+  const gate = page.getByRole("heading", { level: 1, name: "Zanim zaczniesz" });
+
+  if (await gate.isVisible()) {
+    await page.getByLabel(/Akceptuję Regulamin/).check();
+    await page.getByRole("button", { name: "Akceptuję", exact: true }).click();
+    await expect(gate).toBeHidden();
+  }
 }
 
 async function newSignedInPage(browser: Browser, email: string, width = 390) {

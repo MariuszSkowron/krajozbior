@@ -77,6 +77,8 @@ async function populate(user: { id: string; email: string }) {
     `insert into public.profiles (first_name, family_initial, region, visibility)
      values ('Anna', 'K', 'pomorskie', 'public')`,
   );
+  // The acceptance of the terms (F-K3): evidence that goes with the account.
+  await as(user, `insert into public.terms_acceptance (terms_version) values ('0.2')`);
   // A membership of its own organization, with a colleague, so the account may go.
   await f.newOrganization(`Gmina ${user.id}`, `gmina-${user.id}`, [user, orgOwner]);
   await admin$(
@@ -178,6 +180,7 @@ describe("account deletion on the real database", () => {
           "public.organization_members",
           "public.profiles",
           "public.saved_collections",
+          "public.terms_acceptance",
           "public.visits",
           "public.want_to_see_places",
         ]),
@@ -242,7 +245,13 @@ describe("account deletion on the real database", () => {
       await populate(a);
       await deleteAccountRows(authPool, a.id);
 
-      for (const table of ["visits", "saved_collections", "want_to_see_places", "profiles"]) {
+      for (const table of [
+        "visits",
+        "saved_collections",
+        "want_to_see_places",
+        "profiles",
+        "terms_acceptance",
+      ]) {
         expect(await as(a, `select * from public.${table}`), table).toEqual([]);
       }
     });

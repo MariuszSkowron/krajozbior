@@ -62,6 +62,11 @@
   color: var(--color-text-accent);
 }
 
+/* Odnośnik w zdaniu (zasady serwisu): kolor akcentu, podkreślenie z theme.css. */
+.textLink {
+  color: var(--color-text-accent);
+}
+
 .page {
   display: grid;
   gap: var(--space-lg);
