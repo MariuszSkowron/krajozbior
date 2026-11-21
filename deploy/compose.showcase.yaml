@@ -15,6 +15,12 @@ name: krajozbior-showcase
 services:
   db:
     container_name: krajozbior-showcase-db
+    # Pokaz zachowuje hasło superużytkownika (`db:roles` przy każdym uruchomieniu), a jego plik
+    # w .data/showcase/ jest trwały; serwer używa go tylko przy pierwszym starcie (compose.init.yaml).
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_bootstrap
+    secrets:
+      - pg_bootstrap
     logging: !override
       driver: local
       options:
