@@ -36,6 +36,23 @@
 /next.config.ts                    @MariuszSkowron
 /tsconfig.json                     @MariuszSkowron
 
+# Akceptacja regulaminu (F-K3, dane PRIV: który odkrywca zaakceptował którą wersję i kiedy):
+# moduł, ekran „Zanim zaczniesz” w powłoce (/src/app/shell/ już ma właściciela), test dwóch
+# kont w przeglądarce i strony prawne (publiczne teksty, ale ich wersja jest dowodem w umowie
+# z odkrywcą). Trasa API w /src/app/api/ i migracja już mają właściciela.
+/src/features/terms/               @MariuszSkowron
+/tests/features/terms/             @MariuszSkowron
+/src/features/legal/               @MariuszSkowron
+/tests/features/legal/             @MariuszSkowron
+/src/app/legal/                    @MariuszSkowron
+/src/app/regulamin/                @MariuszSkowron
+/src/app/polityka-prywatnosci/     @MariuszSkowron
+/src/app/zasady/                   @MariuszSkowron
+/src/app/oswiadczenie-o-zdjeciach/ @MariuszSkowron
+/src/lib/request-url.ts            @MariuszSkowron
+/e2e/terms-acceptance.spec.ts      @MariuszSkowron
+/e2e/global-setup.ts               @MariuszSkowron
+
 # Organizacje i członkostwa kuratorów (dane CUR, polecenie operatora)
 /src/features/organizations/       @MariuszSkowron
 /tests/features/organizations/     @MariuszSkowron

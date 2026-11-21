@@ -7,10 +7,13 @@ const mocks = vi.hoisted(() => ({
   getActor: vi.fn(),
   listMemberships: vi.fn(),
   pathname: "/",
+  termsAccepted: true,
+  url: "/",
 }));
 
+vi.mock("@/app/shell/terms-state", () => ({ shellTermsAccepted: async () => mocks.termsAccepted }));
 vi.mock("next/headers", () => ({
-  headers: async () => new Headers(),
+  headers: async () => new Headers({ "x-krajozbior-url": mocks.url }),
   cookies: async () => ({
     get: (name: string) =>
       name === "krajozbior-theme" && mocks.themeCookie !== undefined
@@ -60,20 +63,112 @@ beforeEach(() => {
   mocks.listMemberships.mockReset().mockResolvedValue([]);
   mocks.pathname = "/";
   mocks.themeCookie = undefined;
+  mocks.termsAccepted = true;
+  mocks.url = "/";
 });
 
 describe("app shell", () => {
-  it("puts the skip link first, then the header and the main content", async () => {
+  it("puts the skip link first, then the test bar and header, the main content and the footer", async () => {
     const html = await shell();
     const body = html.match(/<body[^>]*>(.*)<\/body>/)?.[1] ?? "";
 
     expect(body).toMatch(
-      /^<a class="[^"]*skipLink[^"]*" href="#tresc">Przejdź do treści<\/a><header/,
+      /^<a class="[^"]*skipLink[^"]*" href="#tresc">Przejdź do treści<\/a><div class="[^"]*top[^"]*"><div [^>]*testBanner[^>]*>.*<\/div><header/,
     );
     expect(body).toMatch(
-      /<\/header><main id="tresc" tabindex="-1"[^>]*><p>Treść strony<\/p><\/main>/,
+      /<\/header><\/div><main id="tresc" tabindex="-1"[^>]*><p>Treść strony<\/p><\/main><footer/,
     );
     expect(html.match(/<main/g)).toHaveLength(1);
+  });
+
+  it("shows the test-version bar with a link to the main rules (E11-Q2 A)", async () => {
+    const html = await shell();
+
+    expect(html).toMatch(
+      /role="region" aria-label="Wersja testowa"><p><strong>Wersja testowa<\/strong> — dokumenty prawne w wersji roboczej\. <a href="\/zasady">Najważniejsze zasady<\/a><\/p><button type="button"[^>]*>Zamknij<\/button>/,
+    );
+  });
+
+  it("has a footer with the legal pages and the contact address, for a guest too (F-K3)", async () => {
+    const html = await shell();
+    const footer = html.match(/<footer[^>]*>.*<\/footer>/)?.[0] ?? "";
+
+    expect(footer).toContain('aria-label="Informacje prawne i kontakt"');
+    for (const [href, label] of [
+      ["/regulamin", "Regulamin"],
+      ["/polityka-prywatnosci", "Polityka prywatności"],
+      ["/zasady", "Najważniejsze zasady"],
+      ["mailto:kontakt@mariuszskowron.pl", "Kontakt"],
+    ]) {
+      expect(footer).toMatch(new RegExp(`href="${href}">${label}</a>`));
+    }
+  });
+
+  describe("the terms screen (E11-Q4 A)", () => {
+    it("replaces the page of a signed-in account that has not accepted the terms, and hides the menu", async () => {
+      mocks.getActor.mockResolvedValue(as("user"));
+      mocks.termsAccepted = false;
+      mocks.url = "/my/collections";
+
+      const html = await shell();
+
+      expect(html).toContain("<h1>Zanim zaczniesz</h1>");
+      expect(html).not.toContain("Treść strony");
+      expect(html).not.toContain('aria-label="Główna"');
+      expect(html).not.toMatch(/<body class="[^"]*withNav/);
+      // The logout stays in the header, and the footer links stay.
+      expect(header(html)).toContain("Wyloguj");
+      expect(html).toContain("<footer");
+    });
+
+    it.each(["/regulamin", "/polityka-prywatnosci?x=1", "/zasady/", "/oswiadczenie-o-zdjeciach"])(
+      "keeps the legal page %s readable before the acceptance, without the menu",
+      async (url) => {
+        mocks.getActor.mockResolvedValue(as("user"));
+        mocks.termsAccepted = false;
+        mocks.url = url;
+
+        const html = await shell();
+
+        expect(html).toContain("<p>Treść strony</p>");
+        expect(html).not.toContain("Zanim zaczniesz");
+        expect(html).not.toContain('aria-label="Główna"');
+      },
+    );
+
+    it("shows the page and the menu after the acceptance", async () => {
+      mocks.getActor.mockResolvedValue(as("user"));
+
+      const html = await shell();
+
+      expect(html).toContain("<p>Treść strony</p>");
+      expect(html).toContain('aria-label="Główna"');
+    });
+
+    it("does not show the panel link to an account that has not accepted the terms", async () => {
+      mocks.getActor.mockResolvedValue(as("user"));
+      mocks.listMemberships.mockResolvedValue([
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Gmina",
+          slug: "gmina",
+          kind: "municipality",
+          status: "approved",
+        },
+      ]);
+      mocks.termsAccepted = false;
+
+      expect(await shell()).not.toContain("Panel kuratora");
+    });
+
+    it("does not ask a guest for anything", async () => {
+      mocks.termsAccepted = false;
+
+      const html = await shell();
+
+      expect(html).toContain("<p>Treść strony</p>");
+      expect(html).not.toContain("Zanim zaczniesz");
+    });
   });
 
   it("links the application name to the start page", async () => {
@@ -196,7 +291,7 @@ describe("app shell", () => {
   it("gives a guest no main navigation and no bar space in the body", async () => {
     const html = await shell();
 
-    expect(html).not.toContain("<nav");
+    expect(html).not.toContain('aria-label="Główna"');
     expect(html).not.toMatch(/<body class="[^"]*withNav/);
   });
 
@@ -207,7 +302,9 @@ describe("app shell", () => {
     const html = await shell();
 
     expect(html).toMatch(/<body class="[^"]*withNav/);
-    expect(html).toMatch(/<\/header><nav [^>]*aria-label="Główna"[\s\S]*<\/nav><main id="tresc"/);
+    expect(html).toMatch(
+      /<\/header><\/div><nav [^>]*aria-label="Główna"[\s\S]*<\/nav><main id="tresc"/,
+    );
     expect(nav(html).match(/<li>/g)).toHaveLength(4);
     for (const label of ["Start", "Moje kolekcje", "Chcę zobaczyć", "Profil"]) {
       expect(nav(html)).toContain(`>${label}</span>`);

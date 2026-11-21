@@ -48,6 +48,17 @@ describe("proxy coverage and caching", () => {
     },
   );
 
+  it("passes the page address to the shell and overwrites a forged value (F-K3)", () => {
+    const request = new NextRequest("http://127.0.0.1:3000/regulamin?a=1", {
+      headers: { "x-krajozbior-url": "/forged" },
+    });
+    const response = proxy(request);
+
+    // Next.js carries the request headers set by the proxy in these response headers.
+    expect(response.headers.get("x-middleware-override-headers")).toContain("x-krajozbior-url");
+    expect(response.headers.get("x-middleware-request-x-krajozbior-url")).toBe("/regulamin?a=1");
+  });
+
   it("does not set the security headers, which come from next.config.ts", () => {
     const response = at("/");
 

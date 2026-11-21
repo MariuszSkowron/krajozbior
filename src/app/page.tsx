@@ -9,6 +9,7 @@ import {
 } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import type { Actor } from "@/features/identity/domain/actor";
+import { CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
 
 import { AlbumSummary } from "./home/album-summary";
 import { CollectionsToDiscover } from "./home/collections-to-discover";
@@ -77,6 +78,8 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
     return null;
   });
   const signedOut = first(params.wylogowano) === "1";
+  // The person declined the terms on the "Zanim zaczniesz" screen (F-K3, E11-Q4 A).
+  const termsDeclined = first(params.wylogowano) === "odmowa";
   const signOutFailed = first(params.wylogowanie) === "blad";
   // Only a signal for the message after deleting the account (E9-5).
   const accountDeleted = first(params.konto) === "usuniete";
@@ -96,6 +99,13 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
       {signedOut ? (
         <p role="status" className={styles.status}>
           Wylogowano.
+        </p>
+      ) : null}
+      {termsDeclined ? (
+        <p role="status" className={styles.status}>
+          Wylogowano. Bez akceptacji regulaminu nie korzystasz z konta. Zapisaliśmy tylko Twój adres
+          e-mail; jeśli chcesz, żebyśmy go usunęli, napisz na{" "}
+          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
         </p>
       ) : null}
       {signOutFailed ? (

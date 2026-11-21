@@ -1,0 +1,133 @@
+/*
+ * Strony prawne (F-K3): czytelny tekst w kolumnie 48 rem, spis treści, tabele z przewijaniem.
+ * Tylko tokeny z tokens.css; kolory i odstępy z design systemu.
+ */
+.page {
+  display: grid;
+  gap: var(--space-md);
+  padding-block: var(--space-lg) var(--space-xl);
+}
+
+.page h1,
+.page p {
+  margin: 0;
+}
+
+.draft {
+  padding: var(--space-md);
+  background: var(--color-feedback-warning-bg);
+  border: 1px solid var(--color-border-default);
+  border-inline-start: var(--space-xs) solid var(--color-feedback-warning);
+  border-radius: var(--radius-md);
+}
+
+.version {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.toc {
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.tocTitle {
+  margin: 0 0 var(--space-sm);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-strong);
+}
+
+.toc ol {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding-inline-start: var(--space-lg);
+}
+
+/* Cel dotykowy odnośnika w spisie treści: co najmniej 44 px wysokości. */
+.toc a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-min);
+  color: var(--color-text-accent);
+}
+
+.body {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.body h2,
+.body h3,
+.versions h2 {
+  margin: var(--space-md) 0 0;
+}
+
+.body p,
+.body ul,
+.body ol {
+  margin: 0;
+}
+
+.body ul,
+.body ol {
+  display: grid;
+  gap: var(--space-xs);
+  padding-inline-start: var(--space-lg);
+}
+
+.body li > ul,
+.body li > ol {
+  margin-block-start: var(--space-xs);
+}
+
+.body a,
+.versions a {
+  color: var(--color-text-accent);
+  overflow-wrap: anywhere;
+}
+
+.tableScroll {
+  overflow-x: auto;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.table {
+  width: 100%;
+  min-width: 36rem;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.table th,
+.table td {
+  padding: var(--space-sm) var(--space-md);
+  text-align: start;
+  vertical-align: top;
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.table th {
+  background: var(--color-surface-card);
+  color: var(--color-text-strong);
+}
+
+.table tbody tr:last-child td {
+  border-block-end: 0;
+}
+
+.versions {
+  display: grid;
+  gap: var(--space-sm);
+  padding-block-start: var(--space-md);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.versions ul {
+  margin: 0;
+  padding-inline-start: var(--space-lg);
+}

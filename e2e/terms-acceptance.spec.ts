@@ -1,0 +1,331 @@
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
+
+import { expect, test, type Page } from "@playwright/test";
+import axe from "axe-core";
+import { Client } from "pg";
+
+import { CURRENT_TERMS_VERSION } from "../src/features/terms/domain/terms-version";
+import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+
+// F-K3: strony prawne, stopka, linki na ekranie logowania, pasek „Wersja testowa”, `noindex`
+// i ekran „Zanim zaczniesz” (akceptuję / nie akceptuję), z kontrolą dostępności (axe) w obu
+// motywach. Konta demo mają akceptację nadaną przed przebiegiem (e2e/global-setup.ts), więc ekran
+// akceptacji sprawdzają konta, które ten plik zakłada kodem z e-maila (skrzynka lokalna serwera
+// testowego `.data/e2e-email-outbox`, jak w account-deletion.spec.ts). Wymaga zmigrowanej bazy.
+const password = process.env.DEMO_ACCOUNT_PASSWORD;
+const OUTBOX = path.resolve(process.cwd(), ".data", "e2e-email-outbox");
+
+const LEGAL = [
+  { path: "/regulamin", title: "Regulamin" },
+  { path: "/polityka-prywatnosci", title: "Polityka prywatności" },
+  { path: "/zasady", title: "Najważniejsze zasady" },
+  { path: "/oswiadczenie-o-zdjeciach", title: "Oświadczenie o zdjęciach" },
+] as const;
+
+// Each address may ask for three codes in 15 minutes: every test makes its own.
+const newAddress = (label: string) =>
+  `k3-${label}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}@example.com`;
+
+async function setTheme(page: Page, theme: "dark" | "light") {
+  await page
+    .context()
+    .addCookies([{ name: "krajozbior-theme", value: theme, url: "http://127.0.0.1" }]);
+}
+
+async function expectNoAccessibilityViolations(page: Page) {
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+  );
+  await page.addScriptTag({ content: axe.source });
+
+  const violations = await page.evaluate(async () => {
+    const result = await (window as unknown as { axe: typeof axe }).axe.run();
+
+    return result.violations.map((violation) => ({
+      id: violation.id,
+      nodes: violation.nodes.map((node) => node.target.join(" ")),
+    }));
+  });
+
+  expect(violations).toEqual([]);
+}
+
+const outboxFiles = async () =>
+  (await readdir(OUTBOX).catch(() => [] as string[])).filter((name) => name.endsWith(".eml"));
+
+// The six digits of the newest message to `email` that was not there before `known`.
+async function codeFor(email: string, known: ReadonlySet<string>): Promise<string> {
+  const deadline = Date.now() + 20_000;
+
+  while (Date.now() < deadline) {
+    for (const file of (await outboxFiles())
+      .filter((name) => !known.has(name))
+      .sort()
+      .reverse()) {
+      const raw = await readFile(path.join(OUTBOX, file), "utf8");
+
+      if (!raw.includes(`To: ${email}`)) {
+        continue;
+      }
+
+      for (const [, body] of raw.matchAll(
+        /Content-Transfer-Encoding: base64\r?\n\r?\n([A-Za-z0-9+/=\r\n]+?)(?=\r?\n--)/g,
+      )) {
+        const text = Buffer.from(body.replace(/\s/g, ""), "base64").toString("utf8");
+        const code = /\b(\d{6})\b/.exec(text)?.[1];
+
+        if (code !== undefined) {
+          return code;
+        }
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+
+  throw new Error("The sign-in code did not arrive in the outbox");
+}
+
+// Asks for a code on /login, reads it from the outbox and signs in; the first sign-in with an
+// address creates the account. It does NOT accept the terms: the tests do that or refuse it.
+async function signInWithCode(page: Page, email: string) {
+  const known = new Set(await outboxFiles());
+
+  await page.goto("/login");
+  await page.locator("#code-request-email").fill(email);
+  await page.getByRole("button", { name: "Wyślij kod" }).click();
+  await expect(page.getByRole("main").getByRole("status")).toContainText("wysłaliśmy na niego kod");
+
+  await page.locator("#code-verify-email").fill(email);
+  await page.locator("#code-verify-code").fill(await codeFor(email, known));
+  await page.getByRole("button", { name: "Zaloguj się kodem" }).click();
+  await expect(page).not.toHaveURL(/\/login/);
+}
+
+async function acceptances(email: string): Promise<{ terms_version: string }[]> {
+  const client = new Client({
+    connectionString: parseE2eAdminDatabaseUrl(process.env.DATABASE_ADMIN_URL),
+  });
+
+  await client.connect();
+  try {
+    return (
+      await client.query(
+        `select t.terms_version from public.terms_acceptance t
+           join auth.users u on u.id = t.user_id where u.email = $1`,
+        [email],
+      )
+    ).rows;
+  } finally {
+    await client.end();
+  }
+}
+
+const gateHeading = (page: Page) =>
+  page.getByRole("heading", { level: 1, name: "Zanim zaczniesz" });
+
+test.describe("strony prawne, stopka i pasek", () => {
+  test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
+
+  for (const viewport of [
+    { name: "telefon", width: 390, height: 844 },
+    { name: "komputer", width: 1280, height: 800 },
+  ]) {
+    test(`stopka na ${viewport.name}: cztery odnośniki, każdy otwiera stronę`, async ({
+      browser,
+    }) => {
+      const context = await browser.newContext({ viewport });
+      const page = await context.newPage();
+
+      await page.goto("/");
+
+      const footer = page.getByRole("contentinfo");
+
+      await expect(footer.getByRole("link", { name: "Polityka prywatności" })).toBeVisible();
+      await expect(footer.getByRole("link", { name: "Najważniejsze zasady" })).toBeVisible();
+      await expect(footer.getByRole("link", { name: "Kontakt" })).toHaveAttribute(
+        "href",
+        "mailto:kontakt@mariuszskowron.pl",
+      );
+
+      await footer.getByRole("link", { name: "Regulamin" }).click();
+      await expect(page).toHaveURL(/\/regulamin$/);
+      await expect(page.getByRole("heading", { level: 1, name: "Regulamin" })).toBeVisible();
+      await context.close();
+    });
+  }
+
+  test("ekran logowania odsyła do regulaminu i polityki i nie ma pola akceptacji", async ({
+    page,
+  }) => {
+    await page.goto("/login");
+
+    await expect(page.getByRole("main").getByRole("link", { name: "Regulamin" })).toHaveAttribute(
+      "href",
+      "/regulamin",
+    );
+    await expect(
+      page.getByRole("main").getByRole("link", { name: "Polityka prywatności" }),
+    ).toHaveAttribute("href", "/polityka-prywatnosci");
+    // Not telling a new address from a known one: no checkbox on the login screen (E11-Q4 A).
+    await expect(page.getByRole("checkbox")).toHaveCount(0);
+  });
+
+  test("pasek „Wersja testowa” prowadzi do zasad i zamyka się na czas sesji", async ({ page }) => {
+    await page.goto("/");
+
+    const banner = page.getByRole("region", { name: "Wersja testowa" });
+
+    await expect(banner).toBeVisible();
+    await expect(banner.getByRole("link", { name: "Najważniejsze zasady" })).toHaveAttribute(
+      "href",
+      "/zasady",
+    );
+
+    await banner.getByRole("button", { name: "Zamknij" }).click();
+    await expect(banner).toBeHidden();
+
+    // Closed for the session: it stays closed on the next page.
+    await page.goto("/regulamin");
+    await expect(banner).toBeHidden();
+  });
+
+  test("cztery strony prawne mają noindex, ekran logowania także; strony kolekcji nie", async ({
+    page,
+  }) => {
+    for (const legal of [...LEGAL, { path: "/login", title: "Logowanie" }]) {
+      await page.goto(legal.path);
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+    }
+
+    await page.goto("/");
+    await expect(page.locator('meta[name="robots"][content*="noindex"]')).toHaveCount(0);
+  });
+
+  for (const theme of ["dark", "light"] as const) {
+    test(`strony prawne, motyw ${theme}: nagłówki po kolei i axe bez naruszeń`, async ({
+      page,
+    }) => {
+      await setTheme(page, theme);
+
+      for (const legal of LEGAL) {
+        await page.goto(legal.path);
+        await expect(page.getByRole("heading", { level: 1, name: legal.title })).toBeVisible();
+        await expect(page.getByText(/Wersja robocza z dnia/)).toBeVisible();
+        await expectNoAccessibilityViolations(page);
+      }
+    });
+  }
+});
+
+test.describe("ekran „Zanim zaczniesz”", () => {
+  test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
+
+  test("nowe konto widzi tylko ten ekran, akceptuje i wchodzi dalej; zapis ma wersję i czas", async ({
+    page,
+  }) => {
+    const email = newAddress("accept");
+
+    await signInWithCode(page, email);
+
+    await expect(gateHeading(page)).toBeVisible();
+    // Only the screen and the logout: no main navigation, no explorer pages behind it.
+    await expect(page.getByRole("navigation", { name: "Główna" })).toHaveCount(0);
+    await expect(page.getByRole("banner").getByRole("button", { name: "Wyloguj" })).toBeVisible();
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+    expect(await acceptances(email)).toEqual([]);
+
+    await page.goto("/my");
+    await expect(gateHeading(page)).toBeVisible();
+
+    // The native checkbox is required: the form is not sent without it.
+    await page.getByRole("button", { name: "Akceptuję", exact: true }).click();
+    await expect(gateHeading(page)).toBeVisible();
+    expect(await acceptances(email)).toEqual([]);
+
+    await page.getByLabel(/Akceptuję Regulamin/).check();
+    await page.getByRole("button", { name: "Akceptuję", exact: true }).click();
+
+    await expect(page).toHaveURL(/\/my$/);
+    await expect(gateHeading(page)).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 1, name: "Profil" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Główna" })).toBeVisible();
+    expect(await acceptances(email)).toEqual([{ terms_version: CURRENT_TERMS_VERSION }]);
+
+    // The next visit does not ask again.
+    await page.goto("/my/settings");
+    await expect(gateHeading(page)).toHaveCount(0);
+  });
+
+  test("strony prawne dają się czytać przed akceptacją, a ekran wraca po powrocie", async ({
+    page,
+  }) => {
+    await signInWithCode(page, newAddress("legal"));
+    await expect(gateHeading(page)).toBeVisible();
+
+    await page.getByRole("main").getByRole("link", { name: "Regulamin", exact: true }).click();
+    await expect(page).toHaveURL(/\/regulamin$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Regulamin" })).toBeVisible();
+    await expect(gateHeading(page)).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Główna" })).toHaveCount(0);
+
+    await page.goto("/my/collections");
+    await expect(gateHeading(page)).toBeVisible();
+  });
+
+  test("„Nie akceptuję” wylogowuje i mówi, jak usunąć adres; po ponownym logowaniu ekran wraca", async ({
+    page,
+  }) => {
+    const email = newAddress("decline");
+
+    await signInWithCode(page, email);
+    await expect(gateHeading(page)).toBeVisible();
+
+    await page.getByRole("button", { name: "Nie akceptuję — wyloguj" }).click();
+
+    await expect(page).toHaveURL(/\/\?wylogowano=odmowa$/);
+    const message = page.getByRole("status").filter({ hasText: "Bez akceptacji regulaminu" });
+
+    await expect(message).toContainText("nie korzystasz z konta");
+    await expect(message.getByRole("link", { name: "kontakt@mariuszskowron.pl" })).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: "Zaloguj się" })).toBeVisible();
+    expect(await acceptances(email)).toEqual([]);
+
+    await signInWithCode(page, email);
+    await expect(gateHeading(page)).toBeVisible();
+  });
+
+  test("odmowa akceptacji bez zaznaczonego pola po stronie serwera wraca na ekran z komunikatem", async ({
+    page,
+  }) => {
+    await signInWithCode(page, newAddress("nobox"));
+
+    // A post without the field (a client that skips the native validation).
+    const response = await page.request.post("/api/me/terms-acceptance", {
+      form: { returnTo: "/my" },
+      maxRedirects: 0,
+    });
+
+    expect(response.status()).toBe(303);
+    expect(response.headers()["location"]).toBe("/?zgoda=wymagana");
+
+    await page.goto("/?zgoda=wymagana");
+    await expect(page.getByRole("alert")).toContainText("Zaznacz pole");
+  });
+
+  test("gość nie zapisze akceptacji", async ({ request }) => {
+    const response = await request.post("/api/me/terms-acceptance", { data: { accepted: true } });
+
+    expect(response.status()).toBe(401);
+  });
+
+  for (const theme of ["dark", "light"] as const) {
+    test(`ekran akceptacji, motyw ${theme}: axe bez naruszeń`, async ({ page }) => {
+      await setTheme(page, theme);
+      await signInWithCode(page, newAddress(`axe-${theme}`));
+      await expect(gateHeading(page)).toBeVisible();
+
+      await expectNoAccessibilityViolations(page);
+    });
+  }
+});

@@ -11,6 +11,8 @@ const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
   testDir: "./e2e",
+  // The seeded demo accounts accept the terms before the run (F-K3).
+  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,

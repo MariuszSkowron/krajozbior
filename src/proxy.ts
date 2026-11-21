@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { REQUEST_URL_HEADER } from "@/lib/request-url";
+
 // Every page carries the app shell drawn for the signed-in role, so no page
 // response (HTML document or RSC payload) may be kept by a shared cache: each
 // one gets `Cache-Control: private, no-store`. Next.js keeps a header set here
@@ -8,10 +10,12 @@ import { NextResponse, type NextRequest } from "next/server";
 // product page needs them.
 const PRIVATE_NO_STORE = "private, no-store";
 
-// The request is not read yet; product routes will.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function proxy(_request: NextRequest) {
-  const response = NextResponse.next();
+export function proxy(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers);
+
+  requestHeaders.set(REQUEST_URL_HEADER, `${request.nextUrl.pathname}${request.nextUrl.search}`);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
 
   response.headers.set("Cache-Control", PRIVATE_NO_STORE);
 
