@@ -15,7 +15,9 @@
 #   wdroz.ps1    copy of scripts\ops\wdroz.template.ps1 from the clean clone (only when missing)
 #   repo\        the clean clone itself, used by wdroz.ps1
 # Existing files are kept. Optional -HealthcheckBackupUrl / -HealthcheckRestoreUrl /
-# -HealthcheckHealthUrl append missing addresses to an existing serwer.conf (nothing is replaced).
+# -HealthcheckHealthUrl / -ImportDir append missing keys to an existing serwer.conf (nothing is
+# replaced). -OdswiezWdroz replaces wdroz.ps1 with the template of this clean clone (which must
+# be on merged main, checked below); the old copy stays as wdroz.ps1.poprzedni.
 # Every git call has the safe options of Get-SafeGitArgs. Nothing is printed except file names
 # and next steps.
 # Keep this file ASCII-only (Windows PowerShell 5.1 reads BOM-less files as ANSI).
@@ -24,7 +26,9 @@ param(
   [string]$ReportDir = '',
   [string]$HealthcheckBackupUrl = '',
   [string]$HealthcheckRestoreUrl = '',
-  [string]$HealthcheckHealthUrl = ''
+  [string]$HealthcheckHealthUrl = '',
+  [string]$ImportDir = '',
+  [switch]$OdswiezWdroz
 )
 
 Set-StrictMode -Version Latest
@@ -85,10 +89,12 @@ if (Test-Path -LiteralPath $vaultFile) {
 }
 
 # 2. Server configuration (the address never goes to the public repository).
+if ($ImportDir -ne '' -and -not (Test-WinPathRooted $ImportDir)) { throw 'ImportDir musi byc pelna sciezka (C:\...). Nic nie zmieniono w serwer.conf.' }
 $healthcheckUrls = @{
   HealthcheckBackupUrl = $HealthcheckBackupUrl
   HealthcheckRestoreUrl = $HealthcheckRestoreUrl
   HealthcheckHealthUrl = $HealthcheckHealthUrl
+  ImportDir = $ImportDir
 }
 if (Test-Path -LiteralPath $configFile) {
   $existing = [IO.File]::ReadAllText($configFile)
@@ -98,7 +104,7 @@ if (Test-Path -LiteralPath $configFile) {
     $updated = $existing.TrimEnd() + "`n" + ($missing -join "`n") + "`n"
     Read-DeployConfig $updated | Out-Null
     [IO.File]::WriteAllText($configFile, $updated, (New-Object Text.UTF8Encoding($false)))
-    Write-Host "serwer.conf: dopisano $($missing.Count) adres(y) healthchecks."
+    Write-Host "serwer.conf: dopisano $($missing.Count) wpis(y)."
   } else {
     Write-Host 'serwer.conf juz istnieje - bez zmian.'
   }
@@ -115,8 +121,20 @@ if (Test-Path -LiteralPath $configFile) {
 }
 
 # 3. Starter script, copied from the clean clone (this script's own folder).
-if (Test-Path -LiteralPath $starterFile) {
-  Write-Host 'wdroz.ps1 juz istnieje - bez zmian.'
+if ((Test-Path -LiteralPath $starterFile) -and $OdswiezWdroz) {
+  $newTemplate = Join-Path $PSScriptRoot 'wdroz.template.ps1'
+  if ((Get-FileHash -LiteralPath $newTemplate).Hash -eq (Get-FileHash -LiteralPath $starterFile).Hash) {
+    Write-Host 'wdroz.ps1 jest juz w aktualnej wersji - bez zmian.'
+  } else {
+    # Never overwrite an earlier backup: a dated copy next to it.
+    $backup = "$starterFile.poprzedni"
+    if (Test-Path -LiteralPath $backup) { $backup = "$starterFile.poprzedni-$(Get-Date -Format 'yyyyMMdd-HHmmss')" }
+    Copy-Item -LiteralPath $starterFile -Destination $backup -Force
+    Copy-Item -LiteralPath $newTemplate -Destination $starterFile -Force
+    Write-Host "wdroz.ps1 odswiezony z commita $headSha (poprzednia wersja: $(Split-Path -Leaf $backup))." -ForegroundColor Green
+  }
+} elseif (Test-Path -LiteralPath $starterFile) {
+  Write-Host 'wdroz.ps1 juz istnieje - bez zmian (nowsza wersja: -OdswiezWdroz).'
 } else {
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'wdroz.template.ps1') -Destination $starterFile
   Write-Host 'wdroz.ps1 skopiowany.'
@@ -126,5 +144,10 @@ if (Test-Path -LiteralPath $starterFile) {
 Write-Host 'repo\ juz istnieje - bez zmian (z tej kopii dziala ten skrypt).'
 
 Write-Host ''
+if ($OdswiezWdroz) {
+  Write-Host 'Gotowe. Wgranie kolekcji (plik z folderu ImportDir):' -ForegroundColor Green
+  Write-Host "  powershell -ExecutionPolicy Bypass -File `"`$env:USERPROFILE\.config\krajozbior-deploy\wdroz.ps1`" -Import <pelna sciezka pliku>"
+  exit 0
+}
 Write-Host 'Gotowe. Nastepny krok (sesja wdrozeniowa 1):' -ForegroundColor Green
 Write-Host "  powershell -ExecutionPolicy Bypass -File `"`$env:USERPROFILE\.config\krajozbior-deploy\wdroz.ps1`" -Bootstrap -Commit $headSha"
