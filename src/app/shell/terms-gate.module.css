@@ -1,0 +1,68 @@
+/*
+ * Ekran „Zanim zaczniesz” (F-K3): jedna kolumna, pole wyboru z dużym celem dotykowym i dwa
+ * przyciski. Tylko tokeny; wygląd pól i przycisków z theme.css.
+ */
+.page {
+  display: grid;
+  gap: var(--space-lg);
+  padding-block: var(--space-lg) var(--space-xl);
+}
+
+.page h1,
+.page p {
+  margin: 0;
+}
+
+.summary {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding-inline-start: var(--space-lg);
+}
+
+.page a {
+  color: var(--color-text-accent);
+}
+
+.form {
+  display: grid;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+/* Cała etykieta jest celem dotykowym pola wyboru (co najmniej 44 px). */
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  min-height: var(--size-touch-min);
+  cursor: pointer;
+}
+
+.check input {
+  flex: none;
+  width: var(--space-lg);
+  height: var(--space-lg);
+  margin: 0;
+}
+
+.submit {
+  justify-self: start;
+}
+
+.error {
+  padding: var(--space-md);
+  font-weight: var(--font-weight-strong);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-default);
+  border-inline-start: var(--space-xs) solid var(--color-feedback-danger);
+  border-radius: var(--radius-md);
+}
+
+.errorPrefix {
+  color: var(--color-feedback-danger);
+}
