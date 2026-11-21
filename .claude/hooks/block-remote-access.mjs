@@ -208,7 +208,13 @@ const GIT_VARIABLE = /(?<![\w/.-])git_[a-z0-9_]{1,64}/i;
  * names it): `^` escapes outside double quotes, `'` is an ordinary character.
  */
 const BASH = { name: "bash", escape: "\\", quotes: "'\"", backtick: true, substitution: true };
-const POWERSHELL_MODE = { name: "powershell", escape: "`", quotes: "'\"", backtick: false, substitution: true };
+const POWERSHELL_MODE = {
+  name: "powershell",
+  escape: "`",
+  quotes: "'\"",
+  backtick: false,
+  substitution: true,
+};
 const CMD = { name: "cmd", escape: "^", quotes: '"', backtick: false, substitution: false };
 const CMD_WORD = /(?<![\w.-])cmd(?:\.exe)?(?![\w-])/i;
 
@@ -327,7 +333,11 @@ function tokenize(text, mode) {
 
   for (let i = 0; i < text.length; i += 1) {
     const run =
-      frame.quote === null ? PLAIN_RUN : frame.quote === "'" ? SINGLE_QUOTED_RUN : DOUBLE_QUOTED_RUN;
+      frame.quote === null
+        ? PLAIN_RUN
+        : frame.quote === "'"
+          ? SINGLE_QUOTED_RUN
+          : DOUBLE_QUOTED_RUN;
     run.lastIndex = i;
     const plain = run.exec(text);
     if (plain !== null) {
@@ -688,7 +698,14 @@ const GIT_ALLOW_LIST = {
     minimum: 0,
   },
   clone: {
-    flags: new Set(["-q", "--quiet", "--single-branch", "--no-single-branch", "--no-tags", "--progress"]),
+    flags: new Set([
+      "-q",
+      "--quiet",
+      "--single-branch",
+      "--no-single-branch",
+      "--no-tags",
+      "--progress",
+    ]),
     shorts: "q",
     values: new Map([
       ["--depth", isCount],
@@ -1268,7 +1285,8 @@ const UNIX_TOOLS = new Set([
   "tar",
   "diff",
 ]);
-const RECURSION_FLAG = /^(?:-r|-s|\/s|-rec\w*|-depth\w*|--recursive|--dereference-recursive|--no-index)$/i;
+const RECURSION_FLAG =
+  /^(?:-r|-s|\/s|-rec\w*|-depth\w*|--recursive|--dereference-recursive|--no-index)$/i;
 const SHORT_CLUSTER = /^-[a-zA-Z]{1,3}$/;
 const UNIX_CLUSTER = /^-[a-zA-Z]{1,8}$/;
 const WILDCARD = /[*?[{]/;
@@ -1437,7 +1455,8 @@ const GIT_HINTS = {
   pull: "Pobranie i scalenie: `git pull origin <gałąź>` (opcje: -q, --ff-only, --no-edit, --rebase, --no-rebase).",
   push: "Wysyłanie: `git push -u origin <gałąź>` albo `git push origin HEAD` (nazwa gałęzi bez `:` i `+`; samo `git push` nie przechodzi).",
   "ls-remote": "Gałęzie na serwerze: `git ls-remote origin [<gałąź>]`.",
-  remote: "Zdalne repozytoria: tylko `git remote -v`, `git remote get-url origin`, `git remote show origin`.",
+  remote:
+    "Zdalne repozytoria: tylko `git remote -v`, `git remote get-url origin`, `git remote show origin`.",
   clone: "Klonowanie: tylko `git clone https://github.com/<właściciel>/<repo>.git`.",
   config:
     "`git config`: czytanie (`--get`, `--get-all`, `--get-regexp`, `--list`) jest dozwolone; zapisywać wolno tylko `user.name`, `user.email`, `core.autocrlf`, `pull.rebase`, `advice.*`, pełnymi nazwami opcji (bez skrótów w rodzaju `--fil`).",
