@@ -340,6 +340,8 @@ const blocked = [
   "$env:GIT_EXEC_PATH='.ai/tmp'",
   "$env:GIT_ASKPASS='.ai/tmp/x.cmd'",
   "git -C x --config-env=core.pager=P log",
+  // `-c` takes only the allowed keys (a known limitation until version 4).
+  "git -c core.fsmonitor=.ai/tmp/x.cmd status",
   // The showcase data: a cheap recursive read (review v3, S4).
   "grep -rnIi code .data",
   "ls -alhR .data",
@@ -393,6 +395,72 @@ const bypassesFromReview = [
   "git lfs fetch prod",
   "git subtree pull --prefix=x example.com:/srv/app.git main",
   "scalar clone example.com:/srv/app.git",
+];
+
+// Bypasses found by the fourth review (`review-k16-59-weryfikacja-v4.md`,
+// B1–B3): each passed version 4 and each must be blocked.
+const bypassesFromFourthReview = [
+  // B1: Bash brace expansion splits a protected argument.
+  "git fetch {example.com:x,main}",
+  "git pull {example.com:x,main}",
+  "git ls-remote {example.com:x,main}",
+  "cat .data/{showcase,x}/secrets.env",
+  "cat .data/{showcase,deploy}/secrets.env",
+  "cat .data/{s,x}howcase/secrets.env",
+  "cat .data/sh{o,}wcase/secrets.env",
+  "cat .data/{r..t}howcase/secrets.env",
+  "cat .{da,x}ta/{sh,x}owcase/secrets.env",
+  "cat ../krajo{zbior-deploy,x}/wdroz.config",
+  // B2: `git config` with abbreviated options and keys outside the allow list.
+  "git config --fil .git/config --typ path remote.origin.pushurl example.com:/srv/app.git",
+  "git config --comm a --def b remote.origin.url example.com:x",
+  "git config set --fil .git/config --typ path remote.origin.pushurl example.com:x",
+  "git config core.hooksPath .ai/tmp/hooks",
+  "git config core.pager 'sh -c x'",
+  "git config --edit",
+  "git -c core.pager=x log",
+  "git -c core.hooksPath=.ai/tmp/h commit -F msg.txt",
+  // B3: abbreviations of options that run a program, and subcommands that do.
+  "git rebase --exe 'git fetch example.com:x' HEAD~1",
+  "git rebase --ex='git fetch prod' main",
+  "git difftool --ext x HEAD",
+  "git difftool --ex=x HEAD",
+  "git difftool -x cmd HEAD",
+  "git filter-branch --setup 'git fetch prod' HEAD",
+  "git mergetool -t x",
+  "git bisect run make",
+  "git grep -Ocmd x",
+  "git grep --open-files-in-pager=cmd x",
+  "git init --templ=.ai/tmp/hooks x",
+  // A printed text that an interpreter in the same command runs.
+  "echo 'git fetch prod' | bash",
+];
+
+// False blocks from the fourth review (S1): a bare `git` in the arguments of
+// a search or print program is a word, not a git command.
+const searchesForTheWordGit = [
+  "rg git docs",
+  "rg -n git -- docs",
+  "grep -rn git docs/",
+  "grep -c git package.json",
+  "Select-String git README.md",
+  "Select-String -Pattern git -Path README.md",
+  "Get-ChildItem docs | Select-String -Pattern git",
+  "findstr git README.md",
+  "echo git push",
+  "git grep -n git docs",
+];
+
+// A bare `git` still runs git at the start of a command or behind another
+// program, and a printed text still counts when an interpreter runs it.
+const gitBehindAnotherProgram = [
+  "echo git fetch prod | bash",
+  "bash <(echo git fetch prod)",
+  "cross-env X=1 git fetch prod",
+  "stdbuf -oL git fetch prod",
+  "$a = git fetch prod",
+  "if git fetch prod; then echo ok; fi",
+  "! git fetch prod",
 ];
 
 // Everyday commands of the orchestrator and the agents (from the logs of
@@ -611,9 +679,8 @@ const knownLimitations = [
   "node .ai/tmp/connect.mjs",
   'python -c "import paramiko"',
   // Git settings prepared outside the command with a file tool: `origin` of
-  // another repository, programs git runs locally.
+  // another repository.
   "git -C ../prepared-repo fetch origin",
-  "git -c core.fsmonitor=.ai/tmp/x.cmd status",
   // Arguments assembled at run time.
   "Invoke-Expression ('git fetch ' + 'prod')",
   // Other wildcard paths to keys and secrets.
@@ -622,6 +689,8 @@ const knownLimitations = [
   "cat ~/.config/*/wdroz.config",
   // Reaching the protected folders step by step or from the parent folder.
   "cd .data; cd showcase; cat outbox/latest.json",
+  // Short 8.3 names of Windows folders (often turned off).
+  "cat .data/SHOWCA~1/secrets.env",
   "rg -uu secret ..",
 ];
 
@@ -650,6 +719,9 @@ const longCommands: Array<[string, string]> = [
   ["repeated backticks", "`".repeat(20_000)],
   ["repeated bash -c", 'bash -c "'.repeat(2_000)],
   ["repeated 2>", "git 2>".repeat(3_334)],
+  ["repeated brace groups", "{a,b}".repeat(4_000)],
+  ["repeated brace words", "git fetch {a,b} ".repeat(1_250)],
+  ["repeated brace sequences", "{a..z}".repeat(3_334)],
 ];
 // The same shapes at 100 000 characters.
 const veryLongCommands: Array<[string, string]> = [
@@ -662,6 +734,8 @@ const veryLongCommands: Array<[string, string]> = [
   ["repeated $(", "$(".repeat(50_000)],
   ["repeated quotes", "'".repeat(100_000) + "x"],
   ["repeated bash -c", 'bash -c "'.repeat(10_000)],
+  ["repeated brace groups", "{a,b}".repeat(20_000)],
+  ["repeated brace words", "git fetch {a,b} ".repeat(6_250)],
 ];
 
 describe("findRemoteAccess", () => {
@@ -674,6 +748,18 @@ describe("findRemoteAccess", () => {
   });
 
   it.each(bypassesFromReview)("blocks a bypass from the third review: %s", (command) => {
+    expect(findRemoteAccess(command).length).toBeGreaterThan(0);
+  });
+
+  it.each(bypassesFromFourthReview)("blocks a bypass from the fourth review: %s", (command) => {
+    expect(findRemoteAccess(command).length).toBeGreaterThan(0);
+  });
+
+  it.each(searchesForTheWordGit)("allows a search for the word git: %s", (command) => {
+    expect(findRemoteAccess(command)).toEqual([]);
+  });
+
+  it.each(gitBehindAnotherProgram)("blocks git behind another program: %s", (command) => {
     expect(findRemoteAccess(command).length).toBeGreaterThan(0);
   });
 
@@ -829,6 +915,25 @@ describe("block-remote-access hook (real process)", () => {
     const fetch = runHook(shellEvent("PowerShell", "git --attr-source HEAD fetch prod"));
     expect(fetch.status).toBe(2);
     expect(fetch.stderr).toContain("git fetch origin");
+  });
+
+  it("blocks a commit message from a heredoc and suggests a message file", () => {
+    const heredoc = runHook(
+      shellEvent("Bash", "git commit -m \"$(cat <<'EOF'\ntest: git push prod main\nEOF\n)\""),
+    );
+    expect(heredoc.status).toBe(2);
+    expect(heredoc.stderr).toContain("git commit -F <plik>");
+  });
+
+  it("allows git config reads and writes of allowed keys only", () => {
+    expect(findRemoteAccess("git config --get-all remote.origin.url")).toEqual([]);
+    expect(findRemoteAccess("git config --show-origin --get user.name")).toEqual([]);
+    expect(findRemoteAccess("git config --global user.email a@b.c")).toEqual([]);
+    expect(findRemoteAccess("git config core.autocrlf false")).toEqual([]);
+    expect(findRemoteAccess("git config pull.rebase false")).toEqual([]);
+    expect(findRemoteAccess("git -c advice.detachedHead=false switch main")).toEqual([]);
+    expect(findRemoteAccess("git config --list")).toEqual([]);
+    expect(findRemoteAccess("git config --unset user.email")).toEqual([]);
   });
 
   it("blocks every command when the shared module is missing (exit 2, not 1)", () => {
