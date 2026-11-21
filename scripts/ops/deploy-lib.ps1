@@ -561,6 +561,6 @@ function Format-PhotosSummary([string]$line) {
   if ($null -ne (Get-JsonField $o 'stoppedBy')) {
     $summary += ' Pobieranie wstrzymane: za malo wolnego miejsca na dysku albo nie da sie go odczytac.'
   }
-  if ([int](Get-JsonField $o 'remaining') -gt 0) { $summary += ' Uruchom polecenie ponownie.' }
+  elseif ([int](Get-JsonField $o 'remaining') -gt 0) { $summary += ' Uruchom polecenie ponownie.' }
   return $summary
 }

@@ -247,7 +247,7 @@ switch ($Mode) {
     Add-Secret 'KZ_OPS_PW' $vault.Ops
   }
   'odtworz' {
-    $key =(Read-Secret 'Klucz kopii (AGE-SECRET-KEY-1..., z menedzera hasel albo wydruku)').Trim()
+    $key = (Read-Secret 'Klucz kopii (AGE-SECRET-KEY-1..., z menedzera hasel albo wydruku)').Trim()
     if (-not (Test-AgeSecretKey $key)) { throw 'To nie wyglada na klucz kopii (AGE-SECRET-KEY-1 + 58 znakow).' }
     Add-Secret 'KZ_RESTORE_KEY' $key
   }
@@ -301,7 +301,8 @@ function Invoke-RemoteConnection {
       $summary = Format-PhotosSummary $safe
       if ($summary) {
         Write-Say (Write-Report "podsumowanie: $summary") 'Cyan'
-        if ($summary -match 'Zostalo do pobrania: [1-9]') { $script:photosRemaining = $true }
+        if ($summary -match 'Pobieranie wstrzymane') { $script:photosStopped = $true }
+        elseif ($summary -match 'Zostalo do pobrania: [1-9]') { $script:photosRemaining = $true }
       }
     }
   }
@@ -312,6 +313,7 @@ function Invoke-RemoteConnection {
 $importResult = ''
 $importPartial = $false
 $photosRemaining = $false
+$photosStopped = $false
 if ($Mode -eq 'import') {
   $flow = Invoke-ImportFlow {
     param($phase)
@@ -350,7 +352,9 @@ if ($code -eq 0 -and $importResult -eq 'declined') {
     Write-Say 'Szkice sa na serwerze. Obejrzyj je w panelu kuratora; publikujesz je sam, gdy beda gotowe.'
   }
   if ($Mode -eq 'zdjecia') {
-    if ($photosRemaining) {
+    if ($photosStopped) {
+      Write-Say 'Pobieranie wstrzymane: na serwerze konczy sie miejsce. Napisz agentowi: miejsce.' 'Yellow'
+    } elseif ($photosRemaining) {
       Write-Say 'Czesc zdjec czeka jeszcze na pobranie. To nie blad: uruchom to samo polecenie ponownie (-Zdjecia).' 'Yellow'
     } else {
       Write-Say 'Zdjecia sa na serwerze. Jesli ktores sie nie pobraly, powody sa w podsumowaniu wyzej (-PonowBledy ponowi nieudane).'
@@ -362,6 +366,9 @@ if ($code -eq 0 -and $importResult -eq 'declined') {
     Write-Report 'wynik: CZESCIOWO (kod 3): czesc szkicow jest na serwerze' | Out-Null
     Write-Say 'CZESCIOWO WGRANE (kod 3): czesc szkicow jest juz na serwerze, czesc kolekcji zostala odrzucona.' 'Yellow'
     Write-Say 'To nie jest awaria. Napisz agentowi: czesciowo (z raportem); po ustaleniu przyczyny to samo wgranie mozna powtorzyc.' 'Yellow'
+  } elseif ($Mode -eq 'zdjecia' -and $code -eq 3) {
+    Write-Report 'wynik: ZAJETE (kod 3): poprzednie pobieranie jeszcze trwa' | Out-Null
+    Write-Say 'ZAJETE (kod 3): poprzednie pobieranie jeszcze trwa. Poczekaj 10 minut i uruchom ponownie; to nie awaria.' 'Yellow'
   } else {
     Write-Report "wynik: BLAD (kod $code)" | Out-Null
     Write-Say "BLAD (kod $code). Napisz agentowi: blad. Raport jest zapisany." 'Red'

@@ -515,6 +515,12 @@ describe("mode zdjecia: photos from Commons (E4-2z)", () => {
         `Format-PhotosSummary ${psString(JSON.stringify({ outcome: "applied", fetched: 1, failed: 0, skipped: 9, remaining: 9, reasons: {}, stoppedBy: "space_unreadable" }))}`,
       ),
     ).toContain("za malo wolnego miejsca");
+    // Stopped for lack of space: no "run again" (the owner writes to the agent instead).
+    expect(
+      psJson<string>(
+        `Format-PhotosSummary ${psString(JSON.stringify({ outcome: "applied", fetched: 1, failed: 0, skipped: 9, remaining: 9, reasons: {}, stoppedBy: "space_unreadable" }))}`,
+      ),
+    ).not.toContain("Uruchom polecenie ponownie");
     expect(ps("$null -eq (Format-PhotosSummary '[krajozbior] GOTOWE')").stdout).toBe("True");
     expect(ps('$null -eq (Format-PhotosSummary \'{"outcome":"preview"}\')').stdout).toBe("True");
   });
@@ -537,6 +543,9 @@ describe("mode zdjecia: photos from Commons (E4-2z)", () => {
     expect(mode).not.toContain("KZ_OWNER_PW");
     expect(mode).not.toContain("Read-YesNo");
     expect(deploy).toContain("'import', 'zdjecia'");
+    // Exit code 3 of the mode is "busy", not an error; a stop for lack of space has its own message.
+    expect(deploy).toContain("ZAJETE (kod 3)");
+    expect(deploy).toContain("Napisz agentowi: miejsce.");
     expect(starter).toContain("'-PhotoLimit'");
     expect(starter).toContain("'-PhotoRetryFailed'");
     expect(starter).toContain("'-PhotoRefetchMissing'");

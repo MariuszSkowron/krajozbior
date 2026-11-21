@@ -747,12 +747,33 @@ describe("mode zdjecia: photos from Commons (remote.sh, E4-2z)", () => {
       const busy = runPhotos({}, `${READY}\n${opsStub(3)}`);
       const failed = runPhotos({}, `${READY}\n${opsStub(1)}`);
 
-      expect(busy.status).toBe(1);
+      // Code 3 keeps its own exit status (not a failure): wdroz.ps1 shows "ZAJETE", not "BLAD".
+      expect(busy.status).toBe(3);
       expect(busy.stdout).toContain("poprzednie pobieranie jeszcze trwa");
+      expect(busy.stdout).not.toContain("BLAD");
       expect(failed.status).toBe(1);
       expect(failed.stdout).toContain("mozna powtorzyc");
     },
   );
+
+  bashIt("refuses without the audit reason before running anything", () => {
+    const result = runPhotos({ KZ_REASON: "" }, `${READY}\n${opsStub(0)}`);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("brak powodu do dziennika operacji");
+    expect(result.stdout).not.toContain("ops photos:fetch");
+  });
+
+  bashIt("a switch with any value other than 1 adds no flag", () => {
+    const result = runPhotos(
+      { KZ_PHOTO_RETRY_FAILED: "true", KZ_PHOTO_REFETCH_MISSING: "0" },
+      `${READY}\n${opsStub(0)}`,
+    );
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).not.toContain("--retry-failed");
+    expect(result.stdout).not.toContain("--refetch-missing");
+  });
 
   bashIt("refuses when the running version lacks photos:fetch or the media volume", () => {
     const noCommand = runPhotos({}, `${READY}\necho '{}' >"$KZ_SRC/package.json"\n${opsStub(0)}`);
@@ -779,15 +800,18 @@ describe("mode zdjecia: photos from Commons (remote.sh, E4-2z)", () => {
   });
 
   bashIt("the real kz_ops writes ops.env with the ops URL and the site URL only (no owner)", () => {
+    // The owner password is in the environment on purpose: only the list in kz_ops_env_vars keeps it
+    // out of ops.env.
     const result = runPhotos(
-      {},
-      `${READY}\nkz_compose() { echo "compose $*"; echo "ops.env: $(cut -d= -f1 "$KZ_OPS_ENV" | tr '\\n' ' ')"; }`,
+      { KZ_OWNER_PW: PAYLOAD_SECRETS.KZ_OWNER_PW },
+      `${READY}\nkz_compose() { echo "compose $*"; echo "ops.env: $(cut -d= -f1 "$KZ_OPS_ENV" | tr '\\n' ' ')"; echo "ops.env body: $(cat "$KZ_OPS_ENV")"; }`,
     );
 
     expect(result.status, result.stdout).toBe(0);
     expect(result.stdout).toContain("run --rm -T ops npm run --silent photos:fetch -- --operator");
-    expect(result.stdout).toContain("ops.env: DATABASE_OPS_URL BETTER_AUTH_URL ");
-    expect(result.stdout).not.toContain("owner-pw");
+    expect(result.stdout).toMatch(/ops\.env: DATABASE_OPS_URL BETTER_AUTH_URL \n/);
+    expect(result.stdout).toContain("ops.env body: DATABASE_OPS_URL=");
+    expect(result.stdout).not.toContain(PAYLOAD_SECRETS.KZ_OWNER_PW);
   });
 });
 

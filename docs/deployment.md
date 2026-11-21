@@ -117,7 +117,7 @@ Po wgraniu kolekcji (`-Import`) wiersze zdjęć czekają w bazie w stanie „do 
 powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.config\krajozbior-deploy\wdroz.ps1" -Zdjecia [-Limit <n>] [-PonowBledy] [-OdtworzBrakujace]
 ```
 
-- Jedno połączenie, **bez pytania „tak/nie”**: polecenie tylko dodaje pliki dla wierszy, które już są w bazie, i można je powtarzać. Poza hasłem wdrożeniowym (do magazynu) tryb nic nie pyta.
+- Jedno połączenie, **bez pytania „tak/nie”**: polecenie tylko dodaje pliki dla wierszy, które już są w bazie, i można je powtarzać. Poza hasłem wdrożeniowym (magazyn, potem klucz) tryb nic nie pyta.
 - W ładunku jest **wyłącznie hasło roli `ops`** (bez hasła roli `owner`): tak jak `-Import`, najmniej uprawnień. Plik operatora dostaje tylko `DATABASE_OPS_URL` i `BETTER_AUTH_URL`.
 - Do dziennika operacji idzie wpis `photos_fetch` z operatorem `wlasciciel`, powodem „Pobranie zdjec z Commons” i samymi liczbami.
 - `-Limit <n>` (1–5000) zmienia liczbę zdjęć w jednym uruchomieniu; bez niego działa domyślny limit polecenia, dobrany tak, by jedno uruchomienie trwało rzędu 10 minut (hasło roli `ops` leży w pliku operatora przez cały czas polecenia). `-PonowBledy` próbuje ponownie zdjęcia, które wcześniej się nie pobrały; `-OdtworzBrakujace` ustawia znów „do pobrania” wiersze, których pliku nie ma na dysku (odtworzenie po utracie wolumenu).

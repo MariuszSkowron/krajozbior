@@ -437,7 +437,10 @@ kz_mode_zdjecia() {
   case "$status" in
     0) kz_step "GOTOWE: pobieranie zakonczone (liczby w podsumowaniu)" ;;
     2) kz_fail "bledne argumenty polecenia (kod 2); nic nie pobrano" ;;
-    3) kz_fail "poprzednie pobieranie jeszcze trwa (kod 3); poczekaj kilka minut i uruchom ponownie" ;;
+    # Not a failure: its own exit status (the EXIT trap still cleans up), so wdroz.ps1 says "ZAJETE".
+    3)
+      kz_step "poprzednie pobieranie jeszcze trwa (kod 3); poczekaj 10 minut i uruchom ponownie"
+      exit 3 ;;
     *) kz_fail "pobieranie nieudane (kod $status); pobrane wczesniej zdjecia zostaja, to samo polecenie mozna powtorzyc" ;;
   esac
 }
