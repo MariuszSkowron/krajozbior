@@ -1,0 +1,17 @@
+# Nakładka pierwszego startu bazy na serwerze (D-E11-11). Używa jej wyłącznie skrypt wdrożenia
+# w trybie pierwszego wdrożenia (scripts/ops/server/remote.sh, `mode_initial`):
+#   docker compose -f deploy/compose.yaml -f deploy/compose.init.yaml up -d --wait db
+# Kontener `postgres:17` czyta hasło superużytkownika z pliku tylko przy inicjalizacji pustego
+# wolumenu. Zaraz po `db:roles` skrypt ustawia `ALTER ROLE postgres PASSWORD NULL`, kasuje plik
+# z /run i startuje bazę ponownie bez tej nakładki. Zwykły `compose.yaml` nie zna tego pliku,
+# więc po restarcie serwera (kiedy /run jest puste) baza wstaje sama.
+services:
+  db:
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_bootstrap
+    secrets:
+      - pg_bootstrap
+
+secrets:
+  pg_bootstrap:
+    file: ${PG_BOOTSTRAP_FILE:-/run/krajozbior/pg-bootstrap}
