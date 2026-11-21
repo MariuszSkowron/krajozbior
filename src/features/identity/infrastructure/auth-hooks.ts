@@ -124,6 +124,13 @@ type SendCodeContext = { context: ActiveContext["context"] } | undefined;
 // not ask for a code for an admin; this is the second line: an admin address
 // never gets a code. The message is handed over without waiting, so the
 // response time does not depend on the provider.
+//
+// A failed delivery deliberately does not change the answer (OPS-7): an admin
+// address sends nothing and so can never fail, so an answer that waited for the
+// provider and reported its failure would tell, during an outage or by its
+// timing, which addresses belong to admins. The person sees the usual "sent"
+// with the hint to check spam and ask again; the failure goes to the log
+// (`email.send_failed`, and `email.brevo_rejected` for the hourly alarm).
 export function createSendSignInCode(deps: SignInCodeDeps) {
   return async (
     data: { email: string; otp: string; type: string },

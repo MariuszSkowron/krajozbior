@@ -156,6 +156,41 @@ describe("sendVerificationOTP callback", () => {
     expect(JSON.stringify(info.mock.calls)).not.toContain("k@example.com");
   });
 
+  // OPS-7: an admin address never sends, so it can never fail. If the answer
+  // waited for the provider, an outage (or the timing) would tell admin
+  // addresses apart; so it returns at once, the same for every address.
+  it("answers at once for every address, whatever the provider does", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const hanging = { send: vi.fn(() => new Promise<never>(() => undefined)) };
+    const failing = {
+      send: vi.fn(async () => ({
+        ok: false as const,
+        retryable: true,
+        reason: "brevo_unavailable",
+      })),
+    };
+    const answers: unknown[] = [];
+
+    for (const sender of [hanging, failing]) {
+      const send = createSendSignInCode({
+        emailSender: () => sender,
+        siteUrl: () => "http://localhost:3000",
+      });
+
+      for (const role of [null, "user", "admin"] as const) {
+        answers.push(
+          await send({ email: "a@example.com", otp: "123456", type: "sign-in" }, endpoint(role)),
+        );
+      }
+    }
+
+    expect(answers).toEqual(Array(6).fill(undefined));
+    // Only the non-admin requests reached the provider.
+    expect(hanging.send).toHaveBeenCalledTimes(2);
+    expect(failing.send).toHaveBeenCalledTimes(2);
+  });
+
   it("logs a failed or throwing send without the address or the code", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const failing = {

@@ -164,6 +164,61 @@ describe("EMAIL_TRANSPORT=memory", () => {
   });
 });
 
+describe("EMAIL_TRANSPORT=brevo", () => {
+  const KEY = "xkeysib-test-only-0123456789abcdef";
+  const production = {
+    NODE_ENV: "production",
+    EMAIL_TRANSPORT: "brevo",
+    BREVO_API_KEY: KEY,
+    EMAIL_FROM: "noreply@krajozbior.example",
+    BETTER_AUTH_URL: "https://krajozbior.example",
+  };
+
+  it("is accepted for a public production address", () => {
+    expect(parseEmailEnv(production)).toEqual({
+      EMAIL_TRANSPORT: "brevo",
+      BREVO_API_KEY: KEY,
+      EMAIL_FROM: "noreply@krajozbior.example",
+    });
+  });
+
+  it("is accepted outside production and on a loopback address, without the test flag", () => {
+    expect(parseEmailEnv({ ...production, NODE_ENV: "development" }).EMAIL_TRANSPORT).toBe("brevo");
+    expect(
+      parseEmailEnv({ ...production, BETTER_AUTH_URL: "http://127.0.0.1:3100" }).EMAIL_TRANSPORT,
+    ).toBe("brevo");
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["empty", ""],
+    ["blank", "   "],
+    ["too short", "xkeysib-1"],
+    ["with a space inside", "xkeysib-0123456789 abcdef"],
+    ["with a line break inside", "xkeysib-0123456789\r\nX: y"],
+  ])("refuses a %s key, naming only the variable", (_case, key) => {
+    const error = getError(() => parseEmailEnv({ ...production, BREVO_API_KEY: key }));
+
+    expect(error).toBeInstanceOf(ServerConfigError);
+    expect(error.message).toBe("Invalid server configuration: BREVO_API_KEY");
+  });
+
+  it("never echoes the key, even when another value is wrong", () => {
+    const error = getError(() => parseEmailEnv({ ...production, EMAIL_FROM: "not-an-address" }));
+
+    expect(error.message).toBe("Invalid server configuration: EMAIL_FROM");
+    expect(error.message).not.toContain(KEY);
+  });
+
+  it("requires an explicit sender address, also outside production", () => {
+    for (const env of [production, { ...production, NODE_ENV: "development" }]) {
+      const error = getError(() => parseEmailEnv({ ...env, EMAIL_FROM: undefined }));
+
+      expect(error.message).toBe("Invalid server configuration: EMAIL_FROM");
+    }
+  });
+});
+
 function getError(action: () => unknown): Error {
   try {
     action();

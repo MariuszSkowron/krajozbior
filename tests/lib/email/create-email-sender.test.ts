@@ -6,6 +6,7 @@ import {
   getMemoryEmailSender,
   resetEmailSenderForTests,
 } from "@/lib/email/create-email-sender";
+import { BrevoEmailSender } from "@/lib/email/brevo-email-sender";
 import { MemoryEmailSender } from "@/lib/email/memory-email-sender";
 import { OutboxEmailSender } from "@/lib/email/outbox-email-sender";
 
@@ -34,6 +35,16 @@ describe("createEmailSender", () => {
     delete process.env.EMAIL_TRANSPORT;
 
     expect(createEmailSender()).toBeInstanceOf(OutboxEmailSender);
+  });
+
+  it("returns the Brevo adapter for EMAIL_TRANSPORT=brevo", () => {
+    useEnv({
+      EMAIL_TRANSPORT: "brevo",
+      BREVO_API_KEY: "xkeysib-test-only-0123456789abcdef",
+      EMAIL_FROM: "noreply@krajozbior.example",
+    });
+
+    expect(createEmailSender()).toBeInstanceOf(BrevoEmailSender);
   });
 
   it("returns one shared memory adapter for EMAIL_TRANSPORT=memory", () => {

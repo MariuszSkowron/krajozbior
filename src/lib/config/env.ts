@@ -56,7 +56,7 @@ const opsEnvSchema = z.object({
 export type OpsEnv = z.infer<typeof opsEnvSchema>;
 
 export class ServerConfigError extends Error {
-  constructor(invalidNames: string[]) {
+  constructor(readonly invalidNames: string[]) {
     // Names only: values may be secrets and must not reach logs or responses.
     super(`Invalid server configuration: ${invalidNames.join(", ")}`);
     this.name = "ServerConfigError";
@@ -143,10 +143,10 @@ function hasLoopbackAuthUrl(source: Record<string, string | undefined>): boolean
   }
 }
 
-// Outgoing e-mail (sign-in codes). `outbox` writes .eml files to a git-ignored
-// directory and is for local work and tests; `memory` keeps messages in the
-// process (integration tests). A production provider is not part of the
-// krajozbior: add its adapter and transport when the project chooses one.
+// Outgoing e-mail (sign-in codes). `brevo` sends through the Brevo HTTP API and
+// is the only transport of a shared or public deployment (D-E11-9); `outbox`
+// writes .eml files to a git-ignored directory and is for local work and tests;
+// `memory` keeps messages in the process (integration tests).
 // The outbox directory must be a relative path inside `.data/` (git-ignored, not
 // served by Next.js): no absolute paths, no `..`, no `public/`.
 export function isSafeOutboxDir(value: string): boolean {
@@ -169,6 +169,13 @@ const emailEnvSchema = z.discriminatedUnion("EMAIL_TRANSPORT", [
     EMAIL_TRANSPORT: z.literal("memory"),
     EMAIL_FROM: z.email(),
   }),
+  z.object({
+    EMAIL_TRANSPORT: z.literal("brevo"),
+    // Printable ASCII without spaces (it goes into a request header); the real
+    // keys are much longer than the minimum.
+    BREVO_API_KEY: z.string().regex(/^[\x21-\x7e]{16,512}$/),
+    EMAIL_FROM: z.email(),
+  }),
 ]);
 
 export type EmailEnv = z.infer<typeof emailEnvSchema>;
@@ -178,15 +185,23 @@ export const DEV_EMAIL_FROM = "noreply@krajozbior.local";
 // The local transports may run in a production build only for the tests of the
 // built application: with the flag EMAIL_OUTBOX_TEST_ONLY=1 of its own AND a
 // loopback BETTER_AUTH_URL. A set but non-loopback address means a shared or
-// public deployment, where they are always refused.
+// public deployment, where they are always refused. `brevo` needs its own key
+// and an explicit sender address everywhere, never the local default.
 export function parseEmailEnv(source: Record<string, string | undefined>): EmailEnv {
   const production = source.NODE_ENV === "production";
+  const transport = source.EMAIL_TRANSPORT?.trim() || (production ? undefined : "outbox");
+  const defaultFrom = production || transport === "brevo" ? undefined : DEV_EMAIL_FROM;
   const env = parseEnv(emailEnvSchema, {
     ...source,
-    EMAIL_TRANSPORT: source.EMAIL_TRANSPORT?.trim() || (production ? undefined : "outbox"),
+    EMAIL_TRANSPORT: transport,
     EMAIL_OUTBOX_DIR: source.EMAIL_OUTBOX_DIR?.trim() || undefined,
-    EMAIL_FROM: source.EMAIL_FROM?.trim() || (production ? undefined : DEV_EMAIL_FROM),
+    BREVO_API_KEY: source.BREVO_API_KEY?.trim() || undefined,
+    EMAIL_FROM: source.EMAIL_FROM?.trim() || defaultFrom,
   });
+
+  if (env.EMAIL_TRANSPORT === "brevo") {
+    return env;
+  }
 
   const loopback = hasLoopbackAuthUrl(source);
   const publicUrl = source.BETTER_AUTH_URL !== undefined && !loopback;
@@ -202,6 +217,35 @@ export function parseEmailEnv(source: Record<string, string | undefined>): Email
 
 export function getEmailEnv(): EmailEnv {
   return parseEmailEnv(process.env);
+}
+
+// Run once when a production server starts (src/instrumentation.ts): the
+// settings of the web application (database, sign-in, e-mail) are checked all at
+// once, so a server with a missing or wrong value does not start, instead of
+// failing on the first sign-in. Outside production nothing is checked here
+// (development and `next build` need no configuration); the lazy getters still
+// validate on use. The error names every wrong variable, never a value.
+export function assertStartupConfig(source: Record<string, string | undefined>): void {
+  if (source.NODE_ENV !== "production") {
+    return;
+  }
+
+  const names = new Set<string>();
+
+  for (const parse of [parseServerEnv, parseAuthEnv, parseEmailEnv]) {
+    try {
+      parse(source);
+    } catch (error) {
+      if (!(error instanceof ServerConfigError)) {
+        throw error;
+      }
+      for (const name of error.invalidNames) names.add(name);
+    }
+  }
+
+  if (names.size > 0) {
+    throw new ServerConfigError([...names]);
+  }
 }
 
 let cachedEnv: ServerEnv | undefined;

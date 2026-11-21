@@ -5,7 +5,7 @@ export const APP_NAME = "Krajozbiór";
 
 export type SignInCodeEmailInput = Readonly<{
   code: string;
-  /** Public address of the site (footer link). */
+  /** Public address of the site (footer, as plain text). */
   siteUrl: string;
 }>;
 
@@ -20,12 +20,21 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-// The only data in the message is the code and the site link; no images, no
-// tracking, no account details.
+/** Footer line required by the privacy policy (D-36 pkt 1, E11 5.8). */
+export const DATA_CONTROLLER_LINE =
+  "Administrator danych: Mariusz Skowron, kontakt@mariuszskowron.pl";
+
+export const PRIVACY_POLICY_PATH = "/polityka-prywatnosci";
+
+// The only data in the message is the code, the site address and the fixed
+// footer; no images, no tracking, no account details. The footer addresses are
+// plain text, not links (<a>), so nothing in the message can be rewritten into
+// a tracking redirect by the provider.
 export function renderSignInCodeEmail(input: SignInCodeEmailInput): RenderedEmail {
   const { code, siteUrl } = input;
   const subject = `${code.replace(/[\r\n]+/g, " ")} — kod logowania (${APP_NAME})`;
   const rest = `Kod jest ważny ${SIGN_IN_CODE_VALIDITY_MINUTES} minut. Jeśli to nie Ty prosisz o kod, zignoruj tę wiadomość — bez kodu nikt nie zaloguje się na Twoje konto.`;
+  const privacy = `Polityka prywatności: ${siteUrl.replace(/\/+$/, "")}${PRIVACY_POLICY_PATH}`;
 
   const text = [
     `Twój kod logowania (${APP_NAME}): ${code}.`,
@@ -35,6 +44,8 @@ export function renderSignInCodeEmail(input: SignInCodeEmailInput): RenderedEmai
     "--",
     APP_NAME,
     siteUrl,
+    DATA_CONTROLLER_LINE,
+    privacy,
     "",
   ].join("\n");
 
@@ -47,7 +58,9 @@ export function renderSignInCodeEmail(input: SignInCodeEmailInput): RenderedEmai
 <p>${escapeHtml(rest)}</p>
 <hr>
 <p style="font-size: 13px;">${escapeHtml(APP_NAME)}<br>
-<a href="${escapeHtml(siteUrl)}">${escapeHtml(siteUrl)}</a></p>
+${escapeHtml(siteUrl)}<br>
+${escapeHtml(DATA_CONTROLLER_LINE)}<br>
+${escapeHtml(privacy)}</p>
 </body>
 </html>
 `;
