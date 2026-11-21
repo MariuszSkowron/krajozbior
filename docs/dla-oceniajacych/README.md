@@ -11,6 +11,7 @@ Ten folder jest punktem wejścia dla osób, które oceniają Krajozbiór i nie z
 3. [Architektura i ochrona danych](architektura-i-dane.md): jak aplikacja jest zbudowana i kto widzi jakie dane.
 4. [Specyfikacje](specyfikacje.md): streszczenie trzech specyfikacji, według których powstał dotychczasowy kod.
 5. [Proces, przeglądy i bezpieczeństwo](proces-i-przeglady.md): jak pracują agenci AI, kto sprawdza ich zmiany i co wykazały przeglądy.
+6. [Notatki bezpieczeństwa](../../security-notes.md): jakie uprawnienia ma agent, gdzie są sekrety i jak skończyła się próba prompt injection.
 
 ## Jak sprawdzić samodzielnie
 
