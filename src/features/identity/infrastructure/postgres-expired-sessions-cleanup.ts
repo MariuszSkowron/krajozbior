@@ -5,8 +5,8 @@ import type { Pool } from "pg";
 // Sessions that expired are removed so the table keeps to the retention in the
 // privacy policy (the login cookie lasts at most 30 days). Better Auth deletes
 // an expired session only when that very token is presented, and its own
-// cleanup of expired sign-in codes (verifications) already runs on every code
-// lookup, so only sessions need this.
+// cleanup of expired sign-in codes (verifications) already runs on code lookups
+// (at most once a minute per process), so only sessions need this.
 //
 // One request removes at most this many rows, so a large backlog never slows
 // a single sign-in code request; the next requests continue.

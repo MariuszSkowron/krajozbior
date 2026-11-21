@@ -95,7 +95,7 @@ describe("deleteExpiredSessions", () => {
     const appPool = new Pool({ connectionString: db.urls.krajozbior_app, max: 1 });
 
     try {
-      await expect(deleteExpiredSessions(appPool)).rejects.toThrow();
+      await expect(deleteExpiredSessions(appPool)).rejects.toMatchObject({ code: "42501" });
     } finally {
       await closePool(appPool);
     }
