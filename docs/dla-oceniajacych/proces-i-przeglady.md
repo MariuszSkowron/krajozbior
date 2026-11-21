@@ -49,14 +49,14 @@ Numery to publiczne numery PR-ów w tym repozytorium. Uwagi drobne i kosmetyczne
 - **#32, przypięty przycisk wizyty na telefonie** (poziom B, Sonnet): uwagi poprawione i sprawdzone niezależnie; zatwierdzony. Zmiana tylko w warstwie wyglądu.
 - **#33, hook blokujący zapis plików z terminala**: trzy rundy poprawek, każda z niezależną weryfikacją; zatwierdzony.
 - **#34, wizyta z przeszłości** (poziom A, Opus, plus przegląd bezpieczeństwa): poprawki sprawdził niezależnie kolejny agent; zatwierdzony.
-- **#38–#41 i #49, epika E12 „Odkrywanie”** (poziom A, Opus): cztery PR-y zatwierdzone przy pierwszym przeglądzie (bez uwag blokujących i ważnych), mapa (#49) po poprawce dwóch uwag ważnych. Szczegóły: [Specyfikacja E12](specyfikacja-e12-odkrywanie.md#przeglądy-pr-ów-epiki).
+- **#38–#41 i #49, epik E12 „Odkrywanie”** (poziom A, Opus): cztery PR-y zatwierdzone przy pierwszym przeglądzie (bez uwag blokujących i średnich), mapa (#49) po poprawce dwóch uwag średnich przed scaleniem. Szczegóły: [Specyfikacja E12](specyfikacja-e12-odkrywanie.md#przeglądy-pr-ów-epiku).
 
-Późniejsze PR-y z kodem miały przegląd innego modelu niż autor (zwykle autor Sonnet, recenzent Opus; przy #60 recenzentem był Claude Fable). Wynik pierwszego przeglądu:
+Późniejsze PR-y z kodem miały przegląd innego modelu niż autor (zwykle autor Sonnet, recenzent Opus; przy #60 recenzentem był Claude Fable, czyli inny model Claude). Wynik pierwszego przeglądu:
 
 - **zatwierdzone od razu:** #47 (baza pod wgrywanie kolekcji; tylko uwagi drobne), #54 (statystyki profilu; 1 uwaga średnia, 6 drobnych), #56 (właściciel kodu dla całego repozytorium);
-- **zatwierdzone po poprawkach** (większe poprawki sprawdzał kolejny, niezależny agent): #50 (profil; 2 uwagi średnie), #53 (wgrywanie kolekcji z pliku; 2 średnie, 9 drobnych), #55 (obraz produkcyjny i konfiguracja serwera; 2 średnie), #57 (wysyłka kodów logowania; 2 ważne), #58 (strony prawne i akceptacja regulaminu; 1 ważna), #60 (logi i limity; 1 blokująca w dokumentacji i teście), #61 (limit czasu zapytań; 1 drobna w dokumentacji), #63 (publiczne notatki bezpieczeństwa).
+- **zatwierdzone po poprawkach** (większe poprawki sprawdzał kolejny, niezależny agent): #50 (profil; 2 uwagi średnie), #53 (wgrywanie kolekcji z pliku; przegląd w dwóch paczkach: łącznie 4 średnie i 15 drobnych), #55 (obraz produkcyjny i konfiguracja serwera; 2 średnie), #57 (wysyłka kodów logowania; 2 ważne), #58 (strony prawne i akceptacja regulaminu; 1 blokująca, bo nie uruchomiono jeszcze testów z bazą, E2E i budowy, oraz 2 ważne, 7 drobnych i 2 kosmetyczne), #60 (logi i limity; 1 blokująca w dokumentacji i teście), #61 (limit czasu zapytań; 1 drobna w dokumentacji), #63 (publiczne notatki bezpieczeństwa).
 
-We wszystkich tych PR-ach nie było uwag krytycznych. Treść uwag dotyczących bezpieczeństwa publikujemy tylko w tej ogólnej postaci.
+Uwagi blokujące i ważne poprawiono przed scaleniem, a większe poprawki sprawdził niezależny agent. Treść uwag dotyczących bezpieczeństwa publikujemy tylko w tej ogólnej postaci.
 
 ## Przegląd bezpieczeństwa ścieżki konkursowej
 

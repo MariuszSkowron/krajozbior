@@ -68,4 +68,4 @@ Działa pełna ścieżka konkursowa: kurator tworzy i publikuje kolekcję, goś�
 
 ## Planowane (zakres pierwszej wersji)
 
-Pełną listę epik ze stanem pokazuje [Backlog](backlog.md). Po wydaniu konkursowym przychodzą m.in.: zdjęcia z moderacją kuratora (E4), zgłoszenia poprawek (E5), wydarzenia i karty legendarne (E6), aktualności (E7), własne kolekcje odkrywców (E8), ekrany administratora i zespół organizacji (E10) oraz „Nowa w okolicy” i filtr „Moich kolekcji” (E12).
+Pełną listę epików ze stanem pokazuje [Backlog](backlog.md). Po wydaniu konkursowym przychodzą m.in.: zdjęcia z moderacją kuratora (E4), zgłoszenia poprawek (E5), wydarzenia i karty legendarne (E6), aktualności (E7), własne kolekcje odkrywców (E8), ekrany administratora i zespół organizacji (E10) oraz „Nowa w okolicy” i filtr „Moich kolekcji” (E12).

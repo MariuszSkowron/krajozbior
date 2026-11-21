@@ -2,13 +2,13 @@
 
 ## W skrócie
 
-Przed tą epiką strona startowa aplikacji była pustym szkieletem, a gość mógł trafić do kolekcji tylko z bezpośredniego linku. Specyfikacja zamienia ją na prawdziwą stronę główną: zalogowany odkrywca widzi swój album (liczby, ulubione kolekcje, ostatnie wizyty), a każdy, także gość, widzi kolekcje do odkrycia, wyszukiwarkę i, dopiero po kliknięciu, kolekcje w okolicy. Pozycja telefonu nie opuszcza przeglądarki. Strona kolekcji dostała filtr „odwiedzone / do odwiedzenia”, panel wybranego miejsca na komputerze i widok mapy OpenStreetMap. Do wersji konkursowej nie były potrzebne zmiany w bazie danych.
+Przed tym epikiem strona startowa aplikacji była pustym szkieletem, a gość mógł trafić do kolekcji tylko z bezpośredniego linku. Specyfikacja zamienia ją na prawdziwą stronę główną: zalogowany odkrywca widzi swój album (liczby, ulubione kolekcje, ostatnie wizyty), a każdy, także gość, widzi kolekcje do odkrycia, wyszukiwarkę i, dopiero po kliknięciu, kolekcje w okolicy. Pozycja telefonu nie opuszcza przeglądarki. Strona kolekcji dostała filtr „odwiedzone / do odwiedzenia”, panel wybranego miejsca na komputerze i widok mapy OpenStreetMap. Do wersji konkursowej nie były potrzebne zmiany w bazie danych.
 
 To jawne streszczenie pełnej specyfikacji, która leży w prywatnym repozytorium dokumentacji. Pominęliśmy w nim numery decyzji i pytań właściciela, harmonogram dzień po dniu oraz szczegóły ryzyk, które nie zostały jeszcze zamknięte.
 
 | Pole               | Wartość                                                                                               |
 | ------------------ | ----------------------------------------------------------------------------------------------------- |
-| Epika i historyjki | `docs#13`; `docs#79` (S1), `docs#80` (S2), `docs#81` (S3), `docs#82` (S4), zob. [Backlog](backlog.md) |
+| Epik i historyjki  | `docs#13`; `docs#79` (S1), `docs#80` (S2), `docs#81` (S3), `docs#82` (S4), zob. [Backlog](backlog.md) |
 | Autor specyfikacji | Claude Opus (skill `om-spec-writing`)                                                                 |
 | Przegląd           | Claude Sonnet, inny model niż autor; poprawki sprawdził kolejny, niezależny agent (Sonnet)            |
 | Akceptacja         | właściciel, 18 listopada 2026 roku                                                                    |
@@ -18,11 +18,11 @@ Oznaczenia: **[Z]** wymaganie właściciela, **[P]** propozycja agenta (właści
 
 ## 1. Problem i cel
 
-Kogo dotyczy: gość (np. oceniający albo przypadkowy odwiedzający) oraz odkrywca na telefonie i komputerze. Epika nie dodaje nowych ról.
+Kogo dotyczy: gość (np. oceniający albo przypadkowy odwiedzający) oraz odkrywca na telefonie i komputerze. Epik nie dodaje nowych ról.
 
 Cel: oceniający i odkrywca od pierwszego wejścia rozumieją produkt i znajdują kolekcje, a strona kolekcji wygląda i działa jak album z makiet.
 
-Poza zakresem tej epiki (należy do innych): zapowiedź skrytki (E6), okładki kolekcji i zdjęcia miejsc (E4), „km w trasie” w podsumowaniu albumu (E9), imię w powitaniu (E9), własne kolekcje odkrywców w wynikach wyszukiwania (E8).
+Poza zakresem tego epiku (należy do innych): zapowiedź skrytki (E6), okładki kolekcji i zdjęcia miejsc (E4), „km w trasie” w podsumowaniu albumu (E9), imię w powitaniu (E9), własne kolekcje odkrywców w wynikach wyszukiwania (E8).
 
 ## 2. Wymagania
 
@@ -119,16 +119,16 @@ Specyfikacja określiła też kolejność cięcia przy braku czasu (najpierw map
 
 **Weryfikacja poprawek:** kolejny, niezależny agent (Sonnet) zatwierdził specyfikację; wszystkie uwagi uznał za rozwiązane i zostawił trzy drobne zalecenia na później.
 
-## Przeglądy PR-ów epiki
+## Przeglądy PR-ów epiku
 
-Każdy PR epiki miał przegląd poziomu A (dane prywatne i zakres dostępu; zob. [Proces](proces-i-przeglady.md)) wykonany przez agenta Opus, innego niż autor, z osobną oceną bezpieczeństwa i izolacji danych. Poprawki po przeglądzie sprawdzał kolejny, niezależny agent.
+Każdy PR epiku miał przegląd poziomu A (dane prywatne i zakres dostępu; zob. [Proces](proces-i-przeglady.md)) wykonany przez agenta Opus, innego niż autor, z osobną oceną bezpieczeństwa i izolacji danych. Poprawki po przeglądzie sprawdzał kolejny, niezależny agent.
 
-| PR  | Zakres              | Pierwszy przegląd                                                  | Po poprawkach                                                                                                                                       |
-| --- | ------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #38 | strona główna       | zatwierdzony; 0 blokujących, 0 ważnych, 4 drobne, 7 kosmetycznych  | drobne poprawione (m.in. liczenie województw tylko z publicznych kolekcji, pomiar czasu strony); weryfikacja: zatwierdzony                          |
-| #39 | wyszukiwarka        | zatwierdzony; 0 blokujących, 0 ważnych, 6 drobnych, 4 kosmetyczne  | drobne poprawione (m.in. limit czasu na całe wyszukiwanie, odmiana nazw województw); weryfikacja: zatwierdzony                                      |
-| #40 | „W okolicy”         | zatwierdzony; 0 blokujących, 0 ważnych, 3 drobne, 4 kosmetyczne    | własny limit czasu odczytu lokalizacji z testem regresji; weryfikacja: zatwierdzony                                                                 |
-| #41 | kolekcja jako album | zatwierdzony; 0 blokujących, 0 ważnych, 2 drobne, 3 kosmetyczne    | panel nie pokazuje przycisku listy, gdy nie udało się wczytać wizyt (z testem regresji)                                                             |
-| #49 | mapa                | prośba o zmiany; 0 blokujących, 2 ważne, 5 drobnych, 2 kosmetyczne | poprawione: obszar mapy liczony zawsze z całej kolekcji (ważne dla prywatności) i obsługa klawiatury w okienku znacznika; weryfikacja: zatwierdzony |
+| PR  | Zakres              | Pierwszy przegląd                                                    | Po poprawkach                                                                                                                                                       |
+| --- | ------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #38 | strona główna       | zatwierdzony; 0 blokujących, 0 ważnych, 4 drobne, 7 kosmetycznych    | drobne poprawione (m.in. liczenie województw tylko z publicznych kolekcji, pomiar czasu strony); weryfikacja: zatwierdzony                                          |
+| #39 | wyszukiwarka        | zatwierdzony; 0 blokujących, 0 ważnych, 6 drobnych, 4 kosmetyczne    | drobne poprawione (m.in. limit czasu na całe wyszukiwanie, odmiana nazw województw); weryfikacja: zatwierdzony                                                      |
+| #40 | „W okolicy”         | zatwierdzony; 0 blokujących, 0 ważnych, 3 drobne, 4 kosmetyczne      | własny limit czasu odczytu lokalizacji z testem regresji; weryfikacja: zatwierdzony                                                                                 |
+| #41 | kolekcja jako album | zatwierdzony; 0 blokujących, 0 ważnych, 2 drobne, 3 kosmetyczne      | panel nie pokazuje przycisku listy, gdy nie udało się wczytać wizyt (z testem regresji)                                                                             |
+| #49 | mapa                | prośba o zmiany; 0 blokujących, 2 średnie, 5 drobnych, 2 kosmetyczne | poprawione przed scaleniem: obszar mapy liczony zawsze z całej kolekcji (ważne dla prywatności) i obsługa klawiatury w okienku znacznika; weryfikacja: zatwierdzony |
 
 Każdy przegląd zawiera osobną ocenę bezpieczeństwa i izolacji danych; we wszystkich pięciu PR-ach ta ocena przeszła albo jej uwagi poprawiono przed scaleniem.
