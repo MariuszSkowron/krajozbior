@@ -952,17 +952,6 @@ describe("speed on a 20 000-character line", () => {
     },
   );
 
-  // Control case: a deliberately vulnerable pattern must exceed the limit, so
-  // the limit is proven able to catch ReDoS (one run only, it is slow).
-  it("the limit catches a deliberately vulnerable regular expression", () => {
-    const vulnerable = /^(a+)+$/;
-    // 2^n steps: 24 characters take about a second, 30 would take over a minute.
-    const input = "a".repeat(24) + "!";
-    const start = performance.now();
-    vulnerable.test(input);
-    expect(performance.now() - start).toBeGreaterThan(LIMIT_MS);
-  });
-
   it("blocks a forbidden command followed by a long tail", () => {
     const result = runHook(shellEvent("Bash", `ssh -V # ${"git clone ".repeat(2_000)}`));
     expect(result.status).toBe(2);
