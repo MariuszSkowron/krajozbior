@@ -266,6 +266,7 @@ function Test-RunsFromSecretsRepo([string]$scriptRoot, [string]$secretsDir) {
 
 # Windows paths as plain text, so the checks refuse (not throw) and behave the same on any system
 # (Join-Path/GetFullPath need a real `C:` drive; the CI runs these checks on Linux).
+# The text branch (non-Windows) exists for the tests in CI, not for production use.
 function Join-WinPath([string]$base, [string]$child) {
   return ($base.TrimEnd('\', '/') + '\' + $child)
 }

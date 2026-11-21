@@ -563,25 +563,39 @@ describe("secrets folder scripts: clean clone only, safe git (review F-K4, A1)",
     }
   });
 
+  const runNewDeploySecrets = (userProfile: string) =>
+    spawnSync(
+      powershell ?? "pwsh",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        `try { & '${join(OPS_DIR, "new-deploy-secrets.ps1").replaceAll("'", "''")}' -ReportDir 'C:\\x\\.data\\deploy' } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }`,
+      ],
+      { encoding: "utf8", env: { ...process.env, USERPROFILE: userProfile } },
+    );
+
   psIt(
     "new-deploy-secrets.ps1 refuses to run from another folder, before touching anything",
     () => {
-      const result = spawnSync(
-        powershell ?? "pwsh",
-        [
-          "-NoProfile",
-          "-NonInteractive",
-          "-Command",
-          `try { & '${join(OPS_DIR, "new-deploy-secrets.ps1").replaceAll("'", "''")}' -ReportDir 'C:\\x\\.data\\deploy' } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }`,
-        ],
-        { encoding: "utf8" },
-      );
+      // USERPROFILE is set, so the refusal comes from the folder check (not from the missing variable).
+      const userProfile = mkdtempSync(join(tmpdir(), "krajozbior-userprofile-"));
+      const result = runNewDeploySecrets(userProfile);
 
       expect(result.status).not.toBe(0);
-      expect(result.stderr).toContain("czystej kopii");
+      expect(result.stderr).toContain("nie z folderu kodu");
+      expect(result.stderr).not.toContain("USERPROFILE");
       expect(result.stderr).toContain("Nic nie zrobiono");
     },
   );
+
+  psIt("new-deploy-secrets.ps1 refuses with an empty USERPROFILE, before touching anything", () => {
+    const result = runNewDeploySecrets("");
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("Brak zmiennej USERPROFILE");
+    expect(result.stderr).toContain("Nic nie zrobiono");
+  });
 
   psIt("Resolve-ReportDir: default in the secrets folder, explicit full path, no relative", () => {
     expect(psJson<string>("Resolve-ReportDir '' 'C:\\s'")).toBe("C:\\s\\raporty");
