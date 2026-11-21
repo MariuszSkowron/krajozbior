@@ -73,7 +73,9 @@ storybook-static/
 
 # Pliki, które należą wyłącznie do repozytorium dokumentacji (job `guard` w CI
 # odrzuca je także wtedy, gdy ktoś doda je z pominięciem .gitignore).
-/security-notes.md
+# `security-notes.md` w katalogu głównym to wersja publiczna (wymóg konkursu);
+# guard przepuszcza ją tylko ze znacznikiem wersji publicznej, a pełne notatki
+# zostają w repozytorium dokumentacji.
 /BOOTSTRAP.md
 /project-intake.md
 /bootstrap-checklist.md
