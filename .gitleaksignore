@@ -1,0 +1,5 @@
+# Fałszywe alarmy gitleaks (skaner sprawdza wszystkie commity PR, więc poprawiona
+# wartość zostaje w historii). Każdy wpis: commit:plik:reguła:linia i powód.
+#
+# Fikcyjna wartość sekretu w teście listy zmiennych operatora; zastąpiona "x".repeat(32).
+a007853dc39d57bb0c4a03cba5d3cc8f130c29dc:tests/lib/config/operator-env.test.ts:generic-api-key:32

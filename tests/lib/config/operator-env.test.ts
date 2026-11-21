@@ -29,7 +29,7 @@ const OPERATOR_VARIABLES = {
 const DUMMY_VALUES: Record<string, string> = {
   DATABASE_OPS_URL: "postgres://ops:dummy@db:5432/krajozbior",
   DATABASE_AUTH_URL: "postgres://auth:dummy@db:5432/krajozbior",
-  BETTER_AUTH_SECRET: "dummy-secret-for-the-test-0123456789abcdef",
+  BETTER_AUTH_SECRET: "x".repeat(32),
   BETTER_AUTH_URL: "https://krajozbior.example.com",
   AUTH_CLIENT_IP_HEADER: "x-real-ip",
 };
