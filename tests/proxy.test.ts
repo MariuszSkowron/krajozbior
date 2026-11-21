@@ -16,6 +16,9 @@ describe("proxy coverage and caching", () => {
     "/my",
     "/nie-ma-takiej-strony",
     "/apiary",
+    // `media-kit` is a page, only the `/media` route is left out (E4-2b).
+    "/media-kit",
+    "/mediateka/zdjecia",
     // A page path with a dot is still a page: it must not leave shared caches open.
     "/u/jan.kowalski",
     "/raport.2026",
@@ -27,6 +30,11 @@ describe("proxy coverage and caching", () => {
     "/api/health",
     "/api/auth/logout",
     "/api",
+    // The /media route sets `Cache-Control` per photo (public for a photo anyone may see).
+    "/media/p/0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b/main",
+    "/media/p/0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b/w400",
+    "/media/e/0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b/main",
+    "/media",
     "/_next/static/chunks/main.js",
     "/_next/image?url=%2Fx.png",
     "/favicon.ico",

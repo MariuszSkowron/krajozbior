@@ -28,25 +28,36 @@ export function contentSecurityPolicy(isDev: boolean): string {
   return directives.join("; ");
 }
 
+// `source` of the page rule: every path that does not start with `media/`. A page whose name only
+// starts with `media` (`/media-kit`) is still a page.
+export const PAGES_SOURCE = "/((?!media/).*)";
+export const MEDIA_SOURCE = "/media/:path*";
+
 export function securityHeaders(isDev: boolean): HeaderRule[] {
-  return [
+  const common = [
+    // Fallback of frame-ancestors for old browsers.
+    { key: "X-Frame-Options", value: "DENY" },
+    { key: "X-Content-Type-Options", value: "nosniff" },
+    { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
     {
-      source: "/:path*",
-      headers: [
-        { key: "Content-Security-Policy", value: contentSecurityPolicy(isDev) },
-        // Fallback of frame-ancestors for old browsers.
-        { key: "X-Frame-Options", value: "DENY" },
-        { key: "X-Content-Type-Options", value: "nosniff" },
-        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-        {
-          key: "Permissions-Policy",
-          value: "camera=(), microphone=(), geolocation=(self), payment=(), usb=()",
-        },
-        // Not in development: `next dev --experimental-https` would pin HSTS on
-        // localhost for a year. No includeSubDomains/preload: irreversible,
-        // decided with the domain.
-        ...(isDev ? [] : [{ key: "Strict-Transport-Security", value: "max-age=31536000" }]),
-      ],
+      key: "Permissions-Policy",
+      value: "camera=(), microphone=(), geolocation=(self), payment=(), usb=()",
     },
+    // Not in development: `next dev --experimental-https` would pin HSTS on
+    // localhost for a year. No includeSubDomains/preload: irreversible,
+    // decided with the domain.
+    ...(isDev ? [] : [{ key: "Strict-Transport-Security", value: "max-age=31536000" }]),
+  ];
+
+  return [
+    // Every path except /media: the page policy.
+    {
+      source: PAGES_SOURCE,
+      headers: [{ key: "Content-Security-Policy", value: contentSecurityPolicy(isDev) }, ...common],
+    },
+    // /media (E4-2b): a header from next.config replaces the same header of the route, so the page
+    // policy would replace the policy of a photo (`default-src 'none'; sandbox`, set by the route).
+    // The photo route keeps its own single Content-Security-Policy; the rest stays the same.
+    { source: MEDIA_SOURCE, headers: common },
   ];
 }
