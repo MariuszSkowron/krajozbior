@@ -16,7 +16,7 @@ let db: ScratchDatabase;
 let app: MikroORM;
 
 const actor = newUser("db-error-log");
-const SECRET = "wartosc-uzytkownika-12345";
+const USER_VALUE = "wartosc-uzytkownika-12345";
 
 // Everything a log line could print for the error: message, stack, name, cause and its own fields.
 const printable = (error: unknown): string => {
@@ -68,11 +68,11 @@ describe("an error from the database (production)", () => {
   it("carries no value of the user out of the user context (a rejected value)", async () => {
     const error = await caught(() =>
       runInUserContext(app.em, { id: actor.id }, (tx) =>
-        tx.em.execute(`select * from public.visits where id = ?::uuid`, [SECRET]),
+        tx.em.execute(`select * from public.visits where id = ?::uuid`, [USER_VALUE]),
       ),
     );
 
-    expect(printable(error)).not.toContain(SECRET);
+    expect(printable(error)).not.toContain(USER_VALUE);
     // The class of the failure stays useful for the operator and for callers.
     expect(error).toBeInstanceOf(Error);
     expect((error as { code?: unknown }).code).toBe("22P02");
@@ -82,21 +82,21 @@ describe("an error from the database (production)", () => {
     const error = await caught(() =>
       runInUserContext(app.em, { id: actor.id }, async (tx) => {
         await tx.em.execute(`create temp table error_log_probe (note text unique) on commit drop`);
-        await tx.em.execute(`insert into error_log_probe (note) values (?)`, [SECRET]);
-        await tx.em.execute(`insert into error_log_probe (note) values (?)`, [SECRET]);
+        await tx.em.execute(`insert into error_log_probe (note) values (?)`, [USER_VALUE]);
+        await tx.em.execute(`insert into error_log_probe (note) values (?)`, [USER_VALUE]);
       }),
     );
 
-    expect(printable(error)).not.toContain(SECRET);
+    expect(printable(error)).not.toContain(USER_VALUE);
     expect((error as { code?: unknown }).code).toBe("23505");
   });
 
   it("carries no value of the user out of the guest context", async () => {
     const error = await caught(() =>
-      runInGuestContext(app.em, (tx) => tx.em.execute(`select ?::int`, [SECRET])),
+      runInGuestContext(app.em, (tx) => tx.em.execute(`select ?::int`, [USER_VALUE])),
     );
 
-    expect(printable(error)).not.toContain(SECRET);
+    expect(printable(error)).not.toContain(USER_VALUE);
     expect((error as { code?: unknown }).code).toBe("22P02");
   });
 
@@ -111,7 +111,7 @@ describe("an error from the database (production)", () => {
   });
 
   it("passes on an error that the work itself raised, unchanged", async () => {
-    const own = new RangeError(`own error with ${SECRET}`);
+    const own = new RangeError(`own error with ${USER_VALUE}`);
     const error = await caught(() =>
       runInUserContext(app.em, { id: actor.id }, async () => {
         throw own;

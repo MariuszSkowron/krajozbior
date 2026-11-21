@@ -5,12 +5,12 @@ import { DatabaseQueryError, withoutQueryText } from "@/lib/db/database-error";
 
 // What the driver reports for a failed query: the message holds the text of the query with the
 // values inlined, and the error's own fields repeat parts of it.
-const SECRET = "wartosc-uzytkownika-12345";
+const USER_VALUE = "wartosc-uzytkownika-12345";
 
 const driverError = (code: string | undefined, Type = DriverException) => {
   const previous = Object.assign(
-    new Error(`select * from "visits" where "note" = '${SECRET}' - relation does not exist`),
-    { code, detail: `Key (note)=(${SECRET}) is not present`, sqlMessage: SECRET },
+    new Error(`select * from "visits" where "note" = '${USER_VALUE}' - relation does not exist`),
+    { code, detail: `Key (note)=(${USER_VALUE}) is not present`, sqlMessage: USER_VALUE },
   );
 
   return new Type(previous);
@@ -46,7 +46,7 @@ describe("withoutQueryText", () => {
     const result = withoutQueryText(driverError("42P01"));
 
     expect(result).toBeInstanceOf(DatabaseQueryError);
-    expect(everythingPrintable(result as Error)).not.toContain(SECRET);
+    expect(everythingPrintable(result as Error)).not.toContain(USER_VALUE);
     expect(everythingPrintable(result as Error)).not.toContain("visits");
     expect(everythingPrintable(result as Error)).not.toContain("select");
     expect((result as Error).message).toBe("Database query failed (SQLSTATE 42P01)");
@@ -62,13 +62,13 @@ describe("withoutQueryText", () => {
 
     expect(result.constraint).toBe("collections_slug_key");
     expect(result.stack).toMatch(/\n\s+at /);
-    expect(everythingPrintable(result)).not.toContain(SECRET);
+    expect(everythingPrintable(result)).not.toContain(USER_VALUE);
   });
 
   it("drops a constraint that is not a plain schema name", () => {
     const original = driverError("23505");
 
-    Object.assign(original, { constraint: `x ${SECRET}` });
+    Object.assign(original, { constraint: `x ${USER_VALUE}` });
 
     expect((withoutQueryText(original) as DatabaseQueryError).constraint).toBeUndefined();
   });
@@ -80,7 +80,7 @@ describe("withoutQueryText", () => {
   });
 
   it("drops a code that is not a SQLSTATE (a network error code, anything odd)", () => {
-    for (const code of [undefined, "ECONNREFUSED", `x${SECRET}`]) {
+    for (const code of [undefined, "ECONNREFUSED", `x${USER_VALUE}`]) {
       const result = withoutQueryText(driverError(code)) as DatabaseQueryError;
 
       expect(result.code).toBeUndefined();

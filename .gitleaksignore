@@ -3,3 +3,9 @@
 #
 # Fikcyjna wartość sekretu w teście listy zmiennych operatora; zastąpiona "x".repeat(32).
 a007853dc39d57bb0c4a03cba5d3cc8f130c29dc:tests/lib/config/operator-env.test.ts:generic-api-key:32
+#
+# Fikcyjna wartość użytkownika ("wartosc-uzytkownika-12345") w testach maskowania błędów bazy;
+# zmienna nazywała się SECRET/secret, teraz USER_VALUE/userValue.
+b5c8ccaa5e6793866b5df723c0bf9cd6ba1b0c88:tests/lib/db/database-error.test.ts:generic-api-key:8
+b5c8ccaa5e6793866b5df723c0bf9cd6ba1b0c88:tests/integration/database-error-log.test.ts:generic-api-key:19
+b5c8ccaa5e6793866b5df723c0bf9cd6ba1b0c88:tests/lib/db/user-context.test.ts:generic-api-key:144

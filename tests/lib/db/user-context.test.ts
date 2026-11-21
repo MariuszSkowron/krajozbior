@@ -139,10 +139,10 @@ describe("a database error leaving a context (production)", () => {
     vi.unstubAllEnvs();
   });
 
-  const secret = "wartosc-uzytkownika-12345";
+  const userValue = "wartosc-uzytkownika-12345";
   const failing = () =>
     new DriverException(
-      Object.assign(new Error(`select 1 where note = '${secret}' - failed`), { code: "57014" }),
+      Object.assign(new Error(`select 1 where note = '${userValue}' - failed`), { code: "57014" }),
     );
 
   it("loses the query text and keeps the SQLSTATE, in the user and the guest context", async () => {
@@ -160,7 +160,7 @@ describe("a database error leaving a context (production)", () => {
       const error = await run(em).catch((caught: unknown) => caught as Error);
 
       expect(error).toBeInstanceOf(DatabaseQueryError);
-      expect(String(error.stack)).not.toContain(secret);
+      expect(String(error.stack)).not.toContain(userValue);
       expect((error as DatabaseQueryError).code).toBe("57014");
     }
   });
