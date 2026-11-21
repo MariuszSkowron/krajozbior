@@ -258,16 +258,41 @@ function Get-SafeGitArgs([string[]]$argv) { return @($SafeGitOptions + $argv) }
 # new-deploy-secrets.ps1 runs only from the clean clone <secrets>\repo (never from the code folder
 # or a worktree the agent can write to): a script from there could have been changed by the agent.
 function Test-RunsFromSecretsRepo([string]$scriptRoot, [string]$secretsDir) {
-  $expected = [IO.Path]::GetFullPath((Join-Path $secretsDir 'repo\scripts\ops')).TrimEnd('\', '/')
-  $actual = [IO.Path]::GetFullPath($scriptRoot).TrimEnd('\', '/')
+  if (-not $secretsDir -or -not $scriptRoot) { return $false }
+  $expected = (Resolve-WinPath ((Join-WinPath $secretsDir 'repo\scripts\ops'))).TrimEnd('\', '/')
+  $actual = (Resolve-WinPath $scriptRoot).TrimEnd('\', '/')
   return [string]::Equals($expected, $actual, [StringComparison]::OrdinalIgnoreCase)
+}
+
+# Windows paths as plain text, so the checks refuse (not throw) and behave the same on any system
+# (Join-Path/GetFullPath need a real `C:` drive; the CI runs these checks on Linux).
+function Join-WinPath([string]$base, [string]$child) {
+  return ($base.TrimEnd('\', '/') + '\' + $child)
+}
+
+function Test-WinPathRooted([string]$path) {
+  if ([IO.Path]::DirectorySeparatorChar -eq '\') { return [IO.Path]::IsPathRooted($path) }
+  return ($path -match '^([A-Za-z]:[\\/]|\\\\)')
+}
+
+function Resolve-WinPath([string]$path) {
+  if ([IO.Path]::DirectorySeparatorChar -eq '\') { return [IO.Path]::GetFullPath($path) }
+  $parts = New-Object System.Collections.Generic.List[string]
+  foreach ($segment in ($path -replace '/', '\').Split('\')) {
+    if ($segment -eq '..') { if ($parts.Count -gt 1) { $parts.RemoveAt($parts.Count - 1) } }
+    elseif ($segment -ne '.' -and ($segment -ne '' -or $parts.Count -eq 0)) { $parts.Add($segment) }
+  }
+  return ($parts -join '\')
 }
 
 # Folder of the report (no secrets): -ReportDir, else raporty\ in the secrets folder.
 function Resolve-ReportDir([string]$reportDir, [string]$secretsDir) {
-  if ($reportDir -eq '') { return (Join-Path $secretsDir 'raporty') }
-  if (-not [IO.Path]::IsPathRooted($reportDir)) { throw 'ReportDir musi byc pelna sciezka (np. C:\...\.data\deploy).' }
-  return [IO.Path]::GetFullPath($reportDir)
+  if ($reportDir -eq '') {
+    if (-not $secretsDir) { throw 'Brak folderu sekretow; podaj -ReportDir (pelna sciezka).' }
+    return (Join-WinPath $secretsDir 'raporty')
+  }
+  if (-not (Test-WinPathRooted $reportDir)) { throw 'ReportDir musi byc pelna sciezka (np. C:\...\.data\deploy).' }
+  return (Resolve-WinPath $reportDir)
 }
 
 # Healthcheck addresses missing from serwer.conf, as lines to append (existing keys stay).

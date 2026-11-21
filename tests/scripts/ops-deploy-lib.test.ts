@@ -60,7 +60,9 @@ function ps(script: string): Run {
       "-NoProfile",
       "-NonInteractive",
       "-Command",
-      `$ErrorActionPreference = 'Stop'; . '${LIB.replaceAll("'", "''")}'; ${script}`,
+      // The catch prints the plain message: PowerShell's own error view wraps long messages at
+      // the console width (80 columns on Linux CI), which would split the phrases checked below.
+      `$ErrorActionPreference = 'Stop'; try { . '${LIB.replaceAll("'", "''")}'; ${script} } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }`,
     ],
     { encoding: "utf8" },
   );
@@ -569,10 +571,8 @@ describe("secrets folder scripts: clean clone only, safe git (review F-K4, A1)",
         [
           "-NoProfile",
           "-NonInteractive",
-          "-File",
-          join(OPS_DIR, "new-deploy-secrets.ps1"),
-          "-ReportDir",
-          "C:\\x\\.data\\deploy",
+          "-Command",
+          `try { & '${join(OPS_DIR, "new-deploy-secrets.ps1").replaceAll("'", "''")}' -ReportDir 'C:\\x\\.data\\deploy' } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }`,
         ],
         { encoding: "utf8" },
       );

@@ -35,7 +35,10 @@ if ($Rotate) {
   throw 'Rotacja hasel rol (procedura 8.10 pkt 5) nie jest jeszcze gotowa; zostaje na F-P8.'
 }
 
-$secretsDir = Join-Path $env:USERPROFILE '.config\krajozbior-deploy'
+if (-not $env:USERPROFILE) {
+  throw 'Brak zmiennej USERPROFILE: ten skrypt dziala tylko z czystej kopii w folderze sekretow na Windows. Nic nie zrobiono.'
+}
+$secretsDir = Join-WinPath $env:USERPROFILE '.config\krajozbior-deploy'
 $vaultFile = Join-Path $secretsDir 'magazyn.age'
 $configFile = Join-Path $secretsDir 'serwer.conf'
 $starterFile = Join-Path $secretsDir 'wdroz.ps1'
