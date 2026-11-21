@@ -20,11 +20,13 @@ services:
       BETTER_AUTH_URL: http://localhost:${KZ_SHOWCASE_PORT:?}
     volumes: !override
       - ${KZ_SHOWCASE_DATA:?}/outbox:/app/.data/outbox
+      - media:/var/lib/krajozbior/media:ro
 
   ops:
     image: ${KZ_PROJECT:?}-ops:${IMAGE_TAG:?}
     volumes: !override
       - ${KZ_SHOWCASE_DATA:?}/reports:/app/.ai/tmp/catalog-import
+      - media:/var/lib/krajozbior/media
 
 secrets:
   pg_bootstrap:
@@ -37,3 +39,7 @@ volumes:
     name: ${KZ_PROJECT:?}-caddy-data
   caddy-config:
     name: ${KZ_PROJECT:?}-caddy-config
+  media:
+    name: ${KZ_PROJECT:?}-media
+  media-backup-state:
+    name: ${KZ_PROJECT:?}-media-backup-state
