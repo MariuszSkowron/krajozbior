@@ -62,7 +62,8 @@ describe("guard.yml", () => {
       ".ai/skills/x/.claude/settings.local.json",
       ".ai/specs/a.md",
       ".ai/agentic.config.json.bak/x",
-      "security-notes.md",
+      "docs/security-notes.md",
+      "x/Security-Notes.md",
       "docs/product.md",
       "docs/decisions.md",
       "src/.env",
@@ -84,8 +85,77 @@ describe("guard.yml", () => {
       "src/app/page.tsx",
       ".claude/settings.json",
       "README.md",
+      // Public version in the root only; its content is checked separately.
+      "security-notes.md",
     ];
 
     expect(privatePaths(allowed)).toEqual([]);
+  });
+
+  const notesStart = workflow.indexOf("public_notes_ok() {");
+  const notesEnd = workflow.indexOf("\n          }\n", notesStart);
+  const notesFn = workflow
+    .slice(notesStart, notesEnd + "\n          }\n".length)
+    .split("\n")
+    .map((line) => line.replace(/^ {10}/, ""))
+    .join("\n");
+
+  function notesAccepted(text: string): boolean {
+    const result = spawnSync("bash", ["-c", `${notesFn}\npublic_notes_ok`], {
+      input: text,
+      encoding: "utf8",
+    });
+
+    return result.status === 0;
+  }
+
+  it.skipIf(!hasBash)("accepts only the marked public security notes", () => {
+    const marker = "<!-- security-notes: wersja publiczna -->";
+
+    expect(notesStart).toBeGreaterThan(0);
+    expect(notesAccepted(`${marker}\n\n# Notatki bezpieczeństwa\n`)).toBe(true);
+    // A copy of the private notes: no marker, or its opening sentence.
+    expect(notesAccepted("# Notatki bezpieczeństwa\n")).toBe(false);
+    expect(notesAccepted(`${marker}\nTen plik jest prywatny, bo opisuje ograniczenia.\n`)).toBe(
+      false,
+    );
+  });
+
+  it.skipIf(!hasBash)(
+    "accepts the marker only as the very first line of the file",
+    () => {
+      const marker = "<!-- security-notes: wersja publiczna -->";
+
+      // Rejected: marker at the end, quoted in a sentence, in the second line.
+      expect(notesAccepted(`# Notatki\n\nTreść.\n\n${marker}\n`)).toBe(false);
+      expect(
+        notesAccepted(`# Notatki\n\nWersja publiczna ma znacznik ${marker} w pierwszej linii.\n`),
+      ).toBe(false);
+      expect(notesAccepted(`# Notatki\n${marker}\n\nTreść.\n`)).toBe(false);
+      expect(notesAccepted(`Wstęp ${marker}\n`)).toBe(false);
+      expect(notesAccepted(`\n${marker}\n`)).toBe(false);
+      // Accepted: first line, also with CRLF line ends or a BOM.
+      expect(notesAccepted(`${marker}\n# Notatki\n`)).toBe(true);
+      expect(notesAccepted(`${marker}\r\n# Notatki\r\n`)).toBe(true);
+      expect(notesAccepted(`﻿${marker}\n# Notatki\n`)).toBe(true);
+    },
+    30_000,
+  );
+
+  it("checks the content of the root security notes in the tree and in every commit", () => {
+    expect(workflow).toMatch(/check_notes "" "\$file"/);
+    expect(workflow).toMatch(/check_notes "\$commit" "\$file"/);
+  });
+
+  it("the public security notes in the root pass the content check", () => {
+    const notes = readFileSync(
+      fileURLToPath(new URL("../../security-notes.md", import.meta.url)),
+      "utf8",
+    );
+
+    expect(notes.replace(/^﻿/, "").split(/\r?\n/)[0]).toBe(
+      "<!-- security-notes: wersja publiczna -->",
+    );
+    expect(notes.toLowerCase()).not.toContain("ten plik jest prywatny");
   });
 });

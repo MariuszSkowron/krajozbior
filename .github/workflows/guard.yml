@@ -55,7 +55,14 @@ jobs:
             #    public .ai/ allowance below, so `.ai/skills/.env` or
             #    `.ai/trackers/security-notes.md` are still caught.
             case "$base" in
-              security-notes.md | bootstrap.md | project-intake.md | bootstrap-checklist.md \
+              # `security-notes.md` in the root is the public version required by
+              # the competition rules; its content is checked by public_notes_ok
+              # below. Anywhere else the name belongs to the private repository.
+              security-notes.md)
+                [ "$path" = security-notes.md ] && return 1
+                return 0
+                ;;
+              bootstrap.md | project-intake.md | bootstrap-checklist.md \
                 | claude.local.md | *.code-workspace) return 0 ;;
               # `.env.example` holds no secrets; its folder is judged below.
               .env.example) ;;
@@ -77,9 +84,38 @@ jobs:
             return 1
           }
 
+          # The public `security-notes.md` (stdin) must carry the public marker
+          # as EXACTLY its first line (a BOM or `\r` is tolerated; the marker
+          # at the end, in a later line or quoted in a sentence is not), and
+          # must not carry the sentence that opens the private file, so a copy
+          # of the private notes put in the root is still rejected.
+          public_notes_ok() {
+            local text first
+            text="$(cat)"
+            first="${text%%$'\n'*}"
+            first="${first#$'\xEF\xBB\xBF'}"
+            first="${first%$'\r'}"
+            [ "$first" = '<!-- security-notes: wersja publiczna -->' ] \
+              && ! grep -qiF 'Ten plik jest prywatny' <<<"$text"
+          }
+
           fail() {
             echo "::error::$1"
             failed=1
+          }
+
+          # Content check of the root security notes at a revision (empty: the
+          # checked-out tree). A deleted file has nothing to check.
+          check_notes() {
+            local rev="$1" file="$2"
+            [ "${file,,}" = security-notes.md ] || return 0
+            if [ -z "$rev" ]; then
+              public_notes_ok < "$file" && return 0
+            else
+              git cat-file -e "$rev:$file" 2>/dev/null || return 0
+              git show "$rev:$file" | public_notes_ok && return 0
+            fi
+            fail "${rev:+Commit $rev: }$file nie jest wersją publiczną (brak znacznika „security-notes: wersja publiczna” albo treść pliku prywatnego)."
           }
 
           # 1. The tree being tested.
@@ -87,6 +123,7 @@ jobs:
             if is_private "$file"; then
               fail "Plik prywatny w repozytorium publicznym: $file (jego miejsce to repozytorium dokumentacji)."
             fi
+            check_notes "" "$file"
           done < <(git ls-files)
 
           # 2. Every commit of the change, also files added and removed again.
@@ -103,6 +140,7 @@ jobs:
               if is_private "$file"; then
                 fail "Commit $commit dotyka pliku prywatnego: $file. Usunięcie w kolejnym commicie nie wystarcza; przygotuj gałąź od nowa."
               fi
+              check_notes "$commit" "$file"
             # `-m`: a merge commit is compared with every parent, so a file it
             # brings in is seen (without `-m` diff-tree prints nothing for merges).
             done < <(git diff-tree --no-commit-id --name-only -r -m --root "$commit")

@@ -94,6 +94,42 @@ describe("PostgresSignInThrottle", () => {
     expect(await attempts()).toEqual({ accountIp: 0, account: 0, ip: signInLimits.ip });
   });
 
+  it("refuses with a lock timeout and counts nothing while another transaction holds the rows", async () => {
+    const names = throttleKeys(victim, hmacKey).map(({ key }) => key);
+
+    await withClient(db.adminUrl, async (holder) => {
+      await holder.query(
+        "insert into auth.sign_in_throttle (key) select unnest($1::text[]) on conflict do nothing",
+        [names],
+      );
+      await holder.query("begin");
+
+      try {
+        await holder.query(
+          "select 1 from auth.sign_in_throttle where key = any($1::text[]) for update",
+          [names],
+        );
+
+        const started = Date.now();
+        const outcome = await throttle.reserve(victim).then(
+          () => undefined,
+          (error: unknown) => error as { code?: string },
+        );
+
+        // 55P03 = lock_not_available: the wait ended by itself (2 s), not by the test.
+        expect(outcome?.code).toBe("55P03");
+        expect(Date.now() - started).toBeLessThan(10_000);
+      } finally {
+        await holder.query("rollback");
+      }
+    });
+
+    expect(await attempts()).toEqual({ accountIp: 0, account: 0, ip: 0 });
+    // After the lock is gone, the next attempt is counted normally.
+    expect((await throttle.reserve(victim)).allowed).toBe(true);
+    expect(await attempts()).toEqual({ accountIp: 1, account: 1, ip: 1 });
+  }, 20_000);
+
   it("resets the account buckets but not the IP bucket", async () => {
     await throttle.reserve(victim);
     await throttle.clearAccount(victim);

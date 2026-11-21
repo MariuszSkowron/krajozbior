@@ -3,7 +3,7 @@ import "server-only";
 import { betterAuth } from "better-auth";
 import { emailOTP } from "better-auth/plugins";
 import { PostgresDialect } from "kysely";
-import { Pool } from "pg";
+import { Pool, type PoolConfig } from "pg";
 
 import { getAuthEnv } from "@/lib/config/env";
 import { assertSafeDatabaseRole } from "@/lib/db/role-guard";
@@ -137,11 +137,26 @@ export type Auth = ReturnType<typeof createAuth>;
 let authInstance: Auth | undefined;
 let authPool: Pool | undefined;
 
+/**
+ * How long a request waits for one of the pool's connections (SEC-3). When the pool is
+ * exhausted, the request ends in 503 after this time instead of leaving every later request
+ * (sessions on all pages) waiting without end.
+ */
+export const AUTH_POOL_CONNECTION_TIMEOUT_MS = 5000;
+
+export function authPoolConfig(connectionString: string): PoolConfig {
+  return {
+    connectionString,
+    max: 5,
+    connectionTimeoutMillis: AUTH_POOL_CONNECTION_TIMEOUT_MS,
+  };
+}
+
 // Created lazily so importing this module (and `next build`) needs no secrets.
 export function getAuth(): Auth {
   if (authInstance === undefined) {
     const { DATABASE_AUTH_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL } = getAuthEnv();
-    authPool = new Pool({ connectionString: DATABASE_AUTH_URL, max: 5 });
+    authPool = new Pool(authPoolConfig(DATABASE_AUTH_URL));
     authInstance = createAuth(authPool, BETTER_AUTH_SECRET, BETTER_AUTH_URL);
   }
 

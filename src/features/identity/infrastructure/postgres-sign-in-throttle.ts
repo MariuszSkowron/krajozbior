@@ -18,6 +18,10 @@ import {
 // Rows with an ended window and no active block that one reservation removes,
 // so the table stays bounded by the attempts of one window.
 const CLEANUP_BATCH = 100;
+// The longest wait for a row lock of a bucket (SEC-3), like the code-request counters: a wait
+// that long ends in 503 with nothing counted (the transaction rolls back), instead of holding
+// the connections of the small krajozbior_auth pool.
+export const THROTTLE_LOCK_TIMEOUT = "2s";
 
 // A key of its own for the account HMAC, derived from the session secret, so
 // the two never serve both purposes. Rotating the secret resets the counters.
@@ -69,6 +73,7 @@ async function inTransaction<T>(pool: Pool, work: (client: PoolClient) => Promis
 
   try {
     await client.query("begin");
+    await client.query(`set local lock_timeout = '${THROTTLE_LOCK_TIMEOUT}'`);
     const result = await work(client);
     await client.query("commit");
 

@@ -124,6 +124,14 @@ type SendCodeContext = { context: ActiveContext["context"] } | undefined;
 // not ask for a code for an admin; this is the second line: an admin address
 // never gets a code. The message is handed over without waiting, so the
 // response time does not depend on the provider.
+//
+// A failed delivery deliberately does not change the answer (OPS-7): an admin
+// address sends nothing and so can never fail, so an answer that waited for the
+// provider and reported its failure would tell, during an outage or by its
+// timing, which addresses belong to admins. The person sees the usual "sent"
+// with the hint to check spam and ask again; the failure goes to the log
+// (`email.send_failed`; a refusal of the Brevo account is logged only as
+// `email.brevo_rejected`, by the sender, for the hourly alarm).
 export function createSendSignInCode(deps: SignInCodeDeps) {
   return async (
     data: { email: string; otp: string; type: string },
@@ -148,7 +156,9 @@ async function deliverSignInCode(deps: SignInCodeDeps, to: string, code: string)
     const email = renderSignInCodeEmail({ code, siteUrl: deps.siteUrl() });
     const result = await deps.emailSender().send({ to, tag: "sign_in_code", ...email });
 
-    if (!result.ok) {
+    // A refusal of the account is already logged once by the sender as
+    // `email.brevo_rejected` (counted by the hourly check): no second line.
+    if (!result.ok && result.reason !== "brevo_rejected") {
       // The provider's reason only: never the address or the code.
       console.error(JSON.stringify({ event: "email.send_failed", reason: result.reason }));
     }

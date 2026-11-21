@@ -13,6 +13,7 @@ vi.mock("@/app/fonts", () => ({
 // and has nothing to do with the title.
 vi.mock("@/app/shell/shell-role", () => ({ shellRole: async () => null }));
 vi.mock("@/app/shell/shell-curator", () => ({ shellCuratorLink: async () => false }));
+vi.mock("@/app/shell/terms-state", () => ({ shellTermsAccepted: async () => true }));
 vi.mock("@/app/request-actor", () => ({
   getRequestActor: async () => null,
   loginHref: () => "/login",
@@ -25,6 +26,10 @@ describe("tab titles", () => {
   it.each([
     ["@/app/layout", "Krajozbiór"],
     ["@/app/not-found", "Nie znaleziono — Krajozbiór"],
+    ["@/app/regulamin/page", "Regulamin — Krajozbiór"],
+    ["@/app/polityka-prywatnosci/page", "Polityka prywatności — Krajozbiór"],
+    ["@/app/zasady/page", "Najważniejsze zasady — Krajozbiór"],
+    ["@/app/oswiadczenie-o-zdjeciach/page", "Oświadczenie o zdjęciach — Krajozbiór"],
     ["@/app/my/page", "Profil — Krajozbiór"],
     ["@/app/curator/page", "Panel kuratora — Krajozbiór"],
     ["@/app/curator/collections/new/page", "Nowa kolekcja — Krajozbiór"],

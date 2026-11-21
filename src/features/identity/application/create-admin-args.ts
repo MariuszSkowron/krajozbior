@@ -9,7 +9,7 @@ import { auditOperatorSchema, auditReasonSchema } from "@/lib/db/operations-audi
 // no account is created and no password changes (D-21 pt 3). The reason and
 // the operator label are validated like in `ops:curator`.
 export const CREATE_ADMIN_USAGE =
-  'Usage: auth:create-admin -- --email <e-mail> --reason "<reason>" [--name <name>] [--operator <label>]';
+  'Usage: auth:create-admin -- --email <e-mail> --reason "<reason>" [--name <name>] [--operator <label>] (the reason is kept in the audit for good: no e-mail addresses, so no @)';
 
 export type CreateAdminArgs = Readonly<{
   email: string;
