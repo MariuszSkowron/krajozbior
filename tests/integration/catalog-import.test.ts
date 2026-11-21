@@ -247,6 +247,85 @@ describe("loading a collection file", () => {
     ).toEqual(keysBefore);
   });
 
+  it("writes the source of every place, adds a missing one on a reload and never turns a curator's description back", async () => {
+    const sourcesOf = () =>
+      admin$<{
+        name: string;
+        description_method: string;
+        attribution: string;
+        wikipedia_url: string | null;
+        wikidata_qid: string | null;
+        retrieved_at: Date;
+      }>(
+        `select p.name, s.description_method, s.attribution, s.wikipedia_url, s.wikidata_qid, s.retrieved_at
+           from place_sources s join places p on p.id = s.place_id
+           join organizations o on o.id = s.organization_id
+          where o.slug = 'gmina-a' order by p.name`,
+      );
+
+    // The first load wrote them (the file names its sources by key; the signature is "label (licence)").
+    expect(
+      (await sourcesOf()).map(({ name, description_method, attribution, wikidata_qid }) => ({
+        name,
+        description_method,
+        attribution,
+        wikidata_qid,
+      })),
+    ).toEqual([
+      {
+        name: "Miejsce testowe drugie",
+        // The file marks this description as written by a person.
+        description_method: "curator",
+        attribution: "Źródło testowe B (CC0 1.0)",
+        wikidata_qid: null,
+      },
+      {
+        name: "Miejsce testowe pierwsze",
+        description_method: "facts_template",
+        attribution: "Źródło testowe A (CC0 1.0)",
+        wikidata_qid: null,
+      },
+      {
+        name: "Miejsce testowe trzecie",
+        description_method: "facts_template",
+        attribution: "Źródło testowe A (CC0 1.0)",
+        wikidata_qid: null,
+      },
+    ]);
+    expect((await sourcesOf())[1]).toMatchObject({
+      wikipedia_url: "https://pl.wikipedia.org/wiki/Miejsce_testowe_pierwsze",
+    });
+
+    // A load of a file loaded before the sources existed fills them in; nothing else moves.
+    const placesBefore = await admin$(`select id, version from places order by id`);
+
+    await admin$(`delete from place_sources`);
+    expect(done(await load(curA, "gmina-a")).map((r) => r.result)).toEqual(["noop", "noop"]);
+    expect(await sourcesOf()).toHaveLength(3);
+    expect(await admin$(`select id, version from places order by id`)).toEqual(placesBefore);
+
+    // A description changed in the panel is marked as the curator's, and a reload keeps the mark.
+    const [place] = await admin$<{ id: string; version: number }>(
+      `select id, version from places where name = 'Miejsce testowe pierwsze'`,
+    );
+
+    expect(
+      (
+        await updatePlace(
+          curA,
+          place!.id,
+          { description: "Opis poprawiony w panelu.", version: place!.version },
+          makeDeps(appOrm).catalog,
+        )
+      ).status,
+    ).toBe("ok");
+    expect((await sourcesOf())[1]).toMatchObject({ description_method: "curator" });
+    done(await load(curA, "gmina-a"));
+    expect((await sourcesOf())[1]).toMatchObject({ description_method: "curator" });
+    // The other places keep theirs.
+    expect((await sourcesOf())[2]).toMatchObject({ description_method: "facts_template" });
+  });
+
   it("keeps what a curator changed in the panel (place, title, order) and writes nothing over it", async () => {
     const deps = makeDeps(appOrm).catalog;
     const [place] = await admin$<{ id: string; version: number }>(

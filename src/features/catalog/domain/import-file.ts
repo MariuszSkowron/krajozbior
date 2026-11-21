@@ -13,6 +13,10 @@ import { isRegion, validateCollectionInput } from "@/features/catalog/domain/col
 import type { Region } from "@/features/catalog/domain/collection";
 import { PLACE_ACCESS_MAX_LENGTH, validatePlaceInput } from "@/features/catalog/domain/place";
 import type { PlaceField, PlaceInput } from "@/features/catalog/domain/place";
+import {
+  ATTRIBUTION_MAX_LENGTH,
+  composeAttribution,
+} from "@/features/catalog/domain/place-sources";
 
 export const IMPORT_SCHEMA_ID = "krajozbior.curation/1";
 
@@ -539,6 +543,9 @@ export function parseImportFile(
   }
 
   const sourceKeys = new Set((state.batch?.sources ?? []).map((item) => item.key));
+  const sourceLabels = new Map(
+    (state.batch?.sources ?? []).map((item) => [item.key, item] as const),
+  );
   const checkSource = (line: number, path: string, key: string) => {
     if (state.batch !== null && !sourceKeys.has(key)) {
       fail(line, path, "unknown_source");
@@ -590,6 +597,13 @@ export function parseImportFile(
     record.attribution.forEach((key, position) =>
       checkSource(line, `attribution[${position}]`, key),
     );
+
+    // The signature is kept in a column of 500 characters (`place_sources`).
+    const signature = composeAttribution(record.attribution, sourceLabels);
+
+    if (signature !== null && signature.length > ATTRIBUTION_MAX_LENGTH) {
+      fail(line, "attribution", "length_or_range");
+    }
 
     for (const [position, ref] of (record.source_refs ?? []).entries()) {
       checkSource(line, `source_refs[${position}].source`, ref.source);

@@ -1,5 +1,6 @@
 import type { TransactionContext } from "@/lib/db/user-context";
 
+import type { DescriptionMethod } from "../domain/place-sources";
 import type { CatalogDeps } from "./catalog-types";
 
 export type ImportEntityKind = "collection" | "place";
@@ -19,6 +20,14 @@ export type ImportKeyValues = Readonly<{
   batchId: string;
   importedVersion: number;
   importedPlaces: readonly string[] | null;
+}>;
+
+export type PlaceSourceValues = Readonly<{
+  wikidataQid: string | null;
+  wikipediaUrl: string | null;
+  descriptionMethod: DescriptionMethod;
+  attribution: string;
+  retrievedAt: string;
 }>;
 
 // Database access of the loader that the catalog repository does not have.
@@ -67,6 +76,18 @@ export interface CatalogImportRepository {
     tx: TransactionContext,
     placeId: string,
   ): Promise<"deleted" | "blocked" | "referenced">;
+  /**
+   * Writes the source of a place (`place_sources`). `replace` sets every column (the loader
+   * has just written the content of the place); `keep` only adds the row when it is missing,
+   * so a description marked `curator` in the panel is not turned back.
+   */
+  writePlaceSource(
+    tx: TransactionContext,
+    organizationId: string,
+    placeId: string,
+    values: PlaceSourceValues,
+    mode: "replace" | "keep",
+  ): Promise<void>;
   /** Collections of the organization the curator sees (no lock; for the preview). */
   countCollections(tx: TransactionContext, organizationId: string): Promise<number>;
   /** Keys whose entity is gone or not visible (deleted in the panel). */

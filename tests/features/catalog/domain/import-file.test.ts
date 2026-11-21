@@ -624,6 +624,20 @@ describe("source keys", () => {
     expect(has(errors, 4, "source_refs[0].source", "unknown_source")).toBe(true);
   });
 
+  it("refuses a signature that does not fit the 500 characters kept with the place", () => {
+    const long = edited((items) => {
+      items[0]!.sources[0].label = "x".repeat(200);
+      items[3]!.attribution = ["zrodlo_a", "zrodlo_a", "zrodlo_a"];
+    });
+    const fits = edited((items) => {
+      items[0]!.sources[0].label = "x".repeat(200);
+      items[3]!.attribution = ["zrodlo_a", "zrodlo_a"];
+    });
+
+    expect(has(errorsOf(long), 4, "attribution", "length_or_range")).toBe(true);
+    expect(parseImportFile(fits).ok).toBe(true);
+  });
+
   it("checks the shape of references and their number", () => {
     const content = edited((items) => {
       items[3]!.source_refs = [{ source: "zrodlo_a", ref: " padded " }];

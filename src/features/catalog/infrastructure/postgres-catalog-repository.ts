@@ -309,6 +309,16 @@ export const postgresCatalogRepository: CatalogRepository = {
     return rows.length > 0;
   },
 
+  async markDescriptionCurated(tx, placeId) {
+    await tx.em.execute(
+      `update public.place_sources
+          set description_method = 'curator'
+        where place_id = ? and description_method <> 'curator'`,
+      [placeId],
+      "run",
+    );
+  },
+
   async updatePlace(tx, id, version, values) {
     return first(
       await tx.em.execute<PlaceRow[]>(
@@ -461,16 +471,21 @@ export const postgresCatalogRepository: CatalogRepository = {
   async findPublishedPlace(tx: TransactionContext, id) {
     const place = first(
       await tx.em.execute<
-        (Omit<PublishedPlace, "organization" | "collections"> & {
+        (Omit<PublishedPlace, "organization" | "collections" | "source"> & {
           organizationName: string;
           organizationSlug: string;
+          attribution: string | null;
+          wikipediaUrl: string | null;
+          wikidataQid: string | null;
         })[]
       >(
         `select p.id, p.name, p.description, p.address, p.access_info as "accessInfo",
                 p.latitude, p.longitude, p.visit_radius_m as "visitRadiusM",
-                o.name as "organizationName", o.slug as "organizationSlug"
+                o.name as "organizationName", o.slug as "organizationSlug",
+                s.attribution, s.wikipedia_url as "wikipediaUrl", s.wikidata_qid as "wikidataQid"
            from public.places p
            join public.organizations o on o.id = p.organization_id
+           left join public.place_sources s on s.place_id = p.id
           where p.id = ?
             and o.status = 'approved'
             and exists (
@@ -497,12 +512,14 @@ export const postgresCatalogRepository: CatalogRepository = {
         order by c.title, c.slug`,
       [id],
     );
-    const { organizationName, organizationSlug, ...rest } = place;
+    const { organizationName, organizationSlug, attribution, wikipediaUrl, wikidataQid, ...rest } =
+      place;
 
     return {
       ...rest,
       organization: { name: organizationName, slug: organizationSlug },
       collections,
+      source: attribution === null ? null : { attribution, wikipediaUrl, wikidataQid },
     };
   },
 

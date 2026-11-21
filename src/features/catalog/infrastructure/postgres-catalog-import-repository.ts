@@ -156,6 +156,37 @@ export const postgresCatalogImportRepository: CatalogImportRepository = {
     }
   },
 
+  async writePlaceSource(tx, organizationId, placeId, values, mode) {
+    // The conflict target is the primary key; the row policies of `place_sources`
+    // (full edit of the organization) apply to the insert and to the update.
+    const conflict =
+      mode === "replace"
+        ? `do update set wikidata_qid = excluded.wikidata_qid,
+                         wikipedia_url = excluded.wikipedia_url,
+                         description_method = excluded.description_method,
+                         attribution = excluded.attribution,
+                         retrieved_at = excluded.retrieved_at`
+        : `do nothing`;
+
+    await tx.em.execute(
+      `insert into public.place_sources
+         (place_id, organization_id, wikidata_qid, wikipedia_url, description_method,
+          attribution, retrieved_at)
+       values (?, ?, ?, ?, ?, ?, ?::timestamptz)
+       on conflict (place_id) ${conflict}`,
+      [
+        placeId,
+        organizationId,
+        values.wikidataQid,
+        values.wikipediaUrl,
+        values.descriptionMethod,
+        values.attribution,
+        values.retrievedAt,
+      ],
+      "run",
+    );
+  },
+
   async countCollections(tx, organizationId) {
     const rows = await tx.em.execute<{ count: number }[]>(
       `select count(*)::int as count from public.collections where organization_id = ?`,
