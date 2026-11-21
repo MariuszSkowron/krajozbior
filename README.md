@@ -23,7 +23,7 @@ Działa pierwsza pełna ścieżka: kurator publikuje kolekcję, gość ją oglą
 
 ## Dla oceniających
 
-Jawny opis projektu dla osób, które go nie znają (produkt, architektura i ochrona danych, specyfikacje, proces z przeglądami, stan realizacji), jest w [docs/dla-oceniajacych/](docs/dla-oceniajacych/README.md).
+Jawny opis projektu dla osób, które go nie znają (produkt, architektura i ochrona danych, specyfikacje, proces z przeglądami, stan realizacji), jest w [docs/dla-oceniajacych/](docs/dla-oceniajacych/README.md). Uprawnienia agenta AI, miejsca przechowywania sekretów i wynik próby prompt injection opisuje [security-notes.md](security-notes.md).
 
 ## Codzienny start (Visual Studio Code)
 
