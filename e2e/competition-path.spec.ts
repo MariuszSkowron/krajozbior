@@ -2,6 +2,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+import { waitForHydration } from "../tests/support/e2e-hydration";
 
 // The whole competition path, end to end (spec sections 1 and 8, PR7): curator
 // A builds and publishes a collection, a guest reads it, an explorer saves it,
@@ -102,7 +103,7 @@ test.describe("the competition path", () => {
     // Curator A: a draft with one place at the bridge.
     await curatorA.goto("/curator");
     await curatorA.getByRole("link", { name: "Nowa kolekcja" }).click();
-    await curatorA.waitForLoadState("networkidle");
+    await waitForHydration(curatorA);
     await curatorA.getByLabel("Nazwa", { exact: true }).fill(title);
     await curatorA.getByLabel("Krótki opis").fill("Kolekcja z testu całej ścieżki.");
     await curatorA.getByRole("button", { name: "Utwórz szkic kolekcji" }).click();
@@ -115,7 +116,7 @@ test.describe("the competition path", () => {
 
     await curatorA.getByRole("link", { name: "Dodaj nowe miejsce" }).click();
     await expect(curatorA.getByRole("heading", { level: 1, name: "Nowe miejsce" })).toBeVisible();
-    await curatorA.waitForLoadState("networkidle");
+    await waitForHydration(curatorA);
     await curatorA.getByLabel("Nazwa", { exact: true }).fill("Most ze ścieżki");
     await curatorA.getByLabel("Adres", { exact: true }).fill("Tczew");
     await curatorA.getByLabel("Szerokość geograficzna").fill("54,0928");
@@ -170,7 +171,7 @@ test.describe("the competition path", () => {
     const explorer = await signedInPage(browser, "user", true);
 
     await explorer.goto(`/collections/${slug}`);
-    await explorer.waitForLoadState("networkidle");
+    await waitForHydration(explorer);
     await explorer.getByRole("button", { name: "Zapisz kolekcję" }).click();
     await expect(explorer.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
     await explorer.goto("/my/collections");
@@ -178,7 +179,7 @@ test.describe("the competition path", () => {
 
     // "Chcę zobaczyć" (PR8): the explorer puts the place on the list and finds it there.
     await explorer.goto(`/places/${placeId}`);
-    await explorer.waitForLoadState("networkidle");
+    await waitForHydration(explorer);
     await explorer.getByRole("button", { name: "Chcę zobaczyć", exact: true }).click();
     await expect(
       explorer.getByText("To miejsce jest na Twojej liście „Chcę zobaczyć”."),
@@ -189,7 +190,7 @@ test.describe("the competition path", () => {
     );
 
     await explorer.goto(`/places/${placeId}`);
-    await explorer.waitForLoadState("networkidle");
+    await waitForHydration(explorer);
     await explorer.getByRole("button", { name: "Potwierdź wizytę" }).click();
     await expect(explorer.getByText("Wizyta potwierdzona.")).toBeVisible();
     await expect(explorer.getByRole("list", { name: "Twój postęp po tej wizycie" })).toContainText(
