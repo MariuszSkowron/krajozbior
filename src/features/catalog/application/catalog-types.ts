@@ -117,6 +117,24 @@ export type PublishedPlace = Readonly<{
   collections: readonly Readonly<{ slug: string; title: string }>[];
   /** Only a place made from a loaded file has one (`place_sources`); other places keep `null`. */
   source: PublishedPlaceSource | null;
+  /** The first public photo of the place (D-E4-7) with what its credit needs, or `null`. */
+  cover: PlaceCover | null;
+}>;
+
+/** A public photo of a place, as the place page shows it: size of the file and the credit. */
+export type PlaceCover = Readonly<{
+  photoId: string;
+  width: number;
+  height: number;
+  altText: string;
+  title: string | null;
+  authorText: string;
+  authorUrl: string | null;
+  sourceUrl: string | null;
+  sourceKind: "own" | "third_party" | "commons_import";
+  licenseCode: string;
+  licenseUrl: string | null;
+  licenseLabel: string;
 }>;
 
 export type PublishedPlaceSource = Readonly<{

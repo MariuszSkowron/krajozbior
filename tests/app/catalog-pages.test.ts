@@ -73,6 +73,7 @@ const place = {
   organization: { name: "Gmina A", slug: "gmina-a" },
   collections: [{ slug: "kolekcja-a1b2c3", title: "Wieże Tczewa" }],
   source: null,
+  cover: null,
 };
 
 // Each case uses its own address: the pages read through React's per-request cache.
@@ -166,6 +167,42 @@ describe("public catalog pages", () => {
     expect(html).toContain("Spróbuj ponownie za chwilę");
     expect(html).toContain("Spróbuj ponownie</button>");
     expect(html).not.toContain("db down");
+  });
+
+  it("show the cover of a place with its credit, and no photo block without one (E4-2b)", async () => {
+    const cover = {
+      photoId: "0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b",
+      width: 1280,
+      height: 853,
+      altText: "Most Tczewski",
+      title: null,
+      authorText: "Fikcyjny Autor",
+      authorUrl: null,
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:Most.jpg",
+      sourceKind: "commons_import",
+      licenseCode: "cc-by-4.0",
+      licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+      licenseLabel: "CC BY 4.0",
+    };
+
+    mocks.place.mockResolvedValueOnce({ status: "ok", value: { ...place, cover } });
+
+    const withCover = renderToStaticMarkup(
+      await placePage.default({ params: Promise.resolve({ placeId: next() }) }),
+    );
+
+    expect(withCover).toContain(`/media/p/${cover.photoId}/main`);
+    expect(withCover).toContain("Autor: Fikcyjny Autor");
+    expect(withCover).toContain(">CC BY 4.0</a>");
+
+    mocks.place.mockResolvedValueOnce({ status: "ok", value: place });
+
+    const without = renderToStaticMarkup(
+      await placePage.default({ params: Promise.resolve({ placeId: next() }) }),
+    );
+
+    expect(without).not.toContain("<figure");
+    expect(without).not.toContain("/media/p/");
   });
 
   it("say so when a collection has no places yet", async () => {

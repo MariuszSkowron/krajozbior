@@ -1,0 +1,19 @@
+/*
+ * Okładka miejsca: zdjęcie na całą szerokość treści, z zachowaniem proporcji z atrybutów width i
+ * height (bez skoku układu), z tłem zastępczym do czasu pobrania. Tylko tokeny z tokens.css.
+ */
+.photo {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+}
+
+.photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 32rem;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-tint);
+}
