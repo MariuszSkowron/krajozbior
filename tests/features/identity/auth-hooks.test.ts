@@ -156,6 +156,41 @@ describe("sendVerificationOTP callback", () => {
     expect(JSON.stringify(info.mock.calls)).not.toContain("k@example.com");
   });
 
+  // OPS-7: an admin address never sends, so it can never fail. If the answer
+  // waited for the provider, an outage (or the timing) would tell admin
+  // addresses apart; so it returns at once, the same for every address.
+  it("answers at once for every address, whatever the provider does", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const hanging = { send: vi.fn(() => new Promise<never>(() => undefined)) };
+    const failing = {
+      send: vi.fn(async () => ({
+        ok: false as const,
+        retryable: true,
+        reason: "brevo_unavailable",
+      })),
+    };
+    const answers: unknown[] = [];
+
+    for (const sender of [hanging, failing]) {
+      const send = createSendSignInCode({
+        emailSender: () => sender,
+        siteUrl: () => "http://localhost:3000",
+      });
+
+      for (const role of [null, "user", "admin"] as const) {
+        answers.push(
+          await send({ email: "a@example.com", otp: "123456", type: "sign-in" }, endpoint(role)),
+        );
+      }
+    }
+
+    expect(answers).toEqual(Array(6).fill(undefined));
+    // Only the non-admin requests reached the provider.
+    expect(hanging.send).toHaveBeenCalledTimes(2);
+    expect(failing.send).toHaveBeenCalledTimes(2);
+  });
+
   it("logs a failed or throwing send without the address or the code", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const failing = {
@@ -178,5 +213,22 @@ describe("sendVerificationOTP callback", () => {
       JSON.stringify({ event: "email.send_failed", reason: "provider_down" }),
     );
     expect(JSON.stringify(error.mock.calls)).not.toMatch(/a@example\.com|654321/);
+  });
+
+  it("adds no second log line for a refusal that the sender already logged", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const rejected = {
+      send: vi.fn(async () => ({ ok: false as const, retryable: false, reason: "brevo_rejected" })),
+    };
+    const send = createSendSignInCode({
+      emailSender: () => rejected,
+      siteUrl: () => "http://localhost:3000",
+    });
+
+    await send({ email: "a@example.com", otp: "654321", type: "sign-in" }, endpoint(null));
+
+    await vi.waitFor(() => expect(rejected.send).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    expect(error).not.toHaveBeenCalled();
   });
 });
