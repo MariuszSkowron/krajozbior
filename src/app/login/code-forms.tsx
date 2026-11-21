@@ -30,7 +30,8 @@ export function CodeForms({ returnTo, codeSent, errorMessage }: CodeFormsProps) 
       )}
       {codeSent ? (
         <p role="status" className={styles.status}>
-          Jeśli adres jest poprawny, wysłaliśmy na niego kod. Wpisz go poniżej.
+          Jeśli adres jest poprawny, wysłaliśmy na niego kod. Wpisz go poniżej. Jeśli wiadomość nie
+          dotrze w ciągu kilku minut, sprawdź folder spam albo poproś o kod jeszcze raz.
         </p>
       ) : null}
       <form method="post" action="/api/auth/code/request" className={styles.form}>
