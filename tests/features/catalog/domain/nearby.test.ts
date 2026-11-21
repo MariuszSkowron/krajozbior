@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   NEARBY_LIMIT,
   NEARBY_RADIUS_KM,
+  NEW_NEARBY_DAYS,
   formatNearbyDistance,
   haversineKm,
+  isNewNearby,
   nearbyCollections,
   nearbyProblemMessage,
   nearbySummaryMessage,
@@ -179,5 +181,39 @@ describe("texts of W okolicy", () => {
     );
     // No result needs no note about accuracy.
     expect(nearbySummaryMessage(0, true)).toBe("W promieniu 50 km nie ma jeszcze kolekcji.");
+  });
+});
+
+// E12-S4 / E12-Q6: "Nowa w okolicy" = first published at most 30 days ago and at most 50 km away.
+describe("isNewNearby", () => {
+  const NOW = new Date("2026-11-21T12:00:00.000Z");
+  const daysAgo = (days: number, extraMs = 0) =>
+    new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000 - extraMs).toISOString();
+
+  it("counts exactly 30 days as new and a millisecond more as not new", () => {
+    expect(isNewNearby(daysAgo(30), 10, NOW)).toBe(true);
+    expect(isNewNearby(daysAgo(30, 1), 10, NOW)).toBe(false);
+    expect(isNewNearby(daysAgo(29), 10, NOW)).toBe(true);
+    expect(isNewNearby(daysAgo(0), 10, NOW)).toBe(true);
+    expect(NEW_NEARBY_DAYS).toBe(30);
+  });
+
+  it("counts exactly 50 km as near and anything farther as not", () => {
+    expect(isNewNearby(daysAgo(1), NEARBY_RADIUS_KM, NOW)).toBe(true);
+    expect(isNewNearby(daysAgo(1), NEARBY_RADIUS_KM + 0.001, NOW)).toBe(false);
+    expect(isNewNearby(daysAgo(1), 0, NOW)).toBe(true);
+    expect(isNewNearby(daysAgo(1), Number.NaN, NOW)).toBe(false);
+  });
+
+  it("needs both rules at once", () => {
+    expect(isNewNearby(daysAgo(31), 10, NOW)).toBe(false);
+    expect(isNewNearby(daysAgo(31), 60, NOW)).toBe(false);
+    expect(isNewNearby(daysAgo(1), 60, NOW)).toBe(false);
+  });
+
+  it("is not new without a readable first publication, and treats the future as just published", () => {
+    expect(isNewNearby(null, 10, NOW)).toBe(false);
+    expect(isNewNearby("nie data", 10, NOW)).toBe(false);
+    expect(isNewNearby(daysAgo(-2), 10, NOW)).toBe(true);
   });
 });
