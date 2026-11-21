@@ -18,11 +18,14 @@ export function termsGateProblem(code: string | null): string | undefined {
 
 // Ekran „Zanim zaczniesz” (F-K3, E11-Q4 A): po zalogowaniu, gdy konto nie zaakceptowało
 // bieżącej wersji regulaminu, zastępuje stronę. Konto widzi tylko ten ekran i wylogowanie;
-// strony prawne dalej działają (otwierane zwykłymi odnośnikami, żeby powłoka narysowała się
-// od nowa). Natywny formularz działa bez JavaScriptu. „Nie akceptuję” wylogowuje.
-export function TermsGate({ url }: Readonly<{ url: string }>) {
-  const [path = "/", query = ""] = url.split("?");
-  const problem = termsGateProblem(new URLSearchParams(query).get("zgoda"));
+// strony prawne dalej działają. O tym, kiedy ekran się pokazuje, decyduje TermsGuard
+// (terms-guard.tsx), który podaje ścieżkę strony i kod problemu z parametru `zgoda`.
+// Natywny formularz działa bez JavaScriptu. „Nie akceptuję” wylogowuje.
+export function TermsGate({
+  path,
+  problemCode,
+}: Readonly<{ path: string; problemCode: string | null }>) {
+  const problem = termsGateProblem(problemCode);
   const links = (["regulamin", "polityka-prywatnosci", "zasady"] as const).map(legalPage);
 
   return (

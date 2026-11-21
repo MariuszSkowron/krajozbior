@@ -79,7 +79,7 @@ export const REGULAMIN = `
 1. Za treści, które dodajesz, odpowiadasz Ty.
 2. Zdjęcie miejsca możesz dodać dopiero po wizycie. Dodając zdjęcie, składasz oświadczenie o prawach do zdjęcia i udzielasz nam licencji na zasadach opisanych w załączniku nr 1.
 3. Przy dodawaniu zdjęcia decydujesz, czy podpisać je Twoim imieniem i inicjałem nazwiska. Domyślnie zdjęcie jest publikowane bez podpisu. Osobno decydujesz, czy zgadzasz się na pokazywanie zdjęcia w materiałach promujących serwis; ta zgoda jest dobrowolna i nie wpływa na możliwość korzystania z serwisu.
-4. Zdjęcie widzą inni dopiero po akceptacji kuratora kolekcji, do której należy miejsce. [DO UZUPEŁNIENIA: który kurator decyduje, gdy miejsce należy do kilku kolekcji, oraz kto decyduje o zdjęciu miejsca z własnej kolekcji odkrywcy] Do czasu decyzji zdjęcie widzisz Ty, kurator uprawniony do moderacji tej kolekcji i administrator serwisu.
+4. Zdjęcie widzą inni dopiero po akceptacji kuratora kolekcji, do której należy miejsce. Do czasu decyzji zdjęcie widzisz Ty, kurator uprawniony do moderacji tej kolekcji i administrator serwisu. Ten ustęp nie ma zastosowania do czasu uruchomienia w serwisie dodawania zdjęć przez odkrywców.
 5. Kurator może odrzucić zdjęcie tylko z jednego z następujących powodów, który wskazuje w decyzji:
    1. zdjęcie nie przedstawia tego miejsca;
    2. zdjęcie jest nieczytelne (np. nieostre, zbyt ciemne);

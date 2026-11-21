@@ -4,7 +4,13 @@ import { describe, expect, it } from "vitest";
 
 import { TermsGate, termsGateProblem } from "@/app/shell/terms-gate";
 
-const html = (url: string) => renderToStaticMarkup(createElement(TermsGate, { url }));
+const html = (url: string) => {
+  const [path = "/", query = ""] = url.split("?");
+
+  return renderToStaticMarkup(
+    createElement(TermsGate, { path, problemCode: new URLSearchParams(query).get("zgoda") }),
+  );
+};
 
 describe("the screen „Zanim zaczniesz” (E11-Q4 A)", () => {
   it("has the heading, a summary and links to the full texts that open as new pages", () => {

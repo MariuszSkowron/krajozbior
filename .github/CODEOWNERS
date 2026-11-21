@@ -49,9 +49,14 @@
 /src/app/polityka-prywatnosci/     @MariuszSkowron
 /src/app/zasady/                   @MariuszSkowron
 /src/app/oswiadczenie-o-zdjeciach/ @MariuszSkowron
-/src/lib/request-url.ts            @MariuszSkowron
 /e2e/terms-acceptance.spec.ts      @MariuszSkowron
 /e2e/global-setup.ts               @MariuszSkowron
+# Testy powłoki i ekranu akceptacji (osłabienie ich przeszłoby bez zatwierdzenia) oraz
+# polskie strony błędu (nie mogą pokazywać szczegółów błędu)
+/tests/app/shell/                  @MariuszSkowron
+/src/app/error.tsx                 @MariuszSkowron
+/src/app/global-error.tsx          @MariuszSkowron
+/tests/app/error-pages.test.ts     @MariuszSkowron
 
 # Organizacje i członkostwa kuratorów (dane CUR, polecenie operatora)
 /src/features/organizations/       @MariuszSkowron

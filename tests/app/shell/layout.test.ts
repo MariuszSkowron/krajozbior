@@ -7,12 +7,16 @@ const mocks = vi.hoisted(() => ({
   getActor: vi.fn(),
   listMemberships: vi.fn(),
   pathname: "/",
+  search: "",
   termsAccepted: true,
   url: "/",
 }));
 
 vi.mock("@/app/shell/terms-state", () => ({ shellTermsAccepted: async () => mocks.termsAccepted }));
 vi.mock("next/headers", () => ({
+  // The address of the first request, as the proxy passed it before the fix of the client
+  // navigation bypass (F-K3, M1). The shell must not decide by it: after a `next/link`
+  // navigation it still names the first page, while usePathname() names the current one.
   headers: async () => new Headers({ "x-krajozbior-url": mocks.url }),
   cookies: async () => ({
     get: (name: string) =>
@@ -30,6 +34,7 @@ vi.mock("@/app/fonts", () => ({
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   usePathname: () => mocks.pathname,
+  useSearchParams: () => new URLSearchParams(mocks.search),
 }));
 vi.mock("@/features/identity/infrastructure", () => ({
   getIdentityProvider: () => ({ getActor: mocks.getActor }),
@@ -62,6 +67,7 @@ beforeEach(() => {
   mocks.getActor.mockReset().mockResolvedValue(null);
   mocks.listMemberships.mockReset().mockResolvedValue([]);
   mocks.pathname = "/";
+  mocks.search = "";
   mocks.themeCookie = undefined;
   mocks.termsAccepted = true;
   mocks.url = "/";
@@ -108,11 +114,12 @@ describe("app shell", () => {
     it("replaces the page of a signed-in account that has not accepted the terms, and hides the menu", async () => {
       mocks.getActor.mockResolvedValue(as("user"));
       mocks.termsAccepted = false;
-      mocks.url = "/my/collections";
+      mocks.url = mocks.pathname = "/my/collections";
 
       const html = await shell();
 
       expect(html).toContain("<h1>Zanim zaczniesz</h1>");
+      expect(html).toContain('name="returnTo" value="/my/collections"');
       expect(html).not.toContain("Treść strony");
       expect(html).not.toContain('aria-label="Główna"');
       expect(html).not.toMatch(/<body class="[^"]*withNav/);
@@ -127,6 +134,7 @@ describe("app shell", () => {
         mocks.getActor.mockResolvedValue(as("user"));
         mocks.termsAccepted = false;
         mocks.url = url;
+        [mocks.pathname = "/", mocks.search = ""] = url.split("?");
 
         const html = await shell();
 
@@ -135,6 +143,29 @@ describe("app shell", () => {
         expect(html).not.toContain('aria-label="Główna"');
       },
     );
+
+    // Regression (M1 of the level A review): Next.js does not draw the layout again on a
+    // `next/link` navigation, so a decision taken from the first request (the legal page)
+    // let the account reach "/" by the application name in the header without the screen.
+    it("decides by the current address after a client navigation from a legal page", async () => {
+      mocks.getActor.mockResolvedValue(as("user"));
+      mocks.termsAccepted = false;
+      mocks.url = "/regulamin";
+      mocks.pathname = "/";
+
+      const html = await shell();
+
+      expect(html).toContain("<h1>Zanim zaczniesz</h1>");
+      expect(html).not.toContain("Treść strony");
+    });
+
+    it("shows the message of a refused post from the `zgoda` parameter", async () => {
+      mocks.getActor.mockResolvedValue(as("user"));
+      mocks.termsAccepted = false;
+      mocks.search = "zgoda=wymagana";
+
+      expect(await shell()).toMatch(/role="alert"[^>]*>.*Zaznacz pole/);
+    });
 
     it("shows the page and the menu after the acceptance", async () => {
       mocks.getActor.mockResolvedValue(as("user"));

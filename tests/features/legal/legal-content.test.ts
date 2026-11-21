@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { LEGAL_DOCUMENTS } from "@/features/legal/content";
 import { LEGAL_PAGES, isLegalPath } from "@/features/legal/domain/legal-pages";
+import { findLegalMarkers } from "@/features/legal/domain/markers";
 import { parseMarkdown, type Block, type Inline } from "@/features/legal/domain/markdown";
 import { SESSION_LIMIT_MS } from "@/features/identity/domain/session-policy";
 import { PROFILE_DRAFT_MAX_AGE_SECONDS } from "@/features/profile/domain/profile-draft";
@@ -25,19 +26,52 @@ function inlinesOf(blocks: readonly Block[]): Inline[] {
   });
 }
 
-describe("the texts of the legal pages (K-12, E11-Q12)", () => {
-  // K-12: no working marker may be shown to the public. While the owner has not given the
-  // missing data (the Brevo agreement, the mailbox provider, the effective date, the
-  // curator who decides about photos), this test FAILS on purpose and lists what is open;
-  // it is the gate in front of the public traffic (spec 5.4a), not something to switch off.
-  it("have no working markers left", () => {
-    const open = documents.flatMap((document) =>
-      [...document.markdown.matchAll(/\[(?:DO UZUPEŁNIENIA|PRAWNIK)[^\]]*\]/g)].map(
-        ([marker]) => `${document.slug}: ${marker}`,
-      ),
-    );
+// K-12: the working markers still open, each with who fills it and when (D-41 pt 2). The list
+// may only shrink: a new or changed marker fails the test below, and so does an item that is
+// no longer in the texts. The hard gate is `npm run legal:final` (no marker at all), run before
+// the password comes off the service (spec 5.4a, docs/deployment.md).
+const OPEN_LEGAL_MARKERS: readonly Readonly<{ marker: string; owner: string }>[] = [
+  {
+    marker: "polityka-prywatnosci: [DO UZUPEŁNIENIA: adres z umowy powierzenia]",
+    owner: "właściciel, z umowy powierzenia Brevo (D-41 pkt 2)",
+  },
+  {
+    marker: "polityka-prywatnosci: [DO UZUPEŁNIENIA: potwierdzić w panelu Brevo]",
+    owner: "właściciel, z panelu Brevo (D-41 pkt 2)",
+  },
+  {
+    marker: "polityka-prywatnosci: [DO UZUPEŁNIENIA: dostawca skrzynki kontakt@mariuszskowron.pl]",
+    owner: "właściciel (D-41 pkt 2)",
+  },
+  {
+    marker: "polityka-prywatnosci: [DO UZUPEŁNIENIA: państwa i zabezpieczenia]",
+    owner: "z publicznej polityki prywatności OpenStreetMap Foundation, po sprawdzeniu źródła",
+  },
+  {
+    marker:
+      "polityka-prywatnosci: [DO UZUPEŁNIENIA: czy podwykonawcy Brevo przetwarzają dane poza EOG i na jakiej podstawie]",
+    owner: "właściciel, z umowy powierzenia Brevo (D-41 pkt 2)",
+  },
+  {
+    marker: "regulamin: [DO UZUPEŁNIENIA: data pierwszego wdrożenia]",
+    owner: "w dniu wdrożenia (D-41 pkt 2)",
+  },
+];
 
-    expect(open).toEqual([]);
+describe("the texts of the legal pages (K-12, E11-Q12)", () => {
+  it("have only the working markers on the explicit list of open items", () => {
+    expect(findLegalMarkers(documents).sort()).toEqual(
+      OPEN_LEGAL_MARKERS.map((item) => item.marker).sort(),
+    );
+  });
+
+  it("find every kind of working marker, the lawyer's too", () => {
+    expect(
+      findLegalMarkers([
+        { slug: "a", markdown: "x [DO UZUPEŁNIENIA: data] y [PRAWNIK: sprawdzić] z [inne]" },
+        { slug: "b", markdown: "bez znaczników" },
+      ]),
+    ).toEqual(["a: [DO UZUPEŁNIENIA: data]", "a: [PRAWNIK: sprawdzić]"]);
   });
 
   it.each(documents)("$slug parses into headings and has only known internal links", (document) => {

@@ -273,6 +273,28 @@ test.describe("ekran „Zanim zaczniesz”", () => {
     await expect(gateHeading(page)).toBeVisible();
   });
 
+  // Regression (M1 of the level A review): Next.js does not draw the layout again on a
+  // `next/link` navigation, so the application name in the header led from a legal page to
+  // the start page without the screen.
+  test("nawigacja klienta ze strony prawnej nie omija ekranu", async ({ page }) => {
+    await signInWithCode(page, newAddress("client-nav"));
+    await page.goto("/regulamin");
+    await expect(page.getByRole("heading", { level: 1, name: "Regulamin" })).toBeVisible();
+
+    // A marker on the window survives only a client navigation, not a full page load.
+    await page.evaluate(() => {
+      (window as unknown as { k3ClientNav?: boolean }).k3ClientNav = true;
+    });
+    await page.getByRole("banner").getByRole("link", { name: "Krajozbiór" }).click();
+
+    await expect(page).toHaveURL(/\/$/);
+    expect(
+      await page.evaluate(() => (window as unknown as { k3ClientNav?: boolean }).k3ClientNav),
+    ).toBe(true);
+    await expect(gateHeading(page)).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Główna" })).toHaveCount(0);
+  });
+
   test("„Nie akceptuję” wylogowuje i mówi, jak usunąć adres; po ponownym logowaniu ekran wraca", async ({
     page,
   }) => {

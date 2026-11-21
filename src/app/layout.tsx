@@ -1,13 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 import "@/design-system/tokens/tokens.css";
 import "@/design-system/theme/theme.css";
-
-import { isLegalPath } from "@/features/legal/domain/legal-pages";
-import { requestUrlFrom } from "@/lib/request-url";
 
 import styles from "./app-shell.module.css";
 import { geist, geistMono, instrumentSerif } from "./fonts";
@@ -15,7 +11,7 @@ import { AccountArea } from "./shell/account-area";
 import { MainNav } from "./shell/main-nav";
 import { SiteFooter } from "./shell/site-footer";
 import { shellTermsAccepted } from "./shell/terms-state";
-import { TermsGate } from "./shell/terms-gate";
+import { TermsGuard } from "./shell/terms-guard";
 import { TestVersionBanner } from "./shell/test-version-banner";
 import { requestTheme, themeColor } from "./shell/theme";
 import { ThemeSwitch } from "./shell/theme-switch";
@@ -53,10 +49,10 @@ export default async function RootLayout({
   const curatorLink = await shellCuratorLink(role);
   const theme = await requestTheme();
   // Until the current terms are accepted a signed-in account sees only the "Zanim zaczniesz"
-  // screen and the logout button; the legal pages stay readable (F-K3, E11-Q4 A).
+  // screen and the logout button; the legal pages stay readable (F-K3, E11-Q4 A). The layout
+  // is not drawn again on a client navigation, so the page-or-screen choice by address is made
+  // by the client TermsGuard, which renders on every navigation.
   const termsAccepted = role === null ? true : await shellTermsAccepted();
-  const url = requestUrlFrom(await headers());
-  const showGate = !termsAccepted && !isLegalPath(url);
   const showNav = role !== null && termsAccepted;
 
   return (
@@ -82,7 +78,7 @@ export default async function RootLayout({
         </div>
         {showNav ? <MainNav /> : null}
         <main id="tresc" tabIndex={-1} className={styles.main}>
-          {showGate ? <TermsGate url={url} /> : children}
+          {termsAccepted ? children : <TermsGuard>{children}</TermsGuard>}
         </main>
         <SiteFooter />
       </body>

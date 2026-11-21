@@ -31,7 +31,7 @@ Dodając zdjęcie do Krajozbioru, oświadczasz, że:
 ## 3. Podpis autora
 
 1. Domyślnie publikujemy zdjęcie bez podpisu.
-2. Jeśli zaznaczysz „Podpisz zdjęcie moim imieniem”, przy zdjęciu podamy Twoje imię i — jeśli je podałeś lub podałaś w profilu — inicjał nazwiska (np. „Anna K.”). Podpis możesz w każdej chwili włączyć albo wyłączyć. [DO UZUPEŁNIENIA: funkcja zmiany podpisu po dodaniu zdjęcia w aplikacji]
+2. Jeśli zaznaczysz „Podpisz zdjęcie moim imieniem”, przy zdjęciu podamy Twoje imię i — jeśli je podałeś lub podałaś w profilu — inicjał nazwiska (np. „Anna K.”). Podpis możesz w każdej chwili włączyć albo wyłączyć. Ten punkt nie ma zastosowania do czasu uruchomienia w serwisie dodawania zdjęć przez odkrywców.
 3. Jeśli w profilu nie ma imienia, nie da się zaznaczyć podpisu; formularz poprosi wtedy o uzupełnienie imienia w profilu.
 
 ## 4. Koniec licencji

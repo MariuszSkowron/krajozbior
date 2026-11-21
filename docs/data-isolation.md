@@ -76,6 +76,8 @@ Wszystkie polityki powstają **w tej samej migracji co tabela**; nie wolno utwor
 
 **Statystyki własne (E9-3) nie mają tabeli ani funkcji w bazie.** Liczby w Profilu (odkryte miejsca, regiony, kilometry w trasie, liczone w linii prostej) powstają z własnych wierszy `visits` odczytanych w kontekście użytkownika (`withUserContext`), z jawnym filtrem `user_id = app_current_user_id()` i tylko dla miejsc w publicznych kolekcjach. Polityki RLS tabeli `visits` są drugą barierą: inny użytkownik, kurator, administrator i gość nie dostają cudzych liczb. Test: `tests/integration/profile-stats-access.test.ts`.
 
+**Akceptacja regulaminu (F-K3) to warunek umowny, nie uprawnienie.** Ekran „Zanim zaczniesz” zasłania strony w interfejsie konta, które nie zaakceptowało bieżącej wersji regulaminu, ale nie jest granicą dostępu: trasy API nie sprawdzają akceptacji, a strona za ekranem nadal się renderuje na serwerze. Konto bez akceptacji działa wyłącznie na własnych danych, bo dostęp wyznaczają sesja, rola i polityki RLS, tak samo jak po akceptacji.
+
 Wzorzec PRIV, zasady wspólne i pułapki:
 
 - `UPDATE` nadawaj tylko na edytowane kolumny (grant kolumnowy); `user_id` i klucze są niezmienialne. Test sprawdza też `has_column_privilege`.
