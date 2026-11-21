@@ -535,7 +535,17 @@ describe("visits and the visit function", () => {
         visited_on: null,
         date_precision: null,
       });
-      expect(JSON.stringify(row)).not.toMatch(/33\.3|54\.0|18\.0/);
+      // No column holds a position or an accuracy.
+      expect(Object.keys(row!).filter((key) => /lat|lon|accuracy|position|geo/i.test(key))).toEqual(
+        [],
+      );
+      // The timestamps are masked first: an ISO time such as "2026-11-21T18:05:33.312Z"
+      // contains "18:0" and "33.3", so the search for coordinates would depend on the clock.
+      const timeColumns = new Set(["visited_at", "created_at"]);
+      const withoutTimes = JSON.stringify(row, (key, value: unknown) =>
+        value instanceof Date || timeColumns.has(key) ? "<time>" : value,
+      );
+      expect(withoutTimes).not.toMatch(/33\.3|54\.0|18\.0/);
       expect(Math.abs(new Date(row!.visited_at as string).getTime() - Date.now())).toBeLessThan(
         60_000,
       );
