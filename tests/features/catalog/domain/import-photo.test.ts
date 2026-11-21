@@ -48,6 +48,22 @@ describe("photoContentOf", () => {
     });
   });
 
+  it("turns white space and control characters of the title into single spaces for the alt text", () => {
+    const content = photoContentOf({
+      ...image,
+      title: "\n\t  Wieża\tna\r\ngórze\u0007 ostatnia  ",
+    });
+
+    expect(content.altText).toBe("Wieża na górze ostatnia");
+    expect(content.altText).not.toMatch(/[\u0000-\u001f\u007f]/);
+  });
+
+  it("falls back to the file name when the title leaves no alt text", () => {
+    const content = photoContentOf({ ...image, title: " \t\n ", commonsFile: "File:Wieża_1.jpg" });
+
+    expect(content.altText).toBe("Wieża 1");
+  });
+
   it("cuts a long title for the alternative text only", () => {
     const content = photoContentOf({ ...image, title: "x".repeat(300) });
 

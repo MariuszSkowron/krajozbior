@@ -172,6 +172,16 @@ describe("fetchCommonsPhotos", () => {
     expect(report.reasons).toEqual({ duplicate: 1 });
   });
 
+  it("removes the file and goes on when the row is gone", async () => {
+    const { deps, storage } = setup([photo({ id: "a" }), photo({ id: "b" })], undefined, {
+      markReady: vi.fn(async (id: string) => (id === "a" ? ("gone" as const) : ("ok" as const))),
+    });
+    const report = await fetchCommonsPhotos(deps);
+
+    expect(storage.remove).toHaveBeenCalledTimes(1);
+    expect(report).toMatchObject({ fetched: 1, failed: 1, reasons: { gone: 1 } });
+  });
+
   it("removes the files and rethrows when the database refuses the update", async () => {
     const { deps, storage } = setup([photo()], undefined, {
       markReady: vi.fn(async () => {

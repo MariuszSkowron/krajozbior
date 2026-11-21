@@ -9,7 +9,9 @@ import { Migration } from "@mikro-orm/migrations";
 // Uprawnienia na tym etapie są węższe niż docelowe (E4-1 je rozszerza osobną migracją):
 // - `krajozbior_app` (kurator `full_edit`): INSERT wyłącznie wiersza `commons_import` w stanie
 //   `pending_fetch` bez pliku (restrykcyjna polityka), UPDATE kolumn podpisu i pozycji, DELETE.
-//   Nie ustawi `file_state`, `storage_key`, `width`, `height`, `content_sha256` ani `fetch_attempts`.
+//   Grant INSERT nie obejmuje `storage_key`, `width`, `height`, `content_sha256` ani `fetch_attempts`
+//   (odmowa uprawnień); `file_state` ma grant, ale wartość inną niż `pending_fetch` blokuje polityka
+//   restrykcyjna. Polityka sprawdza też, że kolumny pliku są puste (obrona warstwowa).
 // - `krajozbior_ops` (`photos:fetch`): odczyt kolumn potrzebnych do pobrania, UPDATE kolumn pliku
 //   tylko w wierszach `commons_import`.
 // - Bez grantu dla aplikacji: `created_by`, `hidden_*`, `rights_*`, `content_sha256`, `commons_file`,
@@ -150,10 +152,9 @@ export class Migration20261121170000_place_photos extends Migration {
         on place_photos to krajozbior_app;
     `);
     this.addSql(`
-      grant insert (organization_id, place_id, position, file_state, storage_key, width, height,
-                    content_sha256, alt_text, source_kind, title, author_text, author_url, source_url,
-                    license_code, license_url, license_label, rights_statement, commons_file,
-                    source_width, retrieved_at)
+      grant insert (organization_id, place_id, position, file_state, alt_text, source_kind, title,
+                    author_text, author_url, source_url, license_code, license_url, license_label,
+                    rights_statement, commons_file, source_width, retrieved_at)
         on place_photos to krajozbior_app;
     `);
     this.addSql(`

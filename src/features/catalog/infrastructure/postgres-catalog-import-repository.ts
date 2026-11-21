@@ -228,8 +228,8 @@ export const postgresCatalogImportRepository: CatalogImportRepository = {
   },
 
   async insertPlacePhoto(tx, organizationId, placeId, content, retrievedAt) {
-    // At the end of the list; the unique key (place, Commons file) turns a repeat (23503-style
-    // refusal 23505 in a savepoint) into "nothing added". `ON CONFLICT` is not usable: the table
+    // At the end of the list; the unique key (place, Commons file) turns a repeat (unique
+    // violation 23505, caught in a savepoint) into "nothing added". `ON CONFLICT` is not usable: the table
     // has a deferrable unique key and the app has no SELECT on `commons_file`. The columns of the
     // file and the state stay as the restrictive policy demands.
     await tx.em.execute(`savepoint import_insert_photo`, [], "run");
@@ -333,6 +333,7 @@ export const postgresCatalogImportRepository: CatalogImportRepository = {
       `select k.entity_kind as kind, count(*)::int as count
          from public.catalog_import_keys k
         where k.organization_id = ?
+          and k.entity_kind in ('collection', 'place')
           and not exists (
             select from public.places p where k.entity_kind = 'place' and p.id = k.entity_id)
           and not exists (

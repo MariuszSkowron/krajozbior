@@ -44,11 +44,34 @@ export type PhotoResult =
 /** Najdłuższy tekst alternatywny w bazie (`CHECK`, 5.1). */
 export const PHOTO_ALT_MAX_LENGTH = 200;
 
+// Białe i sterujące znaki zamieniamy na jedną spację: `CHECK` w bazie odrzuca znaki sterujące.
+const WHITE_OR_CONTROL = /[\s\u0000-\u001f\u007f-\u009f]+/g;
+
+function cleanAlt(text: string): string {
+  return text.replace(WHITE_OR_CONTROL, " ").slice(0, PHOTO_ALT_MAX_LENGTH).trim();
+}
+
+/** Tytuł z Commons oczyszczony i obcięty; gdy nic nie zostaje, nazwa pliku bez rozszerzenia. */
+function altTextOf(image: ImportImage): string {
+  const fromTitle = cleanAlt(image.title);
+
+  if (fromTitle !== "") {
+    return fromTitle;
+  }
+
+  return cleanAlt(
+    image.commonsFile
+      .replace(/^(?:File|Plik):/i, "")
+      .replace(/\.[A-Za-z0-9]{1,5}$/, "")
+      .replace(/_/g, " "),
+  );
+}
+
 /** Treść wiersza z bloku `image`; tekst alternatywny to tytuł z Commons (obcięty do limitu). */
 export function photoContentOf(image: ImportImage): PhotoContent {
   return {
     commonsFile: image.commonsFile,
-    altText: image.title.slice(0, PHOTO_ALT_MAX_LENGTH).trim(),
+    altText: altTextOf(image),
     title: image.title,
     authorText: image.authorText,
     authorUrl: image.authorUrl,

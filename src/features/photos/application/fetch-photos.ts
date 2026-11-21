@@ -41,7 +41,7 @@ export interface PhotoFetchRepository {
     organizationSlug?: string;
   }): Promise<readonly PendingPhoto[]>;
   /** `duplicate`, gdy miejsce ma już zdjęcie o tym skrócie (`23505`). */
-  markReady(photoId: string, values: MarkReadyValues): Promise<"ok" | "duplicate">;
+  markReady(photoId: string, values: MarkReadyValues): Promise<"ok" | "duplicate" | "gone">;
   /** Zapisuje nieudaną próbę: nowa liczba prób i stan (`pending_fetch` albo `fetch_failed`). */
   recordFailure(
     photoId: string,
@@ -143,7 +143,7 @@ async function fetchOne(deps: PhotoFetchDeps, photo: PendingPhoto): Promise<Outc
     return { ok: false, reason: "storage_failed" };
   }
 
-  let marked: "ok" | "duplicate";
+  let marked: "ok" | "duplicate" | "gone";
 
   try {
     marked = await deps.repository.markReady(photo.id, {
@@ -156,6 +156,14 @@ async function fetchOne(deps: PhotoFetchDeps, photo: PendingPhoto): Promise<Outc
     await deps.storage.remove("place", key).catch(() => undefined);
 
     throw error;
+  }
+
+  if (marked === "gone") {
+    // Wiersz zniknął w trakcie pobierania (kurator usunął zdjęcie albo miejsce): plik jest
+    // niepotrzebny, a reszta przebiegu toczy się dalej.
+    await deps.storage.remove("place", key).catch(() => undefined);
+
+    return { ok: false, reason: "gone", final: true };
   }
 
   if (marked === "duplicate") {

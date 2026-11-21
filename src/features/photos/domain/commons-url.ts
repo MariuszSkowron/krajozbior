@@ -15,17 +15,19 @@ export const STANDARD_THUMB_WIDTHS: readonly number[] = [
 export const MAX_THUMB_WIDTH = 1920;
 
 /**
- * Największy standardowy krok nie większy niż `min(1920, szerokość oryginału)`. Wikimedia odmawia
- * miniatury szerszej niż oryginał, więc krok nigdy nie przekracza szerokości źródła. `null`, gdy
- * oryginał jest węższy niż najmniejszy krok.
+ * Największy standardowy krok ściśle mniejszy niż szerokość oryginału i nie większy niż 1920.
+ * Wikimedia nie skaluje obrazu do tej samej szerokości (miniatura równa oryginałowi kończy się
+ * błędem albo przekierowaniem do oryginału), a „nigdy oryginał” obowiązuje wprost. `null`, gdy
+ * oryginał nie jest szerszy niż najmniejszy krok.
  */
 export function pickThumbWidth(sourceWidth: number): number | null {
   if (!Number.isInteger(sourceWidth) || sourceWidth < 1) {
     return null;
   }
 
-  const limit = Math.min(MAX_THUMB_WIDTH, sourceWidth);
-  const fitting = STANDARD_THUMB_WIDTHS.filter((width) => width <= limit);
+  const fitting = STANDARD_THUMB_WIDTHS.filter(
+    (width) => width < sourceWidth && width <= MAX_THUMB_WIDTH,
+  );
 
   return fitting.length === 0 ? null : fitting[fitting.length - 1]!;
 }

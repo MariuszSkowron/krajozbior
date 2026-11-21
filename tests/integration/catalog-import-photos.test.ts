@@ -171,6 +171,20 @@ describe("the photo block in the collection file", () => {
     expect(await rows(slug)).toEqual([]);
   });
 
+  it("counts no orphaned keys for the photo keys after a load", async () => {
+    const slug = await newOrganization();
+
+    await load(slug);
+
+    const outcome = await load(slug, fixture, true);
+
+    expect(await photoKeys(slug)).toBe(1);
+    expect(outcome).toMatchObject({ kind: "preview" });
+    expect(
+      (outcome as { preview: { orphanedKeys: Record<string, number> } }).preview.orphanedKeys,
+    ).toEqual({ collection: 0, place: 0 });
+  });
+
   it("creates a row without a file, with the canonical licence, and a key", async () => {
     const slug = await newOrganization();
     const outcome = await load(slug);

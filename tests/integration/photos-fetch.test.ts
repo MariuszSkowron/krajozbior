@@ -263,6 +263,31 @@ describe("photos:fetch", () => {
     ]);
   });
 
+  it("goes on when a row disappears during the download, and leaves no file behind", async () => {
+    const where = await scope();
+    const vanishing = await pending(where, "Zniknie.jpg", 3000);
+    const staying = await pending(where, "Zostanie.jpg", 3000);
+    const base = deps({ "Zostanie.jpg": big });
+    const report = await fetchCommonsPhotos(
+      {
+        ...base,
+        download: async (address) => {
+          if (address.includes("Zniknie")) {
+            await admin$(`delete from public.place_photos where id = $1`, [vanishing]);
+
+            return { ok: true, bytes: new Uint8Array(big) };
+          }
+
+          return base.download(address);
+        },
+      },
+      { organizationSlug: where.slug },
+    );
+
+    expect(report).toMatchObject({ fetched: 1, failed: 1, reasons: { gone: 1 } });
+    expect((await row(staying)).file_state).toBe("ready");
+  });
+
   it("pauses without writing when the disk is short of space", async () => {
     const where = await scope();
     const id = await pending(where, "Bez miejsca.jpg", 3000);
