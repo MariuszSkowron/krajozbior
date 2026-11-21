@@ -1,5 +1,5 @@
 # Functions of the deployment scripts that need no server and no network (E11 spec, F-K4).
-# Dot-sourced by deploy.ps1 and new-deploy-secrets.ps1, and by the unit tests
+# Dot-sourced by deploy.ps1, deploy-showcase.ps1 and new-deploy-secrets.ps1, and by the unit tests
 # (tests/scripts/ops-deploy-lib.test.ts). Nothing here connects anywhere, reads the secrets folder
 # or prints a secret.
 # Keep this file ASCII-only (Windows PowerShell 5.1 reads BOM-less files as ANSI).
@@ -217,6 +217,24 @@ function Join-NativeArgs([string[]]$arguments) {
   return ($quoted -join ' ')
 }
 
+# Starts the process and writes the payload to its standard input as UTF-8 WITHOUT a byte order
+# mark. Windows PowerShell 5.1 (.NET Framework) builds the standard-input writer from
+# [Console]::InputEncoding; with code page 65001 (UTF-8 console) that encoding writes a BOM
+# first, and bash then reads "<BOM>{" as an unknown command and stops before anything runs
+# (found in the showcase rehearsal, 21.11). The console encoding is switched for the start only.
+function Start-PayloadProcess([System.Diagnostics.ProcessStartInfo]$psi, [string]$payload) {
+  $utf8 = New-Object Text.UTF8Encoding($false)
+  $previous = $null
+  try { $previous = [Console]::InputEncoding; [Console]::InputEncoding = $utf8 } catch { $previous = $null }
+  try { $process = [System.Diagnostics.Process]::Start($psi) }
+  finally { if ($null -ne $previous) { try { [Console]::InputEncoding = $previous } catch { } } }
+  $bytes = $utf8.GetBytes($payload)
+  $process.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
+  $process.StandardInput.BaseStream.Flush()
+  $process.StandardInput.Close()
+  return $process
+}
+
 # Mode -> account on the server: only the bootstrap connects as root (the key netcup installed);
 # it creates `deploy` and switches root login off.
 function Get-RemoteUser([string]$mode) {
@@ -226,4 +244,74 @@ function Get-RemoteUser([string]$mode) {
 
 function Get-ReportFileName([datetime]$when, [string]$mode) {
   return ('{0}-{1}.log' -f $when.ToString('yyyy-MM-dd-HHmmss'), $mode)
+}
+
+# --- Target "showcase": rehearsal on the local showcase (spec 5.4, D-E11-8) -------------------
+
+# Modes the rehearsal can run locally; the other modes need the server (Caddy, systemd, root).
+$ShowcaseModes = @('initial', 'commit')
+
+# Checks the arguments of deploy.ps1 for the chosen target. The server needs the secrets folder
+# and the public repository address; the showcase refuses both, so it can never read the folder
+# or reach the server.
+function Assert-DeployTarget([string]$target, [string]$mode, [string]$secretsDir, [string]$repoUrl) {
+  switch ($target) {
+    'server' {
+      if (-not $secretsDir) { throw 'Cel server: brak -SecretsDir.' }
+      if (-not $repoUrl) { throw 'Cel server: brak -RepoUrl.' }
+    }
+    'showcase' {
+      if ($secretsDir -or $repoUrl) {
+        throw 'Cel showcase nie uzywa folderu sekretow ani adresu repozytorium (bez -SecretsDir i -RepoUrl).'
+      }
+      if ($ShowcaseModes -notcontains $mode) {
+        throw "Cel showcase: tylko tryby $($ShowcaseModes -join ', ') (tryb $mode wymaga serwera)."
+      }
+    }
+    default { throw "Nieznany cel: $target" }
+  }
+}
+
+# Compose project of the rehearsal: krajozbior-<name>, never the server project `krajozbior`.
+function Test-ShowcaseProject([string]$name) {
+  return ($name -cmatch '^krajozbior-[a-z0-9]+(-[a-z0-9]+)*$')
+}
+
+# Port of the rehearsal app: unprivileged and none of the ports of the owner's environment
+# (3000, 5432) or of scripts/test-env (3100, 55432, 55433).
+function Test-ShowcasePort([int]$port) {
+  return ($port -ge 1024 -and $port -le 65535 -and @(3000, 3100, 5432, 55432, 55433) -notcontains $port)
+}
+
+# Data folder name under .data/: krajozbior-showcase -> showcase (the showcase's own folder).
+function Get-ShowcaseDataName([string]$project) {
+  return $project.Substring('krajozbior-'.Length)
+}
+
+# Git Bash, never the WSL `bash.exe` of System32 (it would run in another system).
+function Find-GitBash([string[]]$candidates = @(
+    (Join-Path $env:ProgramFiles 'Git\bin\bash.exe'),
+    (Join-Path $env:ProgramFiles 'Git\usr\bin\bash.exe'))) {
+  foreach ($c in $candidates) {
+    if ($c -and $c -notmatch '(?i)\\system32\\' -and (Test-Path -LiteralPath $c)) { return $c }
+  }
+  throw 'Brak Git Bash (C:\Program Files\Git\bin\bash.exe).'
+}
+
+# Environment of the local bash process: configuration only, no secrets (the showcase passwords
+# stay in secrets.env, which Compose reads itself). Paths use forward slashes.
+function Get-ShowcaseEnvironment([string]$project, [int]$port, [string]$dataDir, [string]$overlay) {
+  $data = $dataDir -replace '\\', '/'
+  return [ordered]@{
+    KZ_TARGET           = 'showcase'
+    KZ_PROJECT          = $project
+    KZ_ROOT             = "$data/deploy"
+    KZ_RUN              = "$data/deploy/run"
+    KZ_SHOWCASE_DATA    = $data
+    KZ_SHOWCASE_PORT    = [string]$port
+    KZ_SHOWCASE_OVERLAY = $overlay -replace '\\', '/'
+    KZ_PGDATA_VOLUME    = "$project-pgdata"
+    KZ_IMAGE_REPOS      = "$project-app $project-ops"
+    KZ_DUMP_SUFFIX      = 'dump'
+  }
 }

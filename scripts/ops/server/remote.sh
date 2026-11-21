@@ -78,8 +78,9 @@ kz_up_app_proxy() {
     kz_compose up -d --wait --force-recreate proxy
 }
 
-# Name of the database volume (deploy/compose.yaml, volumes.pgdata.name).
-KZ_PGDATA_VOLUME="krajozbior-pgdata"
+# Name of the database volume (deploy/compose.yaml, volumes.pgdata.name). The rehearsal of the
+# volume guard on the local showcase (docs/deployment.md) points it at the rehearsal volume.
+: "${KZ_PGDATA_VOLUME:=krajozbior-pgdata}"
 
 # True when the server has ever held real data: any backup or a recorded running version.
 kz_has_real_data() {
@@ -168,11 +169,13 @@ kz_check_secrets_absent() {
 
 # Removes app/ops images other than the two given tags (current and previous) and old build
 # cache, so repeated deployments do not fill the disk (review F-K4, S2 d). Never fails.
+# The tag `local` is never removed: it is the image of the local showcase (showcase-up.ps1).
 kz_prune_images() {
   local repo tag
-  for repo in krajozbior-app krajozbior-ops; do
+  for repo in $KZ_IMAGE_REPOS; do
     for tag in $(docker image ls "$repo" --format '{{.Tag}}' </dev/null 2>/dev/null || true); do
-      [ "$tag" = "$1" ] || [ "$tag" = "$2" ] || docker image rm "$repo:$tag" >/dev/null 2>&1 </dev/null || true
+      [ "$tag" = "$1" ] || [ "$tag" = "$2" ] || [ "$tag" = "local" ] ||
+        docker image rm "$repo:$tag" >/dev/null 2>&1 </dev/null || true
     done
   done
   docker builder prune -f --filter until=168h >/dev/null 2>&1 </dev/null || true

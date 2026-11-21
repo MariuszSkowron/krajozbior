@@ -21,6 +21,7 @@ const SCRIPTS = [
   "backup.sh",
   "restore-test.sh",
   "health-report.sh",
+  "showcase.sh",
 ];
 
 // On Windows `bash` on PATH can be WSL; Git Bash is the one the repository uses.
@@ -830,5 +831,127 @@ describe("small helpers", () => {
     );
 
     expect(result.stdout.trim()).toBe("<e-mail> from <ip> and <ip> at 10:00:00");
+  });
+});
+
+describe("target showcase: the same remote.sh with showcase.sh (rehearsal, D-E11-8)", () => {
+  const REMOTE = join(SERVER_DIR, "remote.sh").replaceAll("\\", "/");
+  const SHOWCASE = join(SERVER_DIR, "showcase.sh").replaceAll("\\", "/");
+  // docker logs every call; `compose ... config` prints CONFIG_OUT, `image ls` prints IMAGE_TAGS,
+  // `compose ... exec` prints a dump of 6000 bytes.
+  const DOCKER = [
+    'printf \'%s\\n\' "$*" >>"$DOCKER_LOG"',
+    'case "$*" in',
+    '  *" config"*) printf \'%s\\n\' "${CONFIG_OUT:-}" ;;',
+    "  \"image ls\"*) printf '%s\\n' $IMAGE_TAGS ;;",
+    "  *\" exec \"*) printf PGDMP; head -c 6000 /dev/zero | tr '\\0' x ;;",
+    "esac",
+  ].join("\n");
+  const AGE_MUST_NOT_RUN = 'echo "age must not run in the showcase" >&2; exit 9\n';
+
+  function runShowcase(script: string, env: Record<string, string> = {}): Run & { log: string } {
+    const box = sandbox("");
+    const data = `${box.root}/data`;
+    const log = `${box.root}/docker.log`;
+
+    execFileSync(bash ?? "bash", [
+      "-c",
+      'mkdir -p "$0" && : >"$0/secrets.env" && : >"$0/pg-bootstrap" && : >"$1/overlay.yaml" && : >"$2"',
+      data,
+      box.root,
+      log,
+    ]);
+
+    const result = runLib(`. "${REMOTE}"; . "${SHOWCASE}"; ${WITH_STUBS} ${script}`, {
+      KZ_TARGET: "showcase",
+      KZ_ROOT: box.root,
+      KZ_RUN: box.run,
+      KZ_PROJECT: "krajozbior-rehearsal",
+      KZ_SHOWCASE_DATA: data,
+      KZ_SHOWCASE_PORT: "3310",
+      KZ_SHOWCASE_OVERLAY: `${box.root}/overlay.yaml`,
+      KZ_PGDATA_VOLUME: "krajozbior-rehearsal-pgdata",
+      KZ_IMAGE_REPOS: "krajozbior-rehearsal-app krajozbior-rehearsal-ops",
+      KZ_DUMP_SUFFIX: "dump",
+      DOCKER_LOG: log,
+      STUB_BIN: stubBin({ docker: DOCKER, age: AGE_MUST_NOT_RUN }),
+      ...env,
+    });
+
+    return { ...result, log: readFileSync(log, "utf8") };
+  }
+
+  bashIt("refuses to run without the showcase target or with the server project", () => {
+    for (const env of [{ KZ_TARGET: "" }, { KZ_PROJECT: "krajozbior" }]) {
+      const result = runShowcase("kz_require_deploy; echo started", env);
+
+      expect(result.status, JSON.stringify(env)).toBe(1);
+      expect(result.stdout).not.toContain("started");
+    }
+  });
+
+  bashIt("refuses a server folder as the deployment root", () => {
+    const result = runShowcase("kz_require_showcase; echo started", { KZ_ROOT: "/srv/krajozbior" });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("folder serwera");
+  });
+
+  bashIt("checks the demo flags in the server file alone, without the showcase overlay", () => {
+    const clean = runShowcase("kz_assert_no_demo_flags", { CONFIG_OUT: "services: {}" });
+
+    expect(clean.status, clean.stdout).toBe(0);
+    expect(clean.log).toContain("/deploy/compose.yaml --profile ops config");
+    expect(clean.log).not.toContain("compose.showcase");
+
+    const leaked = runShowcase("kz_assert_no_demo_flags", {
+      CONFIG_OUT: "ALLOW_DEMO_SEED: '1'",
+    });
+
+    expect(leaked.status).toBe(1);
+    expect(leaked.stdout).toContain(
+      "flaga demo w deploy/compose.yaml (plik serwera): ALLOW_DEMO_SEED",
+    );
+  });
+
+  bashIt(
+    "runs Compose with the showcase overlay, the target overlay and the showcase secrets",
+    () => {
+      const result = runShowcase("kz_compose ps");
+
+      expect(result.status, result.stdout).toBe(0);
+      expect(result.log).toMatch(
+        /^compose -p krajozbior-rehearsal -f \S+\/deploy\/compose\.yaml -f \S+\/deploy\/compose\.showcase\.yaml -f \S+\/overlay\.yaml --env-file \S+\/data\/secrets\.env ps$/m,
+      );
+      expect(result.log).not.toContain("compose.init.yaml");
+    },
+  );
+
+  bashIt("backs up with pg_dump only (no age), under the same rotation", () => {
+    const result = runShowcase('kz_require_deploy && kz_backup predeploy && ls "$KZ_BACKUPS"');
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toMatch(/krajozbior-\d{8}-\d{6}-predeploy\.dump$/m);
+    expect(result.stdout).not.toContain("age must not run");
+    expect(result.log).toContain("exec -T -u postgres db pg_dump -Fc -d krajozbior");
+  });
+
+  bashIt("keeps the current, the previous and the showcase's own `local` image", () => {
+    const result = runShowcase("kz_prune_images aaaaaaaaaaaa bbbbbbbbbbbb", {
+      IMAGE_TAGS: "aaaaaaaaaaaa bbbbbbbbbbbb cccccccccccc local",
+    });
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.log).toContain("image rm krajozbior-rehearsal-app:cccccccccccc");
+    expect(result.log).toContain("image rm krajozbior-rehearsal-ops:cccccccccccc");
+    expect(result.log).not.toMatch(/image rm \S+:(aaaaaaaaaaaa|bbbbbbbbbbbb|local)$/m);
+  });
+
+  bashIt("reuses an existing showcase volume and never removes it", () => {
+    const result = runShowcase("kz_initial_database");
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain("wolumen krajozbior-rehearsal-pgdata istnieje: zostaje");
+    expect(result.log).not.toContain("volume rm");
   });
 });

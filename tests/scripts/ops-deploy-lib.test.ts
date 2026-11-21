@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -17,7 +17,14 @@ vi.setConfig({ testTimeout: 30_000 });
 const root = process.cwd();
 const OPS_DIR = join(root, "scripts/ops");
 const LIB = join(OPS_DIR, "deploy-lib.ps1");
-const PS_SCRIPTS = ["deploy-lib.ps1", "deploy.ps1", "wdroz.template.ps1", "new-deploy-secrets.ps1"];
+const PS_SCRIPTS = [
+  "deploy-lib.ps1",
+  "deploy.ps1",
+  "deploy-showcase.ps1",
+  "wdroz.template.ps1",
+  "new-deploy-secrets.ps1",
+];
+const GIT_BASH = "C:\\Program Files\\Git\\bin\\bash.exe";
 
 function findPowerShell(): string | undefined {
   for (const candidate of process.platform === "win32" ? ["powershell.exe", "pwsh"] : ["pwsh"]) {
@@ -71,6 +78,12 @@ function psJson<T>(expression: string): T {
 }
 
 const psString = (value: string) => `'${value.replaceAll("'", "''")}'`;
+
+const withoutComments = (text: string) =>
+  text
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("#"))
+    .join("\n");
 
 describe("PowerShell scripts", () => {
   for (const script of PS_SCRIPTS) {
@@ -374,5 +387,153 @@ describe("connection arguments", () => {
     );
 
     expect(result.stdout).toBe('-i "C:\\Program Files\\k" -o A=B "say \\"hi\\"" "bash -s"');
+  });
+
+  // Regression (showcase rehearsal, 21.11): with a UTF-8 console the standard-input writer of
+  // Windows PowerShell 5.1 put a byte order mark before the payload, and bash stopped at "<BOM>{".
+  it.skipIf(
+    process.platform !== "win32" || powershell !== "powershell.exe" || !existsSync(GIT_BASH),
+  )("sends the payload without a byte order mark, also from a UTF-8 console", () => {
+    const result = ps(
+      [
+        "[Console]::InputEncoding = [Text.Encoding]::UTF8",
+        "$psi = New-Object System.Diagnostics.ProcessStartInfo",
+        `$psi.FileName = ${psString(GIT_BASH)}`,
+        `$psi.Arguments = '-c "head -c 3 | od -An -tx1"'`,
+        "$psi.UseShellExecute = $false",
+        "$psi.RedirectStandardInput = $true",
+        "$psi.RedirectStandardOutput = $true",
+        "$p = Start-PayloadProcess $psi '{ x'",
+        "$p.StandardOutput.ReadToEnd().Trim()",
+      ].join("; "),
+    );
+
+    expect(result.stdout, result.stderr).toBe("7b 20 78");
+  });
+
+  it("deploy.ps1 writes the payload only through Start-PayloadProcess", () => {
+    for (const script of ["deploy.ps1", "deploy-showcase.ps1"]) {
+      const text = readFileSync(join(OPS_DIR, script), "utf8");
+
+      expect(text, script).toContain("Start-PayloadProcess $psi $payload");
+      expect(text, script).not.toContain("[System.Diagnostics.Process]::Start(");
+    }
+  });
+});
+
+describe("target showcase (rehearsal on the local showcase)", () => {
+  psIt("requires the secrets folder and repository only for the server", () => {
+    expect(
+      ps(`Assert-DeployTarget 'server' 'commit' 'C:\\s' 'https://github.com/o/r'`).status,
+    ).toBe(0);
+    expect(
+      ps(`Assert-DeployTarget 'server' 'commit' '' 'https://github.com/o/r'`).stderr,
+    ).toContain("brak -SecretsDir");
+    expect(ps(`Assert-DeployTarget 'showcase' 'commit' '' ''`).status).toBe(0);
+    expect(ps(`Assert-DeployTarget 'showcase' 'initial' '' ''`).status).toBe(0);
+  });
+
+  psIt("refuses the secrets folder, the repository address and server-only modes", () => {
+    for (const call of [
+      `Assert-DeployTarget 'showcase' 'commit' 'C:\\s' ''`,
+      `Assert-DeployTarget 'showcase' 'commit' '' 'https://github.com/o/r'`,
+    ]) {
+      const result = ps(call);
+
+      expect(result.status, call).not.toBe(0);
+      expect(result.stderr, call).toContain("nie uzywa folderu sekretow");
+    }
+
+    for (const mode of ["bootstrap", "admin", "diagnoza", "otworz", "odtworz", "import"]) {
+      const result = ps(`Assert-DeployTarget 'showcase' '${mode}' '' ''`);
+
+      expect(result.status, mode).not.toBe(0);
+      expect(result.stderr, mode).toContain("wymaga serwera");
+    }
+  });
+
+  psIt("deploy.ps1 -Target showcase stops before the secrets folder or the connection", () => {
+    // A folder that does not exist: the server path would fail with "Brak pliku ...serwer.conf".
+    const result = spawnSync(
+      powershell ?? "pwsh",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        join(OPS_DIR, "deploy.ps1"),
+        "-Target",
+        "showcase",
+        "-SecretsDir",
+        "C:\\nie-istnieje\\sekrety",
+        "-Mode",
+        "commit",
+        "-Sha",
+        "0".repeat(40),
+      ],
+      { encoding: "utf8" },
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toContain("nie uzywa folderu sekretow");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("serwer.conf");
+  });
+
+  it("hands over to deploy-showcase.ps1 before any server step", () => {
+    const text = withoutComments(readFileSync(join(OPS_DIR, "deploy.ps1"), "utf8"));
+    const handOver = text.indexOf("deploy-showcase.ps1') -Mode");
+
+    expect(handOver).toBeGreaterThan(0);
+    for (const serverStep of ["serwer.conf", "Get-Tool 'ssh.exe'", "Open-Vault", "magazyn.age"]) {
+      expect(text.indexOf(serverStep), serverStep).toBeGreaterThan(handOver);
+    }
+  });
+
+  it("deploy-showcase.ps1 knows no server, secrets folder or remote-shell client", () => {
+    const code = withoutComments(readFileSync(join(OPS_DIR, "deploy-showcase.ps1"), "utf8"));
+
+    for (const word of ["ssh", "SecretsDir", "serwer.conf", "magazyn", "age.exe", "Read-Host"]) {
+      expect(code, word).not.toContain(word);
+    }
+    expect(code).toContain("showcase.sh");
+  });
+
+  psIt("accepts only krajozbior-<name> projects and ports outside the other environments", () => {
+    expect(
+      psJson<boolean[]>(
+        `@('krajozbior-showcase','krajozbior-rehearsal','krajozbior','Krajozbior-x','slady-app','krajozbior-') | ForEach-Object { Test-ShowcaseProject $_ }`,
+      ),
+    ).toEqual([true, true, false, false, false, false]);
+    expect(
+      psJson<boolean[]>(
+        `@(3300, 3310, 3000, 3100, 5432, 55432, 55433, 80, 70000) | ForEach-Object { Test-ShowcasePort $_ }`,
+      ),
+    ).toEqual([true, true, false, false, false, false, false, false, false]);
+    expect(psJson<string>(`Get-ShowcaseDataName 'krajozbior-showcase'`)).toBe("showcase");
+  });
+
+  psIt("gives the local bash only configuration, named after the project", () => {
+    const environment = psJson<Record<string, string>>(
+      `Get-ShowcaseEnvironment 'krajozbior-rehearsal' 3310 'C:\\r\\.data\\rehearsal' 'C:\\r\\deploy\\o.yaml'`,
+    );
+
+    expect(environment).toEqual({
+      KZ_TARGET: "showcase",
+      KZ_PROJECT: "krajozbior-rehearsal",
+      KZ_ROOT: "C:/r/.data/rehearsal/deploy",
+      KZ_RUN: "C:/r/.data/rehearsal/deploy/run",
+      KZ_SHOWCASE_DATA: "C:/r/.data/rehearsal",
+      KZ_SHOWCASE_PORT: "3310",
+      KZ_SHOWCASE_OVERLAY: "C:/r/deploy/o.yaml",
+      KZ_PGDATA_VOLUME: "krajozbior-rehearsal-pgdata",
+      KZ_IMAGE_REPOS: "krajozbior-rehearsal-app krajozbior-rehearsal-ops",
+      KZ_DUMP_SUFFIX: "dump",
+    });
+  });
+
+  psIt("never runs the WSL bash of System32", () => {
+    const result = ps(`Find-GitBash @('C:\\Windows\\System32\\bash.exe')`);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("Brak Git Bash");
   });
 });

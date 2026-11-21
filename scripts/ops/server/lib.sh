@@ -23,6 +23,10 @@ KZ_BACKUPS="$KZ_ROOT/backups"
 KZ_IMPORTS="$KZ_ROOT/imports"
 KZ_DB_HOST="db:5432"
 KZ_DB_NAME="krajozbior"
+# Image repositories of the app and ops services and the backup file suffix. The showcase target
+# (showcase.sh, rehearsal on the local showcase) sets its own values before this file is read.
+: "${KZ_IMAGE_REPOS:=krajozbior-app krajozbior-ops}"
+: "${KZ_DUMP_SUFFIX:=dump.age}"
 
 # Never on the server (security-notes.md, section 2; D-E11-8).
 KZ_DEMO_FLAGS=(ALLOW_DEMO_SEED DEMO_ACCOUNTS_TEST_ONLY EMAIL_OUTBOX_TEST_ONLY)
@@ -253,12 +257,12 @@ kz_backup() {
     return 1
   fi
   mkdir -p "$KZ_BACKUPS" || return 1
-  file="$KZ_BACKUPS/krajozbior-$(date -u +%Y%m%d-%H%M%S)-$kind.dump.age"
+  file="$KZ_BACKUPS/krajozbior-$(date -u +%Y%m%d-%H%M%S)-$kind.$KZ_DUMP_SUFFIX"
   kz_dump_encrypted "$KZ_ROOT/backup.pub" "$file" || return 1
   kz_rotate daily 7 || return 1
   kz_rotate weekly 4 || return 1
   kz_rotate predeploy 5 || return 1
-  find "$KZ_BACKUPS" -maxdepth 1 -name 'krajozbior-*.dump.age' -mtime +30 -delete || return 1
+  find "$KZ_BACKUPS" -maxdepth 1 -name "krajozbior-*.$KZ_DUMP_SUFFIX" -mtime +30 -delete || return 1
   kz_step "kopia zapisana: $(basename "$file") ($(du -h "$file" | cut -f1))"
 }
 
@@ -267,7 +271,7 @@ kz_backup() {
 # missing glob ended the deployment under pipefail).
 kz_list_backups() {
   [ -d "$KZ_BACKUPS" ] || return 0
-  find "$KZ_BACKUPS" -maxdepth 1 -type f -name "krajozbior-*-${1:-*}.dump.age" 2>/dev/null | sort -r
+  find "$KZ_BACKUPS" -maxdepth 1 -type f -name "krajozbior-*-${1:-*}.$KZ_DUMP_SUFFIX" 2>/dev/null | sort -r
 }
 
 kz_rotate() {

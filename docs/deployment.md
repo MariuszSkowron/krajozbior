@@ -87,6 +87,21 @@ Zasady wspólne:
 - Kopie: co noc o 3:15 `pg_dump` przez gniazdo superużytkownika w kontenerze bazy, od razu szyfrowany `age` kluczem publicznym właściciela (klucza prywatnego nie ma na serwerze); 7 dziennych, 4 tygodniowe, 5 sprzed wdrożeń, nic starszego niż 30 dni. Test odtworzenia w niedzielę o 4:00 osobną parą kluczy testowych. Nieudany albo podejrzanie mały zrzut (poniżej 2 KB) nie zostaje zapisany, nie wypiera starszych kopii i wysyła sygnał błędu. Kontrola co godzinę: dysk (alarm przy zajętości ponad 80%), pamięć, usługi, certyfikat (alarm poniżej 14 dni), odmowy Brevo, brak kopii z ostatnich 26 godzin. Sygnały do healthchecks.io, gdy ich adresy są w `serwer.conf`.
 - Wgrywanie kolekcji na serwer (`-Import`) wejdzie z F-K6.
 
+### Próba generalna na pokazie
+
+Agent ćwiczy wdrożenie i powrót do poprzedniej wersji na komputerze, zanim właściciel uruchomi je na serwerze. Próba wykonuje te same kroki co serwer (`remote.sh`: kopia przed wdrożeniem, budowa obrazu z etykietą commita, migracje, podmiana aplikacji, kontrola `/api/health` i strony głównej, powrót przy błędzie), ale na Docker Desktop, bez połączenia z serwerem, bez hasła wdrożeniowego i bez folderu sekretów.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/ops/deploy.ps1 -Target showcase -Mode initial -Sha <commit> -ShowcaseProject krajozbior-rehearsal -ShowcasePort 3310
+powershell -ExecutionPolicy Bypass -File scripts/ops/deploy.ps1 -Target showcase -Mode commit  -Sha <commit> -ShowcaseProject krajozbior-rehearsal -ShowcasePort 3310
+```
+
+- Domyślnie (`-ShowcaseProject krajozbior-showcase`, port 3300) próba działa na pokazie lokalnym i jego danych. Gdy pokaz właściciela ma dane, próbę robi się na osobnym projekcie (np. `krajozbior-rehearsal`, port 3310): ma własne kontenery, wolumen `<projekt>-pgdata`, obrazy `<projekt>-app:<commit>` i folder `.data/<nazwa>/` (hasła, kopia kodu, stan, kopie bazy). Sprzątanie: `docker compose -p krajozbior-rehearsal down -v`.
+- Cel `showcase` odmawia, gdy podano `-SecretsDir` albo `-RepoUrl`, i zna tylko tryby `initial` i `commit`. `deploy.ps1` przekazuje go do `deploy-showcase.ps1`, zanim dotknie folderu sekretów albo klienta połączenia; ten skrypt nie zna adresu serwera.
+- Wszystkie różnice względem serwera są w jednym pliku, `scripts/ops/server/showcase.sh`, który podmienia kilka funkcji `lib.sh` i `remote.sh`: Compose z nakładką pokazu i nakładką celu (`deploy/compose.showcase-target.yaml`, brana z kodu skryptu, bo starsze commity mają obraz `:local` na sztywno), kopia kodu z lokalnego repozytorium (także commit nie wypchnięty, np. celowo zepsuty), kontrola HTTP na `127.0.0.1:<port>` bez Caddy i bramki hasła (strona główna musi odpowiedzieć 200), kopia bazy `pg_dump` bez szyfrowania (lokalne dane demo), flagi demo sprawdzane w samym `deploy/compose.yaml`, a istniejący wolumen pokazu nigdy nie jest usuwany.
+- Czego próba nie sprawdza: Caddy (`Caddyfile`, certyfikat, bramka hasła), szyfrowania kopii `age`, `.env.production`, pliku operatora w `/run`, K-7 i timerów. To zostaje na pierwsze wdrożenie na serwerze.
+- Raport: `.data/deploy/<data>-<projekt>-<tryb>.log`.
+
 Testy bez serwera: `tests/scripts/ops-deploy-lib.test.ts` (funkcje PowerShell, składnia skryptów, skrypt dla serwera zbudowany w PowerShell i uruchomiony w bash) i `tests/scripts/ops-server-lib.test.ts` (składnia bash, plik operatora, flagi demo, kolejność kroków trybów z atrapami; kopie, kontrola portów i powtórka `-Initial` na prawdziwym kodzie z atrapami programów `docker`, `age`, `ss`, `curl`). Lokalnie wymagają Windows PowerShell i Git Bash; w CI (`CI=true`) brak interpretera to błąd, nie pominięcie.
 
 ## Pokaz lokalny

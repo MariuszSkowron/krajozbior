@@ -14,23 +14,37 @@
 #   -Mode odtworz     restores the newest backup with the owner's backup key (exercise, K-8)
 #   -Mode import      catalog upload to the server - available with F-K6
 #
+# -Target showcase (default: server) is the agent's rehearsal on the local showcase: modes
+# initial and commit only, without -SecretsDir and -RepoUrl. It hands over to
+# deploy-showcase.ps1 before anything below runs, so it never reads the secrets folder and never
+# starts the remote-shell client (docs/deployment.md, "Proba generalna na pokazie").
+#
 # One connection per mode. The passphrase of the key and of magazyn.age is typed by the owner
 # (the remote-shell client and age ask for it themselves). Secrets travel in the standard input
 # of the connection, never in arguments. The report (no secrets, no IP or e-mail addresses) goes
 # to ReportDir from serwer.conf (the code folder's .data/deploy/, which the agent reads).
 # Keep this file ASCII-only (Windows PowerShell 5.1 reads BOM-less files as ANSI).
 param(
-  [Parameter(Mandatory = $true)][string]$SecretsDir,
+  [string]$SecretsDir = '',
   [Parameter(Mandatory = $true)]
   [ValidateSet('bootstrap', 'initial', 'commit', 'admin', 'diagnoza', 'otworz', 'odtworz', 'import')]
   [string]$Mode,
   [Parameter(Mandatory = $true)][string]$Sha,
-  [Parameter(Mandatory = $true)][string]$RepoUrl
+  [string]$RepoUrl = '',
+  [ValidateSet('server', 'showcase')][string]$Target = 'server',
+  [string]$ShowcaseProject = 'krajozbior-showcase',
+  [int]$ShowcasePort = 3300
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'deploy-lib.ps1')
+
+Assert-DeployTarget $Target $Mode $SecretsDir $RepoUrl
+if ($Target -eq 'showcase') {
+  & (Join-Path $PSScriptRoot 'deploy-showcase.ps1') -Mode $Mode -Sha $Sha -Project $ShowcaseProject -Port $ShowcasePort
+  exit $LASTEXITCODE
+}
 
 function Write-Say([string]$text, [string]$color = 'Gray') { Write-Host $text -ForegroundColor $color }
 
@@ -188,10 +202,7 @@ $psi.UseShellExecute = $false
 $psi.RedirectStandardInput = $true
 $psi.RedirectStandardOutput = $true
 $psi.StandardOutputEncoding = New-Object Text.UTF8Encoding($false)
-$process = [System.Diagnostics.Process]::Start($psi)
-$bytes = (New-Object Text.UTF8Encoding($false)).GetBytes($payload)
-$process.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
-$process.StandardInput.Close()
+$process = Start-PayloadProcess $psi $payload
 $payload = $null
 while ($null -ne ($line = $process.StandardOutput.ReadLine())) {
   Write-Say (Write-Report $line)

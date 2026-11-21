@@ -375,6 +375,54 @@ describe("local showcase (deploy/compose.showcase.yaml)", () => {
     }
   });
 
+  // Target "showcase" of deploy.ps1 (rehearsal): third file from the running script.
+  const TARGET = [...SHOWCASE, "deploy/compose.showcase-target.yaml"];
+  const TARGET_VARIABLES = {
+    KZ_PROJECT: "krajozbior-rehearsal",
+    KZ_SHOWCASE_PORT: "3310",
+    KZ_SHOWCASE_DATA: "C:/r/.data/rehearsal",
+    IMAGE_TAG: "abcdef012345",
+  };
+
+  it("keeps the demo flags out of the rehearsal target overlay", () => {
+    const overlay = read("deploy/compose.showcase-target.yaml");
+
+    for (const flag of DEMO_FLAGS) {
+      expect(overlay, flag).not.toContain(flag);
+    }
+  });
+
+  dockerComposeIt("gives a rehearsal project its own names, port, volume and commit images", () => {
+    const config = composeConfig(
+      TARGET,
+      ["-p", "krajozbior-rehearsal", "--profile", "ops"],
+      dummySecretsFile(),
+      TARGET_VARIABLES,
+    ) as ComposeConfig & { services: Record<string, ComposeService & { image?: string }> };
+
+    expect(config.name).toBe("krajozbior-rehearsal");
+    expect(config.volumes?.pgdata?.name).toBe("krajozbior-rehearsal-pgdata");
+    expect(config.services.db?.container_name).toBe("krajozbior-rehearsal-db");
+    expect(config.services.app?.container_name).toBe("krajozbior-rehearsal-app");
+    expect(config.services.app?.image).toBe("krajozbior-rehearsal-app:abcdef012345");
+    expect(config.services.ops?.image).toBe("krajozbior-rehearsal-ops:abcdef012345");
+    // Only the rehearsal port: the showcase port 3300 is replaced, not added.
+    expect(config.services.app?.ports).toEqual([
+      expect.objectContaining({ host_ip: "127.0.0.1", published: "3310", target: 3000 }),
+    ]);
+    expect(config.services.app?.environment?.BETTER_AUTH_URL).toBe("http://localhost:3310");
+    expect(config.services.proxy).toBeUndefined();
+  });
+
+  dockerComposeIt("refuses the target overlay without a commit image tag", () => {
+    expect(() =>
+      composeConfig(TARGET, ["-p", "krajozbior-rehearsal"], dummySecretsFile(), {
+        ...TARGET_VARIABLES,
+        IMAGE_TAG: "",
+      }),
+    ).toThrow();
+  });
+
   dockerComposeIt("restarts the services it runs", () => {
     const config = composeConfig(SHOWCASE, [], dummySecretsFile());
 
