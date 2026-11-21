@@ -548,6 +548,14 @@ describe("place record", () => {
     ).toBe(true);
     expect(
       has(
+        bad((p) => (p.wikipedia_pl = "https://pl.wikipedia.org/w/index.php?title=X")),
+        4,
+        "wikipedia_pl",
+        "bad_url",
+      ),
+    ).toBe(true);
+    expect(
+      has(
         bad((p) => (p.wikipedia_pl = "not a url")),
         4,
         "wikipedia_pl",
@@ -625,13 +633,18 @@ describe("source keys", () => {
   });
 
   it("refuses a signature that does not fit the 500 characters kept with the place", () => {
-    const long = edited((items) => {
+    const widen = (items: Rec[]) => {
       items[0]!.sources[0].label = "x".repeat(200);
-      items[3]!.attribution = ["zrodlo_a", "zrodlo_a", "zrodlo_a"];
+      items[0]!.sources[1].label = "y".repeat(200);
+      items[0]!.sources.push({ ...items[0]!.sources[0], key: "zrodlo_c", label: "z".repeat(200) });
+    };
+    const long = edited((items) => {
+      widen(items);
+      items[3]!.attribution = ["zrodlo_a", "zrodlo_b", "zrodlo_c"];
     });
     const fits = edited((items) => {
-      items[0]!.sources[0].label = "x".repeat(200);
-      items[3]!.attribution = ["zrodlo_a", "zrodlo_a"];
+      widen(items);
+      items[3]!.attribution = ["zrodlo_a", "zrodlo_b"];
     });
 
     expect(has(errorsOf(long), 4, "attribution", "length_or_range")).toBe(true);

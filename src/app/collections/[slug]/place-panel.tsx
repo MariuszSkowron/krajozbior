@@ -82,7 +82,7 @@ export function PlacePanel({ panel }: Readonly<{ panel: PanelPlace }>) {
               </div>
             )}
           </dl>
-          <PlaceSources source={ok.place.source} />
+          <PlaceSources source={ok.place.source} headingLevel={3} />
           <div className={albumStyles.panelActions}>
             {ok.wanted === null || (ok.visit === "on_site" && !ok.wanted) ? null : (
               <WantToSeeButton key={ok.place.id} placeId={ok.place.id} initialWanted={ok.wanted} />

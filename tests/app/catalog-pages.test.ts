@@ -251,6 +251,23 @@ describe("public catalog pages", () => {
       expect(html).not.toContain("Wikidanych");
     });
 
+    it("renders no empty list when the place has neither link", async () => {
+      const { PlaceSources } = await import("@/app/places/[placeId]/place-sources");
+      const source = { attribution: "Dane własne", wikipediaUrl: null, wikidataQid: null };
+
+      expect(renderToStaticMarkup(createElement(PlaceSources, { source }))).not.toContain("<ul");
+    });
+
+    it("takes the heading level from the place it is shown in", async () => {
+      const { PlaceSources } = await import("@/app/places/[placeId]/place-sources");
+      const source = { attribution: "Dane własne", wikipediaUrl: null, wikidataQid: null };
+
+      expect(renderToStaticMarkup(createElement(PlaceSources, { source }))).toContain("<h2");
+      expect(
+        renderToStaticMarkup(createElement(PlaceSources, { source, headingLevel: 3 })),
+      ).toContain("<h3");
+    });
+
     it("shows no sources section for a place without a source row", async () => {
       mocks.place.mockResolvedValue({ status: "ok", value: place });
 

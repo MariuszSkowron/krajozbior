@@ -175,7 +175,12 @@ function placeSchema(profile: ImportProfile) {
       method: z.enum(["template", "curator"]),
       sources: z.array(sourceKey).max(20),
     }),
-    wikipedia_pl: httpsUrl(ALLOWED_HOSTS.article).nullish(),
+    // The same condition as the `CHECK` of `place_sources.wikipedia_url`: an article address.
+    wikipedia_pl: httpsUrl(ALLOWED_HOSTS.article)
+      .refine((value) => value.startsWith("https://pl.wikipedia.org/wiki/"), {
+        message: "bad_url",
+      })
+      .nullish(),
     access: z.strictObject({
       note: optionalText(PLACE_ACCESS_MAX_LENGTH),
       warning: optionalText(PLACE_ACCESS_MAX_LENGTH),

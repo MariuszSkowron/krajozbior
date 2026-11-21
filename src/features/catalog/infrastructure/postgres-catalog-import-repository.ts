@@ -159,6 +159,8 @@ export const postgresCatalogImportRepository: CatalogImportRepository = {
   async writePlaceSource(tx, organizationId, placeId, values, mode) {
     // The conflict target is the primary key; the row policies of `place_sources`
     // (full edit of the organization) apply to the insert and to the update.
+    // `refresh` refreshes the signature and the links but leaves `description_method` alone,
+    // so a description marked `curator` in the panel is not turned back.
     const conflict =
       mode === "replace"
         ? `do update set wikidata_qid = excluded.wikidata_qid,
@@ -166,7 +168,10 @@ export const postgresCatalogImportRepository: CatalogImportRepository = {
                          description_method = excluded.description_method,
                          attribution = excluded.attribution,
                          retrieved_at = excluded.retrieved_at`
-        : `do nothing`;
+        : `do update set wikidata_qid = excluded.wikidata_qid,
+                         wikipedia_url = excluded.wikipedia_url,
+                         attribution = excluded.attribution,
+                         retrieved_at = excluded.retrieved_at`;
 
     await tx.em.execute(
       `insert into public.place_sources

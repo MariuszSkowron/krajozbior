@@ -293,6 +293,62 @@ describe("place sources", () => {
     ).rejects.toThrow(noPermission);
   });
 
+  it("gives the table owner no policy: it neither reads nor writes the rows", async () => {
+    const placeId = await newPlace(curA, orgA);
+
+    await insertSource(curA, orgA, placeId);
+    expect(
+      await withClient(
+        db.urls.krajozbior_owner,
+        async (client) => (await client.query(`select 1 from public.place_sources`)).rows,
+      ),
+    ).toEqual([]);
+    await expect(
+      withClient(db.urls.krajozbior_owner, (client) =>
+        client.query(
+          `insert into public.place_sources (place_id, organization_id, description_method, attribution, retrieved_at)
+           values ($1, $2, 'curator', 'x', now())`,
+          [placeId, orgA],
+        ),
+      ),
+    ).rejects.toThrow(rejectedByPolicy);
+  });
+
+  it("does not inherit rights: an administrator without membership neither writes nor changes a source", async () => {
+    const { opsRoleAssigner } = await import("@/features/identity/infrastructure/user-role");
+    const administrator = user("administrator");
+    const placeId = await newPlace(curA, orgA);
+
+    await admin$(`insert into auth.users (id, name, email) values ($1, 'administrator', $2)`, [
+      administrator.id,
+      administrator.email,
+    ]);
+    expect(
+      await opsRoleAssigner(db.urls.krajozbior_ops)(administrator.email, "admin", {
+        operator: "tester",
+        reason: "Test roli",
+      }),
+    ).toMatchObject({ outcome: "applied" });
+    expect(await admin$(`select role from auth.users where id = $1`, [administrator.id])).toEqual([
+      { role: "admin" },
+    ]);
+
+    await insertSource(curA, orgA, placeId, { attribution: "Oryginał" });
+    await expect(insertSource(administrator, orgA, await newPlace(curA, orgA))).rejects.toThrow(
+      rejectedByPolicy,
+    );
+    expect(
+      await as(
+        administrator,
+        `update public.place_sources set attribution = 'Zmienione' where place_id = ? returning 1`,
+        [placeId],
+      ),
+    ).toEqual([]);
+    expect(await sourceRows(placeId)).toEqual([
+      { description_method: "facts_template", attribution: "Oryginał" },
+    ]);
+  });
+
   it("removes the source together with the place", async () => {
     const placeId = await newPlace(curA, orgA);
 

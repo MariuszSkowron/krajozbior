@@ -21,7 +21,8 @@ export function composeAttribution(
   keys: readonly string[],
   sources: ReadonlyMap<string, SourceLabel>,
 ): string | null {
-  const parts = keys.flatMap((key) => {
+  // A key repeated in the list names its source once.
+  const parts = [...new Set(keys)].flatMap((key) => {
     const source = sources.get(key);
 
     return source === undefined ? [] : [`${source.label} (${source.license})`];

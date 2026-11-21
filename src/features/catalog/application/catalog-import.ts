@@ -370,7 +370,7 @@ async function loadCollection(
   const writeSource = async (
     placeId: string,
     filePlace: ImportPlace,
-    mode: "replace" | "keep",
+    mode: "replace" | "refresh",
   ): Promise<void> => {
     const attribution = composeAttribution(filePlace.attribution, sources);
 
@@ -459,9 +459,9 @@ async function loadCollection(
       result = "updated";
     } else {
       if (placeDecision !== "kept_manual_delete") {
-        // Unchanged or edited by hand: the source is only added when missing (a second
-        // load of a file loaded before the sources existed), never overwritten.
-        await writeSource((key as ImportKeyRow).entityId, filePlace, "keep");
+        // Unchanged or edited by hand: the signature and links follow the file (a change of a
+        // source label or licence must reach the place), the description method stays.
+        await writeSource((key as ImportKeyRow).entityId, filePlace, "refresh");
         desired.push((key as ImportKeyRow).entityId);
       }
       result = placeDecision;

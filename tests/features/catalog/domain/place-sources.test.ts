@@ -22,6 +22,12 @@ describe("composeAttribution", () => {
     );
   });
 
+  it("names a source once when its key is repeated", () => {
+    expect(composeAttribution(["zrodlo_a", "zrodlo_b", "zrodlo_a"], sources)).toBe(
+      "Źródło testowe A (CC BY 4.0); Źródło testowe B (CC0 1.0)",
+    );
+  });
+
   it("gives null for no key and skips a key the batch does not list", () => {
     expect(composeAttribution([], sources)).toBeNull();
     expect(composeAttribution(["nieznane"], sources)).toBeNull();

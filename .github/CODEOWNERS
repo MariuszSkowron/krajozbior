@@ -61,6 +61,8 @@
 
 # Podpisy źródeł danych (PR-B kolekcji): publiczna strona „Źródła danych” z licencjami (wymóg CC BY).
 /src/app/zrodla/                   @MariuszSkowron
+/e2e/sources.spec.ts               @MariuszSkowron
+/tests/app/sources-page.test.ts    @MariuszSkowron
 /e2e/terms-acceptance.spec.ts      @MariuszSkowron
 /e2e/global-setup.ts               @MariuszSkowron
 # Testy powłoki i ekranu akceptacji (osłabienie ich przeszłoby bez zatwierdzenia) oraz

@@ -304,6 +304,23 @@ describe("loading a collection file", () => {
     expect(await sourcesOf()).toHaveLength(3);
     expect(await admin$(`select id, version from places order by id`)).toEqual(placesBefore);
 
+    // A reload of the same place content refreshes the signature and the links (a source
+    // label or licence corrected in the file reaches the place); the description method stays.
+    await admin$(
+      `update place_sources set attribution = 'Stary podpis', wikipedia_url = null, description_method = 'curator'
+        where place_id = (select id from places where name = 'Miejsce testowe pierwsze')`,
+    );
+    expect(done(await load(curA, "gmina-a")).map((r) => r.result)).toEqual(["noop", "noop"]);
+    expect((await sourcesOf())[1]).toMatchObject({
+      attribution: "Źródło testowe A (CC0 1.0)",
+      wikipedia_url: "https://pl.wikipedia.org/wiki/Miejsce_testowe_pierwsze",
+      description_method: "curator",
+    });
+    await admin$(
+      `update place_sources set description_method = 'facts_template'
+        where place_id = (select id from places where name = 'Miejsce testowe pierwsze')`,
+    );
+
     // A description changed in the panel is marked as the curator's, and a reload keeps the mark.
     const [place] = await admin$<{ id: string; version: number }>(
       `select id, version from places where name = 'Miejsce testowe pierwsze'`,

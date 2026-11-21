@@ -78,15 +78,16 @@ export interface CatalogImportRepository {
   ): Promise<"deleted" | "blocked" | "referenced">;
   /**
    * Writes the source of a place (`place_sources`). `replace` sets every column (the loader
-   * has just written the content of the place); `keep` only adds the row when it is missing,
-   * so a description marked `curator` in the panel is not turned back.
+   * has just written the content of the place); `refresh` adds the row or refreshes its
+   * signature and links, but keeps `description_method`, so a description marked `curator`
+   * in the panel is not turned back.
    */
   writePlaceSource(
     tx: TransactionContext,
     organizationId: string,
     placeId: string,
     values: PlaceSourceValues,
-    mode: "replace" | "keep",
+    mode: "replace" | "refresh",
   ): Promise<void>;
   /** Collections of the organization the curator sees (no lock; for the preview). */
   countCollections(tx: TransactionContext, organizationId: string): Promise<number>;
