@@ -36,7 +36,7 @@ describe("security headers", () => {
       expect(pagesRule.test(path), path).toBe(true);
     }
 
-    for (const path of ["/media/p/x/main", "/media/e/x/w400"]) {
+    for (const path of ["/media", "/media/p/x/main", "/media/e/x/w400", "/media/a/b/c/d"]) {
       expect(pagesRule.test(path), path).toBe(false);
     }
   });

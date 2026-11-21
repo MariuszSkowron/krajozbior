@@ -19,7 +19,8 @@ export type PhotoCredit = Readonly<{
   title: string | null;
   author: Readonly<{ text: string; url: string | null }>;
   source: Readonly<{ label: string; url: string }> | null;
-  license: Readonly<{ label: string; url: string | null }>;
+  /** `heading`: „Licencja” albo, dla znaku domeny publicznej (to nie licencja), „Status”. */
+  license: Readonly<{ heading: "Licencja" | "Status"; label: string; url: string | null }>;
   /** Zdania po linii z danymi: informacja o zmianach i o licencji kopii. */
   notices: readonly string[];
 }>;
@@ -49,7 +50,11 @@ export function buildPhotoCredit(photo: PhotoCreditInput): PhotoCredit {
             label: photo.sourceKind === "commons_import" ? "Wikimedia Commons" : "Źródło",
             url: photo.sourceUrl,
           },
-    license: { label: photo.licenseLabel, url: photo.licenseUrl },
+    license: {
+      heading: photo.licenseCode === "public-domain" ? "Status" : "Licencja",
+      label: photo.licenseLabel,
+      url: photo.licenseUrl,
+    },
     notices,
   };
 }

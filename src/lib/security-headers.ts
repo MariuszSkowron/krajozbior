@@ -28,9 +28,10 @@ export function contentSecurityPolicy(isDev: boolean): string {
   return directives.join("; ");
 }
 
-// `source` of the page rule: every path that does not start with `media/`. A page whose name only
-// starts with `media` (`/media-kit`) is still a page.
-export const PAGES_SOURCE = "/((?!media/).*)";
+// `source` of the page rule: every path except `/media` and `/media/...`. The route under `media`
+// answers all of them (never HTML). A page whose name only starts with `media` (`/media-kit`) is
+// still a page.
+export const PAGES_SOURCE = "/((?!media(?:/|$)).*)";
 export const MEDIA_SOURCE = "/media/:path*";
 
 export function securityHeaders(isDev: boolean): HeaderRule[] {

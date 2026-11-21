@@ -19,15 +19,16 @@ export function proxy(_request: NextRequest) {
 }
 
 export const config = {
-  // Every page route: not the API (it sets its own cache headers), not /media
-  // (the route decides per photo: `public, max-age=86400` for a photo anyone may
-  // see, `private, no-store` otherwise; `proxy` would overwrite both with
-  // `private, no-store`), not the build output under /_next and not a static
-  // file from public/. Static files
+  // Every page route: not the API (it sets its own cache headers), not anything
+  // under `media/` (the catch-all route decides per photo: `public, max-age=86400`
+  // for a photo anyone may see, `private, no-store` otherwise; `proxy` would
+  // overwrite both with `private, no-store`; `/media` itself is also answered by
+  // that route, with the same `private, no-store`), not the build output under
+  // /_next and not a static file from public/. Static files
   // are recognised by a closed list of asset extensions, not by "any dot": a
   // page path may contain a dot (`/u/jan.kowalski`) and must still get
   // `private, no-store`. A new kind of public asset adds its extension here.
   matcher: [
-    "/((?!api(?:/|$)|media(?:/|$)|_next/|.*\\.(?:ico|png|jpe?g|gif|svg|webp|avif|txt|xml|webmanifest|css|js|map|woff2?)$).*)",
+    "/((?!api(?:/|$)|media/|_next/|.*\\.(?:ico|png|jpe?g|gif|svg|webp|avif|txt|xml|webmanifest|css|js|map|woff2?)$).*)",
   ],
 };

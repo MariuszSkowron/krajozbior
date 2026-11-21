@@ -19,6 +19,8 @@ describe("proxy coverage and caching", () => {
     // `media-kit` is a page, only the `/media` route is left out (E4-2b).
     "/media-kit",
     "/mediateka/zdjecia",
+    // `/media` itself is answered by the route under `media`, with the same `private, no-store`.
+    "/media",
     // A page path with a dot is still a page: it must not leave shared caches open.
     "/u/jan.kowalski",
     "/raport.2026",
@@ -34,7 +36,7 @@ describe("proxy coverage and caching", () => {
     "/media/p/0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b/main",
     "/media/p/0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b/w400",
     "/media/e/0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b/main",
-    "/media",
+    "/media/a/b/c/d",
     "/_next/static/chunks/main.js",
     "/_next/image?url=%2Fx.png",
     "/favicon.ico",

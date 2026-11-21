@@ -27,6 +27,7 @@ describe("buildPhotoCredit", () => {
         url: "https://commons.wikimedia.org/wiki/File:Zamek.jpg",
       },
       license: {
+        heading: "Licencja",
         label: "CC BY-SA 3.0 PL",
         url: "https://creativecommons.org/licenses/by-sa/3.0/pl/",
       },
@@ -41,6 +42,17 @@ describe("buildPhotoCredit", () => {
     expect(
       buildPhotoCredit({ ...base, licenseCode: "cc0-1.0", licenseLabel: "CC0 1.0" }).notices,
     ).toEqual([CHANGES_NOTICE]);
+  });
+
+  it("heads the public domain mark with Status, not Licencja (it is not a licence)", () => {
+    const credit = buildPhotoCredit({
+      ...base,
+      licenseCode: "public-domain",
+      licenseLabel: "domena publiczna",
+    });
+
+    expect(credit.license.heading).toBe("Status");
+    expect(buildPhotoCredit(base).license.heading).toBe("Licencja");
   });
 
   it("adds no notice for the public domain mark, which is not a licence", () => {

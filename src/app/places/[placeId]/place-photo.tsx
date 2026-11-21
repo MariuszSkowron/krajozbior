@@ -6,8 +6,12 @@ import styles from "./place-photo.module.css";
 
 // Okładka miejsca (E4-2b, D-E4-7): pierwsze zdjęcie z podpisem. Natywne <img> z `srcset`:
 // miniatura `w400` dla wąskich ekranów, plik `main` dla szerokich. Wymiary z bazy rezerwują
-// miejsce (strona nie skacze). Tekst alternatywny to tytuł z Commons albo nazwa miejsca.
-export function PlacePhoto({ cover }: Readonly<{ cover: PlaceCover }>) {
+// miejsce (strona nie skacze). Tekst alternatywny to nazwa miejsca (5.11.7): tytuł z Commons stoi
+// w podpisie, więc czytnik ekranu nie czyta go drugi raz.
+export function PlacePhoto({
+  cover,
+  placeName,
+}: Readonly<{ cover: PlaceCover; placeName: string }>) {
   const main = `/media/p/${cover.photoId}/main`;
   const thumb = `/media/p/${cover.photoId}/w400`;
   // Zdjęcie nie szersze niż miniatura nie ma wyboru: jeden plik.
@@ -22,7 +26,7 @@ export function PlacePhoto({ cover }: Readonly<{ cover: PlaceCover }>) {
         sizes={hasChoice ? "(min-width: 48rem) 48rem, 100vw" : undefined}
         width={cover.width}
         height={cover.height}
-        alt={cover.altText}
+        alt={placeName}
         decoding="async"
         fetchPriority="high"
       />

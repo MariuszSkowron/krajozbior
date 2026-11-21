@@ -40,7 +40,7 @@ vi.mock("@/features/photos/infrastructure/photo-deps", () => ({
 let db: ScratchDatabase;
 let app: MikroORM;
 let mediaRoot = "";
-let route: typeof import("@/app/media/[kind]/[photoId]/[size]/route");
+let route: typeof import("@/app/media/[[...parts]]/route");
 
 const user = (name: string) => ({ id: randomUUID(), email: `${name}@example.com` });
 const curA = user("pr-cur-a");
@@ -127,10 +127,15 @@ const photo = async (placeId: string, organizationId: string, row: PhotoRow = {}
   return { id, key };
 };
 
-const get = (photoId: string, size = "main", kind = "p", headers: Record<string, string> = {}) =>
-  route.GET(new Request(`http://localhost/media/${kind}/${photoId}/${size}`, { headers }), {
-    params: Promise.resolve({ kind, photoId, size }),
+// The route is an optional catch-all: the segments after `/media` arrive as `parts` (none for
+// `/media` itself).
+const getParts = (parts: string[], headers: Record<string, string> = {}) =>
+  route.GET(new Request(`http://localhost/media/${parts.join("/")}`, { headers }), {
+    params: Promise.resolve({ parts: parts.length === 0 ? undefined : parts }),
   });
+
+const get = (photoId: string, size = "main", kind = "p", headers: Record<string, string> = {}) =>
+  getParts([kind, photoId, size], headers);
 
 const asCuratorA = () => (state.session = { id: curA.id, role: "user" });
 const asGuest = () => (state.session = null);
@@ -194,7 +199,7 @@ describe("GET /media/p/{photoId}/{size}", () => {
       repository: postgresPhotoReadRepository,
       files: createDiskPhotoReader(mediaRoot),
     });
-    route = await import("@/app/media/[kind]/[photoId]/[size]/route");
+    route = await import("@/app/media/[[...parts]]/route");
 
     const publicPlace = await newPlace(orgA);
 
@@ -397,16 +402,34 @@ describe("GET /media/p/{photoId}/{size}", () => {
     },
   );
 
-  it("is left out of the proxy, which would overwrite the cache header of every photo", () => {
+  it.each([[[]], [["p", "x"]], [["a"]], [["a", "b", "c", "d"]], [["p", "x", "main", "y"]]])(
+    "answers the same plain 404 with a sandbox policy for the address /media/%j (wrong number of segments), without a database read",
+    async (parts) => {
+      asGuest();
+      state.guestReads = 0;
+
+      const response = await getParts(parts);
+
+      await expectNotFound(response);
+      expect(response.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+      expect(state.guestReads).toBe(0);
+    },
+  );
+
+  it("is left out of the proxy under media/, which would overwrite the cache header of every photo", () => {
     for (const url of [
       `/media/p/${publicPhoto.id}/main`,
       `/media/p/${publicPhoto.id}/w400`,
       "/media/e/x/main",
+      "/media/a/b/c/d",
     ]) {
       expect(unstable_doesMiddlewareMatch({ config: proxyConfig, url }), url).toBe(false);
     }
 
-    expect(unstable_doesMiddlewareMatch({ config: proxyConfig, url: "/media-kit" })).toBe(true);
+    // `/media` itself and a page whose name only starts with `media` still go through the proxy.
+    for (const url of ["/media", "/media-kit"]) {
+      expect(unstable_doesMiddlewareMatch({ config: proxyConfig, url }), url).toBe(true);
+    }
   });
 
   // The same database, organizations and files as above (one `beforeAll`, one `afterAll`).

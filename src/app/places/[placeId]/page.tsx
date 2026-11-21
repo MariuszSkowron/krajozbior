@@ -115,7 +115,7 @@ export default async function PlacePage({ params }: { params: Params }) {
         <h1>{place.name}</h1>
         <p className={styles.meta}>Prowadzi: {place.organization.name}</p>
       </header>
-      {place.cover === null ? null : <PlacePhoto cover={place.cover} />}
+      {place.cover === null ? null : <PlacePhoto cover={place.cover} placeName={place.name} />}
       <dl className={styles.facts}>
         {place.address === "" ? null : (
           <div>

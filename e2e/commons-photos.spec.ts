@@ -43,7 +43,7 @@ async function expectNoAccessibilityViolations(page: Page) {
   expect(violations).toEqual([]);
 }
 
-type Seeded = { placeId: string; photoId: string; key: string };
+type Seeded = { placeId: string; photoId: string; key: string; name: string };
 
 let publicPlace: Seeded | null = null;
 let draftPlace: Seeded | null = null;
@@ -114,7 +114,7 @@ async function seed(client: Client, organizationId: string, published: boolean):
 
   await writeFiles(key);
 
-  return { placeId, photoId: photo.rows[0]!.id, key };
+  return { placeId, photoId: photo.rows[0]!.id, key, name: `Miejsce ze zdjęciem ${suffix}` };
 }
 
 async function removeSeeded() {
@@ -178,7 +178,8 @@ test.describe("photos from Wikimedia Commons", () => {
     expect(response?.status()).toBe(200);
 
     const figure = page.getByRole("main").locator("figure");
-    const image = figure.getByRole("img", { name: ALT });
+    // The alt text is the name of the place (S3), not the title that the caption already shows.
+    const image = figure.getByRole("img", { name: publicPlace!.name });
 
     await expect(image).toBeVisible();
     await expect(image).toHaveAttribute("src", `/media/p/${photoId}/main`);
@@ -187,6 +188,9 @@ test.describe("photos from Wikimedia Commons", () => {
     await expect
       .poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth))
       .toBeGreaterThan(0);
+
+    // S2: the photo is never cropped (contain, not cover).
+    await expect(image).toHaveCSS("object-fit", "contain");
 
     const credit = figure.locator("figcaption");
 
@@ -231,6 +235,29 @@ test.describe("photos from Wikimedia Commons", () => {
     expect(revalidated.status()).toBe(304);
   });
 
+  // B1: nothing under /media is an HTML page. An address the photo route does not serve gets the
+  // same plain 404 with the sandbox policy, never the "not found" page of the app shell.
+  for (const path of ["/media", "/media/p/x", "/media/a", "/media/a/b/c/d", "/media/p/x/main/y"]) {
+    test(`${path} answers a plain 404 with the sandbox policy and no HTML shell`, async ({
+      request,
+    }) => {
+      const response = await request.get(path);
+
+      expect(response.status()).toBe(404);
+      expect(response.headers()["content-type"]).toMatch(/^text\/plain/);
+      expect(response.headers()["cache-control"]).toBe("private, no-store");
+
+      const policies = response
+        .headersArray()
+        .filter(({ name }) => name.toLowerCase() === "content-security-policy");
+
+      expect(policies).toEqual([
+        { name: expect.any(String), value: "default-src 'none'; sandbox" },
+      ]);
+      expect(await response.text()).toBe("Nie znaleziono.");
+    });
+  }
+
   test("the photo of a place that is only in a draft is not served and its page does not exist", async ({
     page,
     request,
@@ -269,7 +296,7 @@ test.describe("photos from Wikimedia Commons", () => {
   test("the photo and its credit fit a phone screen", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 640 });
     await page.goto(`/places/${publicPlace!.placeId}`);
-    await expect(page.getByRole("img", { name: ALT })).toBeVisible();
+    await expect(page.getByRole("img", { name: publicPlace!.name })).toBeVisible();
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -291,7 +318,7 @@ test.describe("photos from Wikimedia Commons", () => {
       const page = await context.newPage();
 
       await page.goto(`/places/${publicPlace!.placeId}`);
-      await expect(page.getByRole("img", { name: ALT })).toBeVisible();
+      await expect(page.getByRole("img", { name: publicPlace!.name })).toBeVisible();
       await expectNoAccessibilityViolations(page);
       await context.close();
     });

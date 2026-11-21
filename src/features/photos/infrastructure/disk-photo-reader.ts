@@ -29,19 +29,27 @@ export function createDiskPhotoReader(mediaRoot: string): PhotoFileReader {
 
       try {
         const handle = await open(path, "r");
-        const info = await handle.stat();
+        let streaming = false;
 
-        if (!info.isFile()) {
-          await handle.close();
+        try {
+          const info = await handle.stat();
 
-          return null;
+          if (!info.isFile()) {
+            return null;
+          }
+
+          // `createReadStream` zamyka uchwyt po końcu albo błędzie strumienia.
+          const body = Readable.toWeb(handle.createReadStream()) as ReadableStream<Uint8Array>;
+
+          streaming = true;
+
+          return { body, length: info.size };
+        } finally {
+          // Każda ścieżka poza oddaniem strumienia (nie plik, wyjątek ze `stat`) zamyka uchwyt.
+          if (!streaming) {
+            await handle.close().catch(() => undefined);
+          }
         }
-
-        // `createReadStream` zamyka uchwyt po końcu albo błędzie strumienia.
-        return {
-          body: Readable.toWeb(handle.createReadStream()) as ReadableStream<Uint8Array>,
-          length: info.size,
-        };
       } catch (error) {
         const code = (error as NodeJS.ErrnoException).code;
 

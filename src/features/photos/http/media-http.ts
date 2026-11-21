@@ -17,9 +17,10 @@ function notFound(): Response {
 
 export async function handleMediaRequest(
   request: Request,
-  parts: Readonly<{ kind: string; photoId: string; size: string }>,
+  parts: readonly string[],
 ): Promise<Response> {
-  const parsed = parseMediaRequest(parts.kind, parts.photoId, parts.size);
+  // Tylko dokładnie trzy segmenty; każda inna liczba to to samo 404 co zły adres.
+  const parsed = parts.length === 3 ? parseMediaRequest(parts[0]!, parts[1]!, parts[2]!) : null;
 
   if (parsed === null) {
     return notFound();

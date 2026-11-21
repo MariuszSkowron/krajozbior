@@ -32,7 +32,7 @@ export function PhotoCredit({ photo }: Readonly<{ photo: PhotoCreditInput }>) {
             .
           </>
         )}{" "}
-        Licencja:{" "}
+        {credit.license.heading}:{" "}
         {credit.license.url === null ? (
           credit.license.label
         ) : (

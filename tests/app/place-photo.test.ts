@@ -21,7 +21,7 @@ const cover: PlaceCover = {
 };
 
 const render = (value: PlaceCover) =>
-  renderToStaticMarkup(createElement(PlacePhoto, { cover: value }));
+  renderToStaticMarkup(createElement(PlacePhoto, { cover: value, placeName: "Malbork, zamek" }));
 
 describe("PlacePhoto", () => {
   it("shows the cover with srcset, size and alt text", () => {
@@ -33,7 +33,20 @@ describe("PlacePhoto", () => {
     );
     expect(html).toContain('width="1280"');
     expect(html).toContain('height="853"');
-    expect(html).toContain('alt="Zamek w Malborku"');
+    // The alt text is the name of the place, not the title (the caption already says it).
+    expect(html).toContain('alt="Malbork, zamek"');
+    expect(html).not.toContain('alt="Zamek w Malborku"');
+  });
+
+  it("heads the credit of a public domain photo with Status, not Licencja", () => {
+    const html = render({
+      ...cover,
+      licenseCode: "public-domain",
+      licenseLabel: "domena publiczna",
+    });
+
+    expect(html).toContain("Status:");
+    expect(html).not.toContain("Licencja:");
   });
 
   it("gives a photo not wider than the thumbnail a single file", () => {
