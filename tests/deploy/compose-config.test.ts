@@ -38,6 +38,7 @@ type ComposeService = {
   environment?: Record<string, string>;
   network_mode?: string;
   mem_limit?: string;
+  volumes?: { type?: string; source?: string; target?: string; read_only?: boolean }[];
 };
 type ComposeConfig = {
   name: string;
@@ -111,6 +112,31 @@ function dummySecretsFile(): string {
 const SERVER = ["deploy/compose.yaml"];
 const SHOWCASE = ["deploy/compose.yaml", "deploy/compose.showcase.yaml"];
 
+// E4-0b1 (spec 5.11.1): the photo volume. `app` only reads it until E4-1; `ops` writes.
+const MEDIA_ROOT = "/var/lib/krajozbior/media";
+
+function mediaMount(config: ComposeConfig, service: string, source: string) {
+  return config.services[service]?.volumes?.find((volume) => volume.source === source);
+}
+
+function expectMediaVolumes(config: ComposeConfig, source: string, backupState: string) {
+  const app = mediaMount(config, "app", source);
+  const ops = mediaMount(config, "ops", source);
+
+  expect(app?.target, "app mount").toBe(MEDIA_ROOT);
+  expect(app?.read_only, "app mount is read-only until E4-1").toBe(true);
+  expect(ops?.target, "ops mount").toBe(MEDIA_ROOT);
+  expect(ops?.read_only ?? false, "ops mount is writable").toBe(false);
+  // Only the one-off backup container mounts the state volume (E4-0b2), none of these services.
+  expect(mediaMount(config, "app", backupState)).toBeUndefined();
+  expect(mediaMount(config, "ops", backupState)).toBeUndefined();
+  expect(config.services.proxy?.volumes?.some((volume) => volume.source === source) ?? false).toBe(
+    false,
+  );
+  expect(config.services.app?.environment?.MEDIA_ROOT).toBe(MEDIA_ROOT);
+  expect(config.services.ops?.environment?.MEDIA_ROOT).toBe(MEDIA_ROOT);
+}
+
 describe("server configuration (deploy/compose.yaml)", () => {
   dockerComposeIt("publishes ports only for the proxy", () => {
     const config = composeConfig(SERVER, ["--profile", "ops"]);
@@ -167,6 +193,27 @@ describe("server configuration (deploy/compose.yaml)", () => {
     for (const flag of DEMO_FLAGS) {
       expect(output, flag).not.toContain(flag);
     }
+  });
+
+  dockerComposeIt("mounts the photo volume read-only in app and writable in ops", () => {
+    const config = composeConfig(SERVER, ["--profile", "ops"]);
+
+    expect(config.volumes?.media?.name).toBe("krajozbior-media");
+    expectMediaVolumes(config, "media", "media-backup-state");
+  });
+
+  // `docker compose config` leaves out a volume no service mounts (the one-off backup container of
+  // E4-0b2 will), so the names of the state volume are checked in the files.
+  it("declares the backup-state volume under its own name on the server, showcase and rehearsal", () => {
+    expect(read("deploy/compose.yaml")).toMatch(
+      /media-backup-state:\s*\n\s*name: krajozbior-media-backup-state/,
+    );
+    expect(read("deploy/compose.showcase.yaml")).toMatch(
+      /media-backup-state:\s*\n\s*name: krajozbior-showcase-media-backup-state/,
+    );
+    expect(read("deploy/compose.showcase-target.yaml")).toMatch(
+      /media-backup-state:\s*\n\s*name: \$\{KZ_PROJECT:\?\}-media-backup-state/,
+    );
   });
 
   it("keeps the demo flags out of the shared files", () => {
@@ -347,6 +394,13 @@ describe("local showcase (deploy/compose.showcase.yaml)", () => {
     expect(Object.keys(config.services).sort()).toEqual(["app", "db"]);
   });
 
+  dockerComposeIt("gives the showcase its own photo volumes, mounted as on the server", () => {
+    const config = composeConfig(SHOWCASE, ["--profile", "ops"], dummySecretsFile());
+
+    expect(config.volumes?.media?.name).toBe("krajozbior-showcase-media");
+    expectMediaVolumes(config, "media", "media-backup-state");
+  });
+
   dockerComposeIt("publishes only the application, only on 127.0.0.1:3300", () => {
     const config = composeConfig(SHOWCASE, ["--profile", "ops"], dummySecretsFile());
 
@@ -424,6 +478,18 @@ describe("local showcase (deploy/compose.showcase.yaml)", () => {
     ]);
     expect(config.services.app?.environment?.BETTER_AUTH_URL).toBe("http://localhost:3310");
     expect(config.services.proxy).toBeUndefined();
+  });
+
+  dockerComposeIt("gives a rehearsal project its own photo volumes", () => {
+    const config = composeConfig(
+      TARGET,
+      ["-p", "krajozbior-rehearsal", "--profile", "ops"],
+      dummySecretsFile(),
+      TARGET_VARIABLES,
+    );
+
+    expect(config.volumes?.media?.name).toBe("krajozbior-rehearsal-media");
+    expectMediaVolumes(config, "media", "media-backup-state");
   });
 
   dockerComposeIt("refuses the target overlay without a commit image tag", () => {
@@ -509,6 +575,32 @@ describe("production image (Dockerfile)", () => {
     );
 
     expect(runtime).toMatch(/^USER node$/m);
+  });
+
+  it("creates the photo directories owned by node (never root) in both images, before USER node", () => {
+    const runtime = dockerfile.slice(
+      dockerfile.indexOf("AS runtime"),
+      dockerfile.indexOf("AS ops"),
+    );
+    const ops = dockerfile.slice(dockerfile.indexOf("AS ops"));
+
+    for (const [name, stage] of [
+      ["runtime", runtime],
+      ["ops", ops],
+    ] as const) {
+      const create = stage.indexOf(
+        "mkdir -p /var/lib/krajozbior/media /var/lib/krajozbior/backup-state",
+      );
+
+      expect(create, `${name}: mkdir`).toBeGreaterThanOrEqual(0);
+      expect(create, `${name}: before USER node`).toBeLessThan(stage.indexOf("USER node"));
+      expect(stage, name).toContain(
+        "chown node:node /var/lib/krajozbior/media /var/lib/krajozbior/backup-state",
+      );
+      expect(stage, name).toContain(
+        "chmod 0700 /var/lib/krajozbior/media /var/lib/krajozbior/backup-state",
+      );
+    }
   });
 
   it("installs only production dependencies in the runtime image", () => {
