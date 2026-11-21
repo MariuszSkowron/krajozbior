@@ -5,6 +5,18 @@
 	log {
 		level ERROR
 	}
+
+	# Jawne limity czasu połączenia (NOWE-1): wolne połączenia nie zajmują gniazd w nieskończoność.
+	# Nagłówki 10 s i treść 30 s wystarczą dla formularzy po kilka KB; zapis odpowiedzi 60 s
+	# z zapasem ponad limit 15 s zapytania do bazy (#61); bezczynne połączenie 2 min.
+	servers {
+		timeouts {
+			read_header 10s
+			read_body 30s
+			write 60s
+			idle 2m
+		}
+	}
 }
 
 www.krajozbior.pl, http://krajozbior.pl, http://www.krajozbior.pl {
