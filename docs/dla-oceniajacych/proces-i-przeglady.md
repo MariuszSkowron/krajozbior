@@ -14,6 +14,13 @@ Pełny opis: [docs/agent-workflow.md](../agent-workflow.md) i [SDLC.md](../../SD
 4. **Poprawki** wprowadza świeży agent, a na poziomie A sprawdza je kolejny, niezależny agent.
 5. **Scalenie.** GitHub scala PR sam, gdy przejdą wszystkie wymagane kontrole (testy, skan sekretów, kontrola czystości repozytorium, statusy przeglądów) i, dla ścieżek wrażliwych, gdy właściciel zatwierdzi zmianę. Agent nie może scalić ani zatwierdzić PR-a.
 
+## Repozytorium gotowe do pracy z agentami
+
+- **Zasady:** [AGENTS.md](../../AGENTS.md) mówi agentowi, co wolno, jak pisać i testować kod, jak prowadzić specyfikacje i dzienniki oraz jak dobrać model do zadania (Opus do projektowania i przeglądów wrażliwych zmian, Sonnet do implementacji według specyfikacji, Haiku do prac mechanicznych). Przepływ od zadania do scalenia: [docs/agent-workflow.md](../agent-workflow.md).
+- **Skille** (gotowe instrukcje dla agenta do powtarzalnych zadań): własny skill projektu [`private-data`](../../.claude/skills/private-data/SKILL.md) prowadzi agenta przy każdej funkcji z danymi prywatnymi, od klasyfikacji danych przez migrację z regułami dostępu po wymagany test odmowy. Skille `om-*` w [`.claude/skills/`](../../.claude/skills/) obsługują pisanie i przegląd specyfikacji (`om-spec-writing`), backlog (`om-backlog`), przegląd kodu (`om-code-review`), raport bezpieczeństwa (`om-auto-sec-report-pr`) i otwieranie PR-ów. Zlecenie dla agenta podaje, który skill ma wczytać jako pierwszy; sprawdzamy to w zapisie jego sesji.
+- **Hooki:** sześć programów w [`.claude/hooks/`](../../.claude/hooks/) sprawdza każde polecenie agenta przed wykonaniem, np. blokuje migrację tabeli bez reguł dostępu albo zmianę plików poleceniami terminala. Lista z opisem i testami: [security-notes.md](../../security-notes.md).
+- **Praca równoległa:** każdy agent pracuje we własnej kopii repozytorium (worktree), z własną bazą testową i portem, więc agenci nie przeszkadzają sobie nawzajem.
+
 ## Zabezpieczenia procesu
 
 - **Osobna tożsamość agentów.** Agenci działają na GitHubie jako aplikacja projektu z wąskimi uprawnieniami, z tokenem ważnym godzinę. Nie mogą zatwierdzać PR-ów ani zmieniać ustawień repozytorium.
@@ -42,6 +49,14 @@ Numery to publiczne numery PR-ów w tym repozytorium. Uwagi drobne i kosmetyczne
 - **#32, przypięty przycisk wizyty na telefonie** (poziom B, Sonnet): uwagi poprawione i sprawdzone niezależnie; zatwierdzony. Zmiana tylko w warstwie wyglądu.
 - **#33, hook blokujący zapis plików z terminala**: trzy rundy poprawek, każda z niezależną weryfikacją; zatwierdzony.
 - **#34, wizyta z przeszłości** (poziom A, Opus, plus przegląd bezpieczeństwa): poprawki sprawdził niezależnie kolejny agent; zatwierdzony.
+- **#38–#41 i #49, epika E12 „Odkrywanie”** (poziom A, Opus): cztery PR-y zatwierdzone przy pierwszym przeglądzie (bez uwag blokujących i ważnych), mapa (#49) po poprawce dwóch uwag ważnych. Szczegóły: [Specyfikacja E12](specyfikacja-e12-odkrywanie.md#przeglądy-pr-ów-epiki).
+
+Późniejsze PR-y z kodem miały przegląd innego modelu niż autor (zwykle autor Sonnet, recenzent Opus; przy #60 recenzentem był Claude Fable). Wynik pierwszego przeglądu:
+
+- **zatwierdzone od razu:** #47 (baza pod wgrywanie kolekcji; tylko uwagi drobne), #54 (statystyki profilu; 1 uwaga średnia, 6 drobnych), #56 (właściciel kodu dla całego repozytorium);
+- **zatwierdzone po poprawkach** (większe poprawki sprawdzał kolejny, niezależny agent): #50 (profil; 2 uwagi średnie), #53 (wgrywanie kolekcji z pliku; 2 średnie, 9 drobnych), #55 (obraz produkcyjny i konfiguracja serwera; 2 średnie), #57 (wysyłka kodów logowania; 2 ważne), #58 (strony prawne i akceptacja regulaminu; 1 ważna), #60 (logi i limity; 1 blokująca w dokumentacji i teście), #61 (limit czasu zapytań; 1 drobna w dokumentacji), #63 (publiczne notatki bezpieczeństwa).
+
+We wszystkich tych PR-ach nie było uwag krytycznych. Treść uwag dotyczących bezpieczeństwa publikujemy tylko w tej ogólnej postaci.
 
 ## Przegląd bezpieczeństwa ścieżki konkursowej
 
