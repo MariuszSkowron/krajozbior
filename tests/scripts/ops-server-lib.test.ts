@@ -3,7 +3,10 @@ import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Starting Git Bash processes is slow on Windows under load (review F-K4, N3).
+vi.setConfig({ testTimeout: 30_000 });
 
 // F-K4 (E11): the server-side deployment scripts are checked without a server. Every script must
 // parse (`bash -n`); the pure functions of scripts/ops/server/lib.sh run against temporary files.
@@ -336,7 +339,8 @@ describe("deployment modes with stubbed docker, git and network (remote.sh)", ()
       "flags-ok",
       "compose --profile ops build app ops tag=cccccccccccc",
       "ops db:migrate",
-      "compose up -d --wait app proxy tag=cccccccccccc",
+      "compose up -d --wait app tag=cccccccccccc",
+      "compose up -d --wait --force-recreate proxy tag=cccccccccccc",
       "site-check",
       "prune cccccccccccc aaaaaaaaaaaa",
     ]);
@@ -349,10 +353,12 @@ describe("deployment modes with stubbed docker, git and network (remote.sh)", ()
     const result = runMode("commit", { SITE_SEQ: "0 1" }, initialized);
 
     expect(result.status).toBe(1);
-    expect(steps(result.stdout).slice(-4)).toEqual([
+    // N1: the Caddyfile is a single-file bind mount; only a recreated proxy sees the new file.
+    expect(steps(result.stdout).slice(-5)).toEqual([
       "site-check",
       `checkout ${PREVIOUS}`,
-      "compose up -d --wait app proxy tag=aaaaaaaaaaaa",
+      "compose up -d --wait app tag=aaaaaaaaaaaa",
+      "compose up -d --wait --force-recreate proxy tag=aaaaaaaaaaaa",
       "site-check",
     ]);
     expect(result.stdout).toContain(
@@ -733,6 +739,34 @@ exit 0
     },
     30_000,
   );
+
+  // N2: a backup or a current-tag means the server once ran with data; never remove the volume.
+  for (const [name, mark] of [
+    ["a backup file", "backups/daily-20261121T000000Z.sql.age"],
+    ["state/current-tag", "state/current-tag"],
+  ] as const) {
+    bashIt(
+      `refuses to remove the volume when ${name} exists`,
+      () => {
+        const box = initialBox("roles-fail-once");
+
+        expect(box.run().status).toBe(1);
+        execFileSync(bash ?? "bash", [
+          "-c",
+          'mkdir -p "$(dirname "$0/$1")"; echo x >"$0/$1"',
+          box.root,
+          mark,
+        ]);
+
+        const second = box.run();
+
+        expect(second.status).toBe(1);
+        expect(second.stdout).toContain("odmawiam usuniecia wolumenu");
+        expect(second.docker).not.toContain("volume rm");
+      },
+      30_000,
+    );
+  }
 });
 
 describe("small helpers", () => {

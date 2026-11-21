@@ -69,8 +69,23 @@ kz_require_ops_env_file() {
     kz_fail "deploy/compose.yaml tego commita nie ma osobnego pliku operatora (KRAJOZBIOR_OPS_ENV_FILE). Najpierw scal PR #60 i wdrazaj commit po scaleniu; nic nie uruchamiam"
 }
 
+# Starts the application and Caddy. The proxy is always recreated: the Caddyfile is a
+# single-file bind mount, and after `git checkout` the running container still sees the old
+# inode, so neither `up -d` (definition unchanged) nor `caddy reload` would apply a new file.
+# The cost is a few seconds without the site; the certificate lives in a volume (review F-K4, N1).
+kz_up_app_proxy() {
+  kz_compose up -d --wait app &&
+    kz_compose up -d --wait --force-recreate proxy
+}
+
 # Name of the database volume (deploy/compose.yaml, volumes.pgdata.name).
 KZ_PGDATA_VOLUME="krajozbior-pgdata"
+
+# True when the server has ever held real data: any backup or a recorded running version.
+kz_has_real_data() {
+  [ -f "$KZ_STATE/current-tag" ] && return 0
+  [ -d "$KZ_BACKUPS" ] && [ -n "$(find "$KZ_BACKUPS" -type f 2>/dev/null | head -n 1)" ]
+}
 
 # First start of the database with the one-time superuser password, roles, PASSWORD NULL.
 # Runs only while the volume holds no data yet (no `db-ready` marker): a volume left by an
@@ -78,6 +93,8 @@ KZ_PGDATA_VOLUME="krajozbior-pgdata"
 # removed and the database starts from scratch (review F-K4, B5).
 kz_initial_database() {
   if docker volume inspect "$KZ_PGDATA_VOLUME" >/dev/null 2>&1 </dev/null; then
+    ! kz_has_real_data ||
+      kz_fail "wolumen bazy istnieje, a serwer ma kopie zapasowe albo zapisana wersje (state/current-tag): odmawiam usuniecia wolumenu. Sprawdz recznie (-Diagnoza), ewentualnie odtworz z kopii"
     kz_step "baza z przerwanego podejscia (bez danych, bez znacznika db-ready): zaczynam ja od nowa"
     kz_compose down
     docker volume rm "$KZ_PGDATA_VOLUME" >/dev/null </dev/null
@@ -126,7 +143,7 @@ kz_mode_initial() {
   kz_state_set db-ready "$(date -u +%FT%TZ)"
 
   kz_step "aplikacja i Caddy (certyfikat TLS moze potrwac do 2-3 minut)"
-  kz_compose up -d --wait app proxy
+  kz_up_app_proxy
   kz_site_ok 36 || kz_fail "serwis nie odpowiada poprawnie po pierwszym wdrozeniu"
 
   kz_state_set current-tag "$IMAGE_TAG"
@@ -188,7 +205,7 @@ kz_mode_commit() {
   kz_ops db:migrate
 
   kz_step "podmiana aplikacji"
-  if kz_compose up -d --wait app proxy && kz_site_ok; then
+  if kz_up_app_proxy && kz_site_ok; then
     KZ_RESTORE_COMMIT=""
     kz_state_set previous-tag "$previous"
     kz_state_set previous-commit "$previous_commit"
@@ -207,7 +224,7 @@ kz_mode_commit() {
   export IMAGE_TAG
   kz_step "powrot do poprzedniej wersji $previous: kod, aplikacja i Caddy (migracji nie cofam)"
   if [ -n "$previous_commit" ] && (kz_checkout "$previous_commit") &&
-    kz_compose up -d --wait app proxy && kz_site_ok; then
+    kz_up_app_proxy && kz_site_ok; then
     kz_fail "wdrozenie $failed nieudane; przywrocono $previous i strona odpowiada. Baza jest juz po migracjach $failed (poprzedni kod dziala na nowym schemacie). Cofniecie migracji = odtworzenie kopii przed wdrozeniem (decyzja czlowieka)"
   fi
   kz_fail "wdrozenie $failed nieudane i powrot do $previous tez nieudany: serwis moze nie dzialac. Uruchom -Diagnoza i napisz agentowi"

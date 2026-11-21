@@ -85,9 +85,10 @@ kz_bootstrap_firewall() {
   ufw allow 443/tcp >/dev/null
   ufw allow 443/udp >/dev/null
   ufw --force enable >/dev/null
-  cat >/etc/fail2ban/jail.d/krajozbior.conf <<'EOF'
+  cat >/etc/fail2ban/jail.d/krajozbior.conf <<EOF
 [sshd]
 enabled = true
+port = $(kz_ssh_port)
 backend = systemd
 maxretry = 5
 findtime = 10m

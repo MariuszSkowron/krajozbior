@@ -4,7 +4,10 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Starting PowerShell processes is slow on Windows under load (review F-K4, N3).
+vi.setConfig({ testTimeout: 30_000 });
 
 // F-K4 (E11): the PowerShell side of the deployment (scripts/ops/deploy-lib.ps1) is tested without a
 // server: configuration, commit check, vault text, payload, report masking, host key pinning.

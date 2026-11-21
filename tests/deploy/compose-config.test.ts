@@ -3,7 +3,10 @@ import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// `docker compose config` takes more than 5 s under a full test:unit (review F-K4, N3).
+vi.setConfig({ testTimeout: 30_000 });
 
 // F-K1 (E11, D-E11-1, D-E11-5, D-E11-8): the configuration of the server and of the local
 // showcase is checked as files (always) and as the result of `docker compose config` (when
