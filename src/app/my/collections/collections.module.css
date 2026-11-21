@@ -33,6 +33,39 @@
   }
 }
 
+/* Filtr postępu: pole z etykietą i przycisk w jednym rzędzie, zawijane na telefonie. */
+.filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-sm);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+/* „Nowa w okolicy”: objaśnienie, przycisk i komunikat (region status) nad siatką kart. */
+.nearby {
+  display: grid;
+  gap: var(--space-sm);
+  justify-items: start;
+}
+
+.nearby p {
+  margin: 0;
+}
+
+.cardNote {
+  margin: var(--space-xs) 0 0;
+}
+
+.noMatch {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
 .feedback {
   margin: 0;
   color: var(--color-text-secondary);
