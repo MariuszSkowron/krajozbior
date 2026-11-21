@@ -102,6 +102,13 @@
 /src/features/profile/             @MariuszSkowron
 /tests/features/profile/           @MariuszSkowron
 
+# Ustawienia konta (E9-4): motyw zapamiętany na koncie (dane PRIV); test odmowy dostępu i E2E
+# dwóch przeglądarek
+/src/features/settings/            @MariuszSkowron
+/tests/features/settings/          @MariuszSkowron
+/tests/integration/account-settings-access.test.ts @MariuszSkowron
+/e2e/account-theme.spec.ts         @MariuszSkowron
+
 # Usunięcie konta (E9-5): przypadek użycia, trasa w /src/app/api/ już ma właściciela,
 # ekran Ustawienia, test dwóch przeglądarek i ponownego logowania
 /src/features/account/             @MariuszSkowron
