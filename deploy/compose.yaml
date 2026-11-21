@@ -6,7 +6,9 @@
 #   - każda usługa ma `restart: unless-stopped` i sterownik logów journald (D-E11-5),
 #   - tu nie ma zmiennych pokazu ani trzech flag demo (lista w docs/deployment.md);
 #     leżą w deploy/showcase.env i nakładce compose.showcase.yaml,
-#   - hasło superużytkownika bazy jest jednorazowym plikiem (D-E11-11), nie zmienną środowiska.
+#   - hasło superużytkownika bazy jest jednorazowym plikiem (D-E11-11), nie zmienną środowiska,
+#     i tylko w nakładce pierwszego startu deploy/compose.init.yaml: zwykły start bazy nie
+#     potrzebuje pliku z /run, którego po restarcie serwera już nie ma.
 # Ścieżki względne liczą się od katalogu tego pliku (deploy/).
 name: krajozbior
 
@@ -25,7 +27,6 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_DB: krajozbior
-      POSTGRES_PASSWORD_FILE: /run/secrets/pg_bootstrap
       # Bez `trust` w pg_hba.conf: gniazdo tylko dla `peer` (docker exec -u postgres), TCP zawsze
       # z hasłem (także z 127.0.0.1). Ustawienie zapisuje się przy pierwszej inicjalizacji wolumenu.
       POSTGRES_INITDB_ARGS: "--auth-local=peer --auth-host=scram-sha-256"
@@ -50,8 +51,6 @@ services:
       - log_connections=off
       - -c
       - log_disconnections=off
-    secrets:
-      - pg_bootstrap
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -93,6 +92,9 @@ services:
       - "443:443/udp"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Bramka hasła przed otwarciem serwisu (spec 5.4a): plik `gate.caddy` kładzie i zdejmuje
+      # skrypt wdrożenia (scripts/ops/); pusty katalog = serwis otwarty.
+      - ${KRAJOZBIOR_CADDY_GATE_DIR:-/srv/krajozbior/caddy-gate}:/etc/caddy/gate:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
@@ -127,10 +129,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-
-secrets:
-  pg_bootstrap:
-    file: ${PG_BOOTSTRAP_FILE:-/run/krajozbior/pg-bootstrap}
 
 volumes:
   pgdata:
