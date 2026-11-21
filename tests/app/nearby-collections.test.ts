@@ -46,7 +46,7 @@ const candidates: NearbyCandidate[] = [
     placeCount: 3,
     centerLat: 54.1,
     centerLon: 18,
-    firstPublishedAt: null,
+    firstPublishedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
     slug: "daleko",
@@ -131,6 +131,7 @@ describe("NearbyCollections", () => {
     expect(markup).toMatch(/<button [^>]*>Pokaż kolekcje w okolicy<\/button>/);
     expect(markup).toMatch(/<p role="status"><\/p>/);
     expect(markup).not.toContain("/collections/");
+    expect(markup).not.toContain("Nowa w okolicy");
     expect(geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
 
@@ -162,10 +163,40 @@ describe("NearbyCollections", () => {
     expect(markup).toContain("Jedna kolekcja w promieniu 50 km.");
     expect(markup).toContain('href="/collections/blisko"');
     expect(markup).toContain("11 km · 3 miejsca");
+    expect(markup).toContain("Nowa w okolicy");
     expect(markup).not.toContain("/collections/daleko");
     expect(markup).toContain("Sprawdź ponownie");
     // Neither the position nor the accuracy is kept anywhere in the markup.
     expect(markup).not.toMatch(/54\.0|18\.0/);
+  });
+
+  it("marks only a collection published within 30 days; an old or never published one has no mark", () => {
+    stubGeolocation((success) => success(reading(54, 18)));
+
+    const day = 24 * 60 * 60 * 1000;
+    const withDates = (dates: (string | null)[]) =>
+      dates.map((firstPublishedAt, index) => ({
+        ...candidates[0]!,
+        slug: `c${index}`,
+        title: `C${index}`,
+        firstPublishedAt,
+      }));
+    const run = (list: NearbyCandidate[]) => {
+      store.values = [];
+      store.cursor = 0;
+      findButton(NearbyCollections({ candidates: list }) as ReactElement)?.props.onClick?.();
+      store.cursor = 0;
+
+      return renderToStaticMarkup(NearbyCollections({ candidates: list }) as ReactElement);
+    };
+
+    const old = run(withDates([new Date(Date.now() - 31 * day).toISOString(), null, "nie data"]));
+
+    expect(old).toContain("/collections/c0");
+    expect(old).not.toContain("Nowa w okolicy");
+    expect(run(withDates([new Date(Date.now() - 29 * day).toISOString(), null]))).toContain(
+      "Nowa w okolicy",
+    );
   });
 
   it("says when the reading is coarse, and when no collection lies in the radius", () => {
