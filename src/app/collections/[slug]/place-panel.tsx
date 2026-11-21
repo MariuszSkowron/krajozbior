@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PlaceSources } from "@/app/places/[placeId]/place-sources";
 import { WantToSeeButton } from "@/app/places/[placeId]/want-to-see-button";
 import { StatusBadge } from "@/design-system/components/status-badge";
 import type { PublishedPlace } from "@/features/catalog/application/catalog-types";
@@ -81,6 +82,7 @@ export function PlacePanel({ panel }: Readonly<{ panel: PanelPlace }>) {
               </div>
             )}
           </dl>
+          <PlaceSources source={ok.place.source} />
           <div className={albumStyles.panelActions}>
             {ok.wanted === null || (ok.visit === "on_site" && !ok.wanted) ? null : (
               <WantToSeeButton key={ok.place.id} placeId={ok.place.id} initialWanted={ok.wanted} />

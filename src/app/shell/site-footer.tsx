@@ -23,6 +23,11 @@ export function SiteFooter() {
             </li>
           ))}
           <li>
+            <a className={styles.footerLink} href="/zrodla">
+              Źródła danych
+            </a>
+          </li>
+          <li>
             <a className={styles.footerLink} href={`mailto:${CONTACT_EMAIL}`}>
               Kontakt
             </a>
