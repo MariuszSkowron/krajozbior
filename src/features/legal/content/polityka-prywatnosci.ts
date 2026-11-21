@@ -1,7 +1,7 @@
 // Polityka prywatności: tekst publiczny, przeniesiony z roboczej wersji 0.2 (19 listopada 2026 r.)
 // bez zmian merytorycznych. Wartości z E11-Q12 (okresy przechowywania, czas sesji) są wpisane;
 // miejsca z napisem „DO UZUPEŁNIENIA” czekają na dane od właściciela (śledzenie w panelu
-// Brevo, państwa OpenStreetMap), a test w tests/features/legal/legal-content.test.ts pilnuje, żeby
+// Brevo), a test w tests/features/legal/legal-content.test.ts pilnuje, żeby
 // żadne nie trafiło do ruchu publicznego.
 export const POLITYKA_PRYWATNOSCI = `
 ## 1. Kto odpowiada za Twoje dane
@@ -84,7 +84,7 @@ Na stronie kolekcji domyślnie widać listę miejsc. Gdy wybierzesz widok „Map
 
 Za samo osadzenie mapy i przekazanie tych danych odpowiadamy razem z OpenStreetMap Foundation; podstawą jest nasz prawnie uzasadniony interes w pokazaniu miejsc na mapie (art. 6 ust. 1 lit. f RODO). Dalej OpenStreetMap Foundation samodzielnie decyduje o celach i sposobach przetwarzania tych danych, zgodnie ze swoją polityką prywatności: <https://osmfoundation.org/wiki/Privacy_Policy>.
 
-Wobec Wielkiej Brytanii Komisja Europejska stwierdziła odpowiedni stopień ochrony danych (decyzja obowiązuje do 27 grudnia 2031 r.). OpenStreetMap Foundation korzysta z sieci serwerów pośredniczących, więc dane mogą trafić także do innych państw. [DO UZUPEŁNIENIA: państwa i zabezpieczenia]
+Wobec Wielkiej Brytanii Komisja Europejska stwierdziła odpowiedni stopień ochrony danych (decyzja obowiązuje do 27 grudnia 2031 r.). OpenStreetMap Foundation dostarcza fragmenty mapy przez globalną sieć serwerów pośredniczących (według jej informacji korzysta z usług firmy Fastly), więc Twoje dane mogą trafić także do państw poza Wielką Brytanią. OpenStreetMap Foundation nie podaje listy tych państw ani zabezpieczeń takiego przekazania; szczegóły opisuje w swojej polityce prywatności, do której odsyłamy wyżej.
 
 Jeśli nie chcesz przekazywać tych danych, nie wybieraj widoku „Mapa”; lista miejsc zawiera te same informacje.
 
