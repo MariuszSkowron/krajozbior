@@ -9,7 +9,7 @@ Pełne dokumenty techniczne: [docs/architecture.md](../architecture.md) (budowa 
 ## Budowa aplikacji
 
 - `src/app`: strony i trasy API. Trasa sprawdza dane wejściowe, ustala, kto pyta, i wywołuje przypadek użycia.
-- `src/features`: obszary produktu z własną logiką: tożsamość (logowanie), organizacje, katalog (kolekcje i miejsca), album, wizyty, „Chcę zobaczyć”. Reguły domeny są czystymi funkcjami z pełnym pokryciem testami.
+- `src/features`: obszary produktu z własną logiką: tożsamość (logowanie), organizacje, katalog (kolekcje i miejsca), album, wizyty, „Chcę zobaczyć”, profil, konto (usunięcie), regulamin i strony prawne. Reguły domeny są czystymi funkcjami z pełnym pokryciem testami.
 - `src/design-system`: tokeny wyglądu, motywy i wspólne elementy interfejsu, bez reguł domeny.
 - `src/lib`: baza, konfiguracja, nagłówki bezpieczeństwa, logowanie błędów.
 
