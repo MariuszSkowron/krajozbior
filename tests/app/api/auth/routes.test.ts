@@ -26,6 +26,16 @@ const otpLimiter = vi.hoisted(() => ({ reserve: vi.fn() }));
 
 const ipHeader = vi.hoisted(() => ({ value: undefined as string | undefined }));
 
+// The theme saved on the account (E9-4): a use case over a fake repository.
+const settings = vi.hoisted(() => ({ readTheme: vi.fn() }));
+
+vi.mock("@/features/settings/infrastructure/settings-deps", () => ({
+  getSettingsDeps: () => ({
+    withUserContext: async (_actor: unknown, work: (tx: unknown) => Promise<unknown>) => work({}),
+    repository: { readTheme: settings.readTheme, saveTheme: vi.fn() },
+  }),
+}));
+
 vi.mock("@/features/identity/infrastructure", () => ({
   getIdentityProvider: (): IdentityProvider => provider,
   getSignInThrottle: () => throttle,
@@ -88,6 +98,63 @@ beforeEach(() => {
   otpLimiter.reserve.mockReset().mockResolvedValue({ allowed: true });
   provider.requestSignInCode.mockReset().mockResolvedValue(undefined);
   provider.signInWithCode.mockReset();
+  settings.readTheme.mockReset().mockResolvedValue(null);
+});
+
+describe("the theme saved on the account after sign-in (E9-4)", () => {
+  const session = "krajozbior.session_token=a; HttpOnly";
+
+  it("adds the cookie of the saved theme to a password sign-in", async () => {
+    provider.signIn.mockResolvedValue({ actor, setCookies: [session] });
+    provider.signOut.mockResolvedValue([]);
+    settings.readTheme.mockResolvedValue("light");
+
+    const response = await login(jsonLogin(JSON.stringify({ email: "a@b.test", password: "pw" })));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.getSetCookie()).toEqual([
+      session,
+      expect.stringMatching(
+        /^krajozbior-theme=light; Max-Age=31536000; Path=\/; HttpOnly; SameSite=Lax/,
+      ),
+    ]);
+  });
+
+  it("adds it to a sign-in with a code as well", async () => {
+    provider.signInWithCode.mockResolvedValue({ actor, setCookies: [session] });
+    provider.signOut.mockResolvedValue([]);
+    settings.readTheme.mockResolvedValue("dark");
+
+    const response = await verifyCode(
+      jsonPost("/api/auth/code/verify", { email: "a@b.test", code: "123456" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.getSetCookie()).toEqual([
+      session,
+      expect.stringMatching(/^krajozbior-theme=dark;/),
+    ]);
+  });
+
+  it("leaves the cookie of the browser when the account never chose a theme", async () => {
+    provider.signIn.mockResolvedValue({ actor, setCookies: [session] });
+    provider.signOut.mockResolvedValue([]);
+
+    const response = await login(jsonLogin(JSON.stringify({ email: "a@b.test", password: "pw" })));
+
+    expect(response.headers.getSetCookie()).toEqual([session]);
+  });
+
+  it("does not block the sign-in when the theme cannot be read", async () => {
+    provider.signIn.mockResolvedValue({ actor, setCookies: [session] });
+    provider.signOut.mockResolvedValue([]);
+    settings.readTheme.mockRejectedValue(new Error("database down"));
+
+    const response = await login(jsonLogin(JSON.stringify({ email: "a@b.test", password: "pw" })));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.getSetCookie()).toEqual([session]);
+  });
 });
 
 describe("POST /api/auth/code/request limits", () => {

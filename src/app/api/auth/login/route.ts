@@ -6,6 +6,7 @@ import { getIdentityProvider, getSignInThrottle } from "@/features/identity/infr
 import { logFailure } from "@/lib/log-failure";
 
 import {
+  accountThemeCookies,
   failure,
   isRefusedDemoAccount,
   NO_STORE,
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
     // only after success, so a failed attempt keeps the current user signed in.
     await provider.signOut(request.headers);
 
-    return signedIn(request, result, returnTo);
+    return signedIn(request, result, returnTo, await accountThemeCookies(result.actor));
   } catch (error) {
     logFailure("Sign-in", error);
     // Provider or database failure: no session cookie is sent. A session created
