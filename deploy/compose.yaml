@@ -74,6 +74,12 @@ services:
         required: false
     # Górna granica pamięci: nadużycie aplikacji nie zabiera pamięci bazie na tym samym serwerze.
     mem_limit: 1g
+    # Zdjęcia (E4, spec 5.11.1): wolumen tylko do odczytu, dopóki aplikacja zdjęć nie przyjmuje
+    # (E4-1 zmieni to na odczyt i zapis). Zły stan katalogu tylko ostrzega w logu przy starcie.
+    environment:
+      MEDIA_ROOT: /var/lib/krajozbior/media
+    volumes:
+      - media:/var/lib/krajozbior/media:ro
     depends_on:
       db:
         condition: service_healthy
@@ -126,8 +132,12 @@ services:
     # też, chyba że dostanie jawny tryb `--target server` z potwierdzeniem hosta (F-K6; uruchamia go
     # tylko tryb `-Import` skryptu wdrożenia, katalog z plikiem montowany tylko do odczytu).
     # Kontener nie dzieli sieci z bazą (pilnuje tego test); tylko nakładka pokazu nadpisuje NODE_ENV.
+    # MEDIA_ROOT przychodzi stąd, nie z pliku operatora; wolumen zdjęć z zapisem (`photos:fetch`, `photos:sweep`).
     environment:
       NODE_ENV: production
+      MEDIA_ROOT: /var/lib/krajozbior/media
+    volumes:
+      - media:/var/lib/krajozbior/media
     depends_on:
       db:
         condition: service_healthy
@@ -139,3 +149,9 @@ volumes:
     name: krajozbior-caddy-data
   caddy-config:
     name: krajozbior-caddy-config
+  # Zdjęcia (E4) i plik stanu archiwum przyrostowego (skrypty kopii: E4-0b2, montuje go tylko
+  # jednorazowy kontener kopii). Wolumeny zakłada Docker przy pierwszym użyciu, z właścicielem `node` z obrazu.
+  media:
+    name: krajozbior-media
+  media-backup-state:
+    name: krajozbior-media-backup-state

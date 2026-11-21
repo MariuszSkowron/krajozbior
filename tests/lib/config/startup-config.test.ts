@@ -127,6 +127,28 @@ describe("instrumentation register", () => {
     expect(exit).not.toHaveBeenCalled();
   });
 
+  it("starts with one warning line when MEDIA_ROOT points at a missing directory (E4 5.11.1)", async () => {
+    const exit = mockExit();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    stubServer({ ...server, NEXT_RUNTIME: "nodejs", MEDIA_ROOT: "/nonexistent-krajozbior-media" });
+
+    await expect(register()).resolves.toBeUndefined();
+
+    expect(exit).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("missing"));
+  });
+
+  it("logs no warning when MEDIA_ROOT is unset", async () => {
+    mockExit();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    stubServer({ ...server, NEXT_RUNTIME: "nodejs", MEDIA_ROOT: undefined });
+
+    await register();
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it("does nothing in the edge runtime", async () => {
     const exit = mockExit();
     stubServer({ ...server, BREVO_API_KEY: undefined, NEXT_RUNTIME: "edge" });
