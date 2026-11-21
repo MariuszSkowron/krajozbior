@@ -3,6 +3,7 @@ import axe from "axe-core";
 import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+import { waitForHydration } from "../tests/support/e2e-hydration";
 
 // E12-2: the public search `/search` and the search field of the home page. Needs a migrated,
 // seeded database like the other specs that sign in; without it the spec is skipped. The fixtures
@@ -111,7 +112,7 @@ async function inBothThemes(page: Page, check: () => Promise<void>) {
       .context()
       .addCookies([{ name: THEME_COOKIE, value: theme, url: "http://127.0.0.1" }]);
     await page.reload();
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await expect(page.locator("html")).toHaveClass(new RegExp(`theme-${theme}`));
     await check();
   }
@@ -229,7 +230,7 @@ test.describe("search", () => {
     page,
   }) => {
     await page.goto("/search");
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await expect(page.getByRole("heading", { level: 1, name: "Wszystkie kolekcje" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Łódź włókniarzy/ })).toBeVisible();
     await expect(page.getByRole("link", { name: /Żuławy/ })).toBeVisible();
@@ -258,7 +259,7 @@ test.describe("search", () => {
     browser,
   }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await page.getByRole("searchbox", { name: "Szukaj miejsc i kolekcji" }).fill("lodz");
     await page.getByRole("button", { name: "Szukaj" }).click();
     await expect(page).toHaveURL(/\/search\?q=lodz/);
@@ -280,7 +281,7 @@ test.describe("search", () => {
 
     for (const url of ["/search?q=lodz", "/search?q=qqqzzzqqq", "/search", "/search?q=a"]) {
       await page.goto(url);
-      await page.waitForLoadState("networkidle");
+      await waitForHydration(page);
 
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

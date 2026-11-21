@@ -3,6 +3,7 @@ import axe from "axe-core";
 import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+import { waitForHydration } from "../tests/support/e2e-hydration";
 
 // E12-5: the map view of a collection (Leaflet on OpenStreetMap tiles, D-35). The tiles are
 // always stubbed with a local image and every other request to the tile hosts is aborted, so
@@ -47,6 +48,15 @@ async function stubTiles(page: Page, answer: "image" | "abort" = "image"): Promi
   return seen;
 }
 
+// Waits until Leaflet has drawn at least one tile and every tile on the page has finished
+// loading (the stubbed image or the aborted request), instead of waiting for network silence.
+async function waitForTilesDrawn(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const tiles = Array.from(document.querySelectorAll<HTMLImageElement>("img.leaflet-tile"));
+    return tiles.length > 0 && tiles.every((tile) => tile.complete);
+  });
+}
+
 function collectCspViolations(page: Page): string[] {
   const violations: string[] = [];
 
@@ -83,7 +93,7 @@ async function inBothThemes(page: Page, check: () => Promise<void>) {
       .context()
       .addCookies([{ name: THEME_COOKIE, value: theme, url: "http://127.0.0.1" }]);
     await page.reload();
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await expect(page.locator("html")).toHaveClass(new RegExp(`theme-${theme}`));
     await expect(page.locator(".leaflet-marker-icon").first()).toBeVisible();
     await check();
@@ -136,7 +146,7 @@ test.describe("the map view of a collection", () => {
     const tiles = await stubTiles(page);
 
     await page.goto(COLLECTION);
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
 
     const views = page.getByRole("navigation", { name: "Widok miejsc" });
 
@@ -181,7 +191,7 @@ test.describe("the map view of a collection", () => {
     await expect(region.getByRole("button", { name: "Przybliż" })).toBeVisible();
     await expect(region.getByRole("button", { name: "Oddal" })).toBeVisible();
     await expect.poll(() => tiles.stubbed.length).toBeGreaterThan(0);
-    await page.waitForLoadState("networkidle");
+    await waitForTilesDrawn(page);
 
     expect(tiles.foreign).toEqual([]);
     expect(tiles.stubbed.every((url) => url.startsWith(`https://${TILE_HOST}/`))).toBe(true);
@@ -197,7 +207,7 @@ test.describe("the map view of a collection", () => {
     await stubTiles(page);
     await page.goto(MAP);
     await expect(page.locator(".leaflet-marker-icon")).toHaveCount(3);
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
 
     await page.getByRole("link", { name: "Pomiń mapę" }).focus();
 
@@ -289,7 +299,7 @@ test.describe("the map view of a collection", () => {
   test("no accessibility violations in both themes, also with a popup open", async ({ page }) => {
     await stubTiles(page);
     await page.goto(MAP);
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
 
     await inBothThemes(page, async () => {
       await expectNoAccessibilityViolations(page);
@@ -356,7 +366,7 @@ test.describe("the map view of a collection", () => {
       await view.goto(url);
       await expect(view.locator(".leaflet-marker-icon").first()).toBeVisible();
       await expect.poll(() => tiles.stubbed.length).toBeGreaterThan(0);
-      await view.waitForLoadState("networkidle");
+      await waitForTilesDrawn(view);
       await view.close();
 
       return [...new Set(tiles.stubbed)].sort();

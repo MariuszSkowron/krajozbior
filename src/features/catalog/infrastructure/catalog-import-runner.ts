@@ -38,13 +38,22 @@ async function findCuratorId(opsUrl: string, email: string): Promise<string | un
   }
 }
 
-export async function connectCatalogImport(): Promise<CatalogImportRunner> {
-  // Before any connection; the variables are read only afterwards.
-  assertSafeImportEnvironment({
-    NODE_ENV: process.env.NODE_ENV,
-    DATABASE_URL: process.env.DATABASE_URL,
-    DATABASE_OPS_URL: process.env.DATABASE_OPS_URL,
-  });
+// `target: "server"` (F-K6) skips the local guard: its guard is the explicit
+// command mode (`--target server` with the confirmed host, checked by the
+// command before this function runs) and the audit written around the load.
+// The default stays the local one, so nothing reaches a production database
+// without that mode.
+export async function connectCatalogImport(
+  target: "local" | "server" = "local",
+): Promise<CatalogImportRunner> {
+  if (target === "local") {
+    // Before any connection; the variables are read only afterwards.
+    assertSafeImportEnvironment({
+      NODE_ENV: process.env.NODE_ENV,
+      DATABASE_URL: process.env.DATABASE_URL,
+      DATABASE_OPS_URL: process.env.DATABASE_OPS_URL,
+    });
+  }
 
   const opsUrl = getOpsEnv().DATABASE_OPS_URL;
   const appUrl = getServerEnv().DATABASE_URL;

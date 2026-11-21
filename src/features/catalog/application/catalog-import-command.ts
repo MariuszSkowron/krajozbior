@@ -7,6 +7,14 @@ import { MAX_COLLECTIONS_PER_LIST } from "../domain/limits";
 import type { CatalogImportOutcome } from "./catalog-import-types";
 import type { ValidImportFile } from "./catalog-import";
 import { UnsafeImportEnvironmentError } from "./catalog-import-safety";
+import {
+  resultOfFailure,
+  resultOfOutcome,
+  sha256Hex,
+  type ImportAuditBatch,
+  type ImportAuditResult,
+} from "./catalog-import-audit";
+import { auditOperatorSchema, auditReasonSchema } from "@/lib/db/operations-audit";
 
 // Pure part of the catalog:import command: arguments, file validation and the
 // mapping of results to exit codes. No I/O of its own (the file reader and the
@@ -42,11 +50,61 @@ export type CatalogImportRunner = Readonly<{
   close: () => Promise<void>;
 }>;
 
+/** An entry "start" of the server loader; opaque to the command (the gateway knows what it holds). */
+export type ImportAuditHandle = Readonly<{
+  entryId: string;
+  organizationId: string | null;
+  subjectUserId: string | null;
+}>;
+
+/** The operations audit as the server loader sees it (role krajozbior_ops, spec 5.6 pt 5). */
+export type ImportAuditGateway = Readonly<{
+  /** Writes the entry "start" and returns its handle; throws when the audit cannot be written. */
+  start: (
+    request: Readonly<{
+      batch: ImportAuditBatch;
+      orgSlug: string;
+      curatorEmail: string;
+      operator: string;
+      reason: string;
+    }>,
+  ) => Promise<ImportAuditHandle>;
+  finish: (
+    handle: ImportAuditHandle,
+    request: Readonly<{
+      batch: ImportAuditBatch;
+      operator: string;
+      reason: string;
+      result: ImportAuditResult;
+    }>,
+  ) => Promise<void>;
+}>;
+
+/** The explicit server target (`--target server`); absent where the command runs only locally. */
+export type CatalogImportServerDeps = Readonly<{
+  /** Host name of `BETTER_AUTH_URL`, or undefined when the variable is not set. */
+  host: string | undefined;
+  /** Asks the person at a terminal to retype the host; absent without a terminal. */
+  promptHost?: () => Promise<string | undefined>;
+  /** Connects without the local guard (the guard of the server target is `host`). */
+  connect: () => Promise<CatalogImportRunner>;
+  audit: ImportAuditGateway;
+}>;
+
 export type CatalogImportCommandDeps = Readonly<{
   readFile: (path: string) => Promise<string>;
   /** Loads the database part lazily; called only when both organization flags are present. */
   connect: () => Promise<CatalogImportRunner>;
+  server?: CatalogImportServerDeps;
 }>;
+
+/** The audit could not be written before the load: nothing was loaded. */
+export class ImportAuditUnavailableError extends Error {
+  constructor() {
+    super("The operations audit is unavailable");
+    this.name = "ImportAuditUnavailableError";
+  }
+}
 
 const USAGE = [
   "Użycie:",
@@ -60,6 +118,8 @@ const USAGE = [
   "      wgranie, a potem publikacja kolekcji z publish: true (tylko szkice niepublikowane i nieedytowane ręcznie)",
   "  catalog:import --file <plik> --org-slug <slug> --curator-email <e-mail> --remove",
   "      usunięcie tego, co wgrano z pliku, tylko przed publikacją (opublikowane i miejsca z wizytami zostają)",
+  "  catalog:import --target server --confirm-host <host> --profile public --file <plik> --org-slug <slug> --curator-email <e-mail> --operator <etykieta> --reason <powód> [--dry-run | --remove]",
+  "      tryb serwera (tylko w kontenerze ops): szkice, bez --publish; zapis idzie do dziennika operacji",
 ].join("\n");
 
 const argsSchema = z.strictObject({
@@ -74,6 +134,17 @@ const argsSchema = z.strictObject({
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
     .optional(),
   "curator-email": z.email().max(254).optional(),
+  // The server target (spec 5.6): only `server` exists; local is the default.
+  target: z.literal("server").optional(),
+  "confirm-host": z.string().min(1).max(253).optional(),
+  operator: auditOperatorSchema.optional(),
+  reason: auditReasonSchema.optional(),
+});
+
+const refusal = (code: string, hint: string): CatalogImportCliResult => ({
+  exitCode: 3,
+  stdout: [JSON.stringify({ outcome: "refused", code })],
+  stderr: [`Odmowa: ${hint}`],
 });
 
 const inputError = (hint: string): CatalogImportCliResult => ({
@@ -85,6 +156,14 @@ const inputError = (hint: string): CatalogImportCliResult => ({
 // Only the SQLSTATE class is shown: messages and SQL could carry identifiers
 // of rows, of other organizations or the connection string (23503 included).
 function failureOutput(error: unknown): CatalogImportCliResult {
+  if (error instanceof ImportAuditUnavailableError) {
+    return {
+      exitCode: 1,
+      stdout: [],
+      stderr: ["Dziennik operacji jest niedostępny: nic nie wgrano. Można ponowić polecenie."],
+    };
+  }
+
   if (error instanceof UnsafeImportEnvironmentError) {
     return {
       exitCode: 3,
@@ -135,6 +214,10 @@ export async function runCatalogImport(
         profile: { type: "string" },
         "org-slug": { type: "string" },
         "curator-email": { type: "string" },
+        target: { type: "string" },
+        "confirm-host": { type: "string" },
+        operator: { type: "string" },
+        reason: { type: "string" },
       },
     });
   } catch {
@@ -177,6 +260,39 @@ export async function runCatalogImport(
     return inputError(
       "--remove nie ma podglądu z bazą (sama walidacja pliku: bez flag organizacji).",
     );
+  }
+
+  const server = args.data.target === "server";
+  const confirmHost = args.data["confirm-host"];
+  const operator = args.data.operator;
+  const reason = args.data.reason;
+
+  // The flags of the server target mean nothing locally: refuse them instead
+  // of silently ignoring a confirmation the person thinks has an effect.
+  if (!server && (confirmHost !== undefined || operator !== undefined || reason !== undefined)) {
+    return inputError("--confirm-host, --operator i --reason działają tylko z --target server.");
+  }
+
+  if (server) {
+    // [P] Policy refusals use the exit code 3 (refusal), as in the spec.
+    if (publish) {
+      return refusal(
+        "publish_on_server",
+        "na serwerze polecenie wgrywa tylko szkice; publikuje właściciel w panelu (--publish jest wyłączone).",
+      );
+    }
+    if (profile !== "public") {
+      return refusal(
+        "profile_not_public",
+        "na serwerze wymagany jest profil public (--profile public): pola pomocnicze nie opuszczają komputera właściciela.",
+      );
+    }
+    if (dryRun !== true && (operator === undefined || reason === undefined)) {
+      return inputError("zapis na serwerze wymaga --operator i --reason (trafiają do dziennika).");
+    }
+    if (orgSlug !== undefined && deps.server === undefined) {
+      return refusal("server_unavailable", "to uruchomienie nie obsługuje --target server.");
+    }
   }
 
   let content: string;
@@ -247,21 +363,160 @@ export async function runCatalogImport(
     };
   }
 
+  const request = {
+    orgSlug,
+    curatorEmail,
+    file: result,
+    preview: dryRun === true,
+    publish,
+    remove,
+  };
+
+  if (server) {
+    return runOnServer(deps.server!, request, summary, {
+      confirmHost,
+      operator,
+      reason,
+      fileSha256: sha256Hex(content),
+    });
+  }
+
   let runner: CatalogImportRunner | undefined;
 
   try {
     runner = await deps.connect();
 
-    const outcome = await runner.run({
-      orgSlug,
-      curatorEmail,
-      file: result,
-      preview: dryRun === true,
-      publish,
-      remove,
-    });
+    return mapOutcome(await runner.run(request), summary);
+  } catch (error) {
+    return failureOutput(error);
+  } finally {
+    await runner?.close().catch(() => undefined);
+  }
+}
 
-    return mapOutcome(outcome, summary);
+type RunnerRequest = Parameters<CatalogImportRunner["run"]>[0];
+
+// The server target (spec 5.6). Order: the host is confirmed first (the flag
+// always, the retyped name too at a terminal), then the runner connects (no
+// write yet), then the entry "start" goes to the audit, and only when that
+// succeeds does the load begin. A preview needs the host confirmation but
+// changes nothing, so it leaves no entry.
+async function runOnServer(
+  server: CatalogImportServerDeps,
+  request: RunnerRequest,
+  summary: Readonly<Record<string, number>>,
+  options: Readonly<{
+    confirmHost: string | undefined;
+    operator: string | undefined;
+    reason: string | undefined;
+    fileSha256: string;
+  }>,
+): Promise<CatalogImportCliResult> {
+  const host = server.host?.toLowerCase();
+
+  if (host === undefined || host === "") {
+    return refusal(
+      "host_not_configured",
+      "brak adresu serwisu (BETTER_AUTH_URL), więc nie da się potwierdzić hosta.",
+    );
+  }
+  if (options.confirmHost?.toLowerCase() !== host) {
+    return refusal(
+      "host_mismatch",
+      "--confirm-host musi być równe nazwie hosta serwisu (z BETTER_AUTH_URL).",
+    );
+  }
+  if (server.promptHost !== undefined) {
+    const typed = (await server.promptHost())?.trim().toLowerCase();
+
+    if (typed !== host) {
+      return refusal("host_not_retyped", "przepisana nazwa hosta nie zgadza się z hostem serwisu.");
+    }
+  }
+
+  let runner: CatalogImportRunner | undefined;
+
+  try {
+    runner = await server.connect();
+
+    if (request.preview) {
+      return mapOutcome(await runner.run(request), summary);
+    }
+
+    const { operator, reason } = options;
+
+    if (operator === undefined || reason === undefined) {
+      return inputError("zapis na serwerze wymaga --operator i --reason.");
+    }
+
+    const batch: ImportAuditBatch = {
+      operation: request.remove ? "catalog_remove" : "catalog_import",
+      batchId: request.file.batch.batchId,
+      fileSha256: options.fileSha256,
+      collections: request.file.collections.length,
+      places: request.file.places.length,
+    };
+    let handle;
+
+    try {
+      handle = await server.audit.start({
+        batch,
+        orgSlug: request.orgSlug,
+        curatorEmail: request.curatorEmail,
+        operator,
+        reason,
+      });
+    } catch {
+      throw new ImportAuditUnavailableError();
+    }
+
+    let outcome: CatalogImportOutcome;
+
+    try {
+      outcome = await runner.run(request);
+    } catch (error) {
+      await server.audit
+        .finish(handle, {
+          batch,
+          operator,
+          reason,
+          result: resultOfFailure(batch, handle.entryId, error),
+        })
+        .catch(() => undefined);
+      throw error;
+    }
+
+    const output = mapOutcome(outcome, summary);
+
+    // The detailed report goes to the output only on the server (no files).
+    const withReport: CatalogImportCliResult = {
+      exitCode: output.exitCode,
+      stdout: [
+        ...output.stdout,
+        ...(output.report === undefined ? [] : [JSON.stringify({ report: output.report })]),
+      ],
+      stderr: output.stderr,
+    };
+
+    try {
+      await server.audit.finish(handle, {
+        batch,
+        operator,
+        reason,
+        result: resultOfOutcome(batch, handle.entryId, outcome),
+      });
+    } catch {
+      return {
+        exitCode: 1,
+        stdout: withReport.stdout,
+        stderr: [
+          ...withReport.stderr,
+          "Uwaga: wgranie się odbyło, ale wpis z wynikiem nie zapisał się w dzienniku operacji. Wpis „rozpoczęcie” jest w dzienniku; zgłoś to właścicielowi.",
+        ],
+      };
+    }
+
+    return withReport;
   } catch (error) {
     return failureOutput(error);
   } finally {

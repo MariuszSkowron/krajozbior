@@ -5,6 +5,7 @@ import { expect, test, type Browser, type BrowserContext, type Page } from "@pla
 import axe from "axe-core";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+import { waitForHydration } from "../tests/support/e2e-hydration";
 
 // E12-3: "W okolicy" on the home page. The position is read only after a click (even when the
 // permission is already granted), is counted in the browser and never leaves it: no request
@@ -47,7 +48,7 @@ async function inBothThemes(page: Page, check: (theme: string) => Promise<void>)
     await page
       .context()
       .addCookies([{ name: THEME_COOKIE, value: theme, url: "http://127.0.0.1" }]);
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await page.evaluate((value) => {
       document.documentElement.classList.remove("theme-dark", "theme-light");
       document.documentElement.classList.add(`theme-${value}`);
@@ -149,7 +150,7 @@ test.describe("W okolicy on the home page", () => {
     const { traffic, logs } = recordTraffic(page);
 
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await page.waitForTimeout(1500);
 
     const button = section(page).getByRole("button", { name: "Pokaż kolekcje w okolicy" });
@@ -208,7 +209,7 @@ test.describe("W okolicy on the home page", () => {
     const { context, page } = await contextAt(browser, NEAR, { width: 390, height: 844 });
 
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await section(page).getByRole("button", { name: "Pokaż kolekcje w okolicy" }).click();
     await expect(section(page).getByRole("status")).toContainText("w promieniu 50 km");
     await shot(page, "found");
@@ -226,7 +227,7 @@ test.describe("W okolicy on the home page", () => {
     const { context, page } = await contextAt(browser, FAR);
 
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await section(page).getByRole("button", { name: "Pokaż kolekcje w okolicy" }).click();
     await expect(section(page).getByRole("status")).toHaveText(
       "W promieniu 50 km nie ma jeszcze kolekcji.",
@@ -244,7 +245,7 @@ test.describe("W okolicy on the home page", () => {
     const { context, page } = await contextAt(browser, { ...NEAR, accuracy: 9000 });
 
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await section(page).getByRole("button", { name: "Pokaż kolekcje w okolicy" }).click();
     await expect(section(page).getByRole("status")).toContainText(
       "Lokalizacja jest niedokładna, więc odległości są przybliżone.",
@@ -259,7 +260,7 @@ test.describe("W okolicy on the home page", () => {
     const { traffic, logs } = recordTraffic(page);
 
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await section(page).getByRole("button", { name: "Pokaż kolekcje w okolicy" }).click();
     await expect(section(page).getByRole("status")).toHaveText(
       "Nie mamy dostępu do lokalizacji. Możesz włączyć go w ustawieniach przeglądarki.",
@@ -289,7 +290,7 @@ test.describe("W okolicy on the home page", () => {
       Reflect.deleteProperty(Navigator.prototype, "geolocation");
     });
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await expect(
       section(page).getByText("Ta przeglądarka nie obsługuje lokalizacji."),
     ).toBeVisible();
@@ -315,7 +316,7 @@ test.describe("W okolicy on the home page", () => {
     await form.getByRole("button", { name: "Zaloguj się" }).click();
     await expect(page).toHaveURL(/\/my$/);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await section(page).getByRole("button", { name: "Pokaż kolekcje w okolicy" }).click();
     await expect(section(page).getByRole("status")).toContainText("Jedna kolekcja");
     await inBothThemes(page, () => expectNoAccessibilityViolations(page));

@@ -4,6 +4,7 @@ import type { EntityManager } from "@mikro-orm/postgresql";
 import { z } from "zod";
 
 import { getOrm } from "@/lib/db/client";
+import { withoutQueryText } from "@/lib/db/database-error";
 
 // The only way domain code reaches private data (issue #21,
 // docs/data-isolation.md section 4). Row policies read app_current_user_id(),
@@ -51,11 +52,25 @@ export async function runInUserContext<T>(
   }
 
   // Any error, including one from set_config, rolls back the whole transaction.
-  return em.transactional(async (tx) => {
+  return transactionWithoutQueryText(em, async (tx) => {
     await tx.execute("select set_config('app.user_id', ?, true)", [actor.id], "get");
 
     return work({ em: tx });
   });
+}
+
+// A database error leaves the context without the values that PostgreSQL repeats in its message
+// and fields (see `database-error.ts`; outside the context read only `code` and `constraint`);
+// other errors pass on unchanged.
+async function transactionWithoutQueryText<T>(
+  em: EntityManager,
+  work: (tx: EntityManager) => Promise<T>,
+): Promise<T> {
+  try {
+    return await em.transactional(work);
+  } catch (error) {
+    throw withoutQueryText(error);
+  }
 }
 
 // Public reads for a guest (D-T4): a read-only transaction on krajozbior_app
@@ -72,7 +87,7 @@ export async function runInGuestContext<T>(
     throw new NestedUserContextError();
   }
 
-  return em.transactional(async (tx) => {
+  return transactionWithoutQueryText(em, async (tx) => {
     await tx.execute("set transaction read only", [], "run");
     await tx.execute("select set_config('app.user_id', '', true)", [], "get");
 

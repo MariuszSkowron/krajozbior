@@ -17,6 +17,9 @@ export const AUDIT_OPERATIONS = [
   // Written by the database only, as a result of deleting an account
   // (Migration20261118140000_account_deletion); `writeAuditEntry` cannot write it.
   "delete_account",
+  // The loader `catalog:import --target server` (Migration20261121140000).
+  "catalog_import",
+  "catalog_remove",
 ] as const;
 
 export type AuditOperation = (typeof AUDIT_OPERATIONS)[number];
@@ -34,6 +37,8 @@ export const AUDIT_ERROR_CODES = [
   "kind_mismatch",
   "person_member_limit",
   "organization_details_required",
+  "import_refused",
+  "import_failed",
 ] as const;
 
 export type AuditErrorCode = (typeof AUDIT_ERROR_CODES)[number];
@@ -73,6 +78,8 @@ export type AuditEntry = Readonly<{
   after: Record<string, unknown> | null;
   outcome: AuditOutcome;
   code: AuditErrorCode | null;
+  /** Batch details; only `catalog_import` and `catalog_remove` (a CHECK enforces it). */
+  details?: Record<string, unknown> | null;
 }>;
 
 /**
@@ -84,11 +91,14 @@ export async function writeAuditEntry(
   client: AuditQueryClient,
   entry: AuditEntry,
 ): Promise<string> {
+  const details = entry.details ?? null;
+  // The `details` column is named only when there are details, so the entries
+  // of the other operations keep the exact statement they always had.
   const { rows } = await client.query(
     `insert into public.operations_audit
        (operation, operator_label, subject_user_id, organization_id, outcome,
-        before_state, after_state, reason, error_code)
-     values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9)
+        before_state, after_state, reason, error_code${details === null ? "" : ", details"})
+     values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9${details === null ? "" : ", $10::jsonb"})
      returning id`,
     [
       entry.operation,
@@ -100,6 +110,7 @@ export async function writeAuditEntry(
       entry.after === null ? null : JSON.stringify(entry.after),
       entry.reason,
       entry.code,
+      ...(details === null ? [] : [JSON.stringify(details)]),
     ],
   );
 
