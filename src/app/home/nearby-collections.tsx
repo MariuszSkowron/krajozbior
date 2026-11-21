@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useRef, useState, useSyncExternalStore } from "react";
 
 import { CollectionCard } from "@/design-system/components/collection-card";
+import { StatusBadge } from "@/design-system/components/status-badge";
 import { REGION_LABELS, type Region } from "@/features/catalog/domain/collection";
 import {
   NEARBY_COARSE_ACCURACY_M,
+  NEW_NEARBY_LABEL,
   formatNearbyDistance,
+  isNewNearby,
   nearbyCollections,
   nearbyProblemMessage,
   nearbySummaryMessage,
@@ -28,6 +31,7 @@ type Found = Readonly<{
   region: string;
   placeCount: number;
   km: number;
+  isNew: boolean;
 }>;
 
 type State =
@@ -89,12 +93,14 @@ export function NearbyCollections({
     setState({ kind: "locating" });
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
+        const now = new Date();
         const hits = nearbyCollections(candidates, coords).map(({ candidate, distanceKm }) => ({
           slug: candidate.slug,
           title: candidate.title,
           region: candidate.region,
           placeCount: candidate.placeCount,
           km: distanceKm,
+          isNew: isNewNearby(candidate.firstPublishedAt, distanceKm, now),
         }));
 
         show({ kind: "found", hits, coarse: coords.accuracy > NEARBY_COARSE_ACCURACY_M });
@@ -154,6 +160,11 @@ export function NearbyCollections({
                   <p className={styles.cardNote}>
                     {formatNearbyDistance(hit.km)} · {formatPlaceCount(hit.placeCount)}
                   </p>
+                  {hit.isNew ? (
+                    <p className={styles.cardNote}>
+                      <StatusBadge tone="info">{NEW_NEARBY_LABEL}</StatusBadge>
+                    </p>
+                  ) : null}
                 </li>
               ))}
             </ul>
