@@ -92,6 +92,33 @@ export function nearbyCollections(
   return hits.slice(0, Math.trunc(limit));
 }
 
+/** "Nowa w okolicy" (E12-Q6, [Z]): first published at most this many days ago. */
+export const NEW_NEARBY_DAYS = 30;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * "Nowa w okolicy": first published at most 30 days before `now` (the limit itself counts) and
+ * within 50 km of the explorer (the limit itself counts). A collection never published, or with
+ * an unreadable time, is not new. A time in the future (a clock skew) counts as just published.
+ */
+export function isNewNearby(
+  firstPublishedAt: string | null,
+  distanceKm: number,
+  now: Date,
+): boolean {
+  if (firstPublishedAt === null || !(distanceKm <= NEARBY_RADIUS_KM)) {
+    return false;
+  }
+
+  const publishedMs = Date.parse(firstPublishedAt);
+
+  return !Number.isNaN(publishedMs) && now.getTime() - publishedMs <= NEW_NEARBY_DAYS * DAY_MS;
+}
+
+/** The text of the mark, shown with the card and read by a screen reader as it stands. */
+export const NEW_NEARBY_LABEL = "Nowa w okolicy";
+
 /** "12 km"; below a kilometre "poniżej 1 km". */
 export function formatNearbyDistance(distanceKm: number): string {
   const rounded = Math.round(distanceKm);
