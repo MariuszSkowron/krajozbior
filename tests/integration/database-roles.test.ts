@@ -103,6 +103,46 @@ describe("database roles", () => {
     await db?.drop();
   });
 
+  describe("statement_timeout (D-43)", () => {
+    const showTimeout = (role: keyof ScratchDatabase["urls"]) =>
+      asRole(role, async (client) => {
+        const { rows } = await client.query<{ statement_timeout: string }>(
+          `show statement_timeout`,
+        );
+
+        return rows[0]?.statement_timeout;
+      });
+
+    it("limits app to 15 s and auth to 10 s, and leaves owner and ops without a limit", async () => {
+      expect(await showTimeout("krajozbior_app")).toBe("15s");
+      expect(await showTimeout("krajozbior_auth")).toBe("10s");
+      expect(await showTimeout("krajozbior_owner")).toBe("0");
+      expect(await showTimeout("krajozbior_ops")).toBe("0");
+    });
+
+    it("cancels a statement of the auth role that runs past its limit (SQLSTATE 57014)", async () => {
+      const startedAt = Date.now();
+
+      await expect(
+        asRole("krajozbior_auth", (client) => client.query(`select pg_sleep(12)`)),
+      ).rejects.toMatchObject({ code: "57014" });
+      expect(Date.now() - startedAt).toBeLessThan(11_500);
+    }, 20_000);
+
+    it("restores the limits on every provisioning run, also on a database changed by hand", async () => {
+      await withClient(db.adminUrl, async (client) => {
+        await client.query(`alter role krajozbior_app reset statement_timeout`);
+        await client.query(`alter role krajozbior_ops set statement_timeout = '1h'`);
+      });
+      expect(await showTimeout("krajozbior_app")).toBe("0");
+
+      await db.provisionRoles();
+
+      expect(await showTimeout("krajozbior_app")).toBe("15s");
+      expect(await showTimeout("krajozbior_ops")).toBe("0");
+    });
+  });
+
   it("creates login roles that cannot create roles, skip RLS or inherit privileges", async () => {
     const { rows } = await withClient(db.adminUrl, (client) =>
       client.query(
