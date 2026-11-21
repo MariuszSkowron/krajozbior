@@ -63,6 +63,7 @@ Jeśli przetwarzamy dane na podstawie naszego prawnie uzasadnionego interesu, mo
 - Jeśli zgodzisz się na to osobno, możemy pokazać zdjęcie w materiałach promujących serwis. Zgodę możesz w każdej chwili cofnąć; materiałów już opublikowanych nie usuniemy, ale nie użyjemy zdjęcia w nowych materiałach.
 - Pamiętaj: zdjęcie można dodać tylko po wizycie, więc podpisane zdjęcie pokazuje innym, że byłeś lub byłaś w tym miejscu.
 - Zasady korzystania ze zdjęć opisują regulamin i oświadczenie o prawach do zdjęcia.
+- Przy zdjęciach miejsc z Wikimedia Commons pokazujemy imię i nazwisko albo pseudonim ich autora, tak jak autor podał je w Commons, bo wymaga tego licencja zdjęcia. To nie są dane zebrane od Ciebie.
 
 ## 6. Kto widzi Twoje dane
 
