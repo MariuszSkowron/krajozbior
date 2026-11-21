@@ -84,27 +84,55 @@ describe("assertStartupConfig", () => {
 describe("instrumentation register", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   function stubServer(env: Record<string, string | undefined>) {
     for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
   }
 
-  it("stops a production Node.js server that has no Brevo key", async () => {
+  function mockExit() {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    return vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+  }
+
+  it("ends the process with code 1 for a production Node.js server that has no Brevo key", async () => {
+    const exit = mockExit();
     stubServer({ ...server, BREVO_API_KEY: undefined, NEXT_RUNTIME: "nodejs" });
 
-    await expect(register()).rejects.toThrow("Invalid server configuration: BREVO_API_KEY");
+    await register();
+
+    expect(exit).toHaveBeenCalledExactlyOnceWith(1);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("Invalid server configuration: BREVO_API_KEY"),
+    );
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain(KEY);
+  });
+
+  it("checks the configuration also when NEXT_RUNTIME is unset", async () => {
+    const exit = mockExit();
+    stubServer({ ...server, BREVO_API_KEY: undefined, NEXT_RUNTIME: undefined });
+
+    await register();
+
+    expect(exit).toHaveBeenCalledExactlyOnceWith(1);
   });
 
   it("lets a complete production server start", async () => {
+    const exit = mockExit();
     stubServer({ ...server, NEXT_RUNTIME: "nodejs" });
 
     await expect(register()).resolves.toBeUndefined();
+
+    expect(exit).not.toHaveBeenCalled();
   });
 
   it("does nothing in the edge runtime", async () => {
+    const exit = mockExit();
     stubServer({ ...server, BREVO_API_KEY: undefined, NEXT_RUNTIME: "edge" });
 
     await expect(register()).resolves.toBeUndefined();
+
+    expect(exit).not.toHaveBeenCalled();
   });
 });

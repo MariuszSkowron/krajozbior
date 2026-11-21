@@ -214,4 +214,21 @@ describe("sendVerificationOTP callback", () => {
     );
     expect(JSON.stringify(error.mock.calls)).not.toMatch(/a@example\.com|654321/);
   });
+
+  it("adds no second log line for a refusal that the sender already logged", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const rejected = {
+      send: vi.fn(async () => ({ ok: false as const, retryable: false, reason: "brevo_rejected" })),
+    };
+    const send = createSendSignInCode({
+      emailSender: () => rejected,
+      siteUrl: () => "http://localhost:3000",
+    });
+
+    await send({ email: "a@example.com", otp: "654321", type: "sign-in" }, endpoint(null));
+
+    await vi.waitFor(() => expect(rejected.send).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    expect(error).not.toHaveBeenCalled();
+  });
 });

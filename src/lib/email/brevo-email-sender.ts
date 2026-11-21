@@ -109,6 +109,8 @@ export class BrevoEmailSender implements EmailSender {
       if (response.ok) {
         return { kind: "sent", messageId: await readMessageId(response) };
       }
+      // Release the connection; the answer is never read or logged.
+      await response.body?.cancel().catch(() => undefined);
       if (REJECTED_STATUSES.has(response.status)) {
         return { kind: "rejected", status: response.status };
       }
