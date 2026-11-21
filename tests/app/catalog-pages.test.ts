@@ -230,7 +230,9 @@ describe("public catalog pages", () => {
       const html = await render(restriction);
 
       expect(html).toContain('data-testid="place-access-notice"');
-      expect(html).toMatch(/<h2 id="dostep-do-terenu"[^>]*>Wejście na teren<\/h2>/);
+      const headingId = /<h2 id="([^"]+)"[^>]*>Wejście na teren<\/h2>/.exec(html)?.[1];
+      expect(headingId).toBeTruthy();
+      expect(html).toContain(`aria-labelledby="${headingId}"`);
       expect(html).toMatch(new RegExp(`<strong[^>]*>${title}</strong>`));
       expect(html).toContain("nie wchodź na teren");
     });
@@ -616,7 +618,9 @@ describe("public catalog pages", () => {
 
         const html = await render({ miejsce: second.id });
 
-        expect(html).toMatch(/<h3 id="dostep-do-terenu"[^>]*>Wejście na teren<\/h3>/);
+        const headingId = /<h3 id="([^"]+)"[^>]*>Wejście na teren<\/h3>/.exec(html)?.[1];
+        expect(headingId).toBeTruthy();
+        expect(html).toContain(`aria-labelledby="${headingId}"`);
         expect(html).toMatch(/<strong[^>]*>Ruina<\/strong>/);
       });
 

@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import { accessNotice } from "@/features/catalog/domain/place-access-notice";
 import type { AccessRestriction } from "@/features/catalog/domain/place";
 
@@ -13,6 +15,7 @@ export function PlaceAccessNotice({
   restriction,
   headingLevel = 2,
 }: Readonly<{ restriction: AccessRestriction; headingLevel?: 2 | 3 }>) {
+  const headingId = useId();
   const notice = accessNotice(restriction);
 
   if (notice === null) {
@@ -24,10 +27,10 @@ export function PlaceAccessNotice({
   return (
     <section
       className={styles.notice}
-      aria-labelledby="dostep-do-terenu"
+      aria-labelledby={headingId}
       data-testid="place-access-notice"
     >
-      <Heading id="dostep-do-terenu" className={styles.title}>
+      <Heading id={headingId} className={styles.title}>
         Wejście na teren
       </Heading>
       <p>
