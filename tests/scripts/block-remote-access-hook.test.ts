@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -8,12 +9,14 @@ import { describe, expect, it } from "vitest";
 
 // The Claude Code hook that refuses shell commands reaching a server or SSH keys
 // when the command text says so: SSH clients and relatives, rsync, PuTTY tools,
-// `user@host:` addresses, git talking to anything but `origin` or GitHub over
-// HTTPS, PowerShell remoting and encoded commands, any `.ssh` folder, the folder
-// with deployment secrets (`krajozbior-deploy`) and the local showcase data
-// (`.data/showcase`). It reads text only: the "known limitations" list documents
-// what it deliberately does not catch, so nobody takes it for a security
-// boundary (that is the deployment passphrase).
+// `user@host:` addresses, PowerShell remoting and encoded commands, any `.ssh`
+// folder, the folder with deployment secrets (`krajozbior-deploy`) and the local
+// showcase data (`.data/showcase`). Git that may reach a server passes only in
+// the forms of an allow list (`git fetch origin`, `git push -u origin <branch>`,
+// …); text in quotes (a commit message, a PR title) is not a command. It reads
+// text only: the "known limitations" list documents what it deliberately does
+// not catch, so nobody takes it for a security boundary (that is the deployment
+// passphrase).
 // The process tests run the real script with a hook event on stdin, as Claude
 // Code does: exit 2 blocks (also a malformed event), exit 0 lets it through.
 //
@@ -259,6 +262,137 @@ const blocked = [
   "docker run -v ./.data/showcase:/data app",
   // Strict by design: the hook reads the whole text of the command.
   "git commit -m 'opis ze slowem ssh'",
+  // Git allow list: only the listed forms reach a server.
+  "git push origin HEAD:refs/heads/feature",
+  "git push origin HEAD:main",
+  "git push origin :feat/x",
+  "git push origin +feat/x",
+  "git push -f origin feat/x",
+  "git push --force origin feat/x",
+  "git push origin --delete feat/x",
+  "git push origin",
+  "git push",
+  "git push --tags origin",
+  "git push origin feat/x feat/y",
+  "git push origin $branch",
+  'git push -u origin "$(git branch --show-current)"',
+  "git push origin -- feat/x",
+  "git fetch upstream",
+  "git fetch origin --upload-pack=x",
+  "git fetch -j 4 origin",
+  "git pull origin main feat/x",
+  "git --no-pager fetch origin",
+  "git --git-dir=../other/.git fetch origin",
+  "git -c http.proxy=http://example.com:8080 fetch origin",
+  "git -c include.path=.ai/tmp/x.cfg fetch origin",
+  "GIT_TRACE=1 git fetch origin",
+  "$env:GIT_DIR='../other/.git'; git fetch origin",
+  "git fetch origin>out.txt",
+  "git ls-remote https://github.com/example/repo.git",
+  "git ls-remote origin --upload-pack=x",
+  "git remote add upstream https://github.com/example/repo.git",
+  "git remote set-url origin https://github.com/other/repo.git",
+  "git remote remove origin",
+  "git clone --recurse-submodules https://github.com/example/repo.git",
+  "git clone https://user@github.com/example/repo.git",
+  "git clone https://github.com:443/example/repo.git",
+  "git lfs pull",
+  "git submodule foreach 'git fetch prod'",
+  "git config --global alias.st status",
+  "git config set alias.f fetch",
+  "git config --add url.example.com:.pushInsteadOf origin",
+  "git config core.sshCommand x",
+  "git -c alias.st=status st",
+  "git credential fill",
+  "git for-each-repo --config=maintenance.repo fetch",
+  "git backfill",
+  "git upload-pack .",
+  "git-fetch prod",
+  "C:\\Program Files\\Git\\mingw64\\libexec\\git-core\\git-push.exe prod main",
+  "git-remote-ext 'sh -c x' x",
+  "git --exec-path=.ai/tmp status",
+  "git --super-prefix=x status",
+  // Git inside another command or interpreter.
+  "timeout 5 git fetch prod",
+  "env GIT_TRACE=1 git fetch prod",
+  "echo prod | xargs git fetch",
+  "find . -name x -exec git push origin {} ;",
+  'echo "$(git fetch prod)"',
+  "echo `git fetch prod`",
+  "x=`git fetch prod`",
+  "{git,fetch,prod}",
+  'bash -c "git fetch evil"',
+  "bash -c 'git push prod main'",
+  'sh -c "cd x && git fetch evil"',
+  'powershell -c "git fetch evil"',
+  "pwsh -Command 'git fetch evil'",
+  'cmd /c "git fetch evil"',
+  "cmd /c echo 'x & git fetch evil'",
+  'Invoke-Expression "git fetch evil"',
+  "Start-Process git -ArgumentList 'fetch','prod'",
+  "git bisect run git fetch prod",
+  "git rebase --exec 'git fetch prod' main",
+  "git rebase -x 'git fetch prod' main",
+  // Settings for git in the environment, also for a later command.
+  "export GIT_CONFIG_COUNT=1",
+  "$env:GIT_CONFIG_GLOBAL='.ai/tmp/x.cfg'",
+  "set GIT_CONFIG_PARAMETERS='alias.f=fetch'",
+  "$env:GIT_EXEC_PATH='.ai/tmp'",
+  "$env:GIT_ASKPASS='.ai/tmp/x.cmd'",
+  "git -C x --config-env=core.pager=P log",
+  // The showcase data: a cheap recursive read (review v3, S4).
+  "grep -rnIi code .data",
+  "ls -alhR .data",
+  "git grep --no-index -n code .data",
+  "git diff --no-index .data x",
+  'mkdir "`cat .data/showcase/secrets.env`"',
+  "mkdir x > .data/showcase/outbox/latest.json",
+  "mkdir $(cat .data/showcase/secrets.env)",
+  // A wildcard extension that reads like the key folder: blocked deliberately.
+  "ls src/*.s*",
+];
+
+// Bypasses found by the third review (`review-k16-59-weryfikacja-v3.md`, B1–B4
+// and S2–S3): each passed version 3 and each must be blocked. `example.com:x`
+// is an SSH address without a user.
+const bypassesFromReview = [
+  // B1: a redirection glued to a word.
+  "git ls-remote>out.txt --upload-pa='touch /tmp/x' example.com:x",
+  "git 2>err.txt fetch prod",
+  "git>out.txt fetch prod",
+  "git fetch<in.txt prod",
+  "git 2>$null fetch prod",
+  // B2: global options with a value that the hook did not know.
+  "git --attr-source HEAD ls-remote --upload-pa='touch /tmp/x' example.com:x",
+  "git --attr-source HEAD fetch prod",
+  "git --attr-source HEAD clone example.com:/srv/app.git copy",
+  "git --shallow-file x fetch prod",
+  // B3: the word `git` as the value of an option.
+  "git ls-remote -o git --upload-pa='touch /tmp/x' example.com:x",
+  "git clone -o git example.com:/srv/app.git copy",
+  "git fetch -o git prod",
+  "git push -o git prod main",
+  // B4: settings in environment variables and `--config-env`.
+  "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.f GIT_CONFIG_VALUE_0=fetch git f prod",
+  "A=fetch git --config-env=alias.f=A f prod",
+  "$env:GIT_CONFIG_COUNT=1; $env:GIT_CONFIG_KEY_0='alias.f'; $env:GIT_CONFIG_VALUE_0='fetch'; git f prod",
+  "H=example.com:/srv/app.git git --config-env=remote.origin.pushurl=H push origin main",
+  "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.pushurl GIT_CONFIG_VALUE_0=example.com:/srv/app.git git push origin main",
+  // S2: other keys that choose the server.
+  "git config branch.main.remote example.com:/srv/app.git",
+  "git -c branch.main.remote=example.com:/srv/app.git fetch",
+  "git -c remote.pushDefault=example.com:/srv/app.git push",
+  "git config remote.pushDefault prod",
+  "git config branch.main.pushRemote prod",
+  // S3: subcommands and programs outside the list.
+  "git request-pull HEAD~1 example.com:/srv/app.git",
+  "git fetch --m origin prod",
+  "git remote rename prod origin",
+  "git remote update prod",
+  "git lfs clone example.com:/srv/app.git",
+  "git lfs fetch prod",
+  "git subtree pull --prefix=x example.com:/srv/app.git main",
+  "scalar clone example.com:/srv/app.git",
 ];
 
 // Everyday commands of the orchestrator and the agents (from the logs of
@@ -341,6 +475,52 @@ const everyday = [
   "cat scripts/showcase/showcase-lib.ps1",
   "Get-Content docs/testing.md -Raw",
   "ls ~/.config",
+  // From the third review and the orchestrator's logs.
+  "gh pr merge 63 --auto --squash",
+  "git merge origin/main --no-edit",
+  "git switch -c x origin/main",
+  "git -C c:\\Projekty\\Krajozbior\\krajozbior\\.worktrees\\ws-6 log --oneline -5",
+  "docker compose -p krajozbior-rehearsal down -v",
+  "npx vitest run tests/scripts",
+  "git diff alias.test.ts",
+  "ls src/a.ts",
+  "git fetch -q origin",
+  "git fetch origin --prune",
+  "git fetch origin 2>&1 | tail -5",
+  "git fetch origin 2> err.txt",
+  "git ls-remote origin chore/x",
+  "git -C c:\\Projekty\\Krajozbior\\krajozbior-docs fetch -q origin",
+  "git -C c:\\Projekty\\Krajozbior\\krajozbior-docs rev-parse --short origin/main",
+  "git -C c:\\Projekty\\Krajozbior\\krajozbior-docs pull --ff-only origin main",
+  "git push origin fix/git",
+  "git push -u origin chore/git-hooks",
+  "git pull --ff-only origin main",
+  "git pull",
+  "git status --short",
+  "git log --oneline origin/main..HEAD",
+  "git rev-parse HEAD",
+  "git stash list",
+  "git branch --show-current",
+  "git worktree add .worktrees/ws-7 -b feat/y origin/main",
+  "git add tests/scripts/block-remote-access-hook.test.ts",
+  "git restore --staged x.ts",
+  "git cherry-pick abc1234",
+  "git grep -n findRemoteAccess -- tests",
+  "git remote get-url --push origin",
+  "git config user.name",
+  "git config --get-regexp remote",
+  "gh pr view 59 --json headRefOid,mergeStateStatus",
+  "gh pr ready 59",
+  "gh issue list --repo example/repo-docs --state open",
+  // Text in quotes is not a command (review v3, S1).
+  'git commit -m "fix: git push bez potwierdzenia"',
+  'gh pr create --title "chore: git pull przed scaleniem" --body-file .ai/tmp/k16-v4/pr-body.md',
+  'gh pr comment 59 --body "uruchom git fetch upstream"',
+  'rg "git push" docs/',
+  'grep -rn "git clone" docs',
+  'echo "git fetch prod"',
+  "bash -c \"git commit -m 'fix: git push prod'\"",
+  'powershell -NoProfile -Command "git status"',
 ];
 
 const allowed = [
@@ -353,7 +533,7 @@ const allowed = [
   "git fetch origin",
   "git fetch origin main:main",
   "git fetch origin release-1.2:release-1.2",
-  "git push origin HEAD:refs/heads/feature",
+  "git push origin HEAD",
   "git show HEAD:.env.example",
   "git show origin/main:package.json",
   "git log --oneline origin/main..HEAD",
@@ -430,8 +610,12 @@ const knownLimitations = [
   "powershell -ExecutionPolicy Bypass -File .ai/tmp/connect.ps1",
   "node .ai/tmp/connect.mjs",
   'python -c "import paramiko"',
-  // Git settings prepared outside the command (a file tool, an include).
-  "git -c include.path=.ai/tmp/x.cfg fetch origin",
+  // Git settings prepared outside the command with a file tool: `origin` of
+  // another repository, programs git runs locally.
+  "git -C ../prepared-repo fetch origin",
+  "git -c core.fsmonitor=.ai/tmp/x.cmd status",
+  // Arguments assembled at run time.
+  "Invoke-Expression ('git fetch ' + 'prod')",
   // Other wildcard paths to keys and secrets.
   "cat ~/.*/id_*",
   "cat ~/*/id_ed25519",
@@ -459,6 +643,25 @@ const longCommands: Array<[string, string]> = [
   ["repeated remote.", "git config remote." + ".url=".repeat(4_000)],
   ["repeated powershell", "powershell ".repeat(1_819)],
   ["repeated ../", "cat " + "../".repeat(6_666)],
+  ["repeated git -c git", "git -c git ".repeat(2_000)],
+  ["repeated git fetch origin", "git fetch origin ".repeat(1_177)],
+  ["repeated git config", "git config a ".repeat(1_539)],
+  ["repeated $(", "$(".repeat(10_000)],
+  ["repeated backticks", "`".repeat(20_000)],
+  ["repeated bash -c", 'bash -c "'.repeat(2_000)],
+  ["repeated 2>", "git 2>".repeat(3_334)],
+];
+// The same shapes at 100 000 characters.
+const veryLongCommands: Array<[string, string]> = [
+  ["spaces", " ".repeat(100_000)],
+  ["repeated git push", "git push ".repeat(11_112)],
+  ["repeated git fetch origin", "git fetch origin ".repeat(5_883)],
+  ["repeated git -c git", "git -c git ".repeat(10_000)],
+  ["repeated git config", "git config a ".repeat(7_693)],
+  ["repeated .data/", ".data/".repeat(16_667)],
+  ["repeated $(", "$(".repeat(50_000)],
+  ["repeated quotes", "'".repeat(100_000) + "x"],
+  ["repeated bash -c", 'bash -c "'.repeat(10_000)],
 ];
 
 describe("findRemoteAccess", () => {
@@ -470,8 +673,16 @@ describe("findRemoteAccess", () => {
     expect(findRemoteAccess(command)).toEqual([]);
   });
 
+  it.each(bypassesFromReview)("blocks a bypass from the third review: %s", (command) => {
+    expect(findRemoteAccess(command).length).toBeGreaterThan(0);
+  });
+
   it.each(everyday)("allows an everyday command: %s", (command) => {
     expect(findRemoteAccess(command)).toEqual([]);
+  });
+
+  it("checks at least 100 everyday commands", () => {
+    expect(everyday.length).toBeGreaterThanOrEqual(100);
   });
 
   it("names what it found, without duplicates", () => {
@@ -520,6 +731,13 @@ describe("known limitations (not caught, by design)", () => {
 
 describe("speed on a 20 000-character line", () => {
   it.each(longCommands)("checks %s in under 100 ms", (_, command) => {
+    findRemoteAccess(command);
+    const start = performance.now();
+    findRemoteAccess(command);
+    expect(performance.now() - start).toBeLessThan(100);
+  });
+
+  it.each(veryLongCommands)("checks %s (100 000 characters) in under 100 ms", (_, command) => {
     findRemoteAccess(command);
     const start = performance.now();
     findRemoteAccess(command);
@@ -602,5 +820,31 @@ describe("block-remote-access hook (real process)", () => {
 
   it("blocks an empty input", () => {
     expect(runHook("").status).toBe(2);
+  });
+
+  it("tells how to reach the server within the allow list", () => {
+    const push = runHook(shellEvent("Bash", "git push prod main"));
+    expect(push.status).toBe(2);
+    expect(push.stderr).toContain("git push -u origin <gałąź>");
+    const fetch = runHook(shellEvent("PowerShell", "git --attr-source HEAD fetch prod"));
+    expect(fetch.status).toBe(2);
+    expect(fetch.stderr).toContain("git fetch origin");
+  });
+
+  it("blocks every command when the shared module is missing (exit 2, not 1)", () => {
+    const folder = mkdtempSync(join(tmpdir(), "block-remote-access-"));
+    try {
+      const copy = join(folder, "block-remote-access.mjs");
+      writeFileSync(copy, readFileSync(script, "utf8"));
+      const result = spawnSync(process.execPath, [copy], {
+        input: JSON.stringify(shellEvent("Bash", "git status")),
+        encoding: "utf8",
+        timeout: 10_000,
+      });
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain("shell-text");
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 });
