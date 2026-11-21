@@ -3,6 +3,7 @@ import axe from "axe-core";
 import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+import { waitForHydration } from "../tests/support/e2e-hydration";
 
 // E2-S5, PR8: the "Chcę zobaczyć" list. The button on the place page, the list
 // at /my/want-to-see with the date of saving, and the privacy of the list
@@ -108,7 +109,7 @@ async function openBridge(page: Page) {
   );
   await expect(page.getByRole("heading", { level: 1, name: "Most Tczewski" })).toBeVisible();
   // The button is a client component: wait until the page is interactive.
-  await page.waitForLoadState("networkidle");
+  await waitForHydration(page);
 }
 
 const wantButton = (page: Page) => page.getByRole("button", { name: "Chcę zobaczyć", exact: true });
@@ -191,7 +192,7 @@ test.describe("the want-to-see list", () => {
 
     // Removing from the place page empties the list again.
     await item.click();
-    await a.waitForLoadState("networkidle");
+    await waitForHydration(a);
     await a.getByRole("button", { name: "Usuń z Chcę zobaczyć" }).click();
     await expect(a.getByText("Usunięto z listy „Chcę zobaczyć”.")).toBeVisible();
     await a.goto("/my/want-to-see");
@@ -223,7 +224,7 @@ test.describe("the want-to-see list", () => {
 
     // The page of the visited place still offers the removal.
     await page.reload();
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await expect(page.getByText("Masz już zapisaną wizytę w tym miejscu.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Potwierdź wizytę" })).toHaveCount(0);
     await expectNoAccessibilityViolations(page);
@@ -233,7 +234,7 @@ test.describe("the want-to-see list", () => {
     await expect(page.getByRole("link", { name: /Most Tczewski/ })).toContainText("Odwiedzone");
 
     await page.getByRole("link", { name: /Most Tczewski/ }).click();
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await page.getByRole("button", { name: "Usuń z Chcę zobaczyć" }).click();
     await expect(page.getByText("Usunięto z listy „Chcę zobaczyć”.")).toBeVisible();
     await page.goto("/my/want-to-see");

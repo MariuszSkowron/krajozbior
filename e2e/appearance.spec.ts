@@ -10,6 +10,7 @@ import axe from "axe-core";
 import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+import { waitForHydration } from "../tests/support/e2e-hydration";
 
 // E3-1: motyw (nocny domyślny, jasny z ciasteczka), przełącznik w nagłówku (także bez JavaScriptu),
 // kroje z polskimi znakami i podkreślenie linków w tekście. Nie potrzebuje bazy danych.
@@ -133,7 +134,7 @@ test.describe("kroje i linki", () => {
   // (document.fonts.check tego nie rozróżnia).
   test("polskie znaki są rysowane krojami z projektu, bez zapasowych", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await page.evaluate(() => {
       document.querySelector("main")!.innerHTML = `
         <h1 id="t">Żółć, Gdańsk, Łódź</h1>
@@ -165,7 +166,7 @@ test.describe("kroje i linki", () => {
   }) => {
     await page.goto("/");
     // Po hydratacji React nie nadpisze wstrzykniętego przycisku.
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await page.evaluate(() => {
       document.querySelector("main")!.innerHTML =
         '<button id="primary" class="button button--primary">Dalej</button>';
@@ -206,7 +207,7 @@ test.describe("kroje i linki", () => {
     }) => {
       await setThemeCookie(page, theme);
       await page.goto("/");
-      await page.waitForLoadState("networkidle");
+      await waitForHydration(page);
       await page.evaluate(() => {
         document.querySelector("main")!.innerHTML =
           '<p><a id="in-text" href="#x">pełny opis</a></p>';
@@ -303,7 +304,7 @@ async function openScreen(
   const page = await context.newPage();
 
   await page.goto(path);
-  await page.waitForLoadState("networkidle");
+  await waitForHydration(page);
 
   return { context, page };
 }
@@ -350,7 +351,7 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
     await page.getByRole("button", { name: "Zapisz kolekcję" }).click();
     await expect(page.getByText("Ta kolekcja jest w Twoich zapisanych.")).toBeVisible();
     await page.goto(paths.place);
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await page.getByRole("button", { name: "Chcę zobaczyć", exact: true }).click();
     await expect(page.getByText("To miejsce jest na Twojej liście")).toBeVisible();
     await context.close();
@@ -792,12 +793,12 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
     expect(await axeViolations(page)).toEqual([]);
 
     await page.reload();
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await expect(page.getByText("Masz już zapisaną wizytę w tym miejscu.")).toBeVisible();
     expect(await axeViolations(page)).toEqual([]);
 
     await page.goto("/my/want-to-see");
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await expect(page.getByText("Odwiedzone", { exact: true }).first()).toBeVisible();
     expect(await axeViolations(page)).toEqual([]);
     await context.close();

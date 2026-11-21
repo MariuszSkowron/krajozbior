@@ -3,6 +3,7 @@ import axe from "axe-core";
 import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+import { waitForHydration } from "../tests/support/e2e-hydration";
 
 // E12-4: the collection page as an album: header, state filter (works without JavaScript),
 // grid of cards and the panel of the chosen place (desktop only, no new document). Needs a
@@ -41,7 +42,7 @@ async function inBothThemes(page: Page, check: () => Promise<void>) {
       .context()
       .addCookies([{ name: THEME_COOKIE, value: theme, url: "http://127.0.0.1" }]);
     await page.reload();
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await expect(page.locator("html")).toHaveClass(new RegExp(`theme-${theme}`));
     await check();
   }
@@ -126,7 +127,7 @@ test.describe("the collection as an album", () => {
     page,
   }) => {
     await page.goto(COLLECTION);
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await expect(panelHeading(page)).toHaveText("Wybrane miejsce");
 
     // The marker lives in the document: a full reload would remove it. The click time and the
@@ -193,7 +194,7 @@ test.describe("the collection as an album", () => {
     context,
   }) => {
     await page.goto(COLLECTION);
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
 
     const opened = context.waitForEvent("page");
 
@@ -212,7 +213,7 @@ test.describe("the collection as an album", () => {
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(COLLECTION);
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await expect(page.getByRole("complementary")).toBeHidden();
 
     await card(page, /Most Tczewski/).click();
@@ -318,7 +319,7 @@ test.describe("the collection as an album", () => {
     const page = await signedInPage(browser, EXPLORER);
 
     await page.goto(`${COLLECTION}?stan=do-odwiedzenia`);
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await page.getByRole("button", { name: "Zaznacz odwiedzone" }).click();
     await page.getByRole("checkbox", { name: /Most Tczewski/ }).check();
     await page.getByRole("button", { name: "Zapisz wizyty z przeszłości" }).click();
@@ -337,7 +338,7 @@ test.describe("the collection as an album", () => {
 
     await visitPast("Most Tczewski");
     await page.goto(COLLECTION);
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
 
     const aside = page.getByRole("complementary");
 
@@ -357,7 +358,7 @@ test.describe("the collection as an album", () => {
     page,
   }) => {
     await page.goto(COLLECTION);
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await card(page, /Most Tczewski/).click();
     await expect(panelHeading(page)).toHaveText("Most Tczewski");
     await inBothThemes(page, () => expectNoAccessibilityViolations(page));
@@ -366,7 +367,7 @@ test.describe("the collection as an album", () => {
 
     await visitPast("Most Tczewski");
     await explorer.goto(`${COLLECTION}?stan=do-odwiedzenia`);
-    await explorer.waitForLoadState("networkidle");
+    await waitForHydration(explorer);
     await card(explorer, /Zamek w Gniewie/).click();
     await expect(panelHeading(explorer)).toHaveText("Zamek w Gniewie");
     await inBothThemes(explorer, () => expectNoAccessibilityViolations(explorer));

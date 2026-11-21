@@ -3,6 +3,7 @@ import axe from "axe-core";
 import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+import { waitForHydration } from "../tests/support/e2e-hydration";
 
 // E2-S6, PR9: a visit from the past ("Byłem tu wcześniej") for one place on its
 // page and for many places on the collection page. Needs a migrated, seeded
@@ -96,14 +97,14 @@ async function openBridge(page: Page) {
   );
   await expect(page.getByRole("heading", { level: 1, name: "Most Tczewski" })).toBeVisible();
   // The forms are client components: wait until the page is interactive.
-  await page.waitForLoadState("networkidle");
+  await waitForHydration(page);
 }
 
 async function saveDemoCollection(page: Page) {
   await page.goto(`/collections/${DEMO_SLUG}`);
   await page.getByRole("button", { name: "Zapisz kolekcję" }).click();
   await expect(page.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
-  await page.waitForLoadState("networkidle");
+  await waitForHydration(page);
 }
 
 async function chooseMonth(page: Page, month: string, year: string) {
@@ -117,7 +118,7 @@ async function setLightTheme(page: Page) {
     .context()
     .addCookies([{ name: THEME_COOKIE, value: "light", url: "http://127.0.0.1" }]);
   await page.reload();
-  await page.waitForLoadState("networkidle");
+  await waitForHydration(page);
 }
 
 test.describe("a visit from the past", () => {
@@ -332,7 +333,7 @@ test.describe("a visit from the past", () => {
     await expectNoAccessibilityViolations(page);
 
     await page.goto(`/collections/${DEMO_SLUG}`);
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await page.getByRole("button", { name: "Zaznacz odwiedzone" }).click();
     await page.getByRole("checkbox", { name: /Most Tczewski/ }).check();
     await expectNoAccessibilityViolations(page);
@@ -346,7 +347,7 @@ test.describe("a visit from the past", () => {
       .context()
       .addCookies([{ name: THEME_COOKIE, value: "dark", url: "http://127.0.0.1" }]);
     await page.reload();
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await expectNoAccessibilityViolations(page);
     await page.context().close();
   });
