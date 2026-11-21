@@ -138,9 +138,9 @@ let authInstance: Auth | undefined;
 let authPool: Pool | undefined;
 
 /**
- * How long a request waits for one of the pool's connections (SEC-3). The server has no
- * request limit per address, so a flood of sign-in requests ends in 503 after this time
- * instead of leaving every later request (sessions on all pages) waiting without end.
+ * How long a request waits for one of the pool's connections (SEC-3). When the pool is
+ * exhausted, the request ends in 503 after this time instead of leaving every later request
+ * (sessions on all pages) waiting without end.
  */
 export const AUTH_POOL_CONNECTION_TIMEOUT_MS = 5000;
 

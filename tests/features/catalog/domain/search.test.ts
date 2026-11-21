@@ -125,7 +125,11 @@ describe("parseSearchPhrase", () => {
 
     const phrase = parseSearchPhrase("\u0000ab\u0000");
 
-    expect(phrase.status === "ok" && /\p{Cc}/u.test(phrase.contains + phrase.prefix)).toBe(false);
+    expect(phrase.status).toBe("ok");
+
+    if (phrase.status === "ok") {
+      expect(/\p{Cc}/u.test(phrase.contains + phrase.prefix)).toBe(false);
+    }
   });
 
   it("gives the folded phrase and the escaped like patterns", () => {

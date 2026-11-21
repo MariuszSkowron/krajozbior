@@ -234,15 +234,21 @@ describe("server configuration (deploy/compose.yaml)", () => {
     expect(compose.match(/\.env\.production\}/g)).toHaveLength(1);
   });
 
-  dockerComposeIt("keeps the operator secrets out of the application and back", () => {
+  dockerComposeIt("keeps the owner and ops role variables out of the application", () => {
     const directory = mkdtempSync(join(tmpdir(), "krajozbior-compose-vars-"));
     const appFile = join(directory, "app-vars");
     const opsFile = join(directory, "ops-vars");
 
-    writeFileSync(appFile, "BETTER_AUTH_SECRET=app-only\nDATABASE_URL=postgres://app\n");
+    writeFileSync(appFile, "BETTER_AUTH_SECRET=app-secret\nDATABASE_URL=postgres://app\n");
+    // The operator commands `auth:create-admin` and `auth:throttle` need the session secret
+    // (the same value as the application's in production), so the operator file carries it.
     writeFileSync(
       opsFile,
-      [...OPERATOR_VARIABLES.map((name) => `${name}=ops-only`), ""].join("\n"),
+      [
+        ...OPERATOR_VARIABLES.map((name) => `${name}=ops-only`),
+        "BETTER_AUTH_SECRET=ops-file-secret",
+        "",
+      ].join("\n"),
     );
 
     const config = composeConfig(SERVER, ["--profile", "ops"], undefined, {
@@ -252,8 +258,10 @@ describe("server configuration (deploy/compose.yaml)", () => {
     const app = config.services.app?.environment ?? {};
     const ops = config.services.ops?.environment ?? {};
 
-    expect(app.BETTER_AUTH_SECRET).toBe("app-only");
-    expect(ops.BETTER_AUTH_SECRET).toBeUndefined();
+    // Each service reads only its own file.
+    expect(app.BETTER_AUTH_SECRET).toBe("app-secret");
+    expect(ops.BETTER_AUTH_SECRET).toBe("ops-file-secret");
+    expect(ops.DATABASE_URL).toBeUndefined();
 
     for (const name of OPERATOR_VARIABLES) {
       expect(app[name], name).toBeUndefined();
