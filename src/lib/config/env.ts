@@ -55,6 +55,17 @@ const opsEnvSchema = z.object({
 
 export type OpsEnv = z.infer<typeof opsEnvSchema>;
 
+// Directory of the photo volume (E4, spec 5.11.1). Optional, and a wrong state never stops the
+// application: see mediaRootWarning().
+const mediaEnvSchema = z.object({
+  MEDIA_ROOT: z
+    .string()
+    .refine((value) => value.startsWith("/") && !value.includes("\0") && !value.includes(".."))
+    .optional(),
+});
+
+export type MediaEnv = z.infer<typeof mediaEnvSchema>;
+
 export class ServerConfigError extends Error {
   constructor(readonly invalidNames: string[]) {
     // Names only: values may be secrets and must not reach logs or responses.
@@ -118,6 +129,45 @@ export function parseMigrationEnv(source: Record<string, string | undefined>): M
 
 export function parseOpsEnv(source: Record<string, string | undefined>): OpsEnv {
   return parseEnv(opsEnvSchema, source);
+}
+
+export function parseMediaEnv(source: Record<string, string | undefined>): MediaEnv {
+  return parseEnv(mediaEnvSchema, { MEDIA_ROOT: source.MEDIA_ROOT?.trim() || undefined });
+}
+
+// What the startup check found in the directory of the photo volume.
+export type MediaRootState = "ok" | "missing" | "not-directory" | "unreadable" | "wrong-owner";
+
+// In the Commons phases (before E4-1) a wrong MEDIA_ROOT must NOT stop the server: a volume with
+// the wrong owner would otherwise roll back the whole deployment. The caller logs the returned line
+// (one line, no path or value) and starts anyway; `/media` then answers 404. Returns null when
+// MEDIA_ROOT is unset or the directory is fine. The caller supplies the inspection (the file system
+// lives in instrumentation-node.ts, so this module stays free of `node:fs`).
+export function mediaRootWarning(
+  source: Record<string, string | undefined>,
+  inspect: (directory: string) => MediaRootState,
+): string | null {
+  let root: string | undefined;
+
+  try {
+    root = parseMediaEnv(source).MEDIA_ROOT;
+  } catch (error) {
+    if (!(error instanceof ServerConfigError)) {
+      throw error;
+    }
+
+    return "Warning: MEDIA_ROOT is not an absolute path; photos are unavailable (the server starts).";
+  }
+
+  if (root === undefined) {
+    return null;
+  }
+
+  const state = inspect(root);
+
+  return state === "ok"
+    ? null
+    : `Warning: MEDIA_ROOT is not usable (${state}); photos are unavailable (the server starts).`;
 }
 
 // The demo accounts (seeded with one shared, known password) may sign in only
