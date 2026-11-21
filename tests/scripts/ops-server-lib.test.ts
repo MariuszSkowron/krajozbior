@@ -843,7 +843,7 @@ exit 0
 describe("hourly resource check: daily pool of sign-in codes (health-report.sh)", () => {
   const DF = "printf 'Use%%\\n 10%%\\n'\n";
   const DOCKER = "printf true\n";
-  const JOURNALCTL = 'cat "$JOURNAL_SAMPLE"\n';
+  const JOURNALCTL = 'echo "$@" >> "$JOURNAL_SAMPLE.args"\ncat "$JOURNAL_SAMPLE"\n';
   const ALARM_TEXT = "pula dziennych kodow logowania";
 
   function runReport(journal: string): string {
@@ -863,7 +863,10 @@ describe("hourly resource check: daily pool of sign-in codes (health-report.sh)"
       },
     });
 
-    return `${result.stdout}${result.stderr}`;
+    const argsFile = `${sample}.args`;
+    const args = existsSync(argsFile) ? readFileSync(argsFile, "utf8") : "";
+
+    return `${result.stdout}${result.stderr}\nJOURNALCTL ARGS: ${args}`;
   }
 
   bashIt("raises an alarm when the application logged the 80% mark", () => {
@@ -874,6 +877,13 @@ describe("hourly resource check: daily pool of sign-in codes (health-report.sh)"
     expect(output).toContain("ALARM");
     expect(output).toContain(ALARM_TEXT);
     expect(output).toContain("alarm 1 razy");
+  });
+
+  bashIt("looks 65 minutes back, so a late timer leaves no gap", () => {
+    const output = runReport(`{"event":"auth.otp_global_limit_80","globalLimit":300}\n`);
+
+    // The stub logs the arguments of every journalctl call; the pool check is the last one.
+    expect(output).toContain("--since -65min");
   });
 
   bashIt("raises an alarm when the application logged the 100% mark too", () => {

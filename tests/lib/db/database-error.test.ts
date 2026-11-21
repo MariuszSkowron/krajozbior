@@ -54,6 +54,25 @@ describe("withoutQueryText", () => {
     expect((result as Error).cause).toBeUndefined();
   });
 
+  it("keeps the name of the violated constraint and the frames of the call site", () => {
+    const original = driverError("23505", ConstraintViolationException);
+
+    Object.assign(original, { constraint: "collections_slug_key" });
+    const result = withoutQueryText(original) as DatabaseQueryError;
+
+    expect(result.constraint).toBe("collections_slug_key");
+    expect(result.stack).toMatch(/\n\s+at /);
+    expect(everythingPrintable(result)).not.toContain(SECRET);
+  });
+
+  it("drops a constraint that is not a plain schema name", () => {
+    const original = driverError("23505");
+
+    Object.assign(original, { constraint: `x ${SECRET}` });
+
+    expect((withoutQueryText(original) as DatabaseQueryError).constraint).toBeUndefined();
+  });
+
   it("keeps the class of the failure as the name", () => {
     expect(
       (withoutQueryText(driverError("23503", ConstraintViolationException)) as Error).name,

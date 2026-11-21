@@ -48,8 +48,9 @@ rejected="$(journalctl CONTAINER_NAME="$KZ_PROJECT-app-1" --since '-1h' -o cat -
 # The daily pool of sign-in codes reached 80% or 100% (`auth.otp_global_limit_80` and `_100`, logged
 # once each per day by the application). At 100% nobody new can sign in until midnight UTC, so the
 # owner learns about it from the e-mail; the check runs hourly, so an alarm logged earlier in the
-# same day shows up for one hour only.
-otp_alarms="$(journalctl CONTAINER_NAME="$KZ_PROJECT-app-1" --since '-1h' -o cat --no-pager 2>/dev/null |
+# same day shows up for one hour only. The window is 65 minutes, so a timer that fires a little
+# late cannot leave a gap in which the one-off alarm would be missed (a double e-mail is harmless).
+otp_alarms="$(journalctl CONTAINER_NAME="$KZ_PROJECT-app-1" --since '-65min' -o cat --no-pager 2>/dev/null |
   grep -c 'auth\.otp_global_limit_' || true)"
 [ "${otp_alarms:-0}" -eq 0 ] || problems+=("pula dziennych kodow logowania wyczerpana w co najmniej 80% (alarm $otp_alarms razy w ostatniej godzinie)")
 

@@ -130,8 +130,6 @@ describe("runInGuestContext", () => {
   });
 });
 
-// The actor reaches PostgreSQL in one place only (issue #44): any other
-// set_config('app.user_id', ...) would bypass the nesting guard of the wrapper.
 describe("a database error leaving a context (production)", () => {
   beforeEach(() => {
     vi.stubEnv("NODE_ENV", "production");
@@ -179,6 +177,8 @@ describe("a database error leaving a context (production)", () => {
   });
 });
 
+// The actor reaches PostgreSQL in one place only (issue #44): any other
+// set_config('app.user_id', ...) would bypass the nesting guard of the wrapper.
 describe("user context setting", () => {
   const sourceRoot = join(process.cwd(), "src");
   const files = (dir: string): string[] =>

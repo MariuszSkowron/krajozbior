@@ -5,17 +5,23 @@ import { DriverException } from "@mikro-orm/core";
 // the profile, an account id): `invalid input syntax for type uuid: "<value>"` in the message,
 // `Key (column)=(<value>) already exists` and the failing row in `detail`, and more in `where`
 // and `internalQuery`. That is data of the user, and the privacy policy promises it never
-// reaches a log (D-E11-5). (MikroORM 7.2 does not add the query text itself.) So the context
-// wrappers in
-// `user-context.ts`, the only way domain code reaches the database, replace such an error with
-// this one: the class of the failure and the SQLSTATE that callers read, nothing else.
+// reaches a log (D-E11-5). So the context wrappers in `user-context.ts`, the only way domain
+// code reaches the database, replace such an error with this one: the class of the failure, the
+// SQLSTATE and the name of the violated constraint (a schema name, not data of the user), plus
+// the stack frames of the call site.
+//
+// Rule for code that catches the error after it left the context: read only `code` and
+// `constraint`, never `message` or `detail` (in production they are gone, in tests they are not).
 const SQLSTATE = /^[0-9A-Z]{5}$/;
+const CONSTRAINT_NAME = /^[A-Za-z0-9_]{1,63}$/;
 
 export class DatabaseQueryError extends Error {
   /** The SQLSTATE (for example 23503 or 57014), when the driver reported one. */
   readonly code?: string;
+  /** The name of the violated constraint or index, when the driver reported one. */
+  readonly constraint?: string;
 
-  constructor(name: string, code?: string) {
+  constructor(name: string, code?: string, constraint?: string, frames = "") {
     super(
       code === undefined ? "Database query failed" : `Database query failed (SQLSTATE ${code})`,
     );
@@ -24,7 +30,20 @@ export class DatabaseQueryError extends Error {
     if (code !== undefined) {
       this.code = code;
     }
+    if (constraint !== undefined) {
+      this.constraint = constraint;
+    }
+    // Only the `at ...` lines of the original stack: they name functions and files, so the
+    // failing call stays findable; the first lines (the message) are left out.
+    this.stack = `${this.name}: ${this.message}${frames === "" ? "" : `\n${frames}`}`;
   }
+}
+
+function stackFrames(error: Error): string {
+  return String(error.stack ?? "")
+    .split("\n")
+    .filter((line) => /^\s+at /.test(line))
+    .join("\n");
 }
 
 /**
@@ -39,6 +58,11 @@ export function withoutQueryText(error: unknown): unknown {
   }
 
   const code = typeof error.code === "string" && SQLSTATE.test(error.code) ? error.code : undefined;
+  const rawConstraint = (error as { constraint?: unknown }).constraint;
+  const constraint =
+    typeof rawConstraint === "string" && CONSTRAINT_NAME.test(rawConstraint)
+      ? rawConstraint
+      : undefined;
 
-  return new DatabaseQueryError(error.name, code);
+  return new DatabaseQueryError(error.name, code, constraint, stackFrames(error));
 }

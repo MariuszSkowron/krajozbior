@@ -59,8 +59,9 @@ export async function runInUserContext<T>(
   });
 }
 
-// A database error leaves the context without the text of the query and its values, which
-// MikroORM puts in the message (see `database-error.ts`); other errors pass on unchanged.
+// A database error leaves the context without the values that PostgreSQL repeats in its message
+// and fields (see `database-error.ts`; outside the context read only `code` and `constraint`);
+// other errors pass on unchanged.
 async function transactionWithoutQueryText<T>(
   em: EntityManager,
   work: (tx: EntityManager) => Promise<T>,
