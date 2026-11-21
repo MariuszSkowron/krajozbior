@@ -69,12 +69,21 @@ describe.skipIf(!shell)("review-status.ps1 dry run", () => {
     expect(out).toContain("PR #40");
   });
 
-  it("refuses bad parameters", () => {
-    expect(run(["-Pr", "0", "-DryRun"]).code).not.toBe(0);
-    expect(run(["-Pr", "abc", "-DryRun"]).code).not.toBe(0);
-    expect(run(["-Pr", "41", "-State", "pending", "-DryRun"]).code).not.toBe(0);
-    expect(run(["-Pr", "41", "-Only", "other", "-DryRun"]).code).not.toBe(0);
-    expect(run(["-Pr", "41", "-CarryOver", "-State", "failure", "-DryRun"]).code).not.toBe(0);
-    expect(run(["-DryRun"]).code).not.toBe(0);
-  });
+  // Each case starts a separate PowerShell process (about 1 s on CI), so each gets its own test
+  // and a generous timeout. Only the refusal (non-zero exit code) is checked, not the message,
+  // which differs between Windows PowerShell 5.1 and pwsh.
+  it.each([
+    ["number zero", ["-Pr", "0", "-DryRun"]],
+    ["non-numeric PR", ["-Pr", "abc", "-DryRun"]],
+    ["unknown state", ["-Pr", "41", "-State", "pending", "-DryRun"]],
+    ["unknown status name", ["-Pr", "41", "-Only", "other", "-DryRun"]],
+    ["carry-over with failure", ["-Pr", "41", "-CarryOver", "-State", "failure", "-DryRun"]],
+    ["missing PR", ["-DryRun"]],
+  ])(
+    "refuses bad parameters: %s",
+    (_name, args) => {
+      expect(run(args as string[]).code).not.toBe(0);
+    },
+    30_000,
+  );
 });
