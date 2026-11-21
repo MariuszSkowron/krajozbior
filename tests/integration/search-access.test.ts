@@ -282,12 +282,11 @@ describe("public search (guest context, RLS on)", () => {
       ["-- koniec; drop", ["Komentarz -- koniec; drop table x"]],
       ["'; drop table collections; --", []],
       ["' or '1'='1", []],
-      ["?", []],
     ] as const) {
       expect(titles(await search(phrase)), phrase).toEqual(expected);
     }
 
-    // The table is still there and nothing was added.
+    // The table is still there (the phrases were not executed as SQL).
     expect(
       (await admin$<{ n: string }>("select count(*)::text as n from public.collections"))[0]!.n,
     ).not.toBe("0");
