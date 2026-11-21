@@ -44,7 +44,7 @@ Zmiany w przygotowaniu, które mają wejść do wydania 1.0.0. Nie są jeszcze s
 
 - Aplikacja informuje w polityce prywatności, że przy wyświetlaniu mapy dane trafiają do serwerów OpenStreetMap (#64).
 - Projekt ma właściciela dla całego repozytorium, a pliki umiejętności agentów AI są chronione przed niezatwierdzonymi zmianami (#56).
-- Testy końcowe (E2E) zawsze działają z zabezpieczeniem bazy danych, a nazwy tokenów są czytelniejsze (#35).
+- Testy końcowe (E2E) zawsze działają z zabezpieczeniem bazy danych, a nazwy zmiennych wyglądu (tokenów) są czytelniejsze (#35).
 - Testy wydajności wyszukiwarki mierzą stabilniej: po rozgrzewce i medianą zamiast wartości maksymalnej (#51).
 - Reguła kodu wykrywa ręczne zabezpieczanie znaków przed zbudowaniem wyrażenia regularnego (#44).
 - Automatyczna analiza kodu CodeQL sprawdza także szkice pull requestów (#45, #48).
@@ -54,8 +54,8 @@ Zmiany w przygotowaniu, które mają wejść do wydania 1.0.0. Nie są jeszcze s
 ### Naprawiono
 
 - Zapisy do albumu są bezpieczniejsze, a listy i zapisy mają limity (#27).
-- Zapisy nie zawierają danych osobowych, a limity działają już przed otwarciem serwisu (#60).
-- Zapytania do bazy danych mają limit czasu, więc aplikacja i logowanie nie zawieszają się przy awarii bazy (#61).
+- Dzienniki (logi) aplikacji i bazy nie zawierają danych osobowych, a limity wielkości żądań i pamięci działają już przed otwarciem serwisu (#60).
+- Zapytania aplikacji i logowania do bazy danych mają limit czasu, więc jedno zawieszone albo bardzo kosztowne zapytanie nie blokuje pozostałych użytkowników (#61).
 
 ### Bezpieczeństwo
 
