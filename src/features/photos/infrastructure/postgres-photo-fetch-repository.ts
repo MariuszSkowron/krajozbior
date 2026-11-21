@@ -71,7 +71,8 @@ export function createPostgresPhotoFetchRepository(client: Client): PhotoFetchRe
         );
 
         if (rowCount !== 1) {
-          throw new Error("place_photos: the update changed no row");
+          // Wiersza już nie ma (usunięty w trakcie pobierania) albo nie czeka na plik.
+          return "gone";
         }
 
         return "ok";

@@ -252,12 +252,27 @@ describe("place photos", () => {
       await check(
         "krajozbior_app",
         table,
-        ["commons_file", "file_state", "created_by", "hidden_at", "fetch_attempts", "id"],
+        [
+          "commons_file",
+          "file_state",
+          "storage_key",
+          "width",
+          "height",
+          "content_sha256",
+          "created_by",
+          "hidden_at",
+          "fetch_attempts",
+          "id",
+        ],
         "insert",
       ),
     ).toEqual({
       commons_file: true,
       file_state: true,
+      storage_key: false,
+      width: false,
+      height: false,
+      content_sha256: false,
       created_by: false,
       hidden_at: false,
       fetch_attempts: false,
@@ -379,20 +394,14 @@ describe("place photos", () => {
     const refused = (overrides: Partial<Record<string, string | number | null>>) =>
       insertPending(curA, orgA, placeId, { position: (position += 1), ...overrides });
 
-    await expect(
-      refused({
-        file_state: "ready",
-        storage_key: randomUUID(),
-        width: 1000,
-        height: 700,
-      }),
-    ).rejects.toThrow(rejectedByPolicy);
+    await expect(refused({ file_state: "ready" })).rejects.toThrow(rejectedByPolicy);
+    // File columns have no INSERT grant for the app at all (the restrictive policy is a second wall).
+    await expect(refused({ storage_key: randomUUID() })).rejects.toThrow(noPermission);
+    await expect(refused({ width: 100 })).rejects.toThrow(noPermission);
+    await expect(refused({ height: 100 })).rejects.toThrow(noPermission);
     await expect(refused({ source_kind: "own" })).rejects.toThrow(rejectedByPolicy);
     await expect(refused({ source_kind: "third_party" })).rejects.toThrow(rejectedByPolicy);
     await expect(refused({ file_state: "fetch_failed" })).rejects.toThrow(rejectedByPolicy);
-    await expect(refused({ storage_key: randomUUID() })).rejects.toThrow(rejectedByPolicy);
-    await expect(refused({ width: 100 })).rejects.toThrow(rejectedByPolicy);
-    await expect(refused({ height: 100 })).rejects.toThrow(rejectedByPolicy);
     await expect(
       as(
         curA,
@@ -405,7 +414,7 @@ describe("place photos", () => {
                  'commons-import/1', 'Z.jpg', decode(repeat('ab', 32), 'hex'))`,
         [orgA, placeId, `${cc}/licenses/by/4.0/`],
       ),
-    ).rejects.toThrow(rejectedByPolicy);
+    ).rejects.toThrow(noPermission);
     // Columns the app has no grant for at all.
     for (const column of ["created_by", "hidden_at", "fetch_attempts"]) {
       const value = column === "created_by" ? curA.id : column === "hidden_at" ? "now()" : "1";

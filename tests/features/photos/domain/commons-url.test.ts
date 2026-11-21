@@ -7,15 +7,23 @@ import {
 } from "@/features/photos/domain/commons-url";
 
 describe("pickThumbWidth", () => {
-  it("takes the largest standard step not above min(1920, width)", () => {
+  it("takes the largest standard step strictly below the source width, never above 1920", () => {
     expect(pickThumbWidth(5000)).toBe(1920);
-    expect(pickThumbWidth(1920)).toBe(1920);
+    expect(pickThumbWidth(1921)).toBe(1920);
     expect(pickThumbWidth(1500)).toBe(1280);
     expect(pickThumbWidth(400)).toBe(330);
-    expect(pickThumbWidth(20)).toBe(20);
+    expect(pickThumbWidth(21)).toBe(20);
   });
 
-  it("gives null for a source narrower than the smallest step or a bad width", () => {
+  it("never picks a step equal to the source width (Wikimedia does not scale to the same width)", () => {
+    expect(pickThumbWidth(1920)).toBe(1280);
+    expect(pickThumbWidth(1280)).toBe(960);
+    expect(pickThumbWidth(960)).toBe(500);
+    expect(pickThumbWidth(500)).toBe(330);
+  });
+
+  it("gives null for a source not wider than the smallest step or a bad width", () => {
+    expect(pickThumbWidth(20)).toBeNull();
     expect(pickThumbWidth(19)).toBeNull();
     expect(pickThumbWidth(0)).toBeNull();
     expect(pickThumbWidth(-5)).toBeNull();
