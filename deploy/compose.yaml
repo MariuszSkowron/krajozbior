@@ -113,7 +113,8 @@ services:
     # Własny plik operatora, nie `.env.production` aplikacji: hasła ról `owner` i `ops` (adresy
     # DATABASE_MIGRATION_URL, DATABASE_OPS_URL, DATABASE_ADMIN_URL) nie trafiają do procesu
     # wystawionego do internetu. Poleceniom `auth:create-admin` i `auth:throttle` plik musi też
-    # dać DATABASE_AUTH_URL, BETTER_AUTH_SECRET (identyczny jak w aplikacji) i BETTER_AUTH_URL;
+    # dać DATABASE_AUTH_URL, BETTER_AUTH_SECRET (identyczny jak w aplikacji), BETTER_AUTH_URL
+    # i AUTH_CLIENT_IP_HEADER (przy NODE_ENV=production ustawienia logowania wymagają obu, jak w aplikacji);
     # klucza poczty nie potrzebuje żadne polecenie operatora (lista: docs/deployment.md).
     # Domyślnie w /run (pamięć RAM, znika po restarcie): skrypt wdrożenia kładzie go na czas poleceń.
     env_file:

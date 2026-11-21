@@ -7,8 +7,8 @@ import {
   type Auth,
 } from "@/features/identity/infrastructure/better-auth";
 
-// SEC-3: without a request limit per address in front of the server, these time limits are
-// what keeps a flood of sign-in requests from leaving the auth pool waiting without end.
+// SEC-3: these time limits keep a flood of sign-in requests from leaving the auth pool
+// waiting without end.
 describe("time limits of the auth pool", () => {
   it("gives up waiting for a connection after a few seconds", () => {
     expect(AUTH_POOL_CONNECTION_TIMEOUT_MS).toBe(5000);
