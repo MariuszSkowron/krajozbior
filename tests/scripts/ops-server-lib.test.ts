@@ -1,5 +1,13 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -140,6 +148,7 @@ const OPS_ENV: Record<string, string[]> = {
     "BETTER_AUTH_URL",
     "AUTH_CLIENT_IP_HEADER",
   ],
+  "catalog:import": ["DATABASE_URL", "DATABASE_OPS_URL", "BETTER_AUTH_URL"],
   "legal:final": [],
 };
 
@@ -486,6 +495,190 @@ describe("deployment modes with stubbed docker, git and network (remote.sh)", ()
     expect(result.status).toBe(1);
     expect(result.stdout).toContain("brak adresu, hasla albo powodu");
     expect(result.stdout).not.toContain("ops auth:create-admin");
+  });
+});
+
+describe("mode import: collection file to the server (remote.sh, F-K6)", () => {
+  const CONTENT = '{"type":"batch"}\n{"type":"collection"}\n';
+  const NAME = "fala-1-public.ndjson";
+  const IMPORT_ENV = {
+    KZ_IMPORT_NAME: NAME,
+    KZ_IMPORT_SHA256: createHash("sha256").update(CONTENT).digest("hex"),
+    KZ_IMPORT_B64: Buffer.from(CONTENT).toString("base64"),
+    KZ_ORG_SLUG: "krajozbior-redakcja",
+    KZ_CURATOR_EMAIL: "kurator@example.com",
+    KZ_REASON: `Wgranie kolekcji z pliku ${NAME}`,
+    KZ_SITE_HOST: "krajozbior.example",
+    ...PAYLOAD_SECRETS,
+  };
+  // A running version with the F-K6 code on the server, and the EXIT trap of kz_main.
+  const READY = [
+    'kz_state_set initialized x; kz_state_set current-tag "aaaaaaaaaaaa"',
+    'mkdir -p "$KZ_SRC/scripts"; echo "--confirm-host" >"$KZ_SRC/scripts/catalog-import.ts"',
+    "trap kz_cleanup EXIT",
+  ].join("\n");
+  // Stub of the operator command: its arguments, the files it sees in the mounted folder and the
+  // number of lines of the file (so the file really existed during the command).
+  const opsStub = (status: number) =>
+    `kz_ops() { echo "ops $*"; local dir="\${3%:/imports:ro}"; echo "mounted: $(ls "$dir")"; echo "lines: $(wc -l <"$dir/$KZ_IMPORT_NAME" | tr -d ' ')"; return ${status}; }`;
+
+  function runImport(env: Record<string, string>, prepare: string) {
+    const box = sandbox(ENV_PRODUCTION);
+    const remote = join(SERVER_DIR, "remote.sh").replaceAll("\\", "/");
+    const result = runLib(`. "${remote}"\n${prepare}\nkz_mode_import`, {
+      KZ_ROOT: box.root,
+      KZ_RUN: box.run,
+      ...IMPORT_ENV,
+      ...env,
+    });
+    const importsDir = join(box.root, "imports");
+    const leftovers = existsSync(importsDir) ? readdirSync(importsDir) : [];
+
+    return { ...result, leftovers };
+  }
+
+  bashIt("preview: dry run with the confirmed host, read-only mount, file removed after", () => {
+    const result = runImport({ KZ_IMPORT_PHASE: "preview" }, `${READY}\n${opsStub(0)}`);
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toMatch(
+      new RegExp(
+        `ops catalog:import -v \\S*/imports/run-[0-9-]+:/imports:ro -- --target server --confirm-host krajozbior\\.example --profile public --file /imports/${NAME} --org-slug krajozbior-redakcja --curator-email kurator@example\\.com --dry-run\\n`,
+      ),
+    );
+    expect(result.stdout).not.toContain("--operator");
+    expect(result.stdout).toContain(`mounted: ${NAME}`);
+    expect(result.stdout).toContain("lines: 2");
+    expect(result.stdout).toContain("GOTOWE: podglad (nic nie zapisano)");
+    expect(result.leftovers).toEqual([]);
+  });
+
+  bashIt("apply: loads with the operator label and the reason, without --dry-run", () => {
+    const result = runImport({ KZ_IMPORT_PHASE: "apply" }, `${READY}\n${opsStub(0)}`);
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain(
+      `--curator-email kurator@example.com --operator wlasciciel --reason Wgranie kolekcji z pliku ${NAME}\n`,
+    );
+    expect(result.stdout).not.toContain("--dry-run");
+    expect(result.stdout).toContain("GOTOWE: szkice wgrane");
+    expect(result.leftovers).toEqual([]);
+  });
+
+  for (const [code, message] of [
+    [2, "plik odrzucony (kod 2)"],
+    [3, "odmowa (kod 3)"],
+    [1, "wgrywanie nieudane (kod 1)"],
+  ] as const) {
+    bashIt(`a failed command (code ${code}) still removes the file`, () => {
+      const result = runImport({ KZ_IMPORT_PHASE: "apply" }, `${READY}\n${opsStub(code)}`);
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain(message);
+      expect(result.stdout).toContain("plik usuniety z serwera");
+      expect(result.leftovers).toEqual([]);
+    });
+  }
+
+  bashIt("a new run removes folders left by a killed run, and only run-* folders", () => {
+    const result = runImport(
+      { KZ_IMPORT_PHASE: "preview" },
+      `${READY}\n${opsStub(0)}\nmkdir -p "$KZ_IMPORTS/run-20200101-000000-1" "$KZ_IMPORTS/inny"; echo x >"$KZ_IMPORTS/run-20200101-000000-1/stary-public.ndjson"`,
+    );
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).not.toContain("stary-public.ndjson");
+    expect(result.leftovers).toEqual(["inny"]);
+  });
+
+  bashIt("code 3 tells that part of the drafts may already be on the server", () => {
+    const result = runImport({ KZ_IMPORT_PHASE: "apply" }, `${READY}\n${opsStub(3)}`);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("czesc szkicow juz jest na serwerze");
+    expect(result.stdout).toContain("mozna powtorzyc");
+  });
+
+  bashIt("an exit inside the operator command removes the file through the EXIT trap", () => {
+    const result = runImport(
+      { KZ_IMPORT_PHASE: "apply" },
+      `${READY}\nkz_ops() { kz_fail "brak wartosci DATABASE_OPS_URL dla catalog:import"; }`,
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.leftovers).toEqual([]);
+  });
+
+  bashIt("refuses a file whose SHA-256 differs, before any command, and removes it", () => {
+    const result = runImport(
+      { KZ_IMPORT_PHASE: "apply", KZ_IMPORT_SHA256: "0".repeat(64) },
+      `${READY}\n${opsStub(0)}`,
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("rozni sie od pliku z komputera");
+    expect(result.stdout).not.toContain("ops catalog:import");
+    expect(result.leftovers).toEqual([]);
+  });
+
+  for (const name of ["../fala-public.ndjson", "id_ed25519", "fala.ndjson", "-public.ndjson"]) {
+    bashIt(`refuses the file name ${name} before writing anything`, () => {
+      const result = runImport(
+        { KZ_IMPORT_PHASE: "apply", KZ_IMPORT_NAME: name },
+        `${READY}\n${opsStub(0)}`,
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("zla nazwa pliku");
+      expect(result.stdout).not.toContain("ops catalog:import");
+      expect(result.leftovers).toEqual([]);
+    });
+  }
+
+  bashIt("refuses an unknown phase and a bad organisation slug", () => {
+    for (const [env, message] of [
+      [{ KZ_IMPORT_PHASE: "publish" }, "nieznana faza wgrywania"],
+      [{ KZ_IMPORT_PHASE: "apply", KZ_ORG_SLUG: "Zla Org" }, "nieprawidlowy slug organizacji"],
+    ] as const) {
+      const result = runImport(env, `${READY}\n${opsStub(0)}`);
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain(message);
+      expect(result.stdout).not.toContain("ops catalog:import");
+    }
+  });
+
+  bashIt("refuses when the running version has no server mode of catalog:import", () => {
+    const result = runImport(
+      { KZ_IMPORT_PHASE: "preview" },
+      `${READY}\nrm -f "$KZ_SRC/scripts/catalog-import.ts"\n${opsStub(0)}`,
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("Najpierw wdroz commit z F-K6");
+    expect(result.stdout).not.toContain("ops catalog:import");
+    expect(result.leftovers).toEqual([]);
+  });
+
+  bashIt("refuses before the first deployment", () => {
+    const result = runImport({ KZ_IMPORT_PHASE: "preview" }, opsStub(0));
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("pierwsze wdrozenie jeszcze sie nie odbylo");
+  });
+
+  bashIt("the real kz_ops puts the read-only mount before the service and writes ops.env", () => {
+    const result = runImport(
+      { KZ_IMPORT_PHASE: "preview" },
+      `${READY}\nkz_compose() { echo "compose $*"; echo "ops.env: $(cut -d= -f1 "$KZ_OPS_ENV" | tr '\\n' ' ')"; }`,
+    );
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toMatch(
+      /compose --profile ops run --rm -T -v \S*\/imports\/run-[0-9-]+:\/imports:ro ops npm run --silent catalog:import -- --target server /,
+    );
+    expect(result.stdout).toContain("ops.env: DATABASE_URL DATABASE_OPS_URL BETTER_AUTH_URL ");
+    expect(result.leftovers).toEqual([]);
   });
 });
 
