@@ -220,7 +220,7 @@ describe("public catalog pages", () => {
         value: {
           ...place,
           source: {
-            attribution: "Narodowy Instytut Dziedzictwa (CC BY 4.0)",
+            attribution: "Źródło testowe A (CC BY 4.0)",
             wikipediaUrl: "https://pl.wikipedia.org/wiki/Most_Tczewski",
             wikidataQid: "Q123",
           },
@@ -229,7 +229,7 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Narodowy Instytut Dziedzictwa (CC BY 4.0)");
+      expect(html).toContain("Źródło testowe A (CC BY 4.0)");
       expect(html).toContain('href="/zrodla"');
       expect(html).toContain('href="https://pl.wikipedia.org/wiki/Most_Tczewski"');
       expect(html).toContain('href="https://www.wikidata.org/wiki/Q123"');

@@ -8,25 +8,25 @@ import {
 } from "@/features/catalog/domain/place-sources";
 
 const sources = new Map([
-  ["nid", { label: "Narodowy Instytut Dziedzictwa", license: "CC BY 4.0" }],
-  ["wikidata", { label: "Wikidane", license: "CC0 1.0" }],
+  ["zrodlo_a", { label: "Źródło testowe A", license: "CC BY 4.0" }],
+  ["zrodlo_b", { label: "Źródło testowe B", license: "CC0 1.0" }],
 ]);
 
 describe("composeAttribution", () => {
   it("joins the sources in the order of the keys as 'label (licence)'", () => {
-    expect(composeAttribution(["nid", "wikidata"], sources)).toBe(
-      "Narodowy Instytut Dziedzictwa (CC BY 4.0); Wikidane (CC0 1.0)",
+    expect(composeAttribution(["zrodlo_a", "zrodlo_b"], sources)).toBe(
+      "Źródło testowe A (CC BY 4.0); Źródło testowe B (CC0 1.0)",
     );
-    expect(composeAttribution(["wikidata", "nid"], sources)).toBe(
-      "Wikidane (CC0 1.0); Narodowy Instytut Dziedzictwa (CC BY 4.0)",
+    expect(composeAttribution(["zrodlo_b", "zrodlo_a"], sources)).toBe(
+      "Źródło testowe B (CC0 1.0); Źródło testowe A (CC BY 4.0)",
     );
   });
 
   it("gives null for no key and skips a key the batch does not list", () => {
     expect(composeAttribution([], sources)).toBeNull();
     expect(composeAttribution(["nieznane"], sources)).toBeNull();
-    expect(composeAttribution(["nieznane", "nid"], sources)).toBe(
-      "Narodowy Instytut Dziedzictwa (CC BY 4.0)",
+    expect(composeAttribution(["nieznane", "zrodlo_a"], sources)).toBe(
+      "Źródło testowe A (CC BY 4.0)",
     );
   });
 });
