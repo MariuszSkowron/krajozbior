@@ -210,34 +210,63 @@ kz_ping() {
   curl -fsS -m 10 --retry 3 -o /dev/null "$url" || true
 }
 
+# Smallest encrypted dump accepted as a real backup. The schema alone (tables, policies,
+# functions) gives a custom-format dump of tens of kilobytes; an age header of a failed dump
+# is about 200 bytes.
+: "${KZ_MIN_DUMP_BYTES:=2048}"
+
 # Encrypted dump of the database (D-E11-6): pg_dump as the superuser over the local socket in
-# the db container, straight into age with a public key. Prints the file name.
+# the db container, straight into age with a public key. Returns 1 (and leaves no file) when any
+# step fails. Every step is checked explicitly: callers use `if kz_backup ...`, and bash switches
+# `set -e` off for the whole function in a condition (review F-K4, B4).
 kz_dump_encrypted() {
-  local recipient_file="$1" target="$2"
-  (umask 077 && kz_compose exec -T -u postgres db pg_dump -Fc -d "$KZ_DB_NAME" |
-    age -R "$recipient_file" -o "$target.part")
-  mv "$target.part" "$target"
+  local recipient_file="$1" target="$2" size
+  rm -f "$target.part"
+  if ! (set -o pipefail && umask 077 && kz_compose exec -T -u postgres db pg_dump -Fc -d "$KZ_DB_NAME" |
+    age -R "$recipient_file" -o "$target.part"); then
+    rm -f "$target.part"
+    kz_step "zrzut bazy nieudany"
+    return 1
+  fi
+  size="$(wc -c <"$target.part" | tr -dc '0-9')"
+  if [ "${size:-0}" -lt "$KZ_MIN_DUMP_BYTES" ]; then
+    rm -f "$target.part"
+    kz_step "zrzut bazy podejrzanie maly (${size:-0} B); kopii nie zapisano"
+    return 1
+  fi
+  mv "$target.part" "$target" || { rm -f "$target.part"; return 1; }
 }
 
 # Real backup: kind = daily | weekly | predeploy. Rotation: 7 daily, 4 weekly, 5 predeploy,
-# nothing older than 30 days (privacy policy pt 9).
+# nothing older than 30 days (privacy policy pt 9). Returns 1 on failure (no exit: backup.sh
+# must still send the failure signal); old backups are rotated only after a good one.
 kz_backup() {
   local kind="$1" file
-  [ -s "$KZ_ROOT/backup.pub" ] || kz_fail "brak klucza publicznego kopii"
-  mkdir -p "$KZ_BACKUPS"
+  if [ ! -s "$KZ_ROOT/backup.pub" ]; then
+    kz_step "brak klucza publicznego kopii"
+    return 1
+  fi
+  mkdir -p "$KZ_BACKUPS" || return 1
   file="$KZ_BACKUPS/krajozbior-$(date -u +%Y%m%d-%H%M%S)-$kind.dump.age"
-  kz_dump_encrypted "$KZ_ROOT/backup.pub" "$file"
-  kz_rotate daily 7
-  kz_rotate weekly 4
-  kz_rotate predeploy 5
-  find "$KZ_BACKUPS" -name 'krajozbior-*.dump.age' -mtime +30 -delete
+  kz_dump_encrypted "$KZ_ROOT/backup.pub" "$file" || return 1
+  kz_rotate daily 7 || return 1
+  kz_rotate weekly 4 || return 1
+  kz_rotate predeploy 5 || return 1
+  find "$KZ_BACKUPS" -maxdepth 1 -name 'krajozbior-*.dump.age' -mtime +30 -delete || return 1
   kz_step "kopia zapisana: $(basename "$file") ($(du -h "$file" | cut -f1))"
 }
 
+# Backups of one kind, newest first. The name carries the UTC time (YYYYMMDD-HHMMSS), so the
+# name order is the time order. No files = no output and status 0 (review F-K4, B3: `ls` on a
+# missing glob ended the deployment under pipefail).
+kz_list_backups() {
+  [ -d "$KZ_BACKUPS" ] || return 0
+  find "$KZ_BACKUPS" -maxdepth 1 -type f -name "krajozbior-*-${1:-*}.dump.age" 2>/dev/null | sort -r
+}
+
 kz_rotate() {
-  local kind="$1" keep="$2"
-  # shellcheck disable=SC2012
-  ls -1t "$KZ_BACKUPS"/krajozbior-*-"$kind".dump.age 2>/dev/null | tail -n +"$((keep + 1))" |
+  local kind="$1" keep="$2" old
+  kz_list_backups "$kind" | tail -n +"$((keep + 1))" |
     while IFS= read -r old; do rm -f "$old"; done
 }
 
@@ -247,14 +276,27 @@ kz_postgres_image() {
 
 # Restores an encrypted dump into a throw-away postgres container without network and prints
 # only counts (tables, migrations, rows of the main tables); no personal data.
+# Called in `if` conditions (set -e is off there), so every failure returns explicitly.
 kz_restore_check() {
-  local dump="$1" identity="$2" name="krajozbior-restore-check-$$" image status=0
+  local dump="$1" identity="$2" name="krajozbior-restore-check-$$" image status=0 ready=0
   image="$(kz_postgres_image)"
-  [ -n "$image" ] || kz_fail "brak obrazu postgres w compose.yaml"
-  docker run -d --rm --name "$name" --network none -e POSTGRES_PASSWORD="$(kz_secret)" \
-    "$image" >/dev/null </dev/null
-  for _ in $(seq 1 30); do
-    docker exec "$name" pg_isready -q -U postgres 2>/dev/null && break
+  if [ -z "$image" ]; then
+    kz_step "brak obrazu postgres w compose.yaml"
+    return 1
+  fi
+  if ! docker run -d --rm --name "$name" --network none -e POSTGRES_PASSWORD="$(kz_secret)" \
+    "$image" >/dev/null </dev/null; then
+    kz_step "nie udalo sie uruchomic kontenera do odtworzenia"
+    return 1
+  fi
+  # Two answers in a row: the image answers once during initdb, right before its own restart.
+  for _ in $(seq 1 45); do
+    if docker exec "$name" pg_isready -q -U postgres </dev/null 2>/dev/null; then
+      ready=$((ready + 1))
+      [ "$ready" -ge 2 ] && break
+    else
+      ready=0
+    fi
     sleep 2
   done
   {

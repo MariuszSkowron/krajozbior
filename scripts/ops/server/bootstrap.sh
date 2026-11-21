@@ -211,11 +211,18 @@ EOF
     krajozbior-freeze-on.timer krajozbior-freeze-off.timer >/dev/null
 }
 
-# Public TCP listeners must be 22, 80 and 443 only (D-E11-10, K-17; `ss -ltn`).
+# Ports of public TCP listeners other than 22, 80 and 443, read from `ss -H -ltn` on stdin.
+# Columns: State Recv-Q Send-Q Local-Address:Port Peer-Address:Port, so the listening address
+# is column 4 (column 5 is the peer, `0.0.0.0:*`; review F-K4, B2).
+kz_public_ports() {
+  awk '{print $4}' | grep -v -E '^(127\.[0-9.]+|\[::1\]|127\.0\.0\.53%lo|127\.0\.0\.54):' |
+    sed -E 's/.*:([0-9]+)$/\1/' | sort -u | grep -v -x -E '22|80|443' || true
+}
+
+# Public TCP listeners must be 22, 80 and 443 only (D-E11-10, K-17).
 kz_listeners_ok() {
   local bad
-  bad="$(ss -H -ltn | awk '{print $5}' | grep -v -E '^(127\.[0-9.]+|\[::1\]|127\.0\.0\.53%lo|127\.0\.0\.54):' |
-    sed -E 's/.*:([0-9]+)$/\1/' | sort -u | grep -v -x -E '22|80|443' || true)"
+  bad="$(ss -H -ltn | kz_public_ports)"
   if [ -n "$bad" ]; then
     kz_step "nasluch publiczny na innych portach: $(echo "$bad" | tr '\n' ' ')"
     return 1
@@ -243,9 +250,11 @@ kz_main() {
   }
   kz_write_healthchecks_env
   [ -f "$KZ_ROOT/healthchecks.env" ] && chown deploy:deploy "$KZ_ROOT/healthchecks.env"
+  # K-17 before root login goes away, as a warning only: ufw blocks other ports anyway, and a
+  # failure here must not leave a server that cannot be bootstrapped again (review F-K4, B2).
+  kz_listeners_ok || kz_step "UWAGA: nieoczekiwany nasluch publiczny (zapora ufw go blokuje); agent sprawdzi raport"
   kz_bootstrap_firewall
   kz_bootstrap_sshd
-  kz_listeners_ok
   kz_state_set bootstrap "$KZ_COMMIT"
   chown -R deploy:deploy "$KZ_STATE"
   kz_step "GOTOWE: serwer przygotowany. Kolejne polaczenia jako deploy."

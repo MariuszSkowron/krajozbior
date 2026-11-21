@@ -47,16 +47,19 @@ kz_site_ok() {
   esac
 }
 
-kz_mode_initial() {
-  [ ! -f "$KZ_STATE/initialized" ] || kz_fail "pierwsze wdrozenie juz bylo; kolejne: -Commit <sha>"
-  kz_checkout "$KZ_COMMIT"
-  kz_write_healthchecks_env
-  IMAGE_TAG="$(kz_tag_of "$KZ_COMMIT")"
-  export IMAGE_TAG
-  kz_assert_no_demo_flags
+# Name of the database volume (deploy/compose.yaml, volumes.pgdata.name).
+KZ_PGDATA_VOLUME="krajozbior-pgdata"
 
-  kz_step "budowa obrazow $IMAGE_TAG (kilka minut)"
-  kz_compose --profile ops build app ops
+# First start of the database with the one-time superuser password, roles, PASSWORD NULL.
+# Runs only while the volume holds no data yet (no `db-ready` marker): a volume left by an
+# interrupted attempt was initialised with a superuser password that is gone now, so it is
+# removed and the database starts from scratch (review F-K4, B5).
+kz_initial_database() {
+  if docker volume inspect "$KZ_PGDATA_VOLUME" >/dev/null 2>&1 </dev/null; then
+    kz_step "baza z przerwanego podejscia (bez danych, bez znacznika db-ready): zaczynam ja od nowa"
+    kz_compose down
+    docker volume rm "$KZ_PGDATA_VOLUME" >/dev/null </dev/null
+  fi
 
   kz_step "pierwszy start bazy z jednorazowym haslem superuzytkownika (D-E11-11)"
   KZ_PG_BOOTSTRAP_PW="$(kz_secret)"
@@ -73,9 +76,30 @@ kz_mode_initial() {
   rm -f "$KZ_RUN/pg-bootstrap"
   unset KZ_PG_BOOTSTRAP_PW
   kz_compose up -d --wait --force-recreate db
+}
 
+kz_mode_initial() {
+  [ ! -f "$KZ_STATE/initialized" ] || kz_fail "pierwsze wdrozenie juz bylo; kolejne: -Commit <sha>"
+  kz_checkout "$KZ_COMMIT"
+  kz_write_healthchecks_env
+  IMAGE_TAG="$(kz_tag_of "$KZ_COMMIT")"
+  export IMAGE_TAG
+  kz_assert_no_demo_flags
+
+  kz_step "budowa obrazow $IMAGE_TAG (kilka minut)"
+  kz_compose --profile ops build app ops
+
+  if [ -f "$KZ_STATE/db-ready" ]; then
+    kz_step "baza przygotowana w poprzednim podejsciu (role, PASSWORD NULL); wznawiam"
+    kz_compose up -d --wait db
+  else
+    kz_initial_database
+  fi
+
+  # Idempotent: a repeated attempt (maybe from a newer commit) runs only the missing migrations.
   kz_step "migracje (rola owner)"
   kz_ops db:migrate
+  kz_state_set db-ready "$(date -u +%FT%TZ)"
 
   kz_step "aplikacja i Caddy (certyfikat TLS moze potrwac do 2-3 minut)"
   kz_compose up -d --wait app proxy
@@ -109,7 +133,7 @@ kz_mode_commit() {
   kz_assert_no_demo_flags
 
   kz_step "kopia przed wdrozeniem"
-  kz_backup predeploy
+  kz_backup predeploy || kz_fail "kopia przed wdrozeniem nieudana; nic nie zmieniono (dziala $previous)"
 
   IMAGE_TAG="$(kz_tag_of "$KZ_COMMIT")"
   export IMAGE_TAG
@@ -195,8 +219,7 @@ kz_mode_odtworz() {
   kz_require_initialized
   [ -n "${KZ_RESTORE_KEY:-}" ] || kz_fail "brak klucza kopii"
   local dump
-  # shellcheck disable=SC2012
-  dump="$(ls -1t "$KZ_BACKUPS"/krajozbior-*.dump.age 2>/dev/null | head -n 1)"
+  dump="$(kz_list_backups | sed -n 1p)"
   [ -n "$dump" ] || kz_fail "brak kopii do odtworzenia"
   (umask 077 && printf '%s\n' "$KZ_RESTORE_KEY" >"$KZ_RUN/restore.key")
   unset KZ_RESTORE_KEY

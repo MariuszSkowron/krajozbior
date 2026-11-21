@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -281,6 +281,42 @@ describe("host key pinning", () => {
     const expected = `SHA256:${createHash("sha256").update(Buffer.from(blob, "base64")).digest("base64").replace(/=+$/, "")}`;
 
     expect(result).toEqual({ Type: "ssh-ed25519", Key: blob, Fingerprint: expected });
+  });
+
+  // B1 (review F-K4): the scan tool always writes a "# host:22 SSH-2.0-..." comment to stderr.
+  // In Windows PowerShell 5.1 `2>$null` turns that line into an error record, which stops the
+  // script under $ErrorActionPreference = 'Stop'. A real program writing to stderr is the only
+  // honest test: a PowerShell stub would not go through the native-command path.
+  psIt(
+    "runs the scan with a program that writes to stderr, under ErrorActionPreference Stop",
+    () => {
+      const directory = mkdtempSync(join(tmpdir(), "krajozbior-keyscan-"));
+      const isWindows = process.platform === "win32";
+      const tool = join(directory, isWindows ? "fake-keyscan.cmd" : "fake-keyscan");
+
+      writeFileSync(
+        tool,
+        isWindows
+          ? `@echo off\r\necho # 192.0.2.10:22 SSH-2.0-OpenSSH_9.6p1 Ubuntu 1>&2\r\necho 192.0.2.10 ssh-ed25519 ${blob}\r\n`
+          : `#!/bin/sh\necho '# 192.0.2.10:22 SSH-2.0-OpenSSH_9.6p1 Ubuntu' >&2\necho '192.0.2.10 ssh-ed25519 ${blob}'\n`,
+        { mode: 0o755 },
+      );
+
+      const result = ps(
+        `$k = ConvertFrom-HostKeyScan (Invoke-HostKeyScan ${psString(tool)} 22 '192.0.2.10'); $k.Key`,
+      );
+
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe(blob);
+    },
+  );
+
+  it("deploy.ps1 scans the host key only through Invoke-HostKeyScan", () => {
+    const text = readFileSync(join(OPS_DIR, "deploy.ps1"), "utf8");
+
+    expect(text).toContain("Invoke-HostKeyScan $scanTool");
+    expect(text).not.toMatch(/&\s*\$scanTool/);
   });
 
   psIt("refuses a scan without an ED25519 key", () => {

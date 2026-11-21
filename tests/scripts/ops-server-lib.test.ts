@@ -61,6 +61,23 @@ function runLib(script: string, env: Record<string, string> = {}): Run {
   return { status: result.status ?? -1, stdout: `${result.stdout}${result.stderr}` };
 }
 
+// Stub programs (docker, age, ss, curl) in a temporary directory placed first on PATH. Unlike
+// stubbed shell functions they leave the real code of lib.sh, bootstrap.sh and remote.sh in the
+// path under test (review F-K4: B2-B5 hid behind function stubs).
+function stubBin(programs: Record<string, string>): string {
+  const directory = mkdtempSync(join(tmpdir(), "krajozbior-ops-bin-"));
+
+  for (const [name, body] of Object.entries(programs)) {
+    writeFileSync(join(directory, name), `#!/usr/bin/env bash\n${body}`, { mode: 0o755 });
+  }
+
+  return directory.replaceAll("\\", "/");
+}
+
+// Prefix for a bash script: puts STUB_BIN first on PATH (cygpath turns C:/x into /c/x in Git Bash).
+const WITH_STUBS =
+  'PATH="$(cygpath -u "$STUB_BIN" 2>/dev/null || printf %s "$STUB_BIN"):$PATH"; export PATH;';
+
 function sandbox(envProduction: string): { root: string; run: string } {
   const directory = mkdtempSync(join(tmpdir(), "krajozbior-ops-test-"));
   const kzRoot = join(directory, "srv");
@@ -382,6 +399,259 @@ describe("deployment modes with stubbed docker, git and network (remote.sh)", ()
     expect(result.stdout).toContain("brak adresu, hasla albo powodu");
     expect(result.stdout).not.toContain("ops auth:create-admin");
   });
+});
+
+describe("public listeners check (bootstrap.sh, K-17) with real ss output", () => {
+  // `ss -H -ltn`: State Recv-Q Send-Q Local:Port Peer:Port. The listening address is column 4.
+  const CLEAN = [
+    "LISTEN 0      4096   127.0.0.53%lo:53        0.0.0.0:*",
+    "LISTEN 0      4096      127.0.0.54:53        0.0.0.0:*",
+    "LISTEN 0      128          0.0.0.0:22        0.0.0.0:*",
+    "LISTEN 0      4096         0.0.0.0:80        0.0.0.0:*",
+    "LISTEN 0      4096         0.0.0.0:443       0.0.0.0:*",
+    "LISTEN 0      4096       127.0.0.1:41235     0.0.0.0:*",
+    "LISTEN 0      128             [::]:22           [::]:*",
+    "LISTEN 0      4096            [::]:443          [::]:*",
+    "LISTEN 0      4096           [::1]:5432         [::]:*",
+  ];
+
+  function listeners(lines: string[]): Run {
+    const box = sandbox(ENV_PRODUCTION);
+    const sample = join(box.root, "ss.txt");
+
+    writeFileSync(sample, `${lines.join("\n")}\n`);
+
+    return runLib(
+      `${WITH_STUBS} . "${join(SERVER_DIR, "bootstrap.sh").replaceAll("\\", "/")}"; kz_listeners_ok`,
+      {
+        STUB_BIN: stubBin({ ss: 'cat "$SS_SAMPLE"\n' }),
+        SS_SAMPLE: sample,
+      },
+    );
+  }
+
+  bashIt("accepts a server listening publicly only on 22, 80 and 443", () => {
+    const result = listeners(CLEAN);
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain("nasluch publiczny tylko 22/80/443");
+  });
+
+  bashIt("names a public port other than 22, 80 and 443", () => {
+    const result = listeners([...CLEAN, "LISTEN 0      4096         0.0.0.0:5432      0.0.0.0:*"]);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("nasluch publiczny na innych portach: 5432");
+  });
+});
+
+describe("backups with a real lib.sh and stubbed docker/age (B3, B4)", () => {
+  // docker prints a dump of the given size (or fails); age copies stdin into the -o file.
+  const AGE =
+    'out=""\nwhile [ $# -gt 0 ]; do [ "$1" = "-o" ] && out="$2"; shift; done\ncat >"$out"\nprintf age-tag >>"$out"\n';
+  const DOCKER_OK = "printf PGDMP; head -c 6000 /dev/zero | tr '\\0' x\n";
+  const DOCKER_DOWN = 'printf PGDMP; echo "service db is not running" >&2; exit 1\n';
+  const CURL = 'printf \'%s\\n\' "$*" >>"$CURL_LOG"\n';
+
+  function backupBox(docker: string) {
+    const box = sandbox(ENV_PRODUCTION);
+
+    writeFileSync(join(box.root, "backup.pub"), `age1${"q".repeat(58)}\n`);
+    writeFileSync(join(box.root, "healthchecks.env"), "HC_BACKUP_URL=https://hc.example/abc\n");
+
+    return {
+      ...box,
+      env: {
+        KZ_ROOT: box.root,
+        KZ_RUN: box.run,
+        STUB_BIN: stubBin({ docker, age: AGE, curl: CURL }),
+        CURL_LOG: `${box.root}/curl.log`,
+      },
+    };
+  }
+
+  const backups = (root: string) =>
+    execFileSync(bash ?? "bash", ["-c", 'ls -1 "$0/backups" 2>/dev/null || true', root], {
+      encoding: "utf8",
+    })
+      .split("\n")
+      .filter(Boolean);
+
+  bashIt("B3: kz_backup on an empty backup folder returns and the deployment goes on", () => {
+    const box = backupBox(DOCKER_OK);
+    const result = runLib(`${WITH_STUBS} kz_backup predeploy; echo after-backup`, box.env);
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain("after-backup");
+    expect(backups(box.root)).toEqual([
+      expect.stringMatching(/^krajozbior-\d{8}-\d{6}-predeploy\.dump\.age$/),
+    ]);
+  });
+
+  bashIt("keeps the 7 newest daily backups", () => {
+    const box = backupBox(DOCKER_OK);
+    const old = Array.from(
+      { length: 8 },
+      (_, i) => `krajozbior-2026110${i + 1}-031500-daily.dump.age`,
+    );
+
+    execFileSync(bash ?? "bash", [
+      "-c",
+      'mkdir -p "$0/backups"; cd "$0/backups"; shift; touch "$@"',
+      box.root,
+      "x",
+      ...old,
+    ]);
+    const result = runLib(`${WITH_STUBS} kz_backup daily`, box.env);
+
+    expect(result.status, result.stdout).toBe(0);
+    const left = backups(box.root);
+
+    expect(left).toHaveLength(7);
+    expect(left).not.toContain(old[0]);
+    expect(left).not.toContain(old[1]);
+  });
+
+  bashIt("B4: backup.sh with the database down signals a failure and leaves no backup file", () => {
+    const box = backupBox(DOCKER_DOWN);
+    const backupScript = join(SERVER_DIR, "backup.sh").replaceAll("\\", "/");
+    const result = runLib(`${WITH_STUBS} bash "${backupScript}"`, box.env);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).not.toContain("kopia zapisana");
+    expect(backups(box.root)).toEqual([]);
+    expect(readFileSync(join(box.root, "curl.log"), "utf8")).toContain(
+      "https://hc.example/abc/fail",
+    );
+  });
+
+  bashIt("B4: refuses a dump that is too small to be a real database", () => {
+    const box = backupBox("printf PGDMP\n");
+    const result = runLib(
+      `${WITH_STUBS} if kz_backup daily; then echo SUCCESS; else echo FAILED; fi`,
+      box.env,
+    );
+
+    expect(result.stdout).toContain("FAILED");
+    expect(backups(box.root)).toEqual([]);
+  });
+});
+
+describe("first deployment can be repeated after a failure (B5)", () => {
+  // docker keeps the state of the database volume in files: the volume remembers the superuser
+  // password of its first start (like postgres), db:roles needs that password, `password null`
+  // removes it. kz_compose, kz_compose_init and kz_ops are the real functions.
+  const DOCKER = `S="$DOCKER_STATE"
+printf 'docker %s\\n' "$*" >>"$S/log"
+if [ "$1" = volume ]; then
+  case "$2" in
+    inspect) [ -f "$S/vol" ]; exit $? ;;
+    rm) rm -f "$S/vol"; exit 0 ;;
+  esac
+  exit 0
+fi
+[ "$1" = compose ] || exit 0
+a=" $* "
+case "$a" in
+  *" exec "*)
+    [ -f "$S/vol" ] || exit 1
+    case "$a" in *"password null"*) echo NULL >"$S/vol" ;; esac
+    exit 0 ;;
+  *" run "*)
+    case "$a" in
+      *" db:roles "*)
+        if [ -f "$S/roles-fail-once" ]; then rm -f "$S/roles-fail-once"; echo "db:roles failed"; exit 1; fi
+        pw="$(sed -n 's#^DATABASE_ADMIN_URL=postgres://postgres:\\([^@]*\\)@.*#\\1#p' "$KRAJOZBIOR_OPS_ENV_FILE")"
+        if [ -z "$pw" ] || [ "$pw" != "$(cat "$S/vol")" ]; then echo 'password authentication failed for user "postgres"'; exit 1; fi
+        exit 0 ;;
+    esac
+    exit 0 ;;
+  *" up "*)
+    case "$a" in
+      *" db "*)
+        if [ ! -f "$S/vol" ]; then
+          [ -s "$KZ_RUN/pg-bootstrap" ] || { echo "Database is uninitialized and superuser password is not specified."; exit 1; }
+          cat "$KZ_RUN/pg-bootstrap" >"$S/vol"
+        fi ;;
+    esac
+    exit 0 ;;
+esac
+exit 0
+`;
+  const STUBS = [
+    'kz_checkout() { echo "checkout $1"; }',
+    'kz_check_secrets_absent() { echo "k7-ok"; }',
+    'kz_site_ok() { echo site-check; if [ -f "$DOCKER_STATE/site-fail-once" ]; then rm -f "$DOCKER_STATE/site-fail-once"; return 1; fi; }',
+  ].join("\n");
+
+  function initialBox(failure: "site-fail-once" | "roles-fail-once") {
+    const box = sandbox(ENV_PRODUCTION);
+    const state = `${box.root}/docker-state`;
+
+    execFileSync(bash ?? "bash", [
+      "-c",
+      'mkdir -p "$0" "$1/src/deploy" "$1/caddy-gate"; : >"$0/log"; : >"$0/$2"; echo "path: \\${KRAJOZBIOR_OPS_ENV_FILE:-/run/krajozbior/ops.env}" >"$1/src/deploy/compose.yaml"; echo gate >"$1/caddy-gate/gate.caddy"',
+      state,
+      box.root,
+      failure,
+    ]);
+
+    const env = {
+      KZ_ROOT: box.root,
+      KZ_RUN: box.run,
+      KZ_COMMIT: "c".repeat(40),
+      KZ_SITE_HOST: "krajozbior.example",
+      STUB_BIN: stubBin({ docker: DOCKER }),
+      DOCKER_STATE: state,
+      ...PAYLOAD_SECRETS,
+    };
+    const remote = join(SERVER_DIR, "remote.sh").replaceAll("\\", "/");
+    const run = () => {
+      writeFileSync(join(state, "log"), "");
+      const result = runLib(`${WITH_STUBS} . "${remote}"\n${STUBS}\nkz_mode_initial`, env);
+
+      return { ...result, docker: readFileSync(join(state, "log"), "utf8") };
+    };
+
+    return { root: box.root, run };
+  }
+
+  bashIt(
+    "resumes after the site check failed (TLS late), without a new superuser password",
+    () => {
+      const box = initialBox("site-fail-once");
+      const first = box.run();
+
+      expect(first.status).toBe(1);
+      expect(first.stdout).toContain("serwis nie odpowiada poprawnie");
+
+      const second = box.run();
+
+      expect(second.status, second.stdout).toBe(0);
+      expect(second.stdout).toContain("GOTOWE: pierwsze wdrozenie");
+      expect(second.docker).not.toContain("db:roles");
+      expect(second.docker).not.toContain("volume rm");
+      expect(existsSync(join(box.root, "state/initialized"))).toBe(true);
+    },
+    30_000,
+  );
+
+  bashIt(
+    "starts the empty database again when db:roles failed in the first attempt",
+    () => {
+      const box = initialBox("roles-fail-once");
+      const first = box.run();
+
+      expect(first.status).toBe(1);
+
+      const second = box.run();
+
+      expect(second.status, second.stdout).toBe(0);
+      expect(second.docker).toContain("volume rm krajozbior-pgdata");
+      expect(second.stdout).toContain("GOTOWE: pierwsze wdrozenie");
+    },
+    30_000,
+  );
 });
 
 describe("small helpers", () => {

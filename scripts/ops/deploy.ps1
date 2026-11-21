@@ -83,7 +83,7 @@ $remoteShell = Get-Tool 'ssh.exe'
 if (-not (Test-Path -LiteralPath $knownHosts)) {
   $scanTool = Get-Tool 'ssh-keyscan.exe'
   Write-Say 'Pierwsze polaczenie: pobieram odcisk klucza serwera.'
-  $scan = (& $scanTool -t ed25519 -p $config.Port $config.Address 2>$null) -join "`n"
+  $scan = Invoke-HostKeyScan $scanTool $config.Port $config.Address
   $hostKey = ConvertFrom-HostKeyScan $scan
   $fingerprint = Get-HostKeyFingerprint $hostKey.Key
   Write-Say ''

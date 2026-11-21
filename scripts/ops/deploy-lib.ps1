@@ -150,6 +150,19 @@ function Protect-ReportLine([string]$line, [string[]]$secrets = @(), [string]$ad
   return $out
 }
 
+# Runs the host-key scan and returns its standard output as one string. The scan tool always
+# writes a "# host:22 SSH-2.0-..." comment to stderr; in Windows PowerShell 5.1 a redirected
+# stderr line of a native program becomes an error record, which stops the script under
+# $ErrorActionPreference = 'Stop'. So the call runs with 'Continue' (same pattern as Invoke-Git
+# in wdroz.template.ps1) and the missing key is detected by ConvertFrom-HostKeyScan instead.
+function Invoke-HostKeyScan([string]$tool, [int]$port, [string]$address) {
+  $old = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try { $lines = & $tool -t ed25519 -p $port $address 2>$null }
+  finally { $ErrorActionPreference = $old }
+  return (@($lines | Where-Object { $_ -is [string] }) -join "`n")
+}
+
 # First ED25519 host key from host-key scan output ("host ssh-ed25519 AAAA...").
 function ConvertFrom-HostKeyScan([string]$text) {
   foreach ($line in ($text -split "`r?`n")) {
