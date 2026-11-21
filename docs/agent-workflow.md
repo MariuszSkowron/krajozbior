@@ -113,9 +113,9 @@ Na kliknięcie właściciela czekają zmiany:
 - **zależności** (`package.json`, `package-lock.json`), więc także wszystkie PR-y Dependabota,
 - skryptów operacyjnych (`scripts/`), wspólnych narzędzi testów bezpieczeństwa (`tests/support/`, `tests/integration/`, `tests/scripts/`, test nagłówków E2E),
 - CI i ustawień GitHub (`.github/`, konfiguracja testów i lintera, `.gitignore`, `.prettierignore`),
-- ustawień agentów (`.claude/`, `.ai/`, `skills-lock.json`, `om-sandbox.toml`, `AGENTS.md`, `CLAUDE.md`, ten plik).
+- ustawień i skilli agentów (`.claude/`, `.agents/`, `.ai/`, `skills-lock.json`, `om-sandbox.toml`, `AGENTS.md`, `CLAUDE.md`, ten plik).
 
-Zwykłe funkcje, ekrany i dokumentacja scalają się same. Pełną listę zawiera `.github/CODEOWNERS`. Lista jest jawna, nie „wszystko poza…”, więc **nowa ścieżka wrażliwa musi do niej trafić w tym samym PR**, który ją tworzy (nowa trasa API ma już właściciela przez `src/app/api/`; nowy moduł z danymi prywatnymi poza tymi katalogami trzeba dopisać). Sam plik `CODEOWNERS` należy do właściciela, więc każdą zmianę listy właściciel zobaczy i zatwierdzi.
+Od 2026-11-21 (decyzja D-39) właściciel jest też **domyślnym właścicielem całego repozytorium** (wzorzec `*` w `.github/CODEOWNERS`), więc na jego zatwierdzenie czekają również zwykłe funkcje, ekrany i dokumentacja. Lista ścieżek wrażliwych zostaje jawna, bo wyznacza poziom przeglądu (A) i chroni te ścieżki, gdyby domyślny wpis zniknął; **nowa ścieżka wrażliwa musi do niej trafić w tym samym PR**, który ją tworzy (nowa trasa API ma już właściciela przez `src/app/api/`; nowy moduł z danymi prywatnymi poza tymi katalogami trzeba dopisać). Sam plik `CODEOWNERS` należy do właściciela, więc każdą zmianę listy właściciel zobaczy i zatwierdzi.
 
 Egzekwuje to serwer:
 

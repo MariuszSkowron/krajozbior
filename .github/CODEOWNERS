@@ -5,10 +5,13 @@
 # granica bezpieczeństwa: statusy `agent-review` i `security-review` może ustawić
 # każde konto z prawem zapisu, zatwierdzenia właściciela — nie.
 #
-# Lista jest jawna (nie „wszystko poza…”): zwykłe funkcje, ekrany i dokumentacja
-# scalają się same. Nowa funkcja z danymi prywatnymi albo nowa trasa API dopisuje
-# swoje ścieżki do tego pliku w tym samym PR. Ten plik też ma właściciela, więc
-# właściciel widzi każdą zmianę listy.
+# Od 2026-11-21 (decyzja D-39) właściciel jest domyślnym właścicielem całego
+# repozytorium (wzorzec `*` niżej), więc żaden PR nie scali się bez jego
+# zatwierdzenia. Jawna lista ścieżek zostaje: pokazuje, które zmiany są wrażliwe
+# (przegląd poziomu A), i chroni je, gdyby domyślny wpis kiedyś zniknął. Nowa
+# funkcja z danymi prywatnymi albo nowa trasa API nadal dopisuje swoje ścieżki do
+# tego pliku w tym samym PR. Ten plik też ma właściciela, więc właściciel widzi
+# każdą zmianę listy.
 #
 # Właściciel projektu: @MariuszSkowron (wpisany przy zakładaniu projektu).
 # Właściciel nie może być autorem PR-ów agentów: autorem jest
@@ -16,6 +19,9 @@
 # pozwala zatwierdzić własnego PR.
 #
 # Kolejność: późniejszy wzorzec wygrywa; każdy wpis wskazuje tego samego właściciela.
+
+# Domyślnie: wszystko, także ekrany, dokumentacja i dokumentacja dla oceniających
+*                                  @MariuszSkowron
 
 # Logowanie, sesje, role, autoryzacja i wszystkie trasy API
 /src/features/identity/            @MariuszSkowron
@@ -194,6 +200,8 @@
 # Ustawienia, skille i zasady agentów
 /.claude/                          @MariuszSkowron
 /.ai/                              @MariuszSkowron
+# Treść skilli: `.claude/skills/*` to tylko dowiązania do tego katalogu
+/.agents/                          @MariuszSkowron
 /skills-lock.json                  @MariuszSkowron
 /om-sandbox.toml                   @MariuszSkowron
 /AGENTS.md                         @MariuszSkowron
