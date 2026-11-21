@@ -537,3 +537,103 @@ describe("target showcase (rehearsal on the local showcase)", () => {
     expect(result.stderr).toContain("Brak Git Bash");
   });
 });
+
+describe("secrets folder scripts: clean clone only, safe git (review F-K4, A1)", () => {
+  psIt("Test-RunsFromSecretsRepo accepts only <secrets>\\repo\\scripts\\ops", () => {
+    const secrets = "C:\\Users\\a\\.config\\deploy-secrets";
+
+    expect(
+      psJson<boolean>(`Test-RunsFromSecretsRepo '${secrets}\\repo\\scripts\\ops' '${secrets}'`),
+    ).toBe(true);
+    expect(
+      psJson<boolean>(`Test-RunsFromSecretsRepo '${secrets}\\REPO\\scripts\\ops\\' '${secrets}'`),
+    ).toBe(true);
+
+    for (const folder of [
+      "C:\\Projekty\\Krajozbior\\krajozbior\\scripts\\ops",
+      "C:\\Projekty\\Krajozbior\\krajozbior\\.worktrees\\ws-3\\scripts\\ops",
+      `${secrets}\\repo\\scripts`,
+      `${secrets}\\other\\scripts\\ops`,
+    ]) {
+      expect(psJson<boolean>(`Test-RunsFromSecretsRepo '${folder}' '${secrets}'`), folder).toBe(
+        false,
+      );
+    }
+  });
+
+  psIt(
+    "new-deploy-secrets.ps1 refuses to run from another folder, before touching anything",
+    () => {
+      const result = spawnSync(
+        powershell ?? "pwsh",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-File",
+          join(OPS_DIR, "new-deploy-secrets.ps1"),
+          "-ReportDir",
+          "C:\\x\\.data\\deploy",
+        ],
+        { encoding: "utf8" },
+      );
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("czystej kopii");
+      expect(result.stderr).toContain("Nic nie zrobiono");
+    },
+  );
+
+  psIt("Resolve-ReportDir: default in the secrets folder, explicit full path, no relative", () => {
+    expect(psJson<string>("Resolve-ReportDir '' 'C:\\s'")).toBe("C:\\s\\raporty");
+    expect(psJson<string>("Resolve-ReportDir 'C:\\k\\.data\\deploy' 'C:\\s'")).toBe(
+      "C:\\k\\.data\\deploy",
+    );
+
+    const relative = ps("Resolve-ReportDir '.data\\deploy' 'C:\\s'");
+
+    expect(relative.status).not.toBe(0);
+    expect(relative.stderr).toContain("pelna sciezka");
+  });
+
+  psIt("Get-SafeGitArgs puts the safe options before the git command", () => {
+    const args = psJson<string[]>("Get-SafeGitArgs @('-C', 'x', 'status')");
+
+    expect(args).toEqual(expect.arrayContaining(["core.fsmonitor=false", "core.hooksPath=NUL"]));
+    expect(args.slice(-3)).toEqual(["-C", "x", "status"]);
+  });
+
+  it("every git call of the owner's scripts has the safe options; no code folder is used", () => {
+    const newSecrets = withoutComments(
+      readFileSync(join(OPS_DIR, "new-deploy-secrets.ps1"), "utf8"),
+    );
+    const starter = withoutComments(readFileSync(join(OPS_DIR, "wdroz.template.ps1"), "utf8"));
+
+    expect(newSecrets).toContain("Get-SafeGitArgs $argv");
+    expect(newSecrets).not.toMatch(/&\s*git\s+(?!@\(Get-SafeGitArgs)/);
+    expect(newSecrets).not.toMatch(/codeRoot|Krajozbior\\krajozbior/);
+    expect(newSecrets).toContain("Resolve-ReportDir $ReportDir");
+    expect(newSecrets).toContain("-Commit $headSha");
+    expect(starter).toContain("core.fsmonitor=false");
+    expect(starter).toContain("core.hooksPath=NUL");
+    expect(starter).not.toMatch(/&\s*git\s+(?!@safeGit)/);
+  });
+
+  psIt("Get-MissingConfigLines appends only the healthcheck keys that are missing", () => {
+    const lines = psJson<string[]>(
+      ",@(Get-MissingConfigLines \"Address=1.2.3.4`nHealthcheckHealthUrl=https://hc.example/old\" @{ HealthcheckBackupUrl = 'https://hc.example/b'; HealthcheckHealthUrl = 'https://hc.example/new'; HealthcheckRestoreUrl = '' })",
+    );
+
+    expect(lines).toEqual(["HealthcheckBackupUrl=https://hc.example/b"]);
+  });
+});
+
+describe("-Bootstrap shows the Caddy password only when the server wrote it (review F-K4, A2)", () => {
+  it("deploy.ps1 does not print the password before connecting", () => {
+    const text = withoutComments(readFileSync(join(OPS_DIR, "deploy.ps1"), "utf8"));
+    const before = text.slice(0, text.indexOf("$process = Start-PayloadProcess"));
+
+    expect(before).not.toMatch(/haslo: \$gate/);
+    expect(text).toMatch(/-match 'bramka hasla Caddy wlaczona'/);
+    expect(text).toMatch(/haslo: \$gate/);
+  });
+});

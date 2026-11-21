@@ -267,12 +267,15 @@ kz_main() {
   su deploy -s /bin/bash -c "$(declare -f kz_checkout kz_fail kz_step); KZ_SRC='$KZ_SRC' KZ_REPO_URL='$KZ_REPO_URL' kz_checkout '$KZ_COMMIT'"
   kz_bootstrap_updates
   kz_bootstrap_timers
-  [ -f "$KZ_GATE_DIR/gate.caddy" ] || {
+  if [ -f "$KZ_GATE_DIR/gate.caddy" ]; then
+    # Repeated -Bootstrap: the password of the first attempt stays, the new one is not applied.
+    kz_step "Bramka juz istnieje - haslo bez zmian (z pierwszego uruchomienia)"
+  else
     [ -n "${KZ_GATE_PW:-}" ] || kz_fail "brak hasla bramki Caddy"
     kz_gate_write "$KZ_GATE_PW"
     chown -R deploy:deploy "$KZ_GATE_DIR"
     kz_step "bramka hasla Caddy wlaczona"
-  }
+  fi
   kz_write_healthchecks_env
   [ -f "$KZ_ROOT/healthchecks.env" ] && chown deploy:deploy "$KZ_ROOT/healthchecks.env"
   # K-17 before root login goes away, as a warning only: ufw blocks other ports anyway, and a

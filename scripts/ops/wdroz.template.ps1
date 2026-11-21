@@ -47,9 +47,13 @@ $secretsDir = $PSScriptRoot
 $repo = Join-Path $secretsDir 'repo'
 if (-not (Test-Path -LiteralPath (Join-Path $repo '.git'))) { throw "Brak kopii repozytorium w $repo (uruchom new-deploy-secrets.ps1)." }
 
+# Safe options on every git call (second layer after "own copy only"): a repository's .git\config
+# can make git run a program (core.fsmonitor, hooks); same list as $SafeGitOptions in deploy-lib.ps1.
+$safeGit = @('-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=NUL', '-c', 'core.pager=cat', '-c', 'protocol.ext.allow=never')
+
 function Invoke-Git([string[]]$argv) {
   $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-  try { $out = & git -C $repo @argv 2>&1 | Out-String; $code = $LASTEXITCODE } finally { $ErrorActionPreference = $old }
+  try { $out = & git @safeGit -C $repo @argv 2>&1 | Out-String; $code = $LASTEXITCODE } finally { $ErrorActionPreference = $old }
   if ($code -ne 0) { throw "git $($argv[0]) nie powiodl sie: $out" }
   return $out.Trim()
 }
@@ -60,7 +64,7 @@ if ($Commit -notmatch '^[0-9a-f]{7,40}$') { throw 'Nieprawidlowy commit.' }
 $sha = Invoke-Git @('rev-parse', '--verify', "$Commit^{commit}")
 
 $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-& git -C $repo merge-base --is-ancestor $sha origin/main 2>$null
+& git @safeGit -C $repo merge-base --is-ancestor $sha origin/main 2>$null
 $onMain = ($LASTEXITCODE -eq 0)
 $ErrorActionPreference = $old
 if (-not $onMain) { throw "Commit $sha nie jest na origin/main. Wdrazamy tylko scalone zmiany." }

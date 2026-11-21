@@ -246,6 +246,44 @@ function Get-ReportFileName([datetime]$when, [string]$mode) {
   return ('{0}-{1}.log' -f $when.ToString('yyyy-MM-dd-HHmmss'), $mode)
 }
 
+# Second layer for every git call the owner's scripts make (review F-K4, A1): the first layer is
+# that they only touch the clean clone in the secrets folder. A repository's own .git\config can
+# make `git status`/`fetch`/`checkout` run a program (core.fsmonitor, hooks); these options switch
+# that off. NUL is Windows' empty device, so no hooks folder exists.
+$SafeGitOptions = @('-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=NUL', '-c', 'core.pager=cat',
+  '-c', 'protocol.ext.allow=never')
+
+function Get-SafeGitArgs([string[]]$argv) { return @($SafeGitOptions + $argv) }
+
+# new-deploy-secrets.ps1 runs only from the clean clone <secrets>\repo (never from the code folder
+# or a worktree the agent can write to): a script from there could have been changed by the agent.
+function Test-RunsFromSecretsRepo([string]$scriptRoot, [string]$secretsDir) {
+  $expected = [IO.Path]::GetFullPath((Join-Path $secretsDir 'repo\scripts\ops')).TrimEnd('\', '/')
+  $actual = [IO.Path]::GetFullPath($scriptRoot).TrimEnd('\', '/')
+  return [string]::Equals($expected, $actual, [StringComparison]::OrdinalIgnoreCase)
+}
+
+# Folder of the report (no secrets): -ReportDir, else raporty\ in the secrets folder.
+function Resolve-ReportDir([string]$reportDir, [string]$secretsDir) {
+  if ($reportDir -eq '') { return (Join-Path $secretsDir 'raporty') }
+  if (-not [IO.Path]::IsPathRooted($reportDir)) { throw 'ReportDir musi byc pelna sciezka (np. C:\...\.data\deploy).' }
+  return [IO.Path]::GetFullPath($reportDir)
+}
+
+# Healthcheck addresses missing from serwer.conf, as lines to append (existing keys stay).
+function Get-MissingConfigLines([string]$configText, [hashtable]$wanted) {
+  $present = @{}
+  foreach ($raw in ($configText -split "`r?`n")) {
+    $eq = $raw.IndexOf('=')
+    if ($eq -gt 0 -and -not $raw.TrimStart().StartsWith('#')) { $present[$raw.Substring(0, $eq).Trim()] = $true }
+  }
+  $lines = @()
+  foreach ($key in ($wanted.Keys | Sort-Object)) {
+    if ($wanted[$key] -ne '' -and -not $present.ContainsKey($key)) { $lines += "$key=$($wanted[$key])" }
+  }
+  return $lines
+}
+
 # --- Target "showcase": rehearsal on the local showcase (spec 5.4, D-E11-8) -------------------
 
 # Modes the rehearsal can run locally; the other modes need the server (Caddy, systemd, root).

@@ -533,6 +533,73 @@ describe("public listeners check (bootstrap.sh, K-17) with real ss output", () =
   });
 });
 
+describe("Caddy gate on a repeated -Bootstrap (review F-K4, A2)", () => {
+  // Real kz_main of bootstrap.sh; every step before and after the gate is stubbed out.
+  function bootstrapMain(existingGate: string | undefined): Run & { gate: string | undefined } {
+    const box = sandbox(ENV_PRODUCTION);
+    const gateFile = `${box.root}/caddy-gate/gate.caddy`;
+    const stubs = [
+      "kz_bootstrap_check_ssh_port",
+      "kz_bootstrap_packages",
+      "kz_bootstrap_deploy_user",
+      "kz_bootstrap_journald",
+      "kz_bootstrap_dirs",
+      "kz_bootstrap_env",
+      "kz_bootstrap_backup_key",
+      "kz_bootstrap_updates",
+      "kz_bootstrap_timers",
+      "kz_bootstrap_firewall",
+      "kz_bootstrap_sshd",
+      "kz_write_healthchecks_env",
+      "kz_listeners_ok",
+      "kz_state_set",
+      "su",
+      "chown",
+    ]
+      .map((name) => `${name}() { :; }`)
+      .join("; ");
+    const result = runLib(
+      `. "${join(SERVER_DIR, "bootstrap.sh").replaceAll("\\", "/")}"; ${stubs}; id() { echo 0; }; ` +
+        `kz_gate_write() { mkdir -p "$KZ_GATE_DIR"; printf '%s' "$1" >"$KZ_GATE_DIR/gate.caddy"; }; ` +
+        (existingGate === undefined
+          ? ""
+          : `mkdir -p "$KZ_GATE_DIR"; printf '%s' '${existingGate}' >"$KZ_GATE_DIR/gate.caddy"; `) +
+        "kz_main",
+      {
+        KZ_ROOT: box.root,
+        KZ_RUN: box.run,
+        KZ_COMMIT: "a".repeat(40),
+        KZ_REPO_URL: "https://github.com/example/krajozbior",
+        KZ_GATE_PW: "new-password-from-second-run",
+      },
+    );
+
+    return {
+      ...result,
+      gate: existsSync(gateFile) ? readFileSync(gateFile, "utf8") : undefined,
+    };
+  }
+
+  bashIt("keeps the first gate and says the password is unchanged", () => {
+    const result = bootstrapMain("first-run-gate");
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain(
+      "Bramka juz istnieje - haslo bez zmian (z pierwszego uruchomienia)",
+    );
+    expect(result.stdout).not.toContain("bramka hasla Caddy wlaczona");
+    expect(result.gate).toBe("first-run-gate");
+  });
+
+  bashIt("writes the gate and reports it on the first run", () => {
+    const result = bootstrapMain(undefined);
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain("bramka hasla Caddy wlaczona");
+    expect(result.gate).toBe("new-password-from-second-run");
+  });
+});
+
 describe("backups with a real lib.sh and stubbed docker/age (B3, B4)", () => {
   // docker prints a dump of the given size (or fails); age copies stdin into the -o file.
   const AGE =
@@ -882,7 +949,10 @@ describe("target showcase: the same remote.sh with showcase.sh (rehearsal, D-E11
   }
 
   bashIt("refuses to run without the showcase target or with the server project", () => {
-    for (const env of [{ KZ_TARGET: "" }, { KZ_PROJECT: "krajozbior" }]) {
+    for (const env of [{ KZ_TARGET: "" }, { KZ_PROJECT: "krajozbior" }] as Record<
+      string,
+      string
+    >[]) {
       const result = runShowcase("kz_require_deploy; echo started", env);
 
       expect(result.status, JSON.stringify(env)).toBe(1);

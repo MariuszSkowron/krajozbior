@@ -1,18 +1,30 @@
 # Prepares the owner's deployment secrets folder (E11 spec 8.0b pt 9, D-E11-4).
-# Run by the OWNER in his own PowerShell window, from the code folder, after the F-K4 PR is merged:
-#   powershell -ExecutionPolicy Bypass -File scripts\ops\new-deploy-secrets.ps1
+# Run by the OWNER in his own PowerShell window, ONLY from the clean clone in the secrets folder
+# (never from the code folder or a worktree: the agent can write there, and git itself runs
+# programs named in a repository's .git\config):
+#   git clone https://github.com/<owner>/krajozbior.git "$env:USERPROFILE\.config\krajozbior-deploy\repo"
+#   powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.config\krajozbior-deploy\repo\scripts\ops\new-deploy-secrets.ps1" -ReportDir <folder>
+# Anywhere else the script refuses. -ReportDir is the folder where the reports (no secrets) are
+# written; without it: raporty\ in the secrets folder.
 #
 # In %USERPROFILE%\.config\krajozbior-deploy\ (created in step 8.0b, with ssh\id_ed25519):
 #   magazyn.age  random passwords of the database roles krajozbior_owner and krajozbior_ops,
 #                encrypted by age with the DEPLOYMENT PASSPHRASE (age asks for it twice);
 #                the plain text never touches the disk
 #   serwer.conf  server address, backup public key (age1...), report folder; asked here
-#   wdroz.ps1    copy of scripts\ops\wdroz.template.ps1 (only when missing)
-#   repo\        own copy of the public repository, used by wdroz.ps1
-# Existing files are kept. Nothing is printed except file names and next steps.
+#   wdroz.ps1    copy of scripts\ops\wdroz.template.ps1 from the clean clone (only when missing)
+#   repo\        the clean clone itself, used by wdroz.ps1
+# Existing files are kept. Optional -HealthcheckBackupUrl / -HealthcheckRestoreUrl /
+# -HealthcheckHealthUrl append missing addresses to an existing serwer.conf (nothing is replaced).
+# Every git call has the safe options of Get-SafeGitArgs. Nothing is printed except file names
+# and next steps.
 # Keep this file ASCII-only (Windows PowerShell 5.1 reads BOM-less files as ANSI).
 param(
-  [switch]$Rotate
+  [switch]$Rotate,
+  [string]$ReportDir = '',
+  [string]$HealthcheckBackupUrl = '',
+  [string]$HealthcheckRestoreUrl = '',
+  [string]$HealthcheckHealthUrl = ''
 )
 
 Set-StrictMode -Version Latest
@@ -23,27 +35,34 @@ if ($Rotate) {
   throw 'Rotacja hasel rol (procedura 8.10 pkt 5) nie jest jeszcze gotowa; zostaje na F-P8.'
 }
 
-$codeRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $secretsDir = Join-Path $env:USERPROFILE '.config\krajozbior-deploy'
 $vaultFile = Join-Path $secretsDir 'magazyn.age'
 $configFile = Join-Path $secretsDir 'serwer.conf'
 $starterFile = Join-Path $secretsDir 'wdroz.ps1'
 $repo = Join-Path $secretsDir 'repo'
 
+# 0. Only from the clean clone in the secrets folder; nothing is read from the code folder.
+if (-not (Test-RunsFromSecretsRepo $PSScriptRoot $secretsDir)) {
+  throw ("Ten skrypt dziala tylko z czystej kopii w $repo, nie z folderu kodu ani z worktree (tam moze pisac agent). " +
+    "Nic nie zrobiono. Instrukcja: git clone https://github.com/<wlasciciel>/krajozbior.git `"$repo`", potem uruchom skrypt z tej kopii.")
+}
+
 function Invoke-GitQuiet([string[]]$argv) {
   $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-  try { $out = & git @argv 2>&1 | Out-String; $code = $LASTEXITCODE } finally { $ErrorActionPreference = $old }
+  try { $out = & git @(Get-SafeGitArgs $argv) 2>&1 | Out-String; $code = $LASTEXITCODE } finally { $ErrorActionPreference = $old }
   return @{ Code = $code; Out = $out.Trim() }
 }
 
-# 0. This script must come from merged, unmodified code (the code folder is shared with the agent).
-Invoke-GitQuiet @('-C', $codeRoot, 'fetch', '--quiet', 'origin', 'main') | Out-Null
-if ((Invoke-GitQuiet @('-C', $codeRoot, 'merge-base', '--is-ancestor', 'HEAD', 'origin/main')).Code -ne 0) {
-  throw 'Folder kodu nie jest na scalonym main. Przelacz go na main (git switch main; git pull) i uruchom ponownie.'
+# The clone must be on merged code: HEAD an ancestor of origin/main, scripts/ops unmodified.
+Invoke-GitQuiet @('-C', $repo, 'fetch', '--quiet', 'origin', 'main') | Out-Null
+if ((Invoke-GitQuiet @('-C', $repo, 'merge-base', '--is-ancestor', 'HEAD', 'origin/main')).Code -ne 0) {
+  throw 'Kopia repo\ nie jest na scalonym main. Nic nie zrobiono; napisz agentowi.'
 }
-if ((Invoke-GitQuiet @('-C', $codeRoot, 'status', '--porcelain', '--', 'scripts/ops')).Out -ne '') {
-  throw 'Pliki scripts/ops w folderze kodu maja niezapisane zmiany. Nic nie zrobiono; napisz agentowi.'
+if ((Invoke-GitQuiet @('-C', $repo, 'status', '--porcelain', '--', 'scripts/ops')).Out -ne '') {
+  throw 'Pliki scripts/ops w repo\ maja niezapisane zmiany. Nic nie zrobiono; napisz agentowi.'
 }
+$headSha = (Invoke-GitQuiet @('-C', $repo, 'rev-parse', 'HEAD')).Out
+if (-not (Test-CommitSha $headSha)) { throw 'Nie udalo sie odczytac commita z repo\.' }
 
 if (-not (Test-Path -LiteralPath (Join-Path $secretsDir 'ssh\id_ed25519'))) {
   throw "Brak klucza $secretsDir\ssh\id_ed25519. Najpierw krok 8.0b pkt 3-4."
@@ -63,20 +82,36 @@ if (Test-Path -LiteralPath $vaultFile) {
 }
 
 # 2. Server configuration (the address never goes to the public repository).
+$healthcheckUrls = @{
+  HealthcheckBackupUrl = $HealthcheckBackupUrl
+  HealthcheckRestoreUrl = $HealthcheckRestoreUrl
+  HealthcheckHealthUrl = $HealthcheckHealthUrl
+}
 if (Test-Path -LiteralPath $configFile) {
-  Write-Host 'serwer.conf juz istnieje - bez zmian.'
-  Read-DeployConfig ([IO.File]::ReadAllText($configFile)) | Out-Null
+  $existing = [IO.File]::ReadAllText($configFile)
+  Read-DeployConfig $existing | Out-Null
+  $missing = @(Get-MissingConfigLines $existing $healthcheckUrls)
+  if ($missing.Count -gt 0) {
+    $updated = $existing.TrimEnd() + "`n" + ($missing -join "`n") + "`n"
+    Read-DeployConfig $updated | Out-Null
+    [IO.File]::WriteAllText($configFile, $updated, (New-Object Text.UTF8Encoding($false)))
+    Write-Host "serwer.conf: dopisano $($missing.Count) adres(y) healthchecks."
+  } else {
+    Write-Host 'serwer.conf juz istnieje - bez zmian.'
+  }
 } else {
   $address = (Read-Host 'Adres IPv4 serwera (z panelu netcup)').Trim()
   $backupKey = (Read-Host 'Klucz publiczny kopii (age1..., z kroku 8.0b pkt 6)').Trim()
-  $reportDir = Join-Path $codeRoot '.data\deploy'
-  $text = "# Krajozbior: konfiguracja wdrozenia (bez sekretow)`nAddress=$address`nPort=22`nBackupPublicKey=$backupKey`nReportDir=$reportDir`n"
+  $reportPath = Resolve-ReportDir $ReportDir $secretsDir
+  $text = "# Krajozbior: konfiguracja wdrozenia (bez sekretow)`nAddress=$address`nPort=22`nBackupPublicKey=$backupKey`nReportDir=$reportPath`n"
+  $text += (@(Get-MissingConfigLines $text $healthcheckUrls) -join "`n")
+  $text = $text.TrimEnd() + "`n"
   Read-DeployConfig $text | Out-Null
   [IO.File]::WriteAllText($configFile, $text, (New-Object Text.UTF8Encoding($false)))
   Write-Host 'serwer.conf zapisany.'
 }
 
-# 3. Starter script.
+# 3. Starter script, copied from the clean clone (this script's own folder).
 if (Test-Path -LiteralPath $starterFile) {
   Write-Host 'wdroz.ps1 juz istnieje - bez zmian.'
 } else {
@@ -84,19 +119,9 @@ if (Test-Path -LiteralPath $starterFile) {
   Write-Host 'wdroz.ps1 skopiowany.'
 }
 
-# 4. Own copy of the public repository.
-if (Test-Path -LiteralPath (Join-Path $repo '.git')) {
-  Write-Host 'repo\ juz istnieje - bez zmian.'
-} else {
-  $origin = (Invoke-GitQuiet @('-C', $codeRoot, 'remote', 'get-url', 'origin')).Out
-  if ($origin -notmatch '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
-    throw 'Adres origin folderu kodu nie jest publicznym adresem https://github.com/...'
-  }
-  $clone = Invoke-GitQuiet @('clone', '--quiet', $origin, $repo)
-  if ($clone.Code -ne 0) { throw "git clone nie powiodl sie: $($clone.Out)" }
-  Write-Host 'repo\ pobrane.'
-}
+# 4. The clean clone is the folder this script runs from.
+Write-Host 'repo\ juz istnieje - bez zmian (z tej kopii dziala ten skrypt).'
 
 Write-Host ''
 Write-Host 'Gotowe. Nastepny krok (sesja wdrozeniowa 1):' -ForegroundColor Green
-Write-Host '  powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.config\krajozbior-deploy\wdroz.ps1" -Bootstrap'
+Write-Host "  powershell -ExecutionPolicy Bypass -File `"`$env:USERPROFILE\.config\krajozbior-deploy\wdroz.ps1`" -Bootstrap -Commit $headSha"

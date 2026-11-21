@@ -134,13 +134,11 @@ switch ($Mode) {
     $brevo = Read-Secret 'Klucz API Brevo (wklej, znakow nie widac)'
     if ($brevo.Length -lt 20) { throw 'Klucz Brevo wyglada na niepelny.' }
     Add-Secret 'KZ_BREVO_KEY' $brevo
+    # Not shown here: a repeated -Bootstrap keeps the gate (and password) of the first attempt on
+    # the server, so a new one would be wrong. It is shown below only when the server reports
+    # that it wrote this one (review F-K4, A2).
     $gate = New-RandomHex 12
     Add-Secret 'KZ_GATE_PW' $gate
-    Write-Say ''
-    Write-Say '  Haslo do serwisu przed otwarciem (Caddy):' 'Yellow'
-    Write-Say "    uzytkownik: krajozbior    haslo: $gate" 'Yellow'
-    Write-Say '  Zapisz je teraz w menedzerze hasel ("Krajozbior - haslo strony testowej"). Nie trafia do raportu.'
-    if (-not (Read-YesNo 'Zapisane')) { throw 'Przerwano przed polaczeniem. Nic nie zrobiono.' }
   }
   'initial' {
     $vault = Open-Vault
@@ -206,6 +204,13 @@ $process = Start-PayloadProcess $psi $payload
 $payload = $null
 while ($null -ne ($line = $process.StandardOutput.ReadLine())) {
   Write-Say (Write-Report $line)
+  if ($Mode -eq 'bootstrap' -and $line -match 'bramka hasla Caddy wlaczona') {
+    Write-Say ''
+    Write-Say '  Haslo do serwisu przed otwarciem (Caddy):' 'Yellow'
+    Write-Say "    uzytkownik: krajozbior    haslo: $gate" 'Yellow'
+    Write-Say '  Zapisz je teraz w menedzerze hasel ("Krajozbior - haslo strony testowej"). Nie trafia do raportu.'
+    Read-Host 'Gdy zapiszesz, nacisnij Enter (serwer czeka)' | Out-Null
+  }
 }
 $process.WaitForExit()
 $code = $process.ExitCode
