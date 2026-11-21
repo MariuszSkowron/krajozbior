@@ -2,9 +2,11 @@
 
 ## W skrócie
 
-Działa pierwsza pełna ścieżka: kurator tworzy i publikuje kolekcję, gość ją ogląda, odkrywca zapisuje ją u siebie, potwierdza wizytę lokalizacją (albo zapisuje wizytę z przeszłości) i widzi postęp, a test sprawdza, że kurator innej organizacji dostaje odmowę. Wygląd „nocnego albumu” jest wdrożony na ekranach ścieżki. Pozostałe części pierwszej wersji (zdjęcia, karty legendarne, aktualności, profil i inne) są w planie. Stan na 18 listopada 2026 roku; aktualny stan pokazuje historia PR-ów (propozycji zmian w kodzie).
+Działa pełna ścieżka konkursowa: kurator tworzy i publikuje kolekcję, gość znajduje ją na stronie głównej albo w wyszukiwarce, odkrywca zapisuje ją u siebie, potwierdza wizytę lokalizacją (albo zapisuje wizytę z przeszłości) i widzi postęp, a testy sprawdzają, że kurator innej organizacji i inny odkrywca dostają odmowę. Doszły strona główna, wyszukiwarka, kolekcja jako album z mapą, profil ze statystykami, usunięcie konta oraz regulamin i polityka prywatności. Trwa przygotowanie do uruchomienia pod publicznym adresem. Stan na 21 listopada 2026 roku; aktualny stan pokazuje historia PR-ów (propozycji zmian w kodzie).
 
 ## Działa (scalone do `main`)
+
+### Ścieżka konkursowa (epiki E1 i E2)
 
 - Logowanie jednorazowym kodem z e-maila, z limitami prób; konta demonstracyjne do lokalnego uruchomienia.
 - Organizacje kuratorskie i polecenie administratora nadające status kuratora, z dziennikiem operacji (PR #10, poprawka dziennika w PR #22).
@@ -15,32 +17,55 @@ Działa pierwsza pełna ścieżka: kurator tworzy i publikuje kolekcję, gość 
 - „Moje kolekcje” z postępem X/Y (PR #16).
 - Potwierdzanie wizyty na miejscu lokalizacją, z obsługą „poza promieniem” i „zbyt niedokładnie”, oraz test E2E całej ścieżki (PR #17).
 - Lista „Chcę zobaczyć” (PR #18).
+- Limity długości list i liczby zapisów oraz bezpieczniejszy zapis do albumu (PR #27).
+- Adres (slug) kolekcji powstaje z jej aktualnego tytułu przy pierwszej publikacji i potem się nie zmienia (PR #29).
+- Wizyta z przeszłości, pojedyncza i wiele naraz (do 100 miejsc z jedną datą), z odznaką „Z przeszłości” i pierwszeństwem potwierdzenia na miejscu (PR #34).
+- Test pilnujący, że współrzędne wizyty nie trafiają do logów ani do odpowiedzi błędu (PR #36).
+
+### Wygląd „nocny album” (E3)
+
 - Tokeny wyglądu, kroje i przełącznik motywu nocny/jasny (PR #25).
-- Drobne poprawki bezpieczeństwa: limity długości list i liczby zapisów oraz bezpieczniejszy zapis do albumu, wykonywany jednym poleceniem bazy z warunkiem (PR #27).
-- Nowa nawigacja „nocnego albumu” (dolny pasek na telefonie, menu boczne na komputerze), menu kuratora i wspólne elementy: karta kolekcji, odznaka statusu i pasek postępu (PR #28, krok E3-2a).
-- Adres (slug) kolekcji powstaje z jej aktualnego tytułu przy pierwszej publikacji i potem się nie zmienia, więc udostępnione linki działają dalej (PR #29).
-- Ekrany ścieżki w wyglądzie „nocny album” z testem dostępności w obu motywach (PR #31, krok E3-2b).
-- Przypięty przycisk wizyty na ekranie miejsca na telefonie: „Potwierdź wizytę”, po wizycie „Odwiedzone”; zastępuje tam dolny pasek nawigacji (PR #32).
-- Wizyta z przeszłości, pojedyncza i wiele naraz (do 100 miejsc z jedną datą), z odznaką „Z przeszłości”, usuwaniem i pierwszeństwem potwierdzenia na miejscu; to ostatni element ścieżki konkursowej (PR #34).
-- Hook blokujący agentom zapis plików poleceniami terminala (PR #33, zob. [Proces](proces-i-przeglady.md)).
+- Nawigacja (dolny pasek na telefonie, menu boczne na komputerze), menu kuratora i wspólne elementy (PR #28).
+- Ekrany ścieżki w nowym wyglądzie z testem dostępności w obu motywach (PR #31).
+- Przypięty przycisk wizyty na ekranie miejsca na telefonie (PR #32).
+
+### Odkrywanie (E12)
+
+- Strona główna: album odkrywcy i kolekcje do odkrycia (PR #38).
+- Wyszukiwarka kolekcji i miejsc, niezależna od polskich znaków (PR #39).
+- Kolekcje w okolicy, liczone w przeglądarce bez wysyłania pozycji (PR #40).
+- Kolekcja jako album: filtr, siatka i panel miejsca (PR #41).
+- Mapa na stronie kolekcji (PR #49).
+
+### Profil (E9)
+
+- Ekran profilu i wylogowanie (PR #42).
+- Usunięcie konta z ekranu ustawień (PR #43).
+- Imię, województwo i widoczność profilu (PR #50).
+- Statystyki: odkryte miejsca, województwa, kolekcje i kilometry (PR #54).
+
+### Kolekcje i przygotowanie do wdrożenia (E11)
+
+- Wgrywanie gotowych kolekcji z pliku poleceniem operatora (PR #47, #53; opis: [docs/catalog-import.md](../catalog-import.md)).
+- Obraz produkcyjny, konfiguracja serwera i trwały pokaz lokalny (PR #55; opis: [docs/deployment.md](../deployment.md)).
+- Wysyłka kodów logowania e-mailem i kontrola konfiguracji przy starcie (PR #57).
+- Regulamin, polityka prywatności, stopka i akceptacja regulaminu przy pierwszym logowaniu (PR #58, uzupełnienie polityki w PR #64).
+- Zapisy w logach bez danych osobowych, limity przed otwarciem serwisu i limit czasu zapytań do bazy (PR #60, #61).
+
+### Proces i zabezpieczenia
+
+- Hook blokujący agentom zapis plików poleceniami terminala (PR #33).
+- Strażnik bazy we wszystkich testach E2E (PR #35), stabilny pomiar wydajności wyszukiwarki (PR #51).
+- Reguła lint i analiza CodeQL także dla szkiców PR (PR #44, #45, #48).
+- Właściciel kodu domyślnie dla całego repozytorium i ochrona skilli agentów (PR #56).
+- Publiczne notatki bezpieczeństwa (PR #63).
 
 ## W toku
 
-- Test pilnujący, że współrzędne wizyty nie trafiają do logów ani do odpowiedzi błędu (PR #36, w przeglądzie; docs#106).
-- Ta dokumentacja dla oceniających.
+- Uruchomienie aplikacji pod publicznym adresem; adres dopiszemy w [README](README.md) po uruchomieniu.
+- Druga próba prompt injection przed konkursem; wynik trafi do [security-notes.md](../../security-notes.md).
+- Wydanie 1.0 z listą zmian.
 
 ## Planowane (zakres pierwszej wersji)
 
-Plan dzieli pierwszą wersję na epiki:
-
-- **E1–E2:** organizacje, katalog i album odkrywcy (ścieżka konkursowa, zrobiona, z wizytą z przeszłości; w planie m.in. współzarządzanie kolekcją przez kilka organizacji i historia zmian miejsca).
-- **E3:** wygląd „nocny album” (ekrany ścieżki gotowe).
-- **E4:** zdjęcia oficjalne, okładki, zdjęcia odkrywców z moderacją kuratora.
-- **E5:** zgłoszenia poprawek i problemów z miejscem, kolejka zgłoszeń kuratora.
-- **E6:** wydarzenia, karty legendarne i skrytka.
-- **E7:** aktualności od kuratorów.
-- **E8:** własne kolekcje odkrywców.
-- **E9:** profil, statystyki, ustawienia i usunięcie konta.
-- **E10:** ekrany administratora i zespół organizacji.
-- **E11:** uruchomienie pod publicznym adresem, regulamin i polityka prywatności.
-- **E12:** strona główna, wyszukiwarka i mapa.
+Pełną listę epików ze stanem pokazuje [Backlog](backlog.md). Po wydaniu konkursowym przychodzą m.in.: zdjęcia z moderacją kuratora (E4), zgłoszenia poprawek (E5), wydarzenia i karty legendarne (E6), aktualności (E7), własne kolekcje odkrywców (E8), ekrany administratora i zespół organizacji (E10) oraz „Nowa w okolicy” i filtr „Moich kolekcji” (E12).
