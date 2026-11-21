@@ -3,6 +3,7 @@ import axe from "axe-core";
 import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+import { waitForHydration } from "../tests/support/e2e-hydration";
 
 // E12-1: the home page of a guest and of a signed-in explorer. The sign-out messages and
 // the phone layout need no database. The rest needs a migrated, seeded database like the
@@ -42,7 +43,7 @@ async function inBothThemes(page: Page, check: () => Promise<void>) {
       .context()
       .addCookies([{ name: THEME_COOKIE, value: theme, url: "http://127.0.0.1" }]);
     await page.reload();
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
     await expect(page.locator("html")).toHaveClass(new RegExp(`theme-${theme}`));
     await check();
   }
@@ -150,7 +151,7 @@ test.describe("home page with the catalog", () => {
     page,
   }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForHydration(page);
 
     await expect(
       page.getByRole("heading", {
@@ -204,7 +205,7 @@ test.describe("home page with the catalog", () => {
     // A visit from the past in one place, then the collection saved.
     await a.goto(`/collections/${DEMO_SLUG}`);
     await a.goto((await a.getByRole("link", { name: /Most Tczewski/ }).getAttribute("href")) ?? "");
-    await a.waitForLoadState("networkidle");
+    await waitForHydration(a);
     await a.getByRole("button", { name: "Byłem tu wcześniej" }).click();
     await a.getByRole("radio", { name: "Rok" }).check();
     await a.getByRole("textbox", { name: "Rok", exact: true }).fill("2018");
@@ -215,7 +216,7 @@ test.describe("home page with the catalog", () => {
     await expect(a.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
 
     await a.goto("/");
-    await a.waitForLoadState("networkidle");
+    await waitForHydration(a);
 
     const summary = a.getByRole("region", { name: "Twój album" });
 
