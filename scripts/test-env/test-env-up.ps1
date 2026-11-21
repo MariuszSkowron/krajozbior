@@ -1,29 +1,44 @@
 # Local disposable test environment of the krajozbior (Windows PowerShell 5.1+).
 #
-# Brings up two disposable postgres:17 containers (app + E2E on 55433, integration tests on
-# 55432 when free), runs db:roles -> db:migrate -> db:seed:demo, builds (cached) and starts
-# `next start` on 3100 when free. State and disposable secrets go to .data/test-env/ (git-ignored).
-# Never touches the developer database (127.0.0.1:5432) or port 3000.
+# Brings up two disposable postgres:17 containers of this station (app + E2E, integration
+# tests), runs db:roles -> db:migrate -> db:seed:demo, builds (cached) and starts `next start`.
+# Station = this checkout (main checkout: "main"; worktree: its folder name, e.g. "ws-3";
+# override: TEST_ENV_STATION). Container names, preferred ports and the state folder are per
+# station (scripts/test-env/test-env-station.mjs):
+#   containers krajozbior-testenv-<station>-e2e-pg / -int-pg (--memory=1g each),
+#   ports app 3100+slot, integration 55432+10*slot, E2E 55433+10*slot (free port when taken),
+#   state and disposable secrets in .data/test-env/<station>/ (git-ignored).
+# Boots are serialized by one machine-wide lock; a failed boot removes what it started.
+# Never touches the developer database (127.0.0.1:5432), port 3000, port 3300 or containers
+# of other stations.
 #
 # Usage (Windows PowerShell 5.1+):
 #   powershell -ExecutionPolicy Bypass -File scripts/test-env/test-env-up.ps1 [--force] [--force-rebuild]
-# Env override: TEST_ENV_CACHE_TTL_SECONDS (default 3600).
+# Env override: TEST_ENV_CACHE_TTL_SECONDS (default 3600), TEST_ENV_STATION.
 # Keep this file ASCII-only (Windows PowerShell 5.1 reads BOM-less files as ANSI).
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'test-env-lib.ps1')
 
 # ---------------------------------------------------------------- variables
+$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
+Set-Location -LiteralPath $RepoRoot
+$StationCfg       = Get-TestEnvStation $RepoRoot
+$Station          = $StationCfg.station
 $PgImage          = 'postgres:17'
-$E2eContainer     = 'krajozbior-testenv-e2e-pg'
-$E2ePreferredPort = 55433
+$PgMemory         = '1g'
+$E2eContainer     = $StationCfg.containers.e2e
+$E2ePreferredPort = [int]$StationCfg.ports.e2e
 $E2eDatabase      = 'krajozbior_e2e'
 $E2eAdminUser     = 'krajozbior_e2e'
-$IntContainer     = 'krajozbior-testenv-int-pg'
-$IntPreferredPort = 55432
+$IntContainer     = $StationCfg.containers.integration
+$IntPreferredPort = [int]$StationCfg.ports.integration
 $IntDatabase      = 'krajozbior_integration_test'
 $IntAdminUser     = 'krajozbior_test'
-$AppPreferredPort = 3100
+$AppPreferredPort = [int]$StationCfg.ports.app
+$BootLockName     = 'krajozbior-test-env-up'
+$BootLockMinutes  = 30
 $HealthPath       = '/api/health'
 $DemoAccounts     = @('user', 'user2', 'admin')   # <role>@demo.krajozbior.local
 $PrepCommands     = @('db:roles', 'db:migrate', 'db:seed:demo')      # npm scripts, in order
@@ -42,13 +57,11 @@ foreach ($a in $args) {
   }
 }
 
-$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
-Set-Location -LiteralPath $RepoRoot
-$QaDir       = '.data/test-env'
+$QaDir       = $StationCfg.stateDir
 $Descriptor  = "$QaDir/test-env.json"
 $EnvFile     = "$QaDir/test-env.env"
-$BuildCache  = "$QaDir/test-env-build-cache.json"
-$LockDir     = "$QaDir/test-env.lock"
+# One build per checkout (.next is per checkout), shared by its stations.
+$BuildCache  = '.data/test-env/test-env-build-cache.json'
 $AppLog      = "$QaDir/test-env-app.log"
 $AppErrLog   = "$QaDir/test-env-app.err.log"
 $DownScript  = 'scripts/test-env/test-env-down.ps1'
@@ -203,43 +216,24 @@ function Wait-Postgres([string]$container, [string]$user, [string]$db) {
 function Start-Postgres([string]$container, [int]$port, [string]$user, [string]$password, [string]$db) {
   Write-Step "starting $container on 127.0.0.1:$port"
   $r = Invoke-Quiet 'docker' @('run', '-d', '--rm', '--name', $container,
+    "--memory=$PgMemory", '--label', $StationCfg.label,
     '-e', "POSTGRES_USER=$user", '-e', "POSTGRES_PASSWORD=$password", '-e', "POSTGRES_DB=$db",
     '-p', "127.0.0.1:${port}:5432", $PgImage)
   if ($r.Code -ne 0) { throw "docker run $container failed: $($r.Out.Trim())" }
 }
 
-# ---------------------------------------------------------------- lock
-function Enter-Lock {
-  $deadline = (Get-Date).AddMinutes(5)
-  while ($true) {
-    try {
-      New-Item -ItemType Directory -Path $LockDir -ErrorAction Stop | Out-Null
-      Write-Utf8 "$LockDir/owner.json" (@{ pid = $PID; source = 'test-env-up.ps1'; acquiredAt = (Get-UtcStamp) } | ConvertTo-Json)
-      return
-    } catch {
-      $owner = Read-Json "$LockDir/owner.json"
-      $ownerPid = Get-Prop $owner 'pid'
-      $young = ((Get-Date) - (Get-Item -LiteralPath $LockDir -ErrorAction SilentlyContinue).CreationTime).TotalSeconds -lt 10
-      if (-not $ownerPid -and -not $young) {
-        Remove-Item -LiteralPath $LockDir -Recurse -Force -ErrorAction SilentlyContinue; continue
-      }
-      if ($ownerPid -and -not (Get-Process -Id $ownerPid -ErrorAction SilentlyContinue)) {
-        Write-Step "removing stale lock of dead PID $ownerPid"
-        Remove-Item -LiteralPath $LockDir -Recurse -Force -ErrorAction SilentlyContinue; continue
-      }
-      if ((Get-Date) -gt $deadline) { throw "Another bootstrap (PID $ownerPid) still holds $LockDir after 5 min" }
-      Start-Sleep -Seconds 2
-    }
-  }
-}
-
-function Exit-Lock {
-  $owner = Read-Json "$LockDir/owner.json"
-  if ((Get-Prop $owner 'pid') -eq $PID) { Remove-Item -LiteralPath $LockDir -Recurse -Force -ErrorAction SilentlyContinue }
+function Stop-AppTree([int]$appPid) {
+  $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+  try { & taskkill.exe /PID $appPid /T /F 2>&1 | Out-Null } finally { $ErrorActionPreference = $old }
 }
 
 # ---------------------------------------------------------------- main
-Enter-Lock
+# One boot at a time on this computer: port choice, migrations and the build of one
+# station never race with another station's boot. The lock is released in `finally`
+# and, after a crash, by the operating system.
+Write-Step "station $Station (slot $($StationCfg.slot))"
+$bootLock = Enter-MachineLock $BootLockName $BootLockMinutes 'test-env boot'
+$appPid = $null
 try {
   # 1. Reuse check
   if (-not $Force) {
@@ -256,7 +250,7 @@ try {
     Write-Step 'fresh boot forced (--force)'
   }
 
-  # 2. Tear down whatever this repo started before (scoped names / recorded PID only)
+  # 2. Tear down what this station started before (its own container names / recorded PID only)
   & powershell -NoProfile -ExecutionPolicy Bypass -File $DownScript --quiet
   if ($LASTEXITCODE -ne 0) { throw 'test-env-down.ps1 failed during cleanup' }
 
@@ -357,6 +351,10 @@ try {
   }
   if ($res.ReturnValue -ne 0) { throw "Win32_Process.Create failed with code $($res.ReturnValue)" }
   $appPid = [int]$res.ProcessId
+  # Recorded so that test-env-down.ps1 never kills a later process that reuses this PID.
+  $appStartedAt = ''
+  $appProc = Get-Process -Id $appPid -ErrorAction SilentlyContinue
+  if ($appProc) { $appStartedAt = $appProc.StartTime.ToUniversalTime().ToString('o') }
   $deadline = (Get-Date).AddSeconds(120); $healthy = $false
   while ((Get-Date) -lt $deadline) {
     if (-not (Get-Process -Id $appPid -ErrorAction SilentlyContinue)) { break }
@@ -386,11 +384,12 @@ try {
     runId = ((Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss') + '-' + (New-Secret).Substring(0, 6))
     status = 'running'
     mode = 'ephemeral'
+    station = $Station
     baseUrl = $baseUrl
     startedByThisRepo = $true
     startScript = 'scripts/test-env/test-env-up.ps1'
     stopScript = 'scripts/test-env/test-env-down.ps1'
-    app = [ordered]@{ startCommand = "next start --hostname 127.0.0.1 --port $appPort"; port = $appPort; healthPath = $HealthPath; pid = $appPid; log = $AppLog }
+    app = [ordered]@{ startCommand = "next start --hostname 127.0.0.1 --port $appPort"; port = $appPort; healthPath = $HealthPath; pid = $appPid; processStartedAt = $appStartedAt; log = $AppLog }
     services = @(
       [ordered]@{ type = 'postgres'; purpose = 'app + e2e'; host = '127.0.0.1'; port = $e2ePort; container = $E2eContainer; database = $E2eDatabase; env = @('DATABASE_URL', 'DATABASE_AUTH_URL', 'DATABASE_OPS_URL', 'DATABASE_MIGRATION_URL', 'DATABASE_ADMIN_URL') },
       [ordered]@{ type = 'postgres'; purpose = 'integration tests'; host = '127.0.0.1'; port = $intPort; container = $IntContainer; database = $IntDatabase; env = @('TEST_DATABASE_URL') }
@@ -408,6 +407,13 @@ try {
 
   Write-Step "ready in ${elapsed}s"
   Write-ResultLines $baseUrl 0 $bi
+} catch {
+  # A failed boot leaves nothing behind: the app it started and this station's containers.
+  $bootError = $_
+  Write-Step "boot failed, removing what station $Station started: $($bootError.Exception.Message)"
+  if ($appPid) { Stop-AppTree $appPid }
+  & powershell -NoProfile -ExecutionPolicy Bypass -File $DownScript --quiet
+  throw $bootError
 } finally {
-  Exit-Lock
+  Exit-MachineLock $bootLock
 }
