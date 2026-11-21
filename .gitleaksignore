@@ -9,3 +9,9 @@ a007853dc39d57bb0c4a03cba5d3cc8f130c29dc:tests/lib/config/operator-env.test.ts:g
 b5c8ccaa5e6793866b5df723c0bf9cd6ba1b0c88:tests/lib/db/database-error.test.ts:generic-api-key:8
 b5c8ccaa5e6793866b5df723c0bf9cd6ba1b0c88:tests/integration/database-error-log.test.ts:generic-api-key:19
 b5c8ccaa5e6793866b5df723c0bf9cd6ba1b0c88:tests/lib/db/user-context.test.ts:generic-api-key:144
+#
+# Fikcyjny klucz pliku zdjęcia (UUID) w stałej KEY w testach biblioteki zdjęć; to nazwa pliku
+# na dysku, nie sekret.
+138409a763e369c10fdcd8123ce6b82ae16be7fe:tests/features/media/domain.test.ts:generic-api-key:88
+2ca3960c47bfd59d1133fa16aaa8b578750b3ff0:tests/features/media/disk-media-storage-rollback.test.ts:generic-api-key:29
+138409a763e369c10fdcd8123ce6b82ae16be7fe:tests/features/media/disk-media-storage.test.ts:generic-api-key:10
