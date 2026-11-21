@@ -3,7 +3,7 @@
 # Brings up (or reuses) this station's environment and runs the requested suites against it.
 # Integration runs need no lock (each station has its own cluster); E2E holds one
 # machine-wide lock, so only one local E2E run happens at a time (docs/testing.md).
-# Usage: powershell -ExecutionPolicy Bypass -File scripts/test-env/test-env-test.ps1 [integration|e2e|all] [--force] [--force-rebuild]
+# Usage: powershell -ExecutionPolicy Bypass -File scripts/test-env/test-env-test.ps1 [integration|e2e|all] [--force] [--force-rebuild] [files... | -g|-t <filter> | --output <dir>]
 # Env override: TEST_ENV_STATION. ASCII-only on purpose (Windows PowerShell 5.1).
 
 Set-StrictMode -Version Latest
@@ -12,15 +12,25 @@ $ErrorActionPreference = 'Stop'
 $E2eLockName    = 'krajozbior-test-env-e2e'
 $E2eLockMinutes = 60
 
-$Suite = 'all'; $UpArgs = @()
+$Suite = 'all'; $UpArgs = @(); $Extra = @()
 foreach ($a in $args) {
-  if ($a -in @('integration', 'e2e', 'all')) { $Suite = $a }
+  if ($Extra.Count -gt 0) { $Extra += $a }
+  elseif ($a -in @('integration', 'e2e', 'all')) { $Suite = $a }
   elseif ($a -match '^--?force(-?rebuild)?$') { $UpArgs += $a }
-  else { throw "Unknown argument: $a (allowed: integration, e2e, all, --force, --force-rebuild)" }
+  else { $Extra += $a }
 }
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 Set-Location -LiteralPath $RepoRoot
+
+# Single test files: after the suite give e2e/*.spec.ts (e2e) or tests/**/*.test.ts (integration),
+# optionally -g/-t <filter> and (e2e) --output <dir>. Anything else is rejected before the
+# environment starts (validation: scripts/test-env/test-env-args.mjs).
+$ExtraValidated = @()
+if ($Extra.Count -gt 0) {
+  $ExtraValidated = @(& node.exe 'scripts/test-env/test-env-args.mjs' $Suite @Extra)
+  if ($LASTEXITCODE -ne 0) { exit 1 }
+}
 $EnvFile = "$((Get-TestEnvStation $RepoRoot).stateDir)/test-env.env"
 
 & powershell -NoProfile -ExecutionPolicy Bypass -File 'scripts/test-env/test-env-up.ps1' @UpArgs
@@ -41,12 +51,12 @@ function Invoke-Suite([string]$name, [string]$npmScript, [string[]]$extra) {
   if ($code -ne 0) { $script:failed += $name }
 }
 
-if ($Suite -in @('integration', 'all')) { Invoke-Suite 'integration' 'test:integration' @() }
+if ($Suite -in @('integration', 'all')) { Invoke-Suite 'integration' 'test:integration' $(if ($ExtraValidated.Count -gt 0) { @('--') + $ExtraValidated } else { @() }) }
 # One worker, like CI: with Playwright's local default (several workers) the first
 # page.goto of each worker timed out against `next start` on Windows (2026-11-08).
 if ($Suite -in @('e2e', 'all')) {
   $e2eLock = Enter-MachineLock $E2eLockName $E2eLockMinutes 'a local E2E run'
-  try { Invoke-Suite 'e2e' 'test:e2e' @('--', '--workers=1') } finally { Exit-MachineLock $e2eLock }
+  try { Invoke-Suite 'e2e' 'test:e2e' (@('--', '--workers=1') + $ExtraValidated) } finally { Exit-MachineLock $e2eLock }
 }
 
 if ($failed.Count -gt 0) { Write-Host "[test-env] FAILED: $($failed -join ', ')"; exit 1 }
