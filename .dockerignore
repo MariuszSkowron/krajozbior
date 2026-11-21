@@ -19,4 +19,5 @@
 **/.next
 scripts/test-env
 scripts/showcase
+scripts/ops
 scripts/*.ps1
