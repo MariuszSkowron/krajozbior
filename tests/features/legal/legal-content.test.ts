@@ -36,10 +36,6 @@ const OPEN_LEGAL_MARKERS: readonly Readonly<{ marker: string; owner: string }>[]
     owner: "właściciel, z panelu Brevo (D-41 pkt 2)",
   },
   {
-    marker: "polityka-prywatnosci: [DO UZUPEŁNIENIA: państwa i zabezpieczenia]",
-    owner: "z publicznej polityki prywatności OpenStreetMap Foundation, po sprawdzeniu źródła",
-  },
-  {
     marker: "regulamin: [DO UZUPEŁNIENIA: data pierwszego wdrożenia]",
     owner: "w dniu wdrożenia (D-41 pkt 2)",
   },
