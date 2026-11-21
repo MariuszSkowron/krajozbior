@@ -62,6 +62,8 @@ Porty są preferowane: zajęty port skrypt zastępuje wolnym portem wskazanym pr
 
 **Blokady na cały komputer.** Start środowiska (`test-env-up.ps1`) i lokalny przebieg E2E (`test-env-test.ps1 e2e`) biorą blokadę wspólną dla wszystkich kopii (nazwany mutex Windows `Global\krajozbior-test-env-up` i `Global\krajozbior-test-env-e2e`). Drugi start czeka na koniec pierwszego (do 30 min), drugi przebieg E2E na koniec pierwszego (do 60 min); system zwalnia blokadę także wtedy, gdy proces padnie. Integracja nie bierze blokady, bo każde stanowisko ma własny klaster.
 
+**Pojedynczy plik testu.** Po nazwie zestawu podaj pliki: `test-env-test.ps1 e2e e2e/nearby.spec.ts e2e/login.spec.ts` albo `test-env-test.ps1 integration tests/integration/foo.test.ts`. Dozwolone są tylko ścieżki względne `e2e/…*.spec.ts` (E2E) lub `tests/…*.test.ts` (integracja), filtr po nazwie `-g <tekst>` (E2E) lub `-t <tekst>` (integracja; litery, cyfry i `_ . : , / -`, bez spacji) oraz dla E2E `--output <katalog w repo>` (np. `.ai/tmp/<agent>/wyniki`). Inne opcje skrypt odrzuca przed startem środowiska (walidacja: `scripts/test-env/test-env-args.mjs`). Nie pisz własnych skryptów wczytujących plik zmiennych środowiska testowego; to robi wyłącznie `test-env-test.ps1`. Wywołanie bez dodatkowych argumentów działa jak dotąd.
+
 Wymaga uruchomionego Docker Desktop. **Przed każdym przebiegiem środowisko musi być świeże:** najpierw `test-env-down.ps1`, potem `test-env-test.ps1`; ponowne użycie konta demo daje fałszywe porażki.
 
 ## Wydajność lokalna (4 rdzenie, 16 GB RAM)
