@@ -14,6 +14,15 @@ const read = (path: string) => readFileSync(join(root, path), "utf8");
 
 const DEMO_FLAGS = ["ALLOW_DEMO_SEED", "DEMO_ACCOUNTS_TEST_ONLY", "EMAIL_OUTBOX_TEST_ONLY"];
 
+// What only the operator container may get: never the process exposed to the internet (D-21).
+const OPERATOR_VARIABLES = [
+  "DATABASE_MIGRATION_URL",
+  "DATABASE_OPS_URL",
+  "DATABASE_ADMIN_URL",
+  "KRAJOZBIOR_OWNER_DB_PASSWORD",
+  "KRAJOZBIOR_OPS_DB_PASSWORD",
+];
+
 // Ports and names that belong to the owner's environment and to scripts/test-env/.
 const FORBIDDEN_HOST_PORTS = ["3000", "3100", "5432", "55432", "55433"];
 
@@ -25,6 +34,7 @@ type ComposeService = {
   command?: string[];
   environment?: Record<string, string>;
   network_mode?: string;
+  mem_limit?: string;
 };
 type ComposeConfig = {
   name: string;
@@ -56,7 +66,12 @@ if (!composeInstalled && !requireCompose) {
 
 const dockerComposeIt = it.skipIf(!composeInstalled && !requireCompose);
 
-function composeConfig(files: string[], extra: string[] = [], envFile?: string): ComposeConfig {
+function composeConfig(
+  files: string[],
+  extra: string[] = [],
+  envFile?: string,
+  variables: Record<string, string> = {},
+): ComposeConfig {
   const args = ["compose", ...files.flatMap((file) => ["-f", file]), ...extra];
 
   if (envFile !== undefined) {
@@ -66,7 +81,7 @@ function composeConfig(files: string[], extra: string[] = [], envFile?: string):
   const output = execFileSync("docker", [...args, "config", "--format", "json"], {
     cwd: root,
     encoding: "utf8",
-    env: { ...process.env, COMPOSE_PROJECT_NAME: "" },
+    env: { ...process.env, COMPOSE_PROJECT_NAME: "", ...variables },
   });
 
   return JSON.parse(output) as ComposeConfig;
@@ -125,6 +140,8 @@ describe("server configuration (deploy/compose.yaml)", () => {
     const command = composeConfig(SERVER).services.db!.command ?? [];
 
     for (const setting of [
+      // MikroORM inlines values into the query text, so a failing query must not be logged (DB-5).
+      "log_min_error_statement=panic",
       "log_statement=none",
       "log_min_duration_statement=-1",
       "log_parameter_max_length=0",
@@ -155,6 +172,10 @@ describe("server configuration (deploy/compose.yaml)", () => {
         expect(read(file), `${file} ${flag}`).not.toContain(flag);
       }
     }
+  });
+
+  it("limits the size of a request body in Caddy (SEC-2)", () => {
+    expect(read("deploy/Caddyfile")).toMatch(/request_body \{\s*max_size 1MB\s*\}/);
   });
 
   it("gives the database superuser password as a file, not as an environment variable", () => {
@@ -196,6 +217,56 @@ describe("server configuration (deploy/compose.yaml)", () => {
     const environment = composeConfig(SERVER).services.db?.environment ?? {};
 
     expect(environment.POSTGRES_INITDB_ARGS).toBe("--auth-local=peer --auth-host=scram-sha-256");
+  });
+
+  dockerComposeIt("caps the memory of the application container", () => {
+    const config = composeConfig(SERVER);
+
+    expect(config.services.app?.mem_limit).toBe("1073741824");
+  });
+
+  it("gives the application and the operator separate variable files", () => {
+    const compose = read("deploy/compose.yaml");
+
+    expect(compose).toContain("path: ${KRAJOZBIOR_ENV_FILE:-/srv/krajozbior/.env.production}");
+    expect(compose).toContain("path: ${KRAJOZBIOR_OPS_ENV_FILE:-/run/krajozbior/ops.env}");
+    // Only the application reads the server file of the application.
+    expect(compose.match(/\.env\.production\}/g)).toHaveLength(1);
+  });
+
+  dockerComposeIt("keeps the owner and ops role variables out of the application", () => {
+    const directory = mkdtempSync(join(tmpdir(), "krajozbior-compose-vars-"));
+    const appFile = join(directory, "app-vars");
+    const opsFile = join(directory, "ops-vars");
+
+    writeFileSync(appFile, "BETTER_AUTH_SECRET=app-secret\nDATABASE_URL=postgres://app\n");
+    // The operator commands `auth:create-admin` and `auth:throttle` need the session secret
+    // (the same value as the application's in production), so the operator file carries it.
+    writeFileSync(
+      opsFile,
+      [
+        ...OPERATOR_VARIABLES.map((name) => `${name}=ops-only`),
+        "BETTER_AUTH_SECRET=ops-file-secret",
+        "",
+      ].join("\n"),
+    );
+
+    const config = composeConfig(SERVER, ["--profile", "ops"], undefined, {
+      KRAJOZBIOR_ENV_FILE: appFile,
+      KRAJOZBIOR_OPS_ENV_FILE: opsFile,
+    });
+    const app = config.services.app?.environment ?? {};
+    const ops = config.services.ops?.environment ?? {};
+
+    // Each service reads only its own file.
+    expect(app.BETTER_AUTH_SECRET).toBe("app-secret");
+    expect(ops.BETTER_AUTH_SECRET).toBe("ops-file-secret");
+    expect(ops.DATABASE_URL).toBeUndefined();
+
+    for (const name of OPERATOR_VARIABLES) {
+      expect(app[name], name).toBeUndefined();
+      expect(ops[name], name).toBe("ops-only");
+    }
   });
 
   dockerComposeIt("does not start the operator container with `up` (profile)", () => {

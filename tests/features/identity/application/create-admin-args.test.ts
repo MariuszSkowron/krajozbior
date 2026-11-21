@@ -31,6 +31,8 @@ describe("parseCreateAdminArgs", () => {
       ["--email", "a@example.com"],
       ["--email", "a@example.com", "--reason", "   "],
       ["--email", "a@example.com", "--reason", "a\nb"],
+      // DB-8: the audit is permanent, so no e-mail address in the reason.
+      ["--email", "a@example.com", "--reason", "Prośba jan.kowalski@example.com"],
     ]) {
       const result = parseCreateAdminArgs(argv, "jan");
 

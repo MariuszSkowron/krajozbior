@@ -81,9 +81,16 @@ export type SearchPhrase =
       prefix: string;
     }>;
 
-/** Trims and collapses the spaces of a phrase from the address, then checks its length (2-80). */
+/**
+ * Trims and collapses the spaces of a phrase from the address, then checks its length (2-80).
+ * Control characters (Unicode Cc, NUL included) count as spaces: PostgreSQL refuses a NUL in
+ * text, so it never reaches the database (LIVE-6).
+ */
 export function parseSearchPhrase(raw: string | undefined): SearchPhrase {
-  const display = (raw ?? "").normalize("NFC").replace(/\s+/g, " ").trim();
+  const display = (raw ?? "")
+    .normalize("NFC")
+    .replace(/[\s\p{Cc}]+/gu, " ")
+    .trim();
   const length = Array.from(display).length;
 
   if (length === 0) {
