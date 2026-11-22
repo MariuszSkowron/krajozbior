@@ -225,7 +225,7 @@ test.describe("home page with the catalog", () => {
       "1",
     );
 
-    const favorites = a.getByRole("region", { name: "Ulubione kolekcje" });
+    const favorites = a.getByRole("region", { name: "Moje kolekcje" });
 
     await expect(favorites.getByRole("link", { name: /Mosty i zamki/ })).toContainText("1/3");
     await expect(favorites.getByRole("link", { name: "Wszystkie moje kolekcje" })).toHaveAttribute(

@@ -108,9 +108,9 @@ describe("parseView and the map view in albumHref (E12-5)", () => {
 });
 
 describe("formatUpdateDate", () => {
-  it("writes the day in Polish time as DD.MM.RRRR", () => {
+  it("writes the day in Polish time as D.M.RRRR, without leading zeros", () => {
     expect(formatUpdateDate(new Date("2026-11-18T10:00:00Z"))).toBe("18.11.2026");
-    expect(formatUpdateDate(new Date("2026-03-05T12:00:00Z"))).toBe("05.03.2026");
+    expect(formatUpdateDate(new Date("2026-03-05T12:00:00Z"))).toBe("5.3.2026");
     // 23:30 UTC is already the next day in Poland.
     expect(formatUpdateDate(new Date("2026-11-18T23:30:00Z"))).toBe("19.11.2026");
   });
