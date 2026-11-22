@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Aktualności — Krajozbiór",
-  description: "Wiadomości od zespołu Krajozbioru.",
+  description: "Nowości od Krajozbioru i organizacji, które prowadzą kolekcje.",
 };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -50,7 +50,9 @@ export default async function NewsPage({ searchParams }: { searchParams: SearchP
     <div className={`content-width ${styles.page}`}>
       <header className={styles.header}>
         <h1>Aktualności</h1>
-        <p className={styles.subtitle}>Wiadomości od zespołu Krajozbioru</p>
+        <p className={styles.subtitle}>
+          Nowości od Krajozbioru i organizacji, które prowadzą kolekcje.
+        </p>
       </header>
       <nav aria-label="Filtr aktualności">
         <ul className={styles.filters}>

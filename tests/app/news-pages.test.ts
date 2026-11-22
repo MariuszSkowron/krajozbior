@@ -70,7 +70,7 @@ describe("news list page", () => {
     const html = await list();
 
     expect(html).toContain("<h1>Aktualności</h1>");
-    expect(html).toContain("Wiadomości od zespołu Krajozbioru");
+    expect(html).toContain("Nowości od Krajozbioru i organizacji, które prowadzą kolekcje.");
     expect(html).toContain('aria-label="Filtr aktualności"');
     expect(html).toMatch(/aria-current="true" href="\/news">Wszystkie</);
     expect(html).toContain('href="/news?filtr=wydarzenia">Wydarzenia</a>');
@@ -91,7 +91,7 @@ describe("news list page", () => {
       expect(one.match(/<a /g)).toHaveLength(1);
     }
     expect(cards[0]).toContain('href="/news/jak-zbierac">Jak zbierać &lt;miejsca&gt;</a>');
-    expect(cards[0]).toContain('<time dateTime="2026-11-20">20 listopada 2026</time>');
+    expect(cards[0]).toContain('<time dateTime="2026-11-20">20.11.2026</time>');
     expect(cards[0]).toContain("Poradnik");
     expect(cards[0]).toContain("Krajozbiór — redakcja");
     expect(cards[0]).toContain("Zespół Krajozbioru");
@@ -121,9 +121,7 @@ describe("news list page", () => {
     const html = await list({ filtr: "wydarzenia" });
 
     expect(html).toContain("Wydarzenie");
-    expect(html).toContain(
-      'Termin: <time dateTime="2027-04-17">17 kwietnia 2027 – 18 kwietnia 2027</time>',
-    );
+    expect(html).toContain('Termin: <time dateTime="2027-04-17">17–18.04.2027</time>');
     expect(mocks.list).toHaveBeenCalledWith("events", expect.anything());
     expect(html).toMatch(/aria-current="true" href="\/news\?filtr=wydarzenia">Wydarzenia</);
     expect(html).toContain("1 wydarzenie");
@@ -178,7 +176,7 @@ describe("news item page", () => {
     expect(html).toContain("<h1>Jak zbierać &lt;miejsca&gt;</h1>");
     expect(html).toContain("Krótki tekst.");
     expect(html).toContain("Krajozbiór — redakcja");
-    expect(html).toContain('<time dateTime="2026-11-20">20 listopada 2026</time>');
+    expect(html).toContain('<time dateTime="2026-11-20">20.11.2026</time>');
     expect(html).toContain("<p><span>Pierwszy akapit.</span></p>");
     expect(html).toMatch(
       /<a href="https:\/\/example\.org\/a" rel="nofollow ugc noopener noreferrer">https:\/\/example\.org\/a<\/a>/,
@@ -214,9 +212,7 @@ describe("news item page", () => {
       value: full({ contentUpdatedAt: new Date("2026-11-21T09:00:00Z") }),
     });
 
-    expect(await item()).toContain(
-      'Zaktualizowano <time dateTime="2026-11-21">21 listopada 2026</time>',
-    );
+    expect(await item()).toContain('Zaktualizowano <time dateTime="2026-11-21">21.11.2026</time>');
 
     mocks.item.mockResolvedValue({
       status: "ok",
@@ -317,7 +313,7 @@ describe("news body and error boundary", () => {
     );
 
     expect(html).toContain("xn--");
-    expect(html).toContain("(wpisano: https://żółć.pl/a)");
+    expect(html).toContain("(autor wpisał: https://żółć.pl/a)");
   });
 
   it("uses the catalog error screen for the whole segment", () => {

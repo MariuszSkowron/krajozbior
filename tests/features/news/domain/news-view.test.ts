@@ -47,15 +47,17 @@ describe("dates", () => {
     // 23:30 UTC on 16 April is already 17 April in Poland (summer time).
     const moment = new Date("2027-04-16T23:30:00Z");
 
-    expect(formatNewsDate(moment)).toBe("17 kwietnia 2027");
+    expect(formatNewsDate(moment)).toBe("17.04.2027");
+    expect(formatNewsDate(new Date("2026-11-08T10:00:00Z"))).toBe("8.11.2026");
     expect(newsDateTime(moment)).toBe("2027-04-17");
   });
 
   it("writes the days of an event", () => {
-    expect(formatEventDays("2027-04-17", null)).toBe("17 kwietnia 2027");
-    expect(formatEventDays("2027-04-17", "2027-04-17")).toBe("17 kwietnia 2027");
-    expect(formatEventDays("2027-04-17", "2027-04-18")).toBe("17 kwietnia 2027 – 18 kwietnia 2027");
-    expect(formatEventDays("2027-12-31", "2028-01-02")).toBe("31 grudnia 2027 – 2 stycznia 2028");
+    expect(formatEventDays("2027-04-17", null)).toBe("17.04.2027");
+    expect(formatEventDays("2027-04-17", "2027-04-17")).toBe("17.04.2027");
+    expect(formatEventDays("2027-04-17", "2027-04-18")).toBe("17–18.04.2027");
+    expect(formatEventDays("2027-04-30", "2027-05-02")).toBe("30.04–2.05.2027");
+    expect(formatEventDays("2027-12-31", "2028-01-02")).toBe("31.12.2027–2.01.2028");
   });
 });
 

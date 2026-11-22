@@ -94,7 +94,7 @@ export function NewsBody({ paragraphs }: Readonly<{ paragraphs: readonly NewsBod
                 <a href={fragment.href} rel={NEWS_LINK_REL}>
                   {fragment.text}
                 </a>
-                {fragment.original === null ? null : <> (wpisano: {fragment.original})</>}
+                {fragment.original === null ? null : <> {`(autor wpisał: ${fragment.original})`}</>}
               </span>
             ),
           )}

@@ -101,7 +101,9 @@ test.describe("aktualności dla gościa", () => {
 
     await expect(page).toHaveTitle("Aktualności — Krajozbiór");
     await expect(page.getByRole("heading", { level: 1, name: "Aktualności" })).toBeVisible();
-    await expect(page.getByText("Wiadomości od zespołu Krajozbioru")).toBeVisible();
+    await expect(
+      page.getByText("Nowości od Krajozbioru i organizacji, które prowadzą kolekcje."),
+    ).toBeVisible();
 
     const main = page.getByRole("main");
 
@@ -205,9 +207,7 @@ test.describe("aktualności dla gościa", () => {
       "true",
     );
     await expect(main.getByText(/Wydarzenia: \d+|1 wydarzenie/)).toBeVisible();
-    await expect(main.locator("article", { hasText: FUTURE.title })).toContainText(
-      "1 maja 2099 – 2 maja 2099",
-    );
+    await expect(main.locator("article", { hasText: FUTURE.title })).toContainText("1–2.05.2099");
 
     await main.getByRole("link", { name: "Wszystkie", exact: true }).click();
     await expect(page.getByRole("main").getByRole("link", { name: GUIDE_TITLE })).toBeVisible();

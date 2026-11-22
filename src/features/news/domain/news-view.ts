@@ -27,16 +27,28 @@ export function parseNewsFilter(raw: string | string[] | undefined): NewsFilter 
   return value === "wydarzenia" ? "events" : null;
 }
 
-const dateFormat = new Intl.DateTimeFormat("pl-PL", {
+const dateParts = new Intl.DateTimeFormat("en-CA", {
   day: "numeric",
-  month: "long",
+  month: "2-digit",
   year: "numeric",
   timeZone: "Europe/Warsaw",
 });
 
-/** `17 kwietnia 2027` for a moment, in Poland. */
+type DayParts = { day: string; month: string; year: string };
+
+function partsOf(date: Date): DayParts {
+  const parts = Object.fromEntries(dateParts.formatToParts(date).map((p) => [p.type, p.value]));
+
+  return { day: parts.day ?? "", month: parts.month ?? "", year: parts.year ?? "" };
+}
+
+function numeric({ day, month, year }: DayParts): string {
+  return `${day}.${month}.${year}`;
+}
+
+/** `17.04.2027` for a moment, in Poland (voice and tone, rule 8: day without a leading zero). */
 export function formatNewsDate(date: Date): string {
-  return dateFormat.format(date);
+  return numeric(partsOf(date));
 }
 
 /** `YYYY-MM-DD` of a moment in Poland, for the `datetime` attribute. */
@@ -49,16 +61,33 @@ export function newsDateTime(date: Date): string {
   }).format(date);
 }
 
-function formatDay(day: string): string {
+function dayParts(day: string): DayParts {
   // A calendar day has no time zone: noon UTC is the same day in Poland all year.
-  return dateFormat.format(new Date(`${day}T12:00:00Z`));
+  return partsOf(new Date(`${day}T12:00:00Z`));
 }
 
-/** `17 kwietnia 2027` or `17 kwietnia 2027 – 18 kwietnia 2027` for the days of an event. */
+/**
+ * `17.04.2027` for one day; for several days the shared month and year are written once:
+ * `17–18.04.2027`, `30.04–2.05.2027`, and in full across years.
+ */
 export function formatEventDays(startsOn: string, endsOn: string | null): string {
-  return endsOn === null || endsOn === startsOn
-    ? formatDay(startsOn)
-    : `${formatDay(startsOn)} – ${formatDay(endsOn)}`;
+  const start = dayParts(startsOn);
+
+  if (endsOn === null || endsOn === startsOn) {
+    return numeric(start);
+  }
+
+  const end = dayParts(endsOn);
+
+  if (start.year !== end.year) {
+    return `${numeric(start)}–${numeric(end)}`;
+  }
+
+  if (start.month !== end.month) {
+    return `${start.day}.${start.month}–${numeric(end)}`;
+  }
+
+  return `${start.day}–${numeric(end)}`;
 }
 
 /** The first letter of the organization name, upper case; `?` for an empty name. */
