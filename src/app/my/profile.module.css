@@ -5,12 +5,13 @@
 .page {
   display: grid;
   gap: var(--space-lg);
-  justify-items: start;
+  justify-items: stretch;
   padding-block: var(--space-lg) var(--space-xl);
 }
 
 @media (min-width: 48rem) {
   .page {
+    justify-items: start;
     padding-block: var(--space-xl);
   }
 }

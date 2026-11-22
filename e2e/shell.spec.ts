@@ -363,6 +363,9 @@ test.describe("nagłówek konta", () => {
       "/curator",
     );
     await expect(main).toContainText("Tu są Twoje wizyty i liczby jako odkrywcy.");
+    // Bez imienia kurator nie jest „Odkrywcą” nad własną rolą.
+    await expect(main.getByTestId("profile-name")).toHaveText("Bez imienia");
+    await expect(main.getByTestId("profile-name")).not.toContainText("Odkrywca");
     await page.context().close();
   });
 });
