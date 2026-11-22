@@ -436,6 +436,42 @@ describe("row limits and idempotent saves", () => {
     });
   });
 
+  it("keeps the shared limit of 200 when an own collection and a save of a curator collection race (E8-1a, [P-E8-A3])", async () => {
+    const explorer = newUser("explorer-own-race");
+
+    await f.insertUsers([explorer]);
+
+    const ids = await bulkCollections(org, MAX_COLLECTIONS_PER_LIST - 1, "published");
+
+    // 1 own + 198 saved = 199 on the list: exactly one place left for two writers.
+    expect((await createOwnCollection(asActor(explorer), ownInput, ownDeps())).status).toBe("ok");
+    await admin$(
+      `insert into public.saved_collections (user_id, collection_id)
+       select $1, unnest($2::uuid[])`,
+      [explorer.id, ids.slice(0, MAX_COLLECTIONS_PER_LIST - 2)],
+    );
+
+    const wideOwn: OwnCollectionsDeps = { ...ownDeps(), withUserContext: wideUserContext };
+    const wideAlbum: AlbumDeps = { ...albumDeps(), withUserContext: wideUserContext };
+    const results = await Promise.all([
+      createOwnCollection(asActor(explorer), ownInput, wideOwn),
+      saveCollection(asActor(explorer), ids.at(-1)!, wideAlbum),
+    ]);
+
+    expect(results.map((result) => result.status).sort()).toEqual(["conflict", "ok"]);
+
+    const [own] = await admin$<{ count: string }>(
+      `select count(*)::text as count from public.user_collections where owner_user_id = $1`,
+      [explorer.id],
+    );
+    const [saved] = await admin$<{ count: string }>(
+      `select count(*)::text as count from public.saved_collections where user_id = $1`,
+      [explorer.id],
+    );
+
+    expect(Number(own!.count) + Number(saved!.count)).toBe(MAX_COLLECTIONS_PER_LIST);
+  });
+
   it("refuses the 51st own collection and keeps the limit under simultaneous writes", async () => {
     const explorer = newUser("explorer-own-50");
 

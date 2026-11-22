@@ -153,8 +153,21 @@ test.describe("own collections", () => {
       "Zapisano zmiany.",
     );
     await page.getByRole("button", { name: `Usuń z kolekcji: ${PLACE}` }).click();
-    await expect(page.getByRole("heading", { level: 2, name: "Miejsca (0)" })).toBeVisible();
+    const places = page.getByRole("heading", { level: 2, name: "Miejsca (0)" });
 
+    await expect(places).toBeVisible();
+    // The row is gone with its button: the focus moves to the heading of the list (not to
+    // the body) and the answer stays in a region that outlives the row.
+    await expect(places).toBeFocused();
+    await expect(page.getByRole("status").filter({ hasText: "Usunięto z kolekcji." })).toHaveText(
+      "Usunięto z kolekcji.",
+    );
+
+    // The confirmation takes the focus, and "Anuluj" gives it back.
+    await page.getByRole("button", { name: "Usuń kolekcję" }).click();
+    await expect(page.getByRole("button", { name: "Tak, usuń kolekcję" })).toBeFocused();
+    await page.getByRole("button", { name: "Anuluj" }).click();
+    await expect(page.getByRole("button", { name: "Usuń kolekcję" })).toBeFocused();
     await page.getByRole("button", { name: "Usuń kolekcję" }).click();
     await page.getByRole("button", { name: "Tak, usuń kolekcję" }).click();
     await expect(page).toHaveURL(/\/my\/collections$/);

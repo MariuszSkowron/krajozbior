@@ -462,6 +462,31 @@ describe("catalog import keys and place deletion", () => {
       expect(await deletePlace(curA, placeId)).toHaveLength(1);
     });
 
+    it("deletes a place that is only in an entry of an explorer's own collection, and the entry keeps the name (E8-1a)", async () => {
+      const placeId = await newPlace(curA, orgA);
+      const [{ id: ownId }] = await admin$<{ id: string }>(
+        `insert into public.user_collections (owner_user_id, title, region)
+         values ($1, 'Własna', 'polska') returning id`,
+        [explorer.id],
+      );
+
+      await admin$(
+        `insert into public.user_collection_items (user_collection_id, position, place_id)
+         values ($1, 1, $2)`,
+        [ownId, placeId],
+      );
+
+      expect(await deletePlace(curA, placeId)).toHaveLength(1);
+      expect(await placeExists(placeId)).toBe(false);
+      expect(
+        await admin$(
+          `select place_id, place_name_snapshot from public.user_collection_items
+            where user_collection_id = $1`,
+          [ownId],
+        ),
+      ).toEqual([{ place_id: null, place_name_snapshot: "Miejsce" }]);
+    });
+
     it("keeps a place with a visit or on a want-to-see list (23503), also outside every collection", async () => {
       // The curator cannot see these rows (PRIV); the foreign key still protects the place.
       const visited = await newPlace(curA, orgA);

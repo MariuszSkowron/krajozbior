@@ -185,7 +185,9 @@ export async function updateOwnCollection(
   }
 
   if (typeof version !== "number" || !Number.isSafeInteger(version) || version < 1) {
-    return { status: "invalid", errors: [] };
+    // A form always sends the version it was drawn from; a missing or odd one is as good as a stale
+    // one: the person is asked to reload instead of being shown "fix the marked fields" with none.
+    return { status: "conflict", reason: "stale_version" };
   }
 
   return deps.withUserContext(admitted.actor, async (tx) => {

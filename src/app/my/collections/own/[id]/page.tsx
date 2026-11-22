@@ -20,6 +20,7 @@ import curatorStyles from "../../../../curator/curator.module.css";
 import {
   AddPlaceButton,
   DeleteCollectionButton,
+  EntriesRegion,
   RemoveEntryButton,
 } from "../own-collection-actions";
 import { OwnCollectionForm } from "../own-collection-form";
@@ -111,50 +112,56 @@ export default async function OwnCollectionPage({ params, searchParams }: Props)
       </header>
 
       <section className={catalog.section} aria-labelledby="miejsca">
-        <h2 id="miejsca">Miejsca ({entries.length})</h2>
-        {entries.length === 0 ? (
-          <p className={styles.muted}>
-            Ta kolekcja nie ma jeszcze miejsc. Wyszukaj miejsce poniżej i dodaj je.
-          </p>
-        ) : (
-          <ol className={styles.entries}>
-            {entries.map((entry) => (
-              <li key={entry.id} className={styles.entry}>
-                {entry.state === "available" && entry.place !== null ? (
-                  <>
-                    <p className={styles.entryTitle}>
-                      <Link href={`/places/${entry.placeId}`}>{entry.place.name}</Link>
-                      {entry.visited ? <StatusBadge tone="success">Odwiedzone</StatusBadge> : null}
-                    </p>
-                    {entry.place.address === "" ? null : (
-                      <p className={styles.muted}>{entry.place.address}</p>
-                    )}
-                    <RemoveEntryButton
-                      collectionId={collection.id}
-                      entryId={entry.id}
-                      label={entry.place.name}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <p className={styles.entryTitle}>
-                      <StatusBadge tone="warning">
-                        {entry.state === "removed"
-                          ? removedPlaceLabel(entry.nameSnapshot)
-                          : UNAVAILABLE_PLACE_LABEL}
-                      </StatusBadge>
-                    </p>
-                    <RemoveEntryButton
-                      collectionId={collection.id}
-                      entryId={entry.id}
-                      label={entry.nameSnapshot}
-                    />
-                  </>
-                )}
-              </li>
-            ))}
-          </ol>
-        )}
+        <h2 id="miejsca" tabIndex={-1}>
+          Miejsca ({entries.length})
+        </h2>
+        <EntriesRegion>
+          {entries.length === 0 ? (
+            <p className={styles.muted}>
+              Ta kolekcja nie ma jeszcze miejsc. Wyszukaj miejsce poniżej i dodaj je.
+            </p>
+          ) : (
+            <ol className={styles.entries}>
+              {entries.map((entry) => (
+                <li key={entry.id} className={styles.entry}>
+                  {entry.state === "available" && entry.place !== null ? (
+                    <>
+                      <p className={styles.entryTitle}>
+                        <Link href={`/places/${entry.placeId}`}>{entry.place.name}</Link>
+                        {entry.visited ? (
+                          <StatusBadge tone="success">Odwiedzone</StatusBadge>
+                        ) : null}
+                      </p>
+                      {entry.place.address === "" ? null : (
+                        <p className={styles.muted}>{entry.place.address}</p>
+                      )}
+                      <RemoveEntryButton
+                        collectionId={collection.id}
+                        entryId={entry.id}
+                        label={entry.place.name}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <p className={styles.entryTitle}>
+                        <StatusBadge tone="warning">
+                          {entry.state === "removed"
+                            ? removedPlaceLabel(entry.nameSnapshot)
+                            : UNAVAILABLE_PLACE_LABEL}
+                        </StatusBadge>
+                      </p>
+                      <RemoveEntryButton
+                        collectionId={collection.id}
+                        entryId={entry.id}
+                        label={entry.nameSnapshot}
+                      />
+                    </>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
+        </EntriesRegion>
       </section>
 
       <section className={catalog.section} aria-labelledby="dodaj">

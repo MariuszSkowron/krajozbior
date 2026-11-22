@@ -237,7 +237,7 @@ describe("updateOwnCollection", () => {
     expect(repository.update).toHaveBeenCalledWith(expect.anything(), COLLECTION, 3, valid);
   });
 
-  it("refuses invalid text and a missing or odd version", async () => {
+  it("refuses invalid text, and treats a missing or odd version as a stale one", async () => {
     const { deps } = makeDeps();
 
     expect(await updateOwnCollection(actor, COLLECTION, { title: "", version: 1 }, deps)).toEqual({
@@ -247,8 +247,8 @@ describe("updateOwnCollection", () => {
 
     for (const version of [undefined, "1", 0, 1.5]) {
       expect(await updateOwnCollection(actor, COLLECTION, { ...valid, version }, deps)).toEqual({
-        status: "invalid",
-        errors: [],
+        status: "conflict",
+        reason: "stale_version",
       });
     }
   });

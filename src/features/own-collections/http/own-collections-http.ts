@@ -23,7 +23,7 @@ const CONFLICT_MESSAGES: Readonly<Record<OwnCollectionsConflict, string>> = {
   too_many_own_collections: "Masz już 50 własnych kolekcji. Usuń którąś, żeby dodać nową.",
   my_collections_full: "Masz już 200 kolekcji na liście. Usuń którąś, żeby dodać nową.",
   too_many_items: "W tej kolekcji jest już 200 miejsc. Usuń któreś, żeby dodać nowe.",
-  stale_version: "Ktoś zmienił tę kolekcję, odśwież",
+  stale_version: "Ta kolekcja zmieniła się w innym oknie. Odśwież stronę.",
 };
 
 export const notFound = (): Response => json(404, { error: "not_found" });

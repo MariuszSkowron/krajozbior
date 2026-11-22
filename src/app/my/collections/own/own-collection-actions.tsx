@@ -1,7 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { callOwnApi, type OwnApiResult } from "./own-api";
 import styles from "./own.module.css";
@@ -97,12 +105,38 @@ export function AddPlaceButton({
   );
 }
 
+const Announce = createContext<(text: string) => void>(() => undefined);
+
+/**
+ * Wraps the list of entries. A removed entry takes its button and its own `role="status"` with it,
+ * so the answer to the removal is announced here, in a region that stays on the page.
+ */
+export function EntriesRegion({ children }: Readonly<{ children: ReactNode }>) {
+  const [announcement, setAnnouncement] = useState({ count: 0, text: "" });
+  const announce = useCallback(
+    (text: string) => setAnnouncement((previous) => ({ count: previous.count + 1, text })),
+    [],
+  );
+
+  return (
+    <Announce.Provider value={announce}>
+      {children}
+      <p role="status" className={styles.statusText}>
+        {/* A new element for every answer, so an identical one is read again. */}
+        <span key={announcement.count}>{announcement.text}</span>
+      </p>
+    </Announce.Provider>
+  );
+}
+
 /** "Usuń z kolekcji" at an entry (also the one of a place the curator deleted). */
 export function RemoveEntryButton({
   collectionId,
   entryId,
   label,
 }: Readonly<{ collectionId: string; entryId: string; label: string }>) {
+  const router = useRouter();
+  const announce = useContext(Announce);
   const { pending, message, run } = useAction();
 
   return (
@@ -119,12 +153,19 @@ export function RemoveEntryButton({
                 itemId: entryId,
               }),
             "Usunięto z kolekcji.",
+            () => {
+              // The row (and this button) disappears: the focus goes to the heading of the list.
+              announce("Usunięto z kolekcji.");
+              router.refresh();
+              document.getElementById("miejsca")?.focus();
+            },
           )
         }
       >
         {pending ? "Usuwanie…" : "Usuń z kolekcji"}
       </button>
-      <Message message={message} />
+      {/* Only an error stays at the row; the success is announced by EntriesRegion. */}
+      <Message message={message?.kind === "error" ? message : null} />
     </span>
   );
 }
@@ -134,10 +175,31 @@ export function DeleteCollectionButton({ collectionId }: Readonly<{ collectionId
   const router = useRouter();
   const { pending, message, run } = useAction();
   const [confirming, setConfirming] = useState(false);
+  const openRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const moved = useRef(false);
+
+  // The button that was clicked disappears, so the focus follows the person: to the confirmation
+  // and, after "Anuluj", back to "Usuń kolekcję". Not on the first render.
+  useEffect(() => {
+    if (moved.current) {
+      (confirming ? confirmRef : openRef).current?.focus();
+    }
+  }, [confirming]);
+
+  function toggle(next: boolean) {
+    moved.current = true;
+    setConfirming(next);
+  }
 
   if (!confirming) {
     return (
-      <button type="button" className="button button--outline" onClick={() => setConfirming(true)}>
+      <button
+        ref={openRef}
+        type="button"
+        className="button button--outline"
+        onClick={() => toggle(true)}
+      >
         Usuń kolekcję
       </button>
     );
@@ -148,6 +210,7 @@ export function DeleteCollectionButton({ collectionId }: Readonly<{ collectionId
       <p>Usunąć tę kolekcję razem z wpisami? Tego nie da się cofnąć.</p>
       <div className={styles.confirmButtons}>
         <button
+          ref={confirmRef}
           type="button"
           className="button button--primary"
           aria-disabled={pending}
@@ -161,11 +224,7 @@ export function DeleteCollectionButton({ collectionId }: Readonly<{ collectionId
         >
           {pending ? "Usuwanie…" : "Tak, usuń kolekcję"}
         </button>
-        <button
-          type="button"
-          className="button button--outline"
-          onClick={() => setConfirming(false)}
-        >
+        <button type="button" className="button button--outline" onClick={() => toggle(false)}>
           Anuluj
         </button>
       </div>

@@ -177,6 +177,18 @@ export const postgresOwnCollectionsRepository: OwnCollectionsRepository = {
   },
 
   async addPlace(tx, collectionId, placeId): Promise<AddEntryResult> {
+    // Ownership first: the lock below is taken only for the owner, so a person who knows the id of
+    // somebody else's collection cannot hold its adds up.
+    const own = await tx.em.execute<{ id: string }[]>(
+      `select id from public.user_collections
+        where id = ? and owner_user_id = app_current_user_id()`,
+      [collectionId],
+    );
+
+    if (own.length === 0) {
+      return "not_found";
+    }
+
     await tx.em.execute(
       `select pg_advisory_xact_lock(hashtextextended('user_collection_items:' || ?::text, 0))`,
       [collectionId],
