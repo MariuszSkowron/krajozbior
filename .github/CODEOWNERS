@@ -93,6 +93,8 @@
 /src/app/news/                    @MariuszSkowron
 /e2e/news*.spec.ts                @MariuszSkowron
 /scripts/news-import.ts           @MariuszSkowron
+/tests/integration/news-*.test.ts @MariuszSkowron
+/docs/news-import.md              @MariuszSkowron
 
 # Zdjęcia miejsc (E4-2a, tabela `place_photos`: klasa Publiczna po publikacji, inaczej CUR):
 # pobieranie z Wikimedia Commons jako rola operatora (`photos:fetch`); migracja i testy dostępu
