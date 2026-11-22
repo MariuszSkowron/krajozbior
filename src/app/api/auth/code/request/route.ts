@@ -2,7 +2,11 @@ import { z } from "zod";
 
 import { isSameOrigin } from "@/features/identity/domain/origin";
 import { requestedReturnTo } from "@/features/identity/domain/return-to";
-import { getIdentityProvider, getOtpSendLimiter } from "@/features/identity/infrastructure";
+import {
+  cleanupExpiredSessions,
+  getIdentityProvider,
+  getOtpSendLimiter,
+} from "@/features/identity/infrastructure";
 import { logFailure } from "@/lib/log-failure";
 
 import {
@@ -67,6 +71,8 @@ export async function POST(request: Request) {
           : failure(request, returnTo, 429, "code_too_many_attempts", retryAfter);
       }
 
+      // Best effort and bounded; its failure never blocks the code.
+      await cleanupExpiredSessions();
       await getIdentityProvider().requestSignInCode(parsed.data.email, request.headers);
     } catch (error) {
       logFailure("Sign-in code request", error);
