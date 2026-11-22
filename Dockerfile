@@ -46,6 +46,12 @@ COPY --from=build --chown=node:node /app/.next ./.next
 COPY --chown=node:node package.json next.config.ts tsconfig.json ./
 # next.config.ts importuje nagłówki bezpieczeństwa, więc ten plik musi być w obrazie.
 COPY --chown=node:node src/lib/security-headers.ts ./src/lib/security-headers.ts
+# Zdjęcia (E4): katalog wolumenu `krajozbior-media` i katalog stanu kopii. Nowy, pusty wolumen
+# przejmuje przy pierwszym montowaniu właściciela katalogu z obrazu, więc musi to być `node`
+# (nigdy `root`: pisze do nich proces bez uprawnień roota). `app` montuje media tylko do odczytu.
+RUN mkdir -p /var/lib/krajozbior/media /var/lib/krajozbior/backup-state \
+    && chown node:node /var/lib/krajozbior/media /var/lib/krajozbior/backup-state \
+    && chmod 0700 /var/lib/krajozbior/media /var/lib/krajozbior/backup-state
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
@@ -60,5 +66,9 @@ COPY src ./src
 COPY scripts ./scripts
 # MikroORM zapisuje migawki schematu w src/lib/db/migrations, a catalog:import raport w .ai/tmp.
 RUN mkdir -p .ai/tmp && chown -R node:node /app/src /app/.ai
+# Katalogi zdjęć jak w celu runtime (ten sam `node`): `ops` pisze do wolumenu `krajozbior-media`.
+RUN mkdir -p /var/lib/krajozbior/media /var/lib/krajozbior/backup-state \
+    && chown node:node /var/lib/krajozbior/media /var/lib/krajozbior/backup-state \
+    && chmod 0700 /var/lib/krajozbior/media /var/lib/krajozbior/backup-state
 USER node
 CMD ["node", "--version"]

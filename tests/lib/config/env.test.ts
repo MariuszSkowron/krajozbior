@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
+  mediaRootWarning,
   parseAuthEnv,
+  parseMediaEnv,
   parseMigrationEnv,
   parseOpsEnv,
   parseServerEnv,
@@ -201,6 +203,49 @@ describe("parseOpsEnv", () => {
     expect(getError(() => parseOpsEnv({ DATABASE_MIGRATION_URL: url })).message).toBe(
       "Invalid server configuration: DATABASE_OPS_URL",
     );
+  });
+});
+
+describe("MEDIA_ROOT (E4 5.11.1)", () => {
+  it("is optional and accepts an absolute path", () => {
+    expect(parseMediaEnv({})).toEqual({});
+    expect(parseMediaEnv({ MEDIA_ROOT: "  " })).toEqual({});
+    expect(parseMediaEnv({ MEDIA_ROOT: "/var/lib/krajozbior/media" })).toEqual({
+      MEDIA_ROOT: "/var/lib/krajozbior/media",
+    });
+  });
+
+  it("rejects a relative path or one with .. and names only the variable", () => {
+    for (const value of ["media", "./media", "/var/../etc"]) {
+      expect(getError(() => parseMediaEnv({ MEDIA_ROOT: value })).message).toBe(
+        "Invalid server configuration: MEDIA_ROOT",
+      );
+    }
+  });
+
+  it("says nothing when MEDIA_ROOT is unset or the directory is fine", () => {
+    const inspect = vi.fn(() => "ok" as const);
+
+    expect(mediaRootWarning({}, inspect)).toBeNull();
+    expect(inspect).not.toHaveBeenCalled();
+    expect(mediaRootWarning({ MEDIA_ROOT: "/var/lib/krajozbior/media" }, inspect)).toBeNull();
+  });
+
+  it.each(["missing", "not-directory", "unreadable", "wrong-owner"] as const)(
+    "returns one warning line, not an error, when the directory is %s",
+    (state) => {
+      const warning = mediaRootWarning({ MEDIA_ROOT: "/var/lib/krajozbior/media" }, () => state);
+
+      expect(warning).toContain(state);
+      expect(warning).not.toContain("\n");
+      expect(warning).not.toContain("/var/lib");
+    },
+  );
+
+  it("warns, instead of throwing, for a MEDIA_ROOT that is not an absolute path", () => {
+    const warning = mediaRootWarning({ MEDIA_ROOT: "media" }, () => "ok");
+
+    expect(warning).toContain("not an absolute path");
   });
 });
 
