@@ -75,6 +75,7 @@ kz_ops_env_vars() {
     auth:create-admin) echo "DATABASE_OPS_URL DATABASE_AUTH_URL BETTER_AUTH_SECRET BETTER_AUTH_URL AUTH_CLIENT_IP_HEADER" ;;
     auth:throttle) echo "DATABASE_AUTH_URL BETTER_AUTH_SECRET BETTER_AUTH_URL AUTH_CLIENT_IP_HEADER" ;;
     catalog:import) echo "DATABASE_URL DATABASE_OPS_URL BETTER_AUTH_URL" ;;
+    photos:fetch) echo "DATABASE_OPS_URL BETTER_AUTH_URL" ;;
     legal:final) echo "" ;;
     *) return 1 ;;
   esac
