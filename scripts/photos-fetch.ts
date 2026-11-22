@@ -7,14 +7,17 @@
 //
 // Uruchomienie (na serwerze przez kontener `ops`):
 //   npm run photos:fetch -- --operator <etykieta> --reason <powód> [--limit <n>]
-//     [--org-slug <slug>] [--retry-failed] [--refetch-missing]
+//     [--org-slug <slug>] [--retry-failed] [--refetch-missing] [--backfill-og]
 import { isAbsolute } from "node:path";
 
 import { Client } from "pg";
 
 import { writeAuditEntry } from "../src/lib/db/operations-audit";
 import { DiskMediaStorage } from "../src/features/media/infrastructure/disk-media-storage";
-import { processImageBytes } from "../src/features/media/infrastructure/image-processor";
+import {
+  ogFromMainBytes,
+  processImageBytes,
+} from "../src/features/media/infrastructure/image-processor";
 import { checkFreeSpace, parseMinFreePercent } from "../src/features/media/domain/free-space";
 import { runPhotosFetch } from "../src/features/photos/application/photos-fetch-command";
 import { createCommonsClient } from "../src/features/photos/infrastructure/commons-http";
@@ -71,7 +74,12 @@ async function main() {
           download: (address) => commons.download(address),
           lookupVersion: (commonsFile) => commons.lookupVersion(commonsFile),
           process: (bytes) =>
-            processImageBytes(bytes, { tmpDirectory: storage.tmpDirectory, minShortSide: 0 }),
+            processImageBytes(bytes, {
+              tmpDirectory: storage.tmpDirectory,
+              minShortSide: 0,
+              ogJpeg: true,
+            }),
+          makeOg: (main) => ogFromMainBytes(main, { tmpDirectory: storage.tmpDirectory }),
           storage,
           checkSpace: () => checkFreeSpace(() => storage.diskSpace(), minFree),
           sleep: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),

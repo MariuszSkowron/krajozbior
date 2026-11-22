@@ -15,6 +15,10 @@ export interface MediaStorage {
   /** Usuwa katalog zdjęcia; brak katalogu nie jest błędem. */
   remove(kind: MediaKind, key: string): Promise<void>;
   exists(kind: MediaKind, key: string, variant: MediaVariant): Promise<boolean>;
+  /** Zawartość pliku wariantu; `null`, gdy go nie ma, nie jest plikiem albo ma zerową długość. */
+  read(kind: MediaKind, key: string, variant: MediaVariant): Promise<Uint8Array | null>;
+  /** Dopisuje sam JPEG `og` do istniejącego zdjęcia: plik tymczasowy, `fsync`, `rename` (atomowo). */
+  storeOg(kind: MediaKind, key: string, og: Uint8Array): Promise<void>;
   /**
    * Wolne i całkowite miejsce na wolumenie zdjęć (strażnik z 5.7). Może rzucić wyjątek; wywołujący
    * używa `checkFreeSpace`, który zamienia awarię odczytu na wstrzymanie (`space_unreadable`).
