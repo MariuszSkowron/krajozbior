@@ -38,7 +38,7 @@ export const Default: Story = {
   name: "Domyślna (Krajozbiór)",
   parameters: { docs: { description: { story: previewNote } } },
   render: () => (
-    <Page title="LegendaryCard">
+    <Page title="Karta legendarna">
       <LegendaryCard {...legendarySamples.krajozbior} headingLevel={2} />
     </Page>
   ),
@@ -55,7 +55,7 @@ export const LongNames: Story = {
         eventName="Europejskie Dni Dziedzictwa w Miastach i Miasteczkach Dolnego Powiśla"
         collectionTitle="Zabytki architektury przemysłowej i techniki wodnej Dolnego Powiśla"
         placeName="Wieża ciśnień przy Zakładach Wodociągowych w Kwidzynie"
-        dateLabel="13.09.2026, 11:00"
+        dateLabel="13.9.2026, 11:00"
         headingLevel={2}
       />
     </Page>

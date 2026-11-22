@@ -157,7 +157,8 @@ describe("LegendaryCard", () => {
 
     expect(html).toContain(`data-category="${c}"`);
     expect(html).toContain(categoryLabels[c]);
-    expect(html).toContain("LEGENDARNA");
+    expect(html).toContain(">Legendarna<");
+    expect(html).not.toContain("LEGENDARNA");
     expect(html).toMatch(/<svg [^>]*aria-hidden="true"/);
     expect(html).toContain("Noc Muzeów");
     expect(html).toContain("Wieże ciśnień Pomorza");
@@ -211,7 +212,8 @@ describe("LegendaryCardReveal", () => {
     expect(html).toMatch(/<button type="button"/);
     expect(html).toMatch(/aria-live="polite"[^>]*><\/div>/);
     expect(html).toContain("inert");
-    expect(html).toContain("Karta z wydarzenia Noc Muzeów czeka w Twojej skrytce");
+    // Twarda spacja po „w”: jednoliterowy spójnik nie zostaje na końcu wiersza.
+    expect(html).toContain("Karta z wydarzenia Noc Muzeów czeka w Twojej skrytce");
     expect(html).toContain("Dotknij karty albo przesuń ją w górę");
     expect(html).toContain('data-state="sealed"');
   });
@@ -412,6 +414,42 @@ describe("karta legendarna: medalion i ramka", () => {
       "nature-sky",
       "trail-community",
     ]);
+  });
+});
+
+// Przegląd tekstów A5–A8: skład, polskie nazwy historii, dane przykładowe.
+describe("karta legendarna: teksty i dane przykładowe", () => {
+  const dir = new URL("../../src/design-system/components/", import.meta.url);
+  const read = (file: string) => readFileSync(new URL(file, dir), "utf8");
+
+  it("wersaliki etykiety daje CSS, nie treść", () => {
+    expect(read("legendary-card.module.css")).toMatch(
+      /\n\.label\s*\{[^}]*text-transform:\s*uppercase/,
+    );
+  });
+
+  it("nagłówek sceny równoważy wiersze (text-wrap: balance)", () => {
+    expect(read("legendary-card-reveal.module.css")).toMatch(
+      /\n\.heading\s*\{[^}]*text-wrap:\s*balance/,
+    );
+  });
+
+  it("historie mają polskie nagłówki stron, bez nazw komponentów", () => {
+    expect(read("legendary-card-reveal.stories.tsx")).toContain("<h1>Scena odsłonięcia karty</h1>");
+    expect(read("legendary-card-reveal.stories.tsx")).not.toContain("<h1>LegendaryCardReveal");
+    expect(read("legendary-card.stories.tsx")).toContain('<Page title="Karta legendarna">');
+    expect(read("legendary-card.stories.tsx")).not.toContain('title="LegendaryCard"');
+  });
+
+  it("daty przykładowe bez zera przed dniem i godziną, bez cyfr w nazwie święta", () => {
+    const samples = read("legendary-card.samples.ts");
+    const dates = [...samples.matchAll(/dateLabel:\s*"([^"]+)"/g)].map((m) => m[1]);
+
+    expect(dates).toHaveLength(6);
+    for (const date of dates)
+      expect(date, date).toMatch(/^[1-9]\d?\.\d{1,2}\.2026, [1-9]\d?:\d{2}$/);
+    expect(samples).toContain("Muzea na Święto Niepodległości");
+    expect(samples).not.toContain("11 Listopada");
   });
 });
 

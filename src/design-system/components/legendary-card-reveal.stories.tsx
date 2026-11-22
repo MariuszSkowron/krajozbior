@@ -18,7 +18,7 @@ const meta = {
     (Story) => (
       <main>
         <div className={foundation.page}>
-          <h1>LegendaryCardReveal</h1>
+          <h1>Scena odsłonięcia karty</h1>
           <p className={foundation.lead}>{previewNote}</p>
         </div>
         <Story />

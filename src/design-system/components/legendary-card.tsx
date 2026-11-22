@@ -12,7 +12,7 @@ import styles from "./legendary-card.module.css";
 
 // Karta legendarna: nazwa wydarzenia, tytuł kolekcji, miejsce i data (kopia treści) na stałym
 // tle `color.surface.card`. Opalizacja jest tylko na ramce, a każda z sześciu kategorii (D-52)
-// ma własne barwy, symbol, polską nazwę i jednorazowy efekt odsłonięcia. Etykieta „LEGENDARNA”,
+// ma własne barwy, symbol, polską nazwę i jednorazowy efekt odsłonięcia. Etykieta „Legendarna” (wersaliki daje CSS),
 // nazwa kategorii i symbol mają stały kolor tekstu, więc kategorii nie rozpoznaje się po samym
 // kolorze (WCAG 1.4.1), a kontrast nie zależy od kategorii. Efekt gra tylko wtedy, gdy scena
 // odsłonięcia ustawi `playing`; sama karta (np. w skrytce) stoi nieruchomo w stanie końcowym.
@@ -117,7 +117,7 @@ export function LegendaryCard({
         ) : null}
       </span>
       <div className={styles.face}>
-        <p className={styles.label}>LEGENDARNA</p>
+        <p className={styles.label}>Legendarna</p>
         <Heading className={styles.eventName}>{eventName}</Heading>
         <p className={styles.collection}>{collectionTitle}</p>
         <div className={styles.medallion} data-layer="medallion" aria-hidden="true">

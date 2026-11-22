@@ -37,6 +37,7 @@
   font-weight: var(--font-weight-regular);
   line-height: var(--line-height-heading);
   letter-spacing: var(--font-tracking-display);
+  text-wrap: balance;
   overflow-wrap: anywhere;
 }
 

@@ -106,7 +106,7 @@ export function LegendaryCardReveal({
 
   const heading = revealed
     ? card.placeName
-    : `Karta z wydarzenia ${card.eventName} czeka w Twojej skrytce`;
+    : `Karta z wydarzenia ${card.eventName} czeka w Twojej skrytce`;
 
   return (
     <section

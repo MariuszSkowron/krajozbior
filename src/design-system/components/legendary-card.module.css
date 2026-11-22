@@ -215,6 +215,7 @@
   font-family: var(--font-family-mono);
   font-size: var(--font-size-xs);
   letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
 }
 
 .eventName {
