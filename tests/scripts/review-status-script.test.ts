@@ -1,7 +1,11 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Każdy test uruchamia osobny proces PowerShell (1-3 s, przy obciążonym komputerze kilka razy
+// dłużej), więc domyślne 5 s nie wystarcza. Limit dotyczy tylko tego pliku.
+vi.setConfig({ testTimeout: 30_000 });
 
 // scripts/review-status.ps1: only the dry run is exercised, so nothing talks to
 // GitHub and no token is needed.
