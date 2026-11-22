@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
@@ -17,15 +18,9 @@ import {
   type PastVisitDateForm,
 } from "@/features/visits/domain/past-visit-form";
 import { MAX_PAST_VISITS_PER_REQUEST } from "@/features/visits/domain/limits";
-import {
-  albumHref,
-  type CollectionView,
-  type StateFilter,
-} from "@/features/catalog/domain/album-view";
 
 import styles from "../../catalog.module.css";
 import albumStyles from "./album.module.css";
-import { PlaceCardLink } from "./place-card-link";
 
 type Place = {
   id: string;
@@ -42,21 +37,7 @@ type Place = {
 // visited place has no checkbox: one visit per place). One date for all chosen
 // places, up to 100 at a time (D-3). The page is rendered again after a save,
 // so the progress above the list grows; the message stays here and gets the focus.
-export function CollectionPlaces({
-  places,
-  slug,
-  stan,
-  selectedId,
-  widok,
-}: {
-  places: Place[];
-  /** For the links of the cards: the collection, the chosen filter and the place in the panel. */
-  slug: string;
-  stan: StateFilter;
-  selectedId: string | null;
-  /** The view (cards or map) stays when a card opens the panel. */
-  widok: CollectionView;
-}) {
+export function CollectionPlaces({ places }: { places: Place[] }) {
   const router = useRouter();
   const [picking, setPicking] = useState(false);
   const [chosen, setChosen] = useState<string[]>([]);
@@ -155,13 +136,13 @@ export function CollectionPlaces({
             }}
           >
             <p className={pastStyles.note}>
-              Zaznacz miejsca, w których już byłeś (do {MAX_PAST_VISITS_PER_REQUEST} naraz), a potem
+              Zaznacz miejsca odwiedzone wcześniej (do {MAX_PAST_VISITS_PER_REQUEST} naraz), a potem
               zapisz je przyciskiem pod listą.
             </p>
             <p className={pastStyles.note} aria-live="polite" aria-atomic="true">
               {pickedCountMessage(chosen.length, MAX_PAST_VISITS_PER_REQUEST)}
             </p>
-            <PastVisitDateFields legend="Kiedy tam byłeś?" value={form} onChange={setForm} />
+            <PastVisitDateFields legend="Kiedy to było?" value={form} onChange={setForm} />
           </form>
         ) : null}
         <PastVisitMessage
@@ -180,10 +161,7 @@ export function CollectionPlaces({
           );
 
           return (
-            <li
-              key={place.id}
-              className={`${styles.item} ${place.id === selectedId ? albumStyles.selected : ""}`}
-            >
+            <li key={place.id} className={styles.item}>
               {picking && place.kind === null ? (
                 <label className={pastStyles.pickLabel}>
                   <input
@@ -200,12 +178,7 @@ export function CollectionPlaces({
                   </span>
                 </label>
               ) : (
-                <PlaceCardLink
-                  className={styles.itemLink}
-                  href={`/places/${place.id}`}
-                  selectHref={albumHref(slug, { stan, miejsce: place.id, widok })}
-                  selected={place.id === selectedId}
-                >
+                <Link className={styles.itemLink} href={`/places/${place.id}`}>
                   {title}
                   {place.address === "" ? null : (
                     <span className={styles.itemMeta}>{place.address}</span>
@@ -219,7 +192,7 @@ export function CollectionPlaces({
                       )}
                     </span>
                   )}
-                </PlaceCardLink>
+                </Link>
               )}
             </li>
           );
