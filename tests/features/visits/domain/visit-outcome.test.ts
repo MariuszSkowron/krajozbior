@@ -66,9 +66,14 @@ describe("toVisitOutcome", () => {
 
 describe("visitOutcomeMessage", () => {
   it("says what happened in Polish", () => {
-    expect(visitOutcomeMessage({ result: "recorded", distanceM: 10 })).toBe("Wizyta potwierdzona.");
+    expect(visitOutcomeMessage({ result: "recorded", distanceM: 10 })).toBe(
+      "To miejsce jest w Twoim albumie.",
+    );
     expect(visitOutcomeMessage({ result: "out_of_range", distanceM: 6200 })).toBe(
       "Jesteś 6,2 km od miejsca.",
+    );
+    expect(visitOutcomeMessage({ result: "out_of_range", distanceM: 6200 }, 150)).toBe(
+      "Jesteś 6,2 km od miejsca. Wizytę potwierdzisz w promieniu 150 m od niego.",
     );
     expect(visitOutcomeMessage({ result: "inaccurate", accuracyM: 180 })).toBe(
       "Lokalizacja jest zbyt niedokładna (±180 m). Spróbuj na zewnątrz albo zaznacz wizytę z przeszłości.",

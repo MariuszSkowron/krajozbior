@@ -58,7 +58,7 @@ describe("WantToSeeButton", () => {
   it("offers the removal for a place that is on the list, also one that was visited", () => {
     const html = render(true);
 
-    expect(html).toContain("Usuń z Chcę zobaczyć");
+    expect(html).toContain("Usuń z „Chcę zobaczyć”");
     expect(html).toContain("To miejsce jest na Twojej liście „Chcę zobaczyć”.");
   });
 
