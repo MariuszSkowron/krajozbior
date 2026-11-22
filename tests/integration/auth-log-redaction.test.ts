@@ -100,7 +100,7 @@ describe("the log of the sign-in library", () => {
       expect(printed).not.toContain(SECRET_EMAIL);
       expect(printed).not.toContain("Key (");
       expect(printed).toContain("23505");
-      expect(printed).toContain(realError.name);
+      expect(printed).toContain("error (SQLSTATE 23505)");
     } finally {
       vi.restoreAllMocks();
     }

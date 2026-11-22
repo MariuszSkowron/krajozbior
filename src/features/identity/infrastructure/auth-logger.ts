@@ -30,7 +30,6 @@ export function formatAuthLog(level: string, message: string, args: readonly unk
 }
 
 export const authLogger: Logger = {
-  level: "warn",
   log(level, message, ...args) {
     const line = formatAuthLog(level, message, args);
 
