@@ -108,6 +108,17 @@
 /tests/support/album-fixtures.ts   @MariuszSkowron
 /e2e/album-access.spec.ts          @MariuszSkowron
 
+# Własne kolekcje odkrywców (E8-1a, dane PRIV: kolekcje i wpisy widoczne tylko dla autora): moduł,
+# ekrany w /src/app/my/collections/own/, test dwóch kont w przeglądarce i test odmowy dostępu.
+# Trasy /src/app/api/me/own-collections/ i migracja mają już właściciela przez /src/app/api/
+# i /src/lib/db/.
+/src/features/own-collections/     @MariuszSkowron
+/tests/features/own-collections/   @MariuszSkowron
+/src/app/my/collections/own/       @MariuszSkowron
+/src/app/api/me/own-collections/   @MariuszSkowron
+/tests/integration/own-collections-access.test.ts @MariuszSkowron
+/e2e/own-collections.spec.ts       @MariuszSkowron
+
 # Lista „Chcę zobaczyć” odkrywcy (dane PRIV) i jej testy dostępu
 /src/features/want-to-see/         @MariuszSkowron
 /tests/features/want-to-see/       @MariuszSkowron
