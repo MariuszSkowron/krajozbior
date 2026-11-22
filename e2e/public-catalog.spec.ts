@@ -120,6 +120,13 @@ test.describe("public catalog pages", () => {
       "href",
       `/collections/${DEMO_SLUG}`,
     );
+    // E5-0: odnośnik „Zgłoś naruszenie” pod treścią miejsca wskazuje adres tej strony.
+    const report = page.getByRole("main").getByRole("link", { name: "Zgłoś naruszenie" });
+
+    await expect(report).toHaveAttribute("href", /^mailto:/);
+    expect(decodeURIComponent((await report.getAttribute("href")) ?? "")).toContain(
+      new URL(page.url()).pathname,
+    );
     await expectNoAccessibilityViolations(page);
   });
 

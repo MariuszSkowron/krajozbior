@@ -25,7 +25,7 @@ export function RecentVisits({ visits }: Readonly<{ visits: readonly HomeRecentV
             return (
               <li key={line.id} className={styles.visit}>
                 {line.place === null ? (
-                  <span className={styles.visitName}>Miejsce niedostępne w katalogu</span>
+                  <span className={styles.visitName}>Miejsce nie jest już dostępne</span>
                 ) : (
                   <Link
                     className={`${catalog.itemTitle} ${styles.visitName}`}

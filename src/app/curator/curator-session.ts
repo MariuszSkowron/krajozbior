@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
+import { formatSavedDate } from "@/features/want-to-see/domain/saved-date";
+
 import { getRequestActor, loginHref } from "@/app/request-actor";
 import { getApprovedOrganizations } from "@/app/request-organizations";
 import type { CuratorOutcome } from "@/features/catalog/application/catalog-types";
@@ -45,14 +47,9 @@ export function pageValue<T>(outcome: CuratorOutcome<T>, returnPath: string): T 
   }
 }
 
-/** `dd.mm.rrrr` in Polish time. */
+/** `dd.mm` in Polish time, with the year when it is not the current one (a list of dates). */
 export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("pl-PL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "Europe/Warsaw",
-  }).format(date);
+  return formatSavedDate(date);
 }
 
 export function firstParam(value: string | string[] | undefined): string | undefined {
