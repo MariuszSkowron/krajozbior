@@ -13,7 +13,13 @@ import { logFailure } from "@/lib/log-failure";
 import { CodeForms } from "./code-forms";
 import { LOGIN_EMAIL_COOKIE, loginEmailFromCookie } from "./login-email-cookie";
 import { ClearStoredEmail, LoginForm } from "./login-form";
-import { codeMessage, isCodeError, marksFieldsInvalid, passwordMessage } from "./login-state";
+import {
+  codeMessage,
+  isCodeError,
+  marksCodeInvalid,
+  marksFieldsInvalid,
+  passwordMessage,
+} from "./login-state";
 import styles from "./login.module.css";
 
 export const dynamic = "force-dynamic";
@@ -99,6 +105,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
           returnTo={returnTo}
           email={email}
           codeSent={codeSent}
+          codeInvalid={marksCodeInvalid(errorCode)}
           errorMessage={isCodeError(errorCode) ? codeMessage(errorCode) : undefined}
         />
       </section>

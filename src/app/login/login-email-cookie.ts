@@ -3,7 +3,8 @@ import { z } from "zod";
 // The address typed in step 1 of the e-mail sign-in, kept between the two steps so the person
 // enters it once (D-49). It is personal data, so it never goes into the URL or a log: a short
 // lived cookie that JavaScript cannot read, sent only to the login page (Path=/login), over
-// HTTPS in production. It is removed on a successful sign-in and by "Zmień adres".
+// HTTPS in production. It is removed on a successful sign-in (code or password), on sign-out
+// and by "Zmień adres".
 export const LOGIN_EMAIL_COOKIE = "krajozbior_login_email";
 export const LOGIN_EMAIL_PATH = "/login";
 export const LOGIN_EMAIL_MAX_AGE_SECONDS = 10 * 60;

@@ -33,6 +33,12 @@ export function marksFieldsInvalid(errorCode: string | undefined): boolean {
   return errorCode === "invalid_credentials";
 }
 
+// Only a wrong or expired code points at the code field; an outage or a rate limit is not
+// something the person can fix in it.
+export function marksCodeInvalid(errorCode: string | undefined): boolean {
+  return errorCode === "invalid_code";
+}
+
 // A page restored from the back/forward cache keeps its old script state,
 // including a submit button that still waits for a response.
 export function wasRestoredFromCache(event: { persisted: boolean }): boolean {

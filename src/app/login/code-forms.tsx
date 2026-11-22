@@ -12,12 +12,20 @@ type CodeFormsProps = Readonly<{
   codeSent: boolean;
   /** Message for the failed step the server redirected back with. */
   errorMessage?: string;
+  /** The error is a wrong or expired code: the code field is marked invalid. */
+  codeInvalid?: boolean;
 }>;
 
 // Sign-in with a code sent by e-mail, in native forms (works without JavaScript). Step 1 asks for
 // the address, step 2 for the code; the address is entered once and kept in a cookie between the
 // steps (login-email-cookie.ts), never in the URL. The first sign-in creates the account.
-export function CodeForms({ returnTo, email, codeSent, errorMessage }: CodeFormsProps) {
+export function CodeForms({
+  returnTo,
+  email,
+  codeSent,
+  errorMessage,
+  codeInvalid = false,
+}: CodeFormsProps) {
   const returnField =
     returnTo === undefined ? null : <input type="hidden" name="returnTo" value={returnTo} />;
   // In step 2 an error takes the focus (the field is described by it), so a screen reader
@@ -69,8 +77,9 @@ export function CodeForms({ returnTo, email, codeSent, errorMessage }: CodeForms
     );
   }
 
+  const fieldInvalid = errorFocused && codeInvalid;
   const describedBy = [
-    errorFocused ? "code-error" : null,
+    fieldInvalid ? "code-error" : null,
     "code-hint",
     codeSent ? "code-status" : null,
   ]
@@ -103,7 +112,7 @@ export function CodeForms({ returnTo, email, codeSent, errorMessage }: CodeForms
             maxLength={6}
             required
             autoFocus={errorFocused ? undefined : true}
-            aria-invalid={errorFocused ? true : undefined}
+            aria-invalid={fieldInvalid ? true : undefined}
             aria-describedby={describedBy}
           />
         </div>

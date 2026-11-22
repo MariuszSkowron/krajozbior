@@ -112,6 +112,17 @@ describe("login page, step 2", () => {
     expect(html).not.toMatch(/<input id="code-verify-code"[^>]*autofocus/);
   });
 
+  it.each(["code_unavailable", "code_too_many_attempts"])(
+    "focuses the %s error but does not mark the code field invalid",
+    async (error) => {
+      const html = await render({ error });
+
+      expect(html).toMatch(/<p id="code-error"[^>]*tabindex="-1"[^>]*autofocus/);
+      expect(html).not.toContain("aria-invalid");
+      expect(html).toMatch(/<input id="code-verify-code"[^>]*aria-describedby="code-hint"/);
+    },
+  );
+
   it("keeps the focus on the code field and does not mark it invalid without an error", async () => {
     const html = await render({ kod: "wyslany" });
 
