@@ -4,7 +4,7 @@ import type { TransactionContext } from "@/lib/db/user-context";
 
 import type { CollectionInput, CollectionStatus, Region } from "../domain/collection";
 import type { NearbyCandidate } from "../domain/nearby";
-import type { PlaceInput } from "../domain/place";
+import type { AccessRestriction, PlaceInput } from "../domain/place";
 
 // What a curator sees of a collection and a place of the own organization.
 export type CollectionRow = Readonly<{
@@ -110,6 +110,8 @@ export type PublishedPlace = Readonly<{
   description: string;
   address: string;
   accessInfo: string;
+  /** E1-S11: `none` or why the grounds should not be entered (private, fenced, ruin). */
+  accessRestriction: AccessRestriction;
   latitude: number;
   longitude: number;
   visitRadiusM: number;
@@ -117,6 +119,24 @@ export type PublishedPlace = Readonly<{
   collections: readonly Readonly<{ slug: string; title: string }>[];
   /** Only a place made from a loaded file has one (`place_sources`); other places keep `null`. */
   source: PublishedPlaceSource | null;
+  /** The first public photo of the place (D-E4-7) with what its credit needs, or `null`. */
+  cover: PlaceCover | null;
+}>;
+
+/** A public photo of a place, as the place page shows it: size of the file and the credit. */
+export type PlaceCover = Readonly<{
+  photoId: string;
+  width: number;
+  height: number;
+  altText: string;
+  title: string | null;
+  authorText: string;
+  authorUrl: string | null;
+  sourceUrl: string | null;
+  sourceKind: "own" | "third_party" | "commons_import";
+  licenseCode: string;
+  licenseUrl: string | null;
+  licenseLabel: string;
 }>;
 
 export type PublishedPlaceSource = Readonly<{

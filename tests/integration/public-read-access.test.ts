@@ -194,12 +194,14 @@ describe("public read of collections and places (guest context)", () => {
         description: "Opis miejsca",
         address: "Tczew",
         accessInfo: "Wejście od rynku",
+        accessRestriction: "none",
         latitude: 54.0928,
         longitude: 18.7919,
         visitRadiusM: 200,
         organization: { name: "Gmina A", slug: "gmina-a" },
         collections: [{ slug: collection.slug, title: "Publiczna" }],
         source: null,
+        cover: null,
       },
     });
   });

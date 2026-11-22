@@ -2,6 +2,7 @@ import { isSameOrigin } from "@/features/identity/domain/origin";
 import { requestedReturnTo } from "@/features/identity/domain/return-to";
 import { getIdentityProvider } from "@/features/identity/infrastructure";
 import { clearedProfileDraftCookie } from "@/features/profile/domain/profile-draft";
+import { readBoundedForm } from "@/features/visits/http/request-body";
 import { logFailure } from "@/lib/log-failure";
 
 export const dynamic = "force-dynamic";
@@ -11,20 +12,19 @@ const NO_STORE = { "Cache-Control": "no-store" };
 // What a form post asks for: `returnTo` is a same-site path (safeReturnTo falls back to "/"
 // for anything else) or null when the form names none; `termsDeclined` is the signal of the
 // "Nie akceptuję" button of the terms screen (F-K3). Any other value changes nothing.
-async function formRequest(
-  request: Request,
-): Promise<{ returnTo: string | null; termsDeclined: boolean }> {
-  try {
-    const form = await request.formData();
-
-    return {
-      returnTo: requestedReturnTo(form.get("returnTo") ?? undefined),
-      termsDeclined: form.get("reason") === "terms-declined",
-    };
-  } catch {
+function formRequest(form: FormData | null): { returnTo: string | null; termsDeclined: boolean } {
+  if (form === null) {
     return { returnTo: null, termsDeclined: false };
   }
+
+  return {
+    returnTo: requestedReturnTo(form.get("returnTo") ?? undefined),
+    termsDeclined: form.get("reason") === "terms-declined",
+  };
 }
+
+// The form holds a return path and a signal: far less than this.
+const FORM_MAX_BYTES = 4 * 1024;
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request.headers.get("origin"), request.headers.get("host"))) {
@@ -32,6 +32,19 @@ export async function POST(request: Request) {
   }
 
   const isForm = (request.headers.get("content-type") ?? "").includes("form");
+  let form: FormData | null = null;
+
+  // Read before anything else happens, and never more than the limit.
+  if (isForm) {
+    const read = await readBoundedForm(request, FORM_MAX_BYTES);
+
+    if ("tooLarge" in read) {
+      return Response.json({ error: "payload_too_large" }, { status: 413, headers: NO_STORE });
+    }
+
+    form = read.form;
+  }
+
   let cookies: string[];
 
   try {
@@ -64,7 +77,7 @@ export async function POST(request: Request) {
     // The deletion screen asks for a fresh sign-in (E9-5, Q7): its logout form
     // names a same-site path to come back to after signing in again. Without it,
     // only a signal for the home page message; any other value changes nothing.
-    const { returnTo, termsDeclined } = await formRequest(request);
+    const { returnTo, termsDeclined } = formRequest(form);
 
     headers.set(
       "Location",

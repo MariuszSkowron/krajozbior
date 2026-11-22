@@ -24,6 +24,8 @@ const codeThrottle = vi.hoisted(() => ({
 
 const otpLimiter = vi.hoisted(() => ({ reserve: vi.fn() }));
 
+const cleanup = vi.hoisted(() => vi.fn());
+
 const ipHeader = vi.hoisted(() => ({ value: undefined as string | undefined }));
 
 // The theme saved on the account (E9-4): a use case over a fake repository.
@@ -41,6 +43,7 @@ vi.mock("@/features/identity/infrastructure", () => ({
   getSignInThrottle: () => throttle,
   getCodeVerifyThrottle: () => codeThrottle,
   getOtpSendLimiter: () => otpLimiter,
+  cleanupExpiredSessions: () => cleanup(),
   getClientIpHeader: () => ipHeader.value,
 }));
 
@@ -98,6 +101,7 @@ beforeEach(() => {
   otpLimiter.reserve.mockReset().mockResolvedValue({ allowed: true });
   provider.requestSignInCode.mockReset().mockResolvedValue(undefined);
   provider.signInWithCode.mockReset();
+  cleanup.mockReset().mockResolvedValue(undefined);
   settings.readTheme.mockReset().mockResolvedValue(null);
 });
 
@@ -167,6 +171,15 @@ describe("POST /api/auth/code/request limits", () => {
     expect(otpLimiter.reserve).toHaveBeenCalledWith({ email: "admin@example.test", ip: null });
     expect(throttle.reserve).not.toHaveBeenCalled();
     expect(provider.requestSignInCode).toHaveBeenCalledOnce();
+    expect(cleanup).toHaveBeenCalledOnce();
+  });
+
+  it("cleans expired sessions only for a request that passed the limits", async () => {
+    otpLimiter.reserve.mockResolvedValue({ allowed: false, reason: "rate", retryAfterSeconds: 60 });
+
+    await requestCode(jsonPost("/api/auth/code/request", { email: "a@b.test" }));
+
+    expect(cleanup).not.toHaveBeenCalled();
   });
 
   it("answers 429 with Retry-After at a limit of the address or IP and sends nothing", async () => {
@@ -495,6 +508,46 @@ describe("POST /api/auth/login", () => {
 
     expect(response.status).toBe(403);
     expect(provider.signIn).not.toHaveBeenCalled();
+  });
+});
+
+describe("request body limit of the sign-in and sign-out routes", () => {
+  const big = "x".repeat(9000);
+
+  it("answers 413 to an oversized JSON or form body and does nothing else", async () => {
+    for (const route of [login, requestCode, verifyCode]) {
+      const json = await route(
+        jsonPost("/api/auth/login", { email: "a@b.test", password: big, code: big }),
+      );
+      const form = await route(formLogin({ email: "a@b.test", password: big }));
+
+      expect(json.status).toBe(413);
+      expect(form.status).toBe(413);
+      expect(await json.json()).toEqual({ error: "payload_too_large" });
+    }
+    expect(throttle.reserve).not.toHaveBeenCalled();
+    expect(provider.signIn).not.toHaveBeenCalled();
+  });
+
+  it("counts the bytes while reading, whatever Content-Length says", async () => {
+    const response = await login(
+      formLogin({ email: "a@b.test", password: big }, { "content-length": "10" }),
+    );
+
+    expect(response.status).toBe(413);
+  });
+
+  it("answers 413 to an oversized logout form and keeps the session", async () => {
+    const response = await logout(
+      new Request("http://localhost/api/auth/logout", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ returnTo: `/${big}` }),
+      }),
+    );
+
+    expect(response.status).toBe(413);
+    expect(provider.signOut).not.toHaveBeenCalled();
   });
 });
 
