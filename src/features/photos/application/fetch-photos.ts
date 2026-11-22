@@ -91,11 +91,17 @@ export type OgBackfillReport = Readonly<{
  */
 export async function backfillOgFiles(
   deps: Pick<PhotoFetchDeps, "repository" | "storage" | "makeOg" | "checkSpace">,
+  limit: number = Number.POSITIVE_INFINITY,
 ): Promise<OgBackfillReport> {
   let created = 0;
   let failed = 0;
 
   for (const row of await deps.repository.listReady()) {
+    // `limit` liczy zdjęcia obrobione w tym przebiegu (udane i nieudane); reszta przy kolejnym.
+    if (created + failed >= limit) {
+      break;
+    }
+
     // `read` daje `null` także dla pliku o zerowej długości (przerwany zapis), który trzeba zastąpić.
     if ((await deps.storage.read("place", row.storageKey, "og")) !== null) {
       continue;

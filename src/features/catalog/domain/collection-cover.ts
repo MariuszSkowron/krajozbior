@@ -52,9 +52,23 @@ const OG_DESCRIPTION_MAX = 200;
  */
 export function ogCoverDescription(cover: CoverCreditInput): string {
   const source = cover.sourceKind === "commons_import" ? ", Wikimedia Commons" : "";
-  const text = `Okładka: fot. ${cover.authorText.trim()}, ${cover.licenseLabel.trim()}${source}`;
+  const prefix = "Okładka: fot. ";
+  const suffix = `, ${cover.licenseLabel.trim()}${source}`;
+  const author = cover.authorText.trim();
 
-  return text.length <= OG_DESCRIPTION_MAX ? text : `${text.slice(0, OG_DESCRIPTION_MAX - 1)}…`;
+  if (prefix.length + author.length + suffix.length <= OG_DESCRIPTION_MAX) {
+    return `${prefix}${author}${suffix}`;
+  }
+
+  // Licencja wymaga podania nazwy, więc skracamy tylko autora (po znakach, nie po jednostkach
+  // UTF-16, żeby nie rozciąć pary zastępczej). Gdy na autora nie ma miejsca, licencja ma pierwszeństwo.
+  const room = OG_DESCRIPTION_MAX - prefix.length - suffix.length - 1;
+
+  if (room < 1) {
+    return `Okładka${suffix}`;
+  }
+
+  return `${prefix}${Array.from(author).slice(0, room).join("")}…${suffix}`;
 }
 
 /**

@@ -73,14 +73,36 @@ describe("ogCoverDescription (E4-3, uznanie autorstwa w podglądzie linku)", () 
     ).toBe("Okładka: fot. Ala, CC BY 4.0");
   });
 
-  it("cuts a very long author to 200 characters", () => {
+  it("cuts only a very long author (with an ellipsis) and keeps the whole licence", () => {
     const text = ogCoverDescription({
       authorText: "x".repeat(500),
+      licenseLabel: "CC BY-SA 3.0 PL",
+      sourceKind: "commons_import",
+    });
+
+    expect(text).toHaveLength(200);
+    expect(text.endsWith("…, CC BY-SA 3.0 PL, Wikimedia Commons")).toBe(true);
+  });
+
+  it("does not split a surrogate pair when cutting the author", () => {
+    const text = ogCoverDescription({
+      authorText: "😀".repeat(300),
       licenseLabel: "CC BY 4.0",
       sourceKind: "third_party",
     });
 
-    expect(text).toHaveLength(200);
-    expect(text.endsWith("…")).toBe(true);
+    expect(text.endsWith("…, CC BY 4.0")).toBe(true);
+    expect(text).not.toMatch(/[\ud800-\udbff](?![\udc00-\udfff])/);
+  });
+
+  it("puts the licence before the author when there is no room for both", () => {
+    const text = ogCoverDescription({
+      authorText: "Autor",
+      licenseLabel: "L".repeat(220),
+      sourceKind: "third_party",
+    });
+
+    expect(text.endsWith(`, ${"L".repeat(220)}`)).toBe(true);
+    expect(text).not.toContain("Autor");
   });
 });

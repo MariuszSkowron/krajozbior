@@ -177,13 +177,17 @@ export async function runPhotosFetch(
       }
 
       // Uzupełnienie `og.jpg` dla zdjęć pobranych wcześniej; nowo pobrane dostają `og` w przebiegu.
-      const backfill = args.backfillOg ? await backfillOgFiles(fetch) : null;
+      const backfill = args.backfillOg ? await backfillOgFiles(fetch, args.limit) : null;
 
-      const report = await fetchCommonsPhotos(fetch, {
+      const fetched = await fetchCommonsPhotos(fetch, {
         limit: args.limit,
         retryFailed: args.retryFailed,
         ...(args.organizationSlug === undefined ? {} : { organizationSlug: args.organizationSlug }),
       });
+      // Przerwa z uzupełniania (brak miejsca) jest zgłaszana tak samo jak przerwa pobierania.
+      const stoppedBy = fetched.stoppedBy ?? backfill?.stoppedBy;
+      const report: PhotoFetchReport =
+        stoppedBy === undefined ? fetched : { ...fetched, stoppedBy };
 
       await session.writeAudit({
         operation: "photos_fetch",

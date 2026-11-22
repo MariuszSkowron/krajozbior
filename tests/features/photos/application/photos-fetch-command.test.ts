@@ -166,6 +166,43 @@ describe("runPhotosFetch", () => {
     expect(entries[0]?.details).toMatchObject({ og_created: 1, og_failed: 0 });
   });
 
+  it("honours --limit in --backfill-og and reports stoppedBy like a normal run", async () => {
+    const limited = setup();
+
+    (limited.fetch.repository.listReady as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: "a", storageKey: "ka" },
+      { id: "b", storageKey: "kb" },
+      { id: "c", storageKey: "kc" },
+    ]);
+
+    const output = await runPhotosFetch([...REQUIRED, "--backfill-og", "--limit", "2"], {
+      openSession: limited.openSession,
+    });
+
+    expect(output.exitCode).toBe(0);
+    expect(limited.fetch.makeOg).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(output.stdout[0]!)).toMatchObject({ ogCreated: 2, ogFailed: 0 });
+
+    const paused = setup();
+
+    (paused.fetch.checkSpace as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      reason: "uploads_paused",
+      freePercent: 1,
+    });
+
+    const stopped = await runPhotosFetch([...REQUIRED, "--backfill-og"], {
+      openSession: paused.openSession,
+    });
+
+    expect(stopped.exitCode).toBe(0);
+    expect(JSON.parse(stopped.stdout[0]!)).toMatchObject({
+      stoppedBy: "uploads_paused",
+      ogCreated: 0,
+    });
+    expect(paused.entries[0]?.details).toMatchObject({ stopped_by: "uploads_paused" });
+  });
+
   it("runs, writes one audit entry with numbers only and prints the summary", async () => {
     const { openSession, entries, session } = setup({ pending: 7 });
     const output = await runPhotosFetch([...REQUIRED, "--refetch-missing"], { openSession });
