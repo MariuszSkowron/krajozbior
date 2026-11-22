@@ -45,6 +45,8 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?run showcase-up.ps1}
     volumes:
       - ../.data/showcase/outbox:/app/.data/outbox
+      # Listy wolumenów z compose.yaml i tego pliku się scalają; wpis zdjęć jest tu jawnie dla czytelności.
+      - media:/var/lib/krajozbior/media:ro
 
   # Bez Caddy: nie startuje, a jego porty 80 i 443 nie są publikowane.
   proxy:
@@ -80,6 +82,7 @@ services:
       DEMO_ACCOUNT_PASSWORD: ${DEMO_ACCOUNT_PASSWORD:?run showcase-up.ps1}
     volumes:
       - ../.data/showcase/reports:/app/.ai/tmp/catalog-import
+      - media:/var/lib/krajozbior/media
 
 secrets:
   pg_bootstrap:
@@ -92,3 +95,7 @@ volumes:
     name: krajozbior-showcase-caddy-data
   caddy-config:
     name: krajozbior-showcase-caddy-config
+  media:
+    name: krajozbior-showcase-media
+  media-backup-state:
+    name: krajozbior-showcase-media-backup-state

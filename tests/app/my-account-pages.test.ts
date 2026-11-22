@@ -117,7 +117,7 @@ describe("deletion screen", () => {
 
   it("explains the refusals the route sends back and ignores an unknown code", async () => {
     for (const [code, text] of [
-      ["managed_account", "jesteś jedynym członkiem organizacji"],
+      ["managed_account", "jesteś jedyną osobą w organizacji"],
       ["invalid_confirmation", "Wpisz dokładnie słowo USUŃ"],
       ["stale_session", "Minęło ponad 15 minut od logowania"],
       ["invalid_request", "Nie udało się odczytać formularza"],
@@ -129,6 +129,15 @@ describe("deletion screen", () => {
       expect(html, code).toContain(text);
     }
     expect(await render({ blad: "nieznany" })).not.toContain('role="alert"');
+  });
+
+  it("ignores a code that is a property name of every object instead of crashing", async () => {
+    for (const code of ["constructor", "toString", "__proto__", "hasOwnProperty", "valueOf"]) {
+      const html = await render({ blad: code });
+
+      expect(html, code).not.toContain('role="alert"');
+      expect(html, code).toContain("Usuń konto na stałe");
+    }
   });
 
   it("marks the field invalid after a wrong word and ties it to the error message", async () => {

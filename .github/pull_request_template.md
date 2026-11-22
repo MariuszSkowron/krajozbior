@@ -21,6 +21,7 @@ Zadanie: docs#
 - [ ] Test integracyjny odmowy dostępu, jeśli zmiana dotyczy danych prywatnych lub roli z zakresem.
 - [ ] `npm run build-storybook`, jeśli zmiana dotyczy `src/design-system/` lub `.storybook/`.
 - [ ] Testy ukierunkowane E2E lub integracyjne, jeśli zmiana dotyczy przepływu UI albo bazy (pełny zestaw uruchamia CI).
+- [ ] Zmiana widoczna dla użytkownika (ekran, przepływ, tekst): przeglądy `om-ux-review-pr`, `przeglad-polszczyzny`, `przeglad-tonu`, `przeglad-wypelniaczy` wykonane albo „nie dotyczy” z powodem (`docs/agent-workflow.md`, etap 3).
 
 Wynik lokalny / ograniczenia:
 

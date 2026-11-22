@@ -6,6 +6,7 @@ import { MediaProcessingError } from "@/features/media/domain/processing-error";
 import type { ProcessedImage } from "@/features/media/infrastructure/image-processor";
 
 import { buildCommonsThumbUrl } from "../domain/commons-url";
+import { decideVersion, type CommonsVersionLookup } from "../domain/commons-version";
 import type { CommonsFetchResult } from "../infrastructure/commons-http";
 
 // `photos:fetch` (E4-2a, spec 5.5 i 5.11.5): wiersze `commons_import` w stanie `pending_fetch`
@@ -24,6 +25,9 @@ export type PendingPhoto = Readonly<{
   commonsFile: string;
   sourceWidth: number | null;
   fetchAttempts: number;
+  /** Dzień przebiegu doboru; wersja pliku nowsza niż on jest odrzucana. */
+  retrievedAt: Date | null;
+  licenseCode: string;
 }>;
 
 export type MarkReadyValues = Readonly<{
@@ -134,6 +138,8 @@ export async function backfillOgFiles(
 export type PhotoFetchDeps = Readonly<{
   repository: PhotoFetchRepository;
   download: (address: string) => Promise<CommonsFetchResult>;
+  /** Pytanie do API Commons o bieżącą wersję pliku (tuż przed pobraniem miniatury). */
+  lookupVersion: (commonsFile: string) => Promise<CommonsVersionLookup>;
   /** Obróbka pobranego pliku (proces potomny); dla zdjęć oficjalnych z `ogJpeg: true`. */
   process: (bytes: Uint8Array) => Promise<ProcessedImage>;
   /** JPEG do `og:image` z istniejącego `main.webp` (proces potomny); tylko dla `--backfill-og`. */
@@ -172,6 +178,23 @@ async function fetchOne(deps: PhotoFetchDeps, photo: PendingPhoto): Promise<Outc
 
   if (address === null) {
     return { ok: false, reason: "bad_source" };
+  }
+
+  // Miniatura zawsze pochodzi z wersji bieżącej, a każdy może wgrać nową. Pobieramy tylko wersję
+  // nie nowszą niż dzień doboru, pod tą samą nazwą i z tą samą licencją; inaczej koniec bez prób.
+  const verdict = decideVersion(await deps.lookupVersion(photo.commonsFile), {
+    commonsFile: photo.commonsFile,
+    sourceWidth: photo.sourceWidth,
+    licenseCode: photo.licenseCode,
+    retrievedAt: photo.retrievedAt,
+  });
+
+  if (!verdict.ok) {
+    return {
+      ok: false,
+      reason: verdict.reason,
+      ...(verdict.reason === "api_error" ? {} : { final: true }),
+    };
   }
 
   const downloaded = await deps.download(address);

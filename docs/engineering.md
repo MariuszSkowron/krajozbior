@@ -65,7 +65,7 @@ Dokument rozdziela obowiązujące dziś zasady pracy od wymagań, które trzeba 
 
 ### Granice zaufania i błędy
 
-- Błąd bazy po wyjściu z kontekstu użytkownika (`runInUserContext`, `runInGuestContext`) czytaj tylko przez `code` (SQLSTATE) i `constraint`, nigdy przez `message` ani `detail`: w produkcji tych pól nie ma (wartości użytkownika nie mogą trafić do dziennika), w testach są (`src/lib/db/database-error.ts`).
+- Błąd bazy po wyjściu z kontekstu użytkownika (`runInUserContext`, `runInGuestContext`) czytaj tylko przez `code` (SQLSTATE) i `constraint`, nigdy przez `message` ani `detail`: w produkcji tych pól nie ma (wartości użytkownika nie mogą trafić do dziennika), w testach są (`src/lib/db/database-error.ts`). Ta sama zasada obowiązuje w dzienniku biblioteki logowania: przekazujemy jej własny dziennik (`authLogger` w `src/features/identity/infrastructure/auth-logger.ts`, opcja `logger` w `createAuth`), który wypisuje tylko nazwę błędu i SQLSTATE. W funkcjach przekazywanych bibliotece (hooki, wysyłka kodu) nie wypisuj całego błędu przez `console`; użyj `logFailure`.
 - Waliduj każdą konfigurację zewnętrzną i dane wejściowe po stronie serwera schematami Zod; typy przeglądarki nie zastępują walidacji żądania.
 - Zwracaj stabilne kody błędów i bezpieczne komunikaty. Nie ujawniaj SQL, ścieżek, tokenów, sekretów, konfiguracji, stosów ani danych osobowych. Szczegóły diagnostyczne loguj wyłącznie po stronie serwera z redakcją pól wrażliwych.
 - Sprawdzaj autoryzację na serwerze przy każdym żądaniu. Dla operacji osobistych weryfikuj właściciela; dla operacji roli z zakresem weryfikuj rolę i dopasowanie zakresu do zasobu. Ukrycie elementu UI nie jest zabezpieczeniem.
@@ -77,6 +77,7 @@ Dokument rozdziela obowiązujące dziś zasady pracy od wymagań, które trzeba 
 - Wszystkie zmiany schematu przechodzą przez wersjonowane migracje. Utrzymuj FK, `NOT NULL`, `CHECK` i unikalności dla niezmienników domeny. Dodawaj indeksy dla FK, właściciela i kolumn używanych w filtrach.
 - Nie zmieniaj schematu produkcyjnego ręcznym DDL ani `schema:update`; migracje muszą dać się przeglądać i odtworzyć. Migracja z politykami RLS ma test „revert + apply” (`down()` i ponowne `up()`).
 - Tabela z danymi prywatnymi powstaje w tej samej migracji co jej RLS (`privateTableSecuritySql`); pilnuje tego hook `require-rls-in-migration`.
+- Do zapytania `tx.em.execute` trafiają wyłącznie wartości (parametry `?`), nigdy nazwy tabel, kolumn ani kierunku sortowania z danych użytkownika; element zapytania, który nie jest wartością, wybierasz ze stałej listy w kodzie. Wartość przed zapytaniem przechodzi walidację typu i długości. Cytowanie wartości robi biblioteka, więc ochrona zależy od obu warunków naraz. Nowe zapytanie z tekstem użytkownika ma test na prawdziwej bazie ze znakami specjalnymi (apostrof, ukośnik wsteczny, `?`, `:`, `$1`, `--`); wzór: `tests/integration/search-access.test.ts`.
 - Operacje wieloetapowe, które muszą się udać razem, wykonuj w jednej transakcji. Chroń zapis przed nieaktualnym stanem (wersja rekordu lub warunek aktualizacji); konflikt zwracaj jako konflikt do ponownego odczytu (np. HTTP 409), nie nadpisuj po cichu.
 
 ### Interfejs

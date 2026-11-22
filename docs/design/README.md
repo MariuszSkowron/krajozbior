@@ -12,8 +12,9 @@ Kod warstwy: `src/design-system/` (tokeny jako zmienne CSS, motyw bazowy, strony
 - [ui-foundation.md](ui-foundation.md) — podstawy UI: React 19, natywny HTML, kiedy dodać bibliotekę.
 - [tokens.md](tokens.md) — model, nazewnictwo i zasady używania tokenów.
 - [accessibility.md](accessibility.md) — kontrakt dostępności komponentu i sposób weryfikacji.
+- [voice-and-tone.md](voice-and-tone.md) — głos i ton tekstów dla odkrywcy; wzorzec dla skilli `przeglad-polszczyzny`, `przeglad-tonu` i `przeglad-wypelniaczy`.
 
-Dokumenty, które powstaną razem z produktem (nie twórz ich „na zapas”): kierunek wizualny, zasady projektowe, komponenty, wzorce UX, przewodnik głosu i tonu.
+Dokumenty, które powstaną razem z produktem (nie twórz ich „na zapas”): kierunek wizualny, zasady projektowe, komponenty, wzorce UX.
 
 ## UI Definition of Done
 

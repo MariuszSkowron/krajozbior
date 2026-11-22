@@ -22,7 +22,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 // natively and the route redirects back here with `?blad=`).
 const messages: Record<string, string> = {
   managed_account:
-    "Tego konta nie usuniesz samodzielnie: jesteś jedynym członkiem organizacji. Napisz do zespołu, a ustalimy, co zrobić z treściami organizacji.",
+    "Tego konta nie usuniesz samodzielnie: jesteś jedyną osobą w organizacji. Napisz do zespołu, a ustalimy, co zrobić z treściami organizacji.",
   invalid_confirmation: `Wpisz dokładnie słowo ${DELETE_CONFIRMATION_WORD}, aby potwierdzić usunięcie.`,
   stale_session: "Minęło ponad 15 minut od logowania. Zaloguj się ponownie, aby usunąć konto.",
   invalid_request: "Nie udało się odczytać formularza. Spróbuj jeszcze raz.",
@@ -48,7 +48,8 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
 
   const params = await searchParams;
   const code = first(params.blad);
-  const message = code === undefined ? undefined : messages[code];
+  // Only own keys: `?blad=constructor` must not pick a property of Object.prototype.
+  const message = code !== undefined && Object.hasOwn(messages, code) ? messages[code] : undefined;
 
   if (actor.role === "admin") {
     return (
@@ -91,7 +92,7 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
           </li>
           <li>
             Liczniki zabezpieczające logowanie. Zawierają skrót adresu e-mail (a jeden także adres
-            IP) i kasują się same po najwyżej 2 dniach.
+            IP) i kasują się same najpóźniej po 2 dniach.
           </li>
         </ul>
         <p>Tym samym adresem możesz później założyć nowe, puste konto.</p>

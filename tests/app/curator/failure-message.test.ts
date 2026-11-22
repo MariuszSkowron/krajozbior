@@ -63,7 +63,7 @@ describe("describeFailure", () => {
   });
 
   it.each([
-    [401, "Sesja wygasła"],
+    [401, "Zaloguj się ponownie"],
     [403, "Nie masz uprawnień"],
     [404, "Nie znaleziono"],
     [413, "zbyt duże"],
@@ -84,6 +84,7 @@ describe("fieldHints", () => {
       "description",
       "address",
       "accessInfo",
+      "accessRestriction",
       "latitude",
       "longitude",
       "visitRadiusM",

@@ -50,13 +50,13 @@ export function describeFailure(status: number, body: Body, subject: Subject): F
     case 400:
       return failure("Popraw zaznaczone pola i zapisz jeszcze raz.", fieldNames(body));
     case 401:
-      return failure("Sesja wygasła. Zaloguj się ponownie.");
+      return failure("Zaloguj się ponownie.");
     case 403:
       return failure("Nie masz uprawnień do tej zmiany.");
     case 404:
       return failure("Nie znaleziono. Ten element mógł zostać usunięty.");
     case 413:
-      return failure("Wpisane dane są zbyt duże.");
+      return failure("Wpisane dane są zbyt duże. Skróć tekst i zapisz jeszcze raz.");
     case 429:
       return failure("Za dużo zapisów w krótkim czasie. Spróbuj za chwilę.");
     case 409:
@@ -117,6 +117,7 @@ export const fieldHints: Readonly<Record<string, string>> = {
   description: `Opis może mieć najwyżej ${PLACE_DESCRIPTION_MAX_LENGTH} znaków.`,
   address: `Adres może mieć najwyżej ${PLACE_ADDRESS_MAX_LENGTH} znaków.`,
   accessInfo: `Informacja o dostępie może mieć najwyżej ${PLACE_ACCESS_MAX_LENGTH} znaków.`,
+  accessRestriction: "Wybierz jedną z opcji z listy.",
   latitude: "Podaj szerokość geograficzną od −90 do 90, na przykład 54.0928.",
   longitude: "Podaj długość geograficzną od −180 do 180, na przykład 18.7919.",
   visitRadiusM: `Podaj promień jako liczbę całkowitą od ${VISIT_RADIUS_MIN_M} do ${VISIT_RADIUS_MAX_M} metrów.`,

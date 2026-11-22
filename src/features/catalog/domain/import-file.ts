@@ -11,7 +11,11 @@ import { z } from "zod";
 
 import { isRegion, validateCollectionInput } from "@/features/catalog/domain/collection";
 import type { Region } from "@/features/catalog/domain/collection";
-import { PLACE_ACCESS_MAX_LENGTH, validatePlaceInput } from "@/features/catalog/domain/place";
+import {
+  ACCESS_RESTRICTIONS,
+  PLACE_ACCESS_MAX_LENGTH,
+  validatePlaceInput,
+} from "@/features/catalog/domain/place";
 import type { PlaceField, PlaceInput } from "@/features/catalog/domain/place";
 import {
   normalizeCommonsLicense,
@@ -188,6 +192,8 @@ function placeSchema(profile: ImportProfile) {
     access: z.strictObject({
       note: optionalText(PLACE_ACCESS_MAX_LENGTH),
       warning: optionalText(PLACE_ACCESS_MAX_LENGTH),
+      // E1-S11: optional; no field means `none`.
+      restriction: z.enum(ACCESS_RESTRICTIONS).optional(),
     }),
     attribution: z.array(sourceKey).max(20),
     retrieved_at: isoDateTime,
@@ -376,6 +382,7 @@ const PLACE_FIELD_PATHS: Readonly<Record<PlaceField, string>> = {
   description: "description.text",
   address: "address",
   accessInfo: "access",
+  accessRestriction: "access.restriction",
   latitude: "location.lat",
   longitude: "location.lon",
   visitRadiusM: "location.visit_radius_m",
@@ -587,6 +594,7 @@ export function parseImportFile(
       description: record.description.text,
       address: record.address,
       accessInfo,
+      accessRestriction: record.access.restriction,
       latitude: record.location.lat,
       longitude: record.location.lon,
       visitRadiusM: record.location.visit_radius_m,

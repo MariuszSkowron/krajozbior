@@ -2,11 +2,16 @@ import { z } from "zod";
 
 import { isSameOrigin } from "@/features/identity/domain/origin";
 import { requestedReturnTo } from "@/features/identity/domain/return-to";
-import { getIdentityProvider, getOtpSendLimiter } from "@/features/identity/infrastructure";
+import {
+  cleanupExpiredSessions,
+  getIdentityProvider,
+  getOtpSendLimiter,
+} from "@/features/identity/infrastructure";
 import { logFailure } from "@/lib/log-failure";
 
 import {
   failure,
+  invalidInputResponse,
   isFormPost,
   isRefusedDemoAccount,
   NO_STORE,
@@ -36,8 +41,8 @@ export async function POST(request: Request) {
 
   try {
     input = await readInput(request);
-  } catch {
-    return Response.json({ error: "invalid_request" }, { status: 400, headers: NO_STORE });
+  } catch (error) {
+    return invalidInputResponse(error);
   }
 
   const returnTo = requestedReturnTo(input.returnTo);
@@ -66,6 +71,8 @@ export async function POST(request: Request) {
           : failure(request, returnTo, 429, "code_too_many_attempts", retryAfter);
       }
 
+      // Best effort and bounded; its failure never blocks the code.
+      await cleanupExpiredSessions();
       await getIdentityProvider().requestSignInCode(parsed.data.email, request.headers);
     } catch (error) {
       logFailure("Sign-in code request", error);

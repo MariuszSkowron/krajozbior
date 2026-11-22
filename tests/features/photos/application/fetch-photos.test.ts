@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { MediaProcessingError } from "@/features/media/domain/processing-error";
 import type { ProcessedImage } from "@/features/media/infrastructure/image-processor";
+import type {
+  CommonsVersionInfo,
+  CommonsVersionLookup,
+} from "@/features/photos/domain/commons-version";
 import {
   backfillOgFiles,
   fetchCommonsPhotos,
@@ -26,7 +30,22 @@ const photo = (overrides: Partial<PendingPhoto> = {}): PendingPhoto => ({
   commonsFile: "Example.jpg",
   sourceWidth: 3000,
   fetchAttempts: 0,
+  retrievedAt: new Date("2026-11-20T00:00:00Z"),
+  licenseCode: "cc-by-sa-4.0",
   ...overrides,
+});
+
+// Odpowiedź API o wersję pliku: ta sama, starsza niż dzień doboru, ta sama licencja i szerokość.
+const currentVersion = (overrides: Partial<CommonsVersionInfo> = {}) => ({
+  ok: true as const,
+  info: {
+    timestamp: Date.parse("2026-01-02T03:04:05Z"),
+    width: 3000,
+    licenseShort: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+    fileName: "Example.jpg",
+    ...overrides,
+  },
 });
 
 function setup(
@@ -54,6 +73,7 @@ function setup(
   const deps: PhotoFetchDeps = {
     repository,
     download: vi.fn(async () => ({ ok: true as const, bytes: new Uint8Array([7]) })),
+    lookupVersion: vi.fn(async (): Promise<CommonsVersionLookup> => currentVersion()),
     process: vi.fn(async () => processed),
     makeOg: vi.fn(async () => new Uint8Array([9])),
     storage,
@@ -116,6 +136,67 @@ describe("fetchCommonsPhotos", () => {
     await fetchCommonsPhotos(last.deps);
 
     expect(last.repository.recordFailure).toHaveBeenCalledWith("photo-1", 3, "fetch_failed");
+  });
+
+  it("asks for the current version of the named file before the download", async () => {
+    const { deps } = setup([photo({ commonsFile: "File:Example.jpg" })]);
+
+    await fetchCommonsPhotos(deps);
+
+    expect(deps.lookupVersion).toHaveBeenCalledWith("File:Example.jpg");
+  });
+
+  it.each([
+    [
+      "a newer version",
+      currentVersion({ timestamp: Date.parse("2026-11-20T00:00:01Z") }),
+      "file_changed",
+    ],
+    ["another source width", currentVersion({ width: 2999 }), "file_changed"],
+    ["a file that is gone", { ok: false as const, reason: "file_gone" as const }, "file_gone"],
+    ["a file with another name", currentVersion({ fileName: "Moved.jpg" }), "file_gone"],
+    [
+      "another licence",
+      currentVersion({
+        licenseShort: "CC BY 4.0",
+        licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+      }),
+      "license_changed",
+    ],
+  ])(
+    "ends a row for good, without a download, on %s",
+    async (_name, lookup: CommonsVersionLookup, reason) => {
+      const { deps, repository, storage } = setup([photo()], {
+        lookupVersion: vi.fn(async () => lookup),
+      });
+      const report = await fetchCommonsPhotos(deps);
+
+      expect(deps.download).not.toHaveBeenCalled();
+      expect(deps.process).not.toHaveBeenCalled();
+      expect(storage.store).not.toHaveBeenCalled();
+      expect(repository.markReady).not.toHaveBeenCalled();
+      expect(repository.recordFailure).toHaveBeenCalledWith("photo-1", 1, "fetch_failed");
+      expect(report).toMatchObject({ fetched: 0, failed: 1, reasons: { [reason]: 1 } });
+    },
+  );
+
+  it("counts an API error as an ordinary attempt without a download", async () => {
+    const { deps, repository } = setup([photo()], {
+      lookupVersion: vi.fn(async () => ({ ok: false as const, reason: "api_error" as const })),
+    });
+    const report = await fetchCommonsPhotos(deps);
+
+    expect(deps.download).not.toHaveBeenCalled();
+    expect(repository.recordFailure).toHaveBeenCalledWith("photo-1", 1, "pending_fetch");
+    expect(report.reasons).toEqual({ api_error: 1 });
+  });
+
+  it("does not ask the API for a row without a usable source width", async () => {
+    const { deps } = setup([photo({ sourceWidth: null })]);
+
+    await fetchCommonsPhotos(deps);
+
+    expect(deps.lookupVersion).not.toHaveBeenCalled();
   });
 
   it("fails a row without a usable source width without a request", async () => {
