@@ -248,6 +248,7 @@ async function signIn(browser: Browser, name: string): Promise<StorageState> {
   const page = await context.newPage();
 
   await page.goto("/login");
+  await page.getByText("Logowanie hasłem").click();
   const form = page.locator("form", { has: page.getByLabel("Hasło") });
   await form.getByLabel("E-mail").fill(`${name}@demo.krajozbior.local`);
   await form.getByLabel("Hasło").fill(password ?? "");

@@ -83,6 +83,8 @@ test.describe("access notice of a place", () => {
   }) => {
     await page.goto("/login");
 
+    await page.getByText("Logowanie hasłem").click();
+
     const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
     await form.getByLabel("E-mail").fill("curator-a@demo.krajozbior.local");
