@@ -3,9 +3,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getRequestActor, loginHref } from "@/app/request-actor";
+import { getApprovedOrganizations } from "@/app/request-organizations";
 import { LogoutForm } from "@/app/shell/logout-form";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
-import { roleLabels } from "@/features/identity/domain/role-home";
 import { CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
 import { logFailure } from "@/lib/log-failure";
 import { getMyProfile } from "@/features/profile/application/profile";
@@ -55,6 +55,16 @@ export default async function MyPage() {
     stats = null;
   }
 
+  // The approved organizations make the account a curator. A failed lookup only leaves the
+  // curator row out; the rest of the profile stays usable (like the statistics).
+  let organizations: Awaited<ReturnType<typeof getApprovedOrganizations>> = [];
+
+  try {
+    organizations = await getApprovedOrganizations();
+  } catch (error) {
+    logFailure("Profile organizations", error);
+  }
+
   const statsValue = stats !== null && stats.status === "ok" ? stats.value : null;
 
   return (
@@ -78,9 +88,26 @@ export default async function MyPage() {
             </p>
           </div>
         </div>
-        <p className={styles.role}>
-          Twoja rola: <strong>{roleLabels[actor.role]}</strong>
-        </p>
+        {actor.role === "admin" ? (
+          <p className={styles.role} data-testid="profile-admin">
+            <strong>Administrator</strong>
+          </p>
+        ) : null}
+        {organizations.length === 0 ? null : (
+          <div className={styles.curator} data-testid="profile-curator">
+            <ul className={styles.curatorList}>
+              {organizations.map((organization) => (
+                <li key={organization.id}>
+                  <strong>Kurator · {organization.name}</strong>
+                </li>
+              ))}
+            </ul>
+            <Link className={styles.curatorLink} href="/curator">
+              Przejdź do panelu kuratora
+            </Link>
+            <p className={styles.role}>Tu są Twoje wizyty i liczby jako odkrywcy.</p>
+          </div>
+        )}
       </header>
       <section className={styles.section} aria-labelledby="stats-title">
         <h2 id="stats-title">Twoje liczby</h2>
@@ -108,16 +135,6 @@ export default async function MyPage() {
       </section>
       <nav aria-labelledby="profile-title">
         <ul className={styles.links}>
-          <li>
-            <Link className={styles.link} href="/my/collections">
-              Moje kolekcje
-            </Link>
-          </li>
-          <li>
-            <Link className={styles.link} href="/my/want-to-see">
-              Chcę zobaczyć
-            </Link>
-          </li>
           <li>
             <Link className={styles.link} href="/my/settings">
               Ustawienia

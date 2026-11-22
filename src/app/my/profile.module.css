@@ -69,6 +69,28 @@
   color: var(--color-text-secondary);
 }
 
+/* Kurator: organizacje, odnośnik do panelu i zdanie o profilu odkrywcy. */
+.curator {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.curatorList {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.curatorLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-min);
+  color: var(--color-text-accent);
+}
+
 .page nav,
 .section {
   align-self: stretch;

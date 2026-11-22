@@ -63,13 +63,18 @@ test.describe("profile and logout", () => {
 
     await expect(page).toHaveTitle("Profil — Krajozbiór");
     await expect(main.getByRole("heading", { level: 1, name: "Profil" })).toBeVisible();
-    await expect(main).toContainText("Twoja rola: Użytkownik");
-    await expect(main.getByRole("link")).toHaveText([
-      "Moje kolekcje",
-      "Chcę zobaczyć",
-      "Ustawienia",
-      "Napisz do nas",
-    ]);
+    // Paczka N: no role name for an explorer and no tiles that repeat the main menu.
+    await expect(main).not.toContainText("Twoja rola");
+    await expect(main).not.toContainText("Użytkownik");
+    await expect(main.getByRole("link")).toHaveText(["Ustawienia", "Napisz do nas"]);
+    await expect(main.getByRole("link", { name: "Moje kolekcje" })).toHaveCount(0);
+    await expect(main.getByRole("link", { name: "Chcę zobaczyć" })).toHaveCount(0);
+    // The header says "Profil" (no first name saved) and links to the profile.
+    await expect(page.getByRole("banner").getByRole("link", { name: /^Profil/ })).toHaveAttribute(
+      "href",
+      "/my",
+    );
+    await expect(page.getByRole("banner").getByRole("button", { name: "Wyloguj" })).toBeVisible();
     // E9-6a: contact is a mailto link to the team's address (no form, no data).
     const contact = main.getByRole("link", { name: "Napisz do nas" });
     await expect(contact).toBeVisible();

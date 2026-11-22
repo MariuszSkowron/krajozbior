@@ -9,6 +9,11 @@ const mocks = vi.hoisted(() => ({
   redirect: vi.fn(),
   getMyProfile: vi.fn(),
   getMyStats: vi.fn(),
+  getApprovedOrganizations: vi.fn(),
+}));
+
+vi.mock("@/app/request-organizations", () => ({
+  getApprovedOrganizations: mocks.getApprovedOrganizations,
 }));
 
 vi.mock("@/app/request-actor", () => ({
@@ -36,6 +41,7 @@ const empty = { firstName: null, familyInitial: null, region: null, visibility: 
 beforeEach(() => {
   mocks.getActor.mockReset().mockResolvedValue({ id, role: "user" });
   mocks.redirect.mockReset();
+  mocks.getApprovedOrganizations.mockReset().mockResolvedValue([]);
   mocks.getMyProfile.mockReset().mockResolvedValue({ status: "ok", value: empty });
   mocks.getMyStats
     .mockReset()
@@ -51,16 +57,59 @@ describe("profile page", () => {
     expect(mocks.getMyProfile).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["user", "Użytkownik"],
-    ["admin", "Administrator"],
-  ] as const)("shows the profile of a %s with the role", async (role, label) => {
-    mocks.getActor.mockResolvedValue({ id, role });
-
+  it("shows an explorer no role at all", async () => {
     const html = renderToStaticMarkup(await MyPage());
 
     expect(html).toMatch(/<h1[^>]*>Profil<\/h1>/);
-    expect(html).toContain(`Twoja rola: <strong>${label}</strong>`);
+    expect(html).not.toContain("Twoja rola");
+    expect(html).not.toContain("Użytkownik");
+    expect(html).not.toContain("Administrator");
+    expect(html).not.toContain("profile-curator");
+  });
+
+  it("says Administrator to an administrator, without a sentence about a panel", async () => {
+    mocks.getActor.mockResolvedValue({ id, role: "admin" });
+
+    const html = renderToStaticMarkup(await MyPage());
+
+    expect(html).toMatch(/data-testid="profile-admin"[^>]*><strong>Administrator<\/strong>/);
+    expect(html).not.toContain("w przygotowaniu");
+    expect(html).not.toContain("Twoja rola");
+  });
+
+  it("describes a curator with the organization, the link to the panel and the explorer sentence", async () => {
+    mocks.getApprovedOrganizations.mockResolvedValue([{ id: "o1", name: "Gmina Wilcza" }]);
+
+    const html = renderToStaticMarkup(await MyPage());
+
+    expect(html).toContain("Kurator · Gmina Wilcza");
+    expect(html).toMatch(/href="\/curator">Przejdź do panelu kuratora<\/a>/);
+    expect(html).toContain("Tu są Twoje wizyty i liczby jako odkrywcy.");
+  });
+
+  it("lists every approved organization of a curator", async () => {
+    mocks.getApprovedOrganizations.mockResolvedValue([
+      { id: "o1", name: "Gmina" },
+      { id: "o2", name: "Muzeum" },
+    ]);
+
+    const html = renderToStaticMarkup(await MyPage());
+
+    expect(html).toContain("Kurator · Gmina");
+    expect(html).toContain("Kurator · Muzeum");
+  });
+
+  it("keeps the profile when the organizations cannot be read, and logs the class only", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.getApprovedOrganizations.mockRejectedValue(new Error("db down"));
+
+    const html = renderToStaticMarkup(await MyPage());
+
+    expect(html).not.toContain("Kurator ·");
+    expect(html).toContain("Wyloguj");
+    expect(spy).toHaveBeenCalledWith("Profile organizations failed:", "Error");
+    expect(JSON.stringify(spy.mock.calls)).not.toContain("db down");
+    spy.mockRestore();
   });
 
   it("says Odkrywca, the letter O and a private profile when nothing was saved", async () => {
@@ -143,12 +192,10 @@ describe("profile page", () => {
     const hrefs = [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((match) => match[1]);
 
     // "Ustawienia" arrived with its screen (E9-5); "Napisz do nas" is a mailto link (E9-6a).
-    expect(hrefs).toEqual([
-      "/my/collections",
-      "/my/want-to-see",
-      "/my/settings",
-      "mailto:kontakt@mariuszskowron.pl",
-    ]);
+    // The main menu has "Moje kolekcje" and "Chcę zobaczyć", so the profile does not repeat them.
+    expect(hrefs).toEqual(["/my/settings", "mailto:kontakt@mariuszskowron.pl"]);
+    expect(html).not.toContain("Moje kolekcje");
+    expect(html).not.toContain("Chcę zobaczyć");
     expect(html).toContain("Ustawienia");
     expect(html).toContain("Napisz do nas");
   });

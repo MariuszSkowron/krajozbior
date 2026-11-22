@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   themeCookie: undefined as string | undefined,
   getActor: vi.fn(),
+  getMyProfile: vi.fn(),
   listMemberships: vi.fn(),
   pathname: "/",
   search: "",
@@ -40,6 +41,8 @@ vi.mock("@/features/identity/infrastructure", () => ({
   getIdentityProvider: () => ({ getActor: mocks.getActor }),
 }));
 
+vi.mock("@/features/profile/infrastructure/profile-deps", () => ({ getProfileDeps: () => ({}) }));
+vi.mock("@/features/profile/application/profile", () => ({ getMyProfile: mocks.getMyProfile }));
 vi.mock("@/features/organizations/infrastructure/postgres-organization-reader", () => ({
   listMyOrganizationsDeps: {
     withUserContext: async (_actor: unknown, work: (tx: unknown) => Promise<unknown>) => work({}),
@@ -66,6 +69,7 @@ beforeEach(() => {
     .mockImplementation(() => undefined);
   mocks.getActor.mockReset().mockResolvedValue(null);
   mocks.listMemberships.mockReset().mockResolvedValue([]);
+  mocks.getMyProfile.mockReset().mockResolvedValue({ status: "ok", value: { firstName: null } });
   mocks.pathname = "/";
   mocks.search = "";
   mocks.themeCookie = undefined;
@@ -187,7 +191,7 @@ describe("app shell", () => {
       expect(html).toContain('aria-label="Główna"');
     });
 
-    it("does not show the panel link to an account that has not accepted the terms", async () => {
+    it("does not show the curator label to an account that has not accepted the terms, but keeps the profile link", async () => {
       mocks.getActor.mockResolvedValue(as("user"));
       mocks.listMemberships.mockResolvedValue([
         {
@@ -200,7 +204,10 @@ describe("app shell", () => {
       ]);
       mocks.termsAccepted = false;
 
-      expect(await shell()).not.toContain("Panel kuratora");
+      const html = await shell();
+
+      expect(html).not.toContain("Kurator ·");
+      expect(header(html)).toMatch(/href="\/my">Profil<\/a>/);
     });
 
     it("does not ask a guest for anything", async () => {
@@ -226,19 +233,76 @@ describe("app shell", () => {
     expect(html).not.toContain("Wyloguj");
   });
 
-  it.each([
-    ["user", "Użytkownik"],
-    ["admin", "Administrator"],
-  ] as const)("gives %s the role and a logout form", async (role, label) => {
+  it.each(["user", "admin"] as const)("gives %s a logout form and no guest link", async (role) => {
     mocks.getActor.mockResolvedValue(as(role));
 
     const html = await shell();
 
-    expect(header(html)).toContain(`Twoja rola: </span>${label}`);
     expect(header(html)).toMatch(
       /<form action="\/api\/auth\/logout" method="post"><button [^>]*type="submit">Wyloguj<\/button><\/form>/,
     );
     expect(html).not.toContain("Zaloguj się");
+    expect(html).not.toContain("Użytkownik");
+    expect(html).not.toContain("Twoja rola");
+  });
+
+  it("shows the first name as a link to the profile with the accessible name from the visible text", async () => {
+    mocks.getActor.mockResolvedValue(as("user"));
+    mocks.getMyProfile.mockResolvedValue({ status: "ok", value: { firstName: "Anna" } });
+
+    expect(header(await shell())).toMatch(
+      /<a class="[^"]*profileLink[^"]*" href="\/my"><span class="[^"]*visuallyHidden[^"]*">Profil: <\/span><span class="[^"]*profileName[^"]*">Anna<\/span><\/a>/,
+    );
+  });
+
+  it("marks the profile link as the current page on /my", async () => {
+    mocks.getActor.mockResolvedValue(as("user"));
+    mocks.pathname = "/my";
+
+    expect(header(await shell())).toMatch(/aria-current="page" href="\/my">Profil<\/a>/);
+  });
+
+  it("says Profil when no first name is saved", async () => {
+    mocks.getActor.mockResolvedValue(as("user"));
+
+    expect(header(await shell())).toMatch(/href="\/my">Profil<\/a>/);
+  });
+
+  it("says Profil and logs the error class when the profile cannot be read", async () => {
+    mocks.getActor.mockResolvedValue(as("user"));
+    mocks.getMyProfile.mockRejectedValue(new Error("db down: secret"));
+
+    const html = await shell();
+
+    expect(header(html)).toMatch(/href="\/my">Profil<\/a>/);
+    expect(html).toContain("Wyloguj");
+    expect(console.error).toHaveBeenCalledWith("Shell profile lookup failed:", "Error");
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
+  });
+
+  it("says Profil when the profile outcome is not ok", async () => {
+    mocks.getActor.mockResolvedValue(as("user"));
+    mocks.getMyProfile.mockResolvedValue({ status: "unauthenticated" });
+
+    expect(header(await shell())).toMatch(/href="\/my">Profil<\/a>/);
+  });
+
+  it("does not read the profile for a guest", async () => {
+    await shell();
+
+    expect(mocks.getMyProfile).not.toHaveBeenCalled();
+  });
+
+  it("names the administrator next to the profile link", async () => {
+    mocks.getActor.mockResolvedValue(as("admin"));
+
+    expect(header(await shell())).toMatch(/data-role="admin">.*Administrator<\/span><\/p>/);
+  });
+
+  it("does not name the administrator for an explorer", async () => {
+    mocks.getActor.mockResolvedValue(as("user"));
+
+    expect(header(await shell())).not.toContain("Administrator");
   });
 
   const organization = (status: "approved" | "suspended") => ({
@@ -253,7 +317,32 @@ describe("app shell", () => {
     mocks.getActor.mockResolvedValue(as("user"));
     mocks.listMemberships.mockResolvedValue([organization("approved")]);
 
-    expect(header(await shell())).toContain('href="/curator">Panel kuratora</a>');
+    expect(header(await shell())).toMatch(
+      /href="\/curator"><span class="[^"]*curatorText[^"]*">Kurator · Gmina<\/span><\/a>/,
+    );
+  });
+
+  it("names the first approved organization when the curator has several", async () => {
+    mocks.getActor.mockResolvedValue(as("user"));
+    mocks.listMemberships.mockResolvedValue([
+      { ...organization("approved"), name: "Gmina" },
+      { ...organization("approved"), id: "33333333-3333-4333-8333-333333333333", name: "Muzeum" },
+    ]);
+
+    const html = header(await shell());
+
+    expect(html).toContain("Kurator · Gmina");
+    expect(html).not.toContain("Muzeum");
+  });
+
+  it("shows the curator label of an administrator who is also a curator", async () => {
+    mocks.getActor.mockResolvedValue(as("admin"));
+    mocks.listMemberships.mockResolvedValue([organization("approved")]);
+
+    const html = header(await shell());
+
+    expect(html).toContain("Administrator");
+    expect(html).toContain("Kurator · Gmina");
   });
 
   it.each([
@@ -263,11 +352,11 @@ describe("app shell", () => {
     mocks.getActor.mockResolvedValue(as("user"));
     mocks.listMemberships.mockResolvedValue(memberships);
 
-    expect(await shell()).not.toContain("Panel kuratora");
+    expect(await shell()).not.toContain("Kurator ·");
   });
 
   it("shows no panel link to a guest and does not look organizations up", async () => {
-    expect(await shell()).not.toContain("Panel kuratora");
+    expect(await shell()).not.toContain("Kurator ·");
     expect(mocks.listMemberships).not.toHaveBeenCalled();
   });
 
@@ -277,7 +366,7 @@ describe("app shell", () => {
 
     const html = await shell();
 
-    expect(html).not.toContain("Panel kuratora");
+    expect(html).not.toContain("Kurator ·");
     expect(html).toContain("Wyloguj");
     expect(console.error).toHaveBeenCalledWith("Curator link lookup failed:", "Error");
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
