@@ -29,6 +29,10 @@ textarea {
  * (nawigacja, karta będąca linkiem, link stylowany jak przycisk), nigdy ogólna reguła.
  */
 a {
+  /* Kolor akcentu dla każdego linku bez własnej klasy (K-36); klasa elementu go nadpisuje.
+   * Na jasnym motywie kontrast akcentu na tłach surface-tint i surface-hover jest poniżej 4,5:1,
+   * więc link bez klasy na tych tłach wymaga własnego koloru. */
+  color: var(--color-text-accent);
   text-decoration-line: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.15em;

@@ -32,16 +32,31 @@
   transform: scale(0.97);
 }
 
-/* Okładka zastępcza: gradient z dwóch kolorów zastępczych obrazu. */
+/* Pole okładki 16:7, tło tint (to samo, które wypełnia wolne pasy przy zdjęciu). */
 .cover {
   display: block;
   overflow: hidden;
   aspect-ratio: 16 / 7;
-  background: linear-gradient(
-    135deg,
-    var(--color-image-placeholder),
-    var(--color-image-placeholder-alt)
-  );
+  background: var(--color-surface-tint);
+}
+
+/*
+ * Brak zdjęcia (K-38): spokojny stan zastępczy zamiast ciemnego prostokąta, który wyglądał jak
+ * błąd ładowania. Jasne tło tint, delikatna kreska pod spodem i pinezka pośrodku; to ozdoba.
+ */
+.coverEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-block-end: 1px solid var(--color-border-subtle);
+  color: var(--color-text-label);
+}
+
+.coverPin {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  opacity: 0.6;
 }
 
 /* Zdjęcie okładki w polu 16:7 w całości, bez przycinania (contain): podpis mówi, że zdjęcie tylko

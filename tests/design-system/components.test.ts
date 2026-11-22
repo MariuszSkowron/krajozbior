@@ -81,6 +81,27 @@ describe("CollectionCard", () => {
     expect(html).not.toContain("<h3");
   });
 
+  it("bez okładki pokazuje ozdobne pole zastępcze z pinezką, ukryte przed czytnikiem ekranu (K-38)", () => {
+    const html = render(
+      createElement(CollectionCard, { href: "/collections/x", title: "X", regionLabel: "Śląskie" }),
+    );
+
+    expect(html).toMatch(/<div class="[^"]*coverEmpty[^"]*" aria-hidden="true"><svg /);
+    expect(html).not.toContain("<img");
+
+    const withCover = render(
+      createElement(CollectionCard, {
+        href: "/collections/x",
+        title: "X",
+        regionLabel: "Śląskie",
+        cover: { src: "/media/a", width: 400, height: 300, alt: "Most" },
+      }),
+    );
+
+    expect(withCover).toContain('alt="Most"');
+    expect(withCover).not.toContain("coverEmpty");
+  });
+
   it("bez postępu nie rysuje paska ani licznika", () => {
     const html = render(
       createElement(CollectionCard, { href: "/collections/x", title: "X", regionLabel: "Śląskie" }),
