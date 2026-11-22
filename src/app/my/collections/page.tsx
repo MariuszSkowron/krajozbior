@@ -11,9 +11,8 @@ import {
   PROGRESS_FILTER_LABELS,
   matchesProgressFilter,
   parseProgressFilter,
+  type ProgressFilter,
 } from "@/features/album/domain/progress-filter";
-import { listNearbyCandidates } from "@/features/catalog/application/public-catalog";
-import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
 import { CollectionCard } from "@/design-system/components/collection-card";
 import { StatusBadge } from "@/design-system/components/status-badge";
@@ -24,7 +23,6 @@ import { getOwnCollectionsDeps } from "@/features/own-collections/infrastructure
 import catalog from "../../catalog.module.css";
 import styles from "./collections.module.css";
 import ownStyles from "./own/own.module.css";
-import { SavedCollectionsList, type SavedCollectionItem } from "./saved-collections-list";
 
 // Private page: rendered on every request, never cached by a shared cache.
 export const dynamic = "force-dynamic";
@@ -33,18 +31,9 @@ export const metadata: Metadata = { title: "Moje kolekcje — Krajozbiór" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-// The public list of "W okolicy" (a guest read, the same for everyone): it holds the centre and
-// the first publication of a collection, which "Nowa w okolicy" needs. A failed read only drops
-// the mark; the page itself stays whole.
-async function loadNearbyCandidates() {
-  try {
-    return await listNearbyCandidates(getCatalogDeps());
-  } catch (error) {
-    logReadFailure("My collections nearby read", error);
-
-    return null;
-  }
-}
+// The address of a state filter: "Wszystkie" is the plain page, the rest carry `?stan=`.
+const filterHref = (filter: ProgressFilter) =>
+  filter === "wszystkie" ? "/my/collections" : `/my/collections?stan=${filter}`;
 
 export default async function MyCollectionsPage({ searchParams }: { searchParams: SearchParams }) {
   const actor = await getRequestActor();
@@ -76,32 +65,21 @@ export default async function MyCollectionsPage({ searchParams }: { searchParams
 
   const own = ownResult.value;
   const collections = result.value;
-  const candidates = collections.length === 0 ? null : await loadNearbyCandidates();
-  const candidateOf = new Map((candidates ?? []).map((candidate) => [candidate.slug, candidate]));
   const shown = collections.filter((collection) =>
     matchesProgressFilter(collection.progress, filter),
   );
-  const items: SavedCollectionItem[] = shown.map((collection) => {
-    const candidate = candidateOf.get(collection.slug);
-
-    return {
-      slug: collection.slug,
-      title: collection.title,
-      regionLabel: REGION_LABELS[collection.region],
-      ...progressCounts(collection.progress),
-      centerLat: candidate?.centerLat ?? null,
-      centerLon: candidate?.centerLon ?? null,
-      firstPublishedAt: candidate?.firstPublishedAt ?? null,
-    };
-  });
+  const counts = Object.fromEntries(
+    PROGRESS_FILTERS.map((value) => [
+      value,
+      collections.filter((collection) => matchesProgressFilter(collection.progress, value)).length,
+    ]),
+  ) as Record<ProgressFilter, number>;
 
   return (
     <div className={`content-width ${catalog.page}`}>
       <header className={catalog.header}>
         <h1>Moje kolekcje</h1>
-        <p className={catalog.summary}>
-          Kolekcje, które zapisałeś, i Twoje własne, razem z Twoim postępem.
-        </p>
+        <p className={catalog.summary}>Zapisane kolekcje i Twój postęp w nich.</p>
       </header>
       <section className={catalog.section} aria-labelledby="moje">
         <div className={ownStyles.sectionHead}>
@@ -137,7 +115,7 @@ export default async function MyCollectionsPage({ searchParams }: { searchParams
           <h2 id="pusto">Nie masz jeszcze zapisanych kolekcji</h2>
           <p>Kolekcje zapiszesz przyciskiem na stronie kolekcji.</p>
           <Link className="button button--primary" href="/">
-            Przejdź do katalogu
+            Zobacz kolekcje
           </Link>
         </section>
       ) : (
@@ -147,28 +125,39 @@ export default async function MyCollectionsPage({ searchParams }: { searchParams
               ? `Zapisane kolekcje (${collections.length})`
               : `Zapisane kolekcje (${shown.length} z ${collections.length})`}
           </h2>
-          <form className={styles.filter} method="get" action="/my/collections">
-            <div className={styles.field}>
-              <label htmlFor="stan">Stan postępu</label>
-              <select id="stan" name="stan" defaultValue={filter}>
-                {PROGRESS_FILTERS.map((value) => (
-                  <option key={value} value={value}>
-                    {PROGRESS_FILTER_LABELS[value]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button type="submit" className="button button--outline">
-              Pokaż
-            </button>
-          </form>
-          {items.length === 0 ? (
+          {/* Links with the state in the address: one click, no script needed, no jump to the top. */}
+          <nav className={styles.filter} aria-label="Stan postępu">
+            {PROGRESS_FILTERS.map((value) => (
+              <Link
+                key={value}
+                className={styles.filterLink}
+                href={filterHref(value)}
+                scroll={false}
+                aria-current={value === filter ? "page" : undefined}
+              >
+                {PROGRESS_FILTER_LABELS[value]}{" "}
+                <span className={styles.filterCount}>({counts[value]})</span>
+              </Link>
+            ))}
+          </nav>
+          {shown.length === 0 ? (
             <p className={styles.noMatch}>
-              Żadna zapisana kolekcja nie ma stanu „{PROGRESS_FILTER_LABELS[filter]}”.{" "}
+              Żadna zapisana kolekcja nie jest w stanie „{PROGRESS_FILTER_LABELS[filter]}”.{" "}
               <Link href="/my/collections">Pokaż wszystkie</Link>
             </p>
           ) : (
-            <SavedCollectionsList items={items} offerNearby={candidates !== null} />
+            <ul className={styles.grid}>
+              {shown.map((collection) => (
+                <li key={collection.slug}>
+                  <CollectionCard
+                    href={`/collections/${collection.slug}`}
+                    title={collection.title}
+                    regionLabel={REGION_LABELS[collection.region]}
+                    progress={progressCounts(collection.progress)}
+                  />
+                </li>
+              ))}
+            </ul>
           )}
         </section>
       )}
