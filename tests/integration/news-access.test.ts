@@ -277,6 +277,23 @@ describe("news posts of the editorial version (E7-R1)", () => {
       expect(await resolve(draftSlug!)).toBeNull();
       expect(await resolve("nie-ma-takiej-kolekcji")).toBeNull();
 
+      // A collection of a suspended organization is not resolved either (explicit
+      // condition in the function, not only the row policy).
+      const [{ status: orgStatus }] = await admin$<{ status: string }>(
+        `select status from public.organizations where id = $1`,
+        [orgA],
+      );
+      await admin$(`update public.organizations set status = 'suspended' where id = $1`, [orgA]);
+      try {
+        expect(await resolve(publicSlug!)).toBeNull();
+      } finally {
+        await admin$(`update public.organizations set status = $2 where id = $1`, [
+          orgA,
+          orgStatus,
+        ]);
+      }
+      expect(await resolve(publicSlug!)).toBe(publicId);
+
       // No direct read of the catalog, whichever column.
       for (const column of ["id", "slug", "organization_id", "title"]) {
         await expect(ops$(`select ${column} from public.collections limit 1`)).rejects.toThrow(
@@ -524,7 +541,7 @@ describe("news posts of the editorial version (E7-R1)", () => {
       );
     });
 
-    it("does not leave the write switch on after the function returns (S1)", async () => {
+    it("does not leave the write variable on after the function returns (S1; hygiene, the boundary is the grants and policies)", async () => {
       const item = newPut({ status: "published" });
 
       await withClient(db.urls.krajozbior_ops, async (client) => {
@@ -537,6 +554,7 @@ describe("news posts of the editorial version (E7-R1)", () => {
           ).rows as { value: string | null }[];
 
           expect(value).not.toBe("on");
+          // Not proof of the variable: ops has no UPDATE grant whatever the variable says.
           await expect(
             client.query(`update public.news_posts set title = 'Podmieniony tytuł' where id = $1`, [
               item.id,
