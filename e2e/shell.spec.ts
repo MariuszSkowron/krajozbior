@@ -32,7 +32,7 @@ async function signedInPage(
   await form.getByLabel("E-mail").fill(emailOf(name));
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(name.startsWith("curator") ? /\/curator$/ : /\/my$/);
 
   return page;
 }
@@ -288,6 +288,9 @@ test.describe("panel kuratora", () => {
     await expect(page.getByRole("note")).toContainText(
       "Panel kuratora jest przeznaczony na komputer",
     );
+    await expect(
+      page.getByRole("note").getByRole("link", { name: "Przejdź do profilu" }),
+    ).toHaveAttribute("href", "/my");
     await expect(page.getByRole("navigation", { name: "Panel kuratora" })).toBeHidden();
     await expect(page.getByRole("heading", { level: 1, name: "Twoje kolekcje" })).toBeHidden();
     // Dolny pasek zostaje, żeby dało się wyjść z panelu.

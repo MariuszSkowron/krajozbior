@@ -21,7 +21,8 @@ async function signIn(page: Page, name: string) {
   await form.getByLabel("E-mail").fill(emailOf(name));
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  // A curator lands in the panel, everyone else on the profile (paczka N, faza 2).
+  await expect(page).toHaveURL(name.startsWith("curator") ? /\/curator$/ : /\/my$/);
 }
 
 async function signedInPage(browser: Browser, name: string): Promise<Page> {
