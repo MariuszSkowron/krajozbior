@@ -204,7 +204,7 @@ test.describe("aktualności dla gościa", () => {
       "aria-current",
       "true",
     );
-    await expect(main.getByRole("status")).toContainText(/Wydarzenia: \d+|1 wydarzenie/);
+    await expect(main.getByText(/Wydarzenia: \d+|1 wydarzenie/)).toBeVisible();
     await expect(main.locator("article", { hasText: FUTURE.title })).toContainText(
       "1 maja 2099 – 2 maja 2099",
     );

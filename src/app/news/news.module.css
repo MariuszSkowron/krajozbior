@@ -5,6 +5,7 @@
  */
 .page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-lg);
   padding-block: var(--space-lg) var(--space-xl);
 }
@@ -17,6 +18,7 @@
 .header h1,
 .header p {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .subtitle {
@@ -61,6 +63,7 @@
 
 .list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-md);
   margin: 0;
   padding: 0;
@@ -69,6 +72,7 @@
 
 .card {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-sm);
   padding: var(--space-md);
   background: var(--color-surface-card);
@@ -88,6 +92,7 @@
 }
 
 .cardTitle {
+  overflow-wrap: anywhere;
   font-size: var(--font-size-xl);
 }
 
