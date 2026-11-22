@@ -8,10 +8,7 @@ import { CollectionProgress } from "@/design-system/components/collection-progre
 import { getCollectionProgress } from "@/features/album/application/saved-collections";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import { progressCounts } from "@/features/album/domain/progress";
-import {
-  getPublishedCollection,
-  getPublishedPlace,
-} from "@/features/catalog/application/public-catalog";
+import { getPublishedCollection } from "@/features/catalog/application/public-catalog";
 import {
   STATE_FILTERS,
   STATE_FILTER_LABELS,
@@ -19,7 +16,6 @@ import {
   countByState,
   filterByState,
   formatUpdateDate,
-  parseSelectedPlace,
   parseStateFilter,
   parseView,
   type VisitKind,
@@ -27,11 +23,8 @@ import {
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
 import { formatPlaceCount } from "@/features/catalog/domain/place-count";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
-import type { Actor } from "@/features/identity/domain/actor";
 import { listMyVisitKindsOfCollection } from "@/features/visits/application/mark-past-visits";
 import { getVisitDeps } from "@/features/visits/infrastructure/visit-deps";
-import { isWantedPlace } from "@/features/want-to-see/application/want-to-see";
-import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-see-deps";
 
 import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
@@ -39,8 +32,6 @@ import panelStyles from "./album.module.css";
 import mapStyles from "./collection-map.module.css";
 import { CollectionMapLoader } from "./collection-map-loader";
 import { CollectionPlaces } from "./collection-places";
-import { PlaceCardLink } from "./place-card-link";
-import { PlacePanel, type PanelPlace } from "./place-panel";
 import { SaveCollectionButton } from "./save-collection-button";
 
 // Rendered on every request and never cached by a shared cache (src/proxy.ts
@@ -111,51 +102,6 @@ async function loadAlbum(collectionId: string, slug: string) {
   }
 }
 
-// The data of the panel (D-E12-6): the place from the public read (the guest context, so the
-// panel shows exactly what the place page shows), the explorer's visit from the album read and
-// the state of the "Chcę zobaczyć" list. A failure of the list leaves out only its button; a
-// failure of the place read leaves a short note in the panel and the page whole.
-async function loadPanel(
-  placeId: string,
-  actor: Actor | null,
-  kinds: ReadonlyMap<string, VisitKind> | null,
-): Promise<PanelPlace> {
-  try {
-    const [found, wanted] = await Promise.all([
-      getPublishedPlace(placeId, getCatalogDeps()),
-      // As on the place page: when the read of the visits failed, the button is left out too.
-      actor === null || kinds === null ? Promise.resolve(null) : loadWanted(actor, placeId),
-    ]);
-
-    if (found.status !== "ok") {
-      return { status: "none" };
-    }
-
-    return {
-      status: "ok",
-      place: found.value,
-      visit: kinds === null ? undefined : (kinds.get(placeId) ?? null),
-      wanted,
-    };
-  } catch (error) {
-    logReadFailure("Collection panel read", error);
-
-    return { status: "failed" };
-  }
-}
-
-async function loadWanted(actor: Actor, placeId: string): Promise<boolean | null> {
-  try {
-    const answer = await isWantedPlace(actor, placeId, getWantToSeeDeps());
-
-    return answer.status === "ok" ? answer.value.wanted : null;
-  } catch (error) {
-    logReadFailure("Collection panel want-to-see read", error);
-
-    return null;
-  }
-}
-
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const result = await load((await params).slug);
 
@@ -186,14 +132,6 @@ export default async function CollectionPage({
   const kinds = album.kind === "explorer" ? album.kinds : null;
   const stan = kinds === null ? "wszystkie" : parseStateFilter(query.stan);
   const widok = parseView(query.widok);
-  const asked = parseSelectedPlace(query.miejsce);
-  // A place that is not in this collection gives no panel and no error.
-  const selectedId =
-    asked !== null && collection.places.some((place) => place.id === asked) ? asked : null;
-  const panel: PanelPlace =
-    selectedId === null
-      ? { status: "none" }
-      : await loadPanel(selectedId, album.kind === "explorer" ? album.actor : null, kinds);
   const shown = kinds === null ? collection.places : filterByState(collection.places, stan, kinds);
   const counts =
     kinds === null
@@ -223,7 +161,7 @@ export default async function CollectionPage({
         {album.kind === "guest" ? (
           <div className={albumStyles.guestAction}>
             <Link className="button button--primary" href={album.loginHref}>
-              Zapisz kolekcję
+              Zapisuję kolekcję
             </Link>
             <p className={albumStyles.feedback}>
               Aby zapisać kolekcję, zalogujesz się i wrócisz tutaj.
@@ -233,7 +171,7 @@ export default async function CollectionPage({
           <SaveCollectionButton collectionId={collection.id} initialSaved={album.saved} />
         ) : album.kind === "unavailable" ? (
           <p className={albumStyles.feedback}>
-            Nie udało się wczytać Twojego zapisu tej kolekcji. Odśwież stronę za chwilę.
+            Nie udało się sprawdzić, czy ta kolekcja jest zapisana. Odśwież stronę za chwilę.
           </p>
         ) : null}
       </header>
@@ -252,7 +190,7 @@ export default async function CollectionPage({
                 <Link
                   key={option}
                   className={panelStyles.filterLink}
-                  href={albumHref(collection.slug, { stan, miejsce: selectedId, widok: option })}
+                  href={albumHref(collection.slug, { stan, widok: option })}
                   aria-current={option === widok ? "page" : undefined}
                   aria-describedby={option === "mapa" ? "uwaga-mapa" : undefined}
                 >
@@ -303,11 +241,9 @@ export default async function CollectionPage({
                       <Link
                         key={filter}
                         className={panelStyles.filterLink}
-                        href={albumHref(collection.slug, {
-                          stan: filter,
-                          miejsce: selectedId,
-                          widok,
-                        })}
+                        href={albumHref(collection.slug, { stan: filter, widok })}
+                        // Filtr zmienia tylko listę poniżej: strona zostaje tam, gdzie jest (U-07).
+                        scroll={false}
                         aria-current={filter === stan ? "page" : undefined}
                       >
                         {STATE_FILTER_LABELS[filter]}
@@ -320,10 +256,6 @@ export default async function CollectionPage({
                   <p className={panelStyles.empty}>Żadne miejsce nie pasuje do tego filtra.</p>
                 ) : kinds !== null ? (
                   <CollectionPlaces
-                    slug={collection.slug}
-                    stan={stan}
-                    widok={widok}
-                    selectedId={selectedId}
                     places={shown.map((place) => ({
                       id: place.id,
                       name: place.name,
@@ -335,16 +267,8 @@ export default async function CollectionPage({
                 ) : (
                   <ol className={panelStyles.grid}>
                     {shown.map((place) => (
-                      <li
-                        key={place.id}
-                        className={`${styles.item} ${place.id === selectedId ? panelStyles.selected : ""}`}
-                      >
-                        <PlaceCardLink
-                          className={styles.itemLink}
-                          href={`/places/${place.id}`}
-                          selectHref={albumHref(collection.slug, { miejsce: place.id, widok })}
-                          selected={place.id === selectedId}
-                        >
+                      <li key={place.id} className={styles.item}>
+                        <Link className={styles.itemLink} href={`/places/${place.id}`}>
                           <span className={styles.itemTitle}>
                             <span className={styles.itemNumber}>{place.position}.</span>{" "}
                             {place.name}
@@ -352,13 +276,12 @@ export default async function CollectionPage({
                           {place.address === "" ? null : (
                             <span className={styles.itemMeta}>{place.address}</span>
                           )}
-                        </PlaceCardLink>
+                        </Link>
                       </li>
                     ))}
                   </ol>
                 )}
               </div>
-              <PlacePanel panel={panel} />
             </div>
           </>
         )}

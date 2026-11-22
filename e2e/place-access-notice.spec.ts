@@ -6,7 +6,7 @@ import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
 
 // E1-S11 (R-14): the curator marks a place as fenced in the panel; a guest sees a calm notice on
-// the place page and in the panel of the album, in both themes, without accessibility
+// the place page, in both themes, without accessibility
 // violations; after the mark is taken off the notice is gone. Needs a migrated, seeded database
 // like the other specs that sign in; without it the spec is skipped.
 const password = process.env.DEMO_ACCOUNT_PASSWORD;
@@ -108,12 +108,11 @@ test.describe("access notice of a place", () => {
 
     createdPlaceIds.push(placeId);
 
-    const published = await created(
+    await created(
       await page.request.post(`/api/curator/collections/${collectionId}/publish`, {
         data: { version: draft.version },
       }),
     );
-    const slug = String(published.slug);
 
     // The curator sets the mark in the panel.
     await page.goto(`/curator/collections/${collectionId}/places/${placeId}`);
@@ -150,19 +149,6 @@ test.describe("access notice of a place", () => {
       await expectNoAccessibilityViolations(guest);
       await context.close();
     }
-
-    // On a desktop screen a click on the card opens the panel of the place with the same notice.
-    const desktop = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    const album = await desktop.newPage();
-
-    await album.goto(`/collections/${slug}?miejsce=${placeId}`);
-    await expect(album.getByRole("heading", { level: 2, name: "Ruiny nad drogą" })).toBeVisible();
-
-    const panelNotice = album.getByRole("complementary").getByTestId(NOTICE);
-
-    await expect(panelNotice.getByRole("heading", { level: 3 })).toHaveText("Wejście na teren");
-    await expectNoAccessibilityViolations(album);
-    await desktop.close();
 
     // The mark taken off: the notice is gone.
     await page.goto(`/curator/collections/${collectionId}/places/${placeId}`);

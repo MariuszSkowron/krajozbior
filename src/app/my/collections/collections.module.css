@@ -77,3 +77,29 @@
   gap: var(--space-sm);
   justify-items: start;
 }
+
+/* Wskaźnik zapisu w przycisku (zamiast zmiany napisu): obracający się pierścień; przy
+   „ogranicz ruch” stoi w miejscu jako półotwarty pierścień. */
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-inline-start: var(--space-sm);
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  vertical-align: -0.125em;
+  animation: spin 800ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

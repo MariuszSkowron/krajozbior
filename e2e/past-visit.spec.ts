@@ -102,7 +102,7 @@ async function openBridge(page: Page) {
 
 async function saveDemoCollection(page: Page) {
   await page.goto(`/collections/${DEMO_SLUG}`);
-  await page.getByRole("button", { name: "Zapisz kolekcję" }).click();
+  await page.getByRole("button", { name: "Zapisuję kolekcję" }).click();
   await expect(page.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
   await waitForHydration(page);
 }
