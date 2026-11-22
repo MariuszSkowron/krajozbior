@@ -18,6 +18,7 @@ import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
 import { PinnedAction } from "./pinned-action";
 import { PlaceAccessNotice } from "./place-access-notice";
+import { PlacePhoto } from "./place-photo";
 import { PlaceSources } from "./place-sources";
 import { VisitConfirmation } from "./visit-confirmation";
 import visitStyles from "./visit-confirmation.module.css";
@@ -116,6 +117,7 @@ export default async function PlacePage({ params }: { params: Params }) {
         <p className={styles.meta}>Prowadzi: {place.organization.name}</p>
       </header>
       <PlaceAccessNotice restriction={place.accessRestriction} />
+      {place.cover === null ? null : <PlacePhoto cover={place.cover} placeName={place.name} />}
       <dl className={styles.facts}>
         {place.address === "" ? null : (
           <div>
