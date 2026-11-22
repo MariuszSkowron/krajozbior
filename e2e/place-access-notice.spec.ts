@@ -121,9 +121,11 @@ test.describe("access notice of a place", () => {
     await waitForHydration(page);
     await expect(page.getByLabel("Wejście na teren")).toHaveValue("none");
     await page.getByLabel("Wejście na teren").selectOption("fenced");
+    // The place form before the save (the save leaves the page for the collection).
+    await expectNoAccessibilityViolations(page);
     await page.getByRole("button", { name: "Zapisz zmiany" }).click();
     await expect(
-      page.getByRole("status").filter({ hasText: "Zapisano zmiany miejsca." }),
+      page.getByRole("status").filter({ hasText: "Zapisano zmiany miejsca" }),
     ).toBeVisible();
     await expectNoAccessibilityViolations(page);
 
@@ -158,7 +160,7 @@ test.describe("access notice of a place", () => {
     await page.getByLabel("Wejście na teren").selectOption("none");
     await page.getByRole("button", { name: "Zapisz zmiany" }).click();
     await expect(
-      page.getByRole("status").filter({ hasText: "Zapisano zmiany miejsca." }),
+      page.getByRole("status").filter({ hasText: "Zapisano zmiany miejsca" }),
     ).toBeVisible();
 
     const after = await browser.newContext();
