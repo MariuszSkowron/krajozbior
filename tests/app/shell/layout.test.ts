@@ -487,7 +487,7 @@ describe("app shell", () => {
 
       const html = await shell();
 
-      expect(hrefs(header(html))).toEqual(["/"]);
+      expect(hrefs(header(html))).toEqual(["/", "/my"]);
       expect(hrefs(nav(html)).at(-1)).toBe("/news");
       expect(nav(html)).toMatch(/aria-current="page" href="\/news"/);
     });
@@ -498,14 +498,14 @@ describe("app shell", () => {
 
       const html = await shell();
 
-      expect(hrefs(header(html))).toEqual(["/"]);
+      expect(hrefs(header(html))).toEqual(["/", "/my"]);
       expect(html).not.toContain('aria-label="Główna"');
     });
 
-    it("links the header of a signed-in explorer to the start page only (the rest is a form)", async () => {
+    it("links the header of a signed-in explorer to the start page and the profile (the rest is a form)", async () => {
       mocks.getActor.mockResolvedValue(as("user"));
 
-      expect(hrefs(header(await shell()))).toEqual(["/"]);
+      expect(hrefs(header(await shell()))).toEqual(["/", "/my"]);
     });
 
     it("keeps the first four items of the bar in the order of the screens", async () => {
