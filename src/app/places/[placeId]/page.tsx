@@ -16,8 +16,10 @@ import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-
 
 import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
+import { ReportContentLink } from "../../report-content-link";
 import { PinnedAction } from "./pinned-action";
 import { PlaceSources } from "./place-sources";
+import reportStyles from "./report-link.module.css";
 import { VisitConfirmation } from "./visit-confirmation";
 import visitStyles from "./visit-confirmation.module.css";
 import { WantToSeeButton } from "./want-to-see-button";
@@ -176,6 +178,9 @@ export default async function PlacePage({ params }: { params: Params }) {
           ))}
         </ul>
       </section>
+      <p className={reportStyles.report}>
+        <ReportContentLink path={`/places/${place.id}`} title={place.name} />
+      </p>
     </div>
   );
 }
