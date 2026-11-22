@@ -1,0 +1,253 @@
+/*
+ * Aktualności (E7-R3): lista i strona jednej aktualności. Tylko tokeny. Karta jest `<article>`
+ * z jednym linkiem (tytuł); pierwsza karta jest wyróżniona większym tytułem, bez zdjęcia
+ * (zdjęcia wchodzą po konkursie, E7-5).
+ */
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-lg);
+  padding-block: var(--space-lg) var(--space-xl);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.header h1,
+.header p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.subtitle {
+  max-width: 40rem;
+  color: var(--color-text-secondary);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Filtr to odnośnik w kształcie pigułki; aktualny ma tło `tint` i mocniejszy napis (aria-current). */
+.filter {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-min);
+  padding-inline: var(--space-md);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-pill);
+}
+
+.filter[aria-current="true"] {
+  background: var(--color-surface-tint);
+  color: var(--color-text-strong);
+  font-weight: var(--font-weight-strong);
+  border-color: var(--color-border-strong);
+}
+
+.count {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.featured {
+  padding: var(--space-lg);
+  border-color: var(--color-border-strong);
+}
+
+.card h2,
+.card p {
+  margin: 0;
+}
+
+.cardTitle {
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-xl);
+}
+
+.featured .cardTitle {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-regular);
+  letter-spacing: var(--font-tracking-display);
+}
+
+/* Tytuł jest jedynym linkiem karty; rozpoznaje się go po kształcie i rozmiarze, więc bez podkreślenia. */
+.cardLink {
+  color: var(--color-text-strong);
+  text-decoration: none;
+}
+
+.cardLink:hover,
+.cardLink:focus-visible {
+  text-decoration: underline;
+}
+
+.lead {
+  max-width: 40rem;
+  color: var(--color-text-primary);
+}
+
+.kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+  color: var(--color-text-label);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
+}
+
+.kicker time {
+  font-variant-numeric: tabular-nums;
+}
+
+.eventDays {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.organization {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.initial {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: var(--size-icon-badge);
+  height: var(--size-icon-badge);
+  background: var(--color-surface-tint);
+  color: var(--color-text-strong);
+  font-weight: var(--font-weight-strong);
+  border-radius: var(--radius-pill);
+}
+
+.organizationName {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.empty {
+  display: grid;
+  gap: var(--space-sm);
+  justify-items: start;
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.empty p {
+  margin: 0;
+}
+
+/* Strona aktualności. */
+.article {
+  display: grid;
+  gap: var(--space-md);
+  padding-block: var(--space-lg) var(--space-xl);
+}
+
+.article h1 {
+  margin: 0;
+  font-family: var(--font-family-display);
+  font-weight: var(--font-weight-regular);
+  letter-spacing: var(--font-tracking-display);
+}
+
+.articleLead {
+  margin: 0;
+  max-width: 40rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.body {
+  display: grid;
+  gap: var(--space-md);
+  max-width: 40rem;
+}
+
+.body p {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* Adres w treści: akcent z podkreśleniem (link w tekście musi się odróżniać nie tylko kolorem). */
+.body a {
+  color: var(--color-text-accent);
+  text-decoration: underline;
+}
+
+.related {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.related h2,
+.related p {
+  margin: 0;
+}
+
+.related a {
+  color: var(--color-text-accent);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-min);
+  color: var(--color-text-accent);
+}

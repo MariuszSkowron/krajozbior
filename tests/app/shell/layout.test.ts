@@ -347,8 +347,8 @@ describe("app shell", () => {
     expect(html).toMatch(
       /<\/header><\/div><nav [^>]*aria-label="Główna"[\s\S]*<\/nav><main id="tresc"/,
     );
-    expect(nav(html).match(/<li>/g)).toHaveLength(4);
-    for (const label of ["Start", "Moje kolekcje", "Chcę zobaczyć", "Profil"]) {
+    expect(nav(html).match(/<li>/g)).toHaveLength(5);
+    for (const label of ["Start", "Moje kolekcje", "Chcę zobaczyć", "Profil", "Aktualności"]) {
       expect(nav(html)).toContain(`>${label}</span>`);
     }
     // Tylko bieżąca pozycja ma aria-current i kropkę akcentu.
@@ -366,6 +366,76 @@ describe("app shell", () => {
 
     expect(nav(html)).toContain('data-area="curator"');
     expect(nav(html)).not.toContain("aria-current");
+  });
+
+  // Characterization of the links of the shell, written before the news entry points (E7-R3)
+  // and kept after them: the guest header gained exactly the news link (B4), the signed-in
+  // header and the first four items of the bar did not change.
+  describe("links of the shell", () => {
+    const hrefs = (fragment: string) =>
+      [...fragment.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => m[1]);
+
+    it("links the header of a guest to the start page, the news and the login", async () => {
+      expect(hrefs(header(await shell()))).toEqual(["/", "/news", "/login"]);
+    });
+
+    it.each([
+      ["/news", true],
+      ["/news/jak-zbierac-miejsca", true],
+      ["/", false],
+      ["/newsy", false],
+    ])("marks the news link of a guest on %s as current: %s", async (pathname, current) => {
+      mocks.pathname = pathname;
+
+      const html = header(await shell());
+
+      expect(/aria-current="page" href="\/news"/.test(html)).toBe(current);
+    });
+
+    it("gives a signed-in explorer no news link in the header, the bar has it", async () => {
+      mocks.getActor.mockResolvedValue(as("user"));
+      mocks.pathname = "/news/jak-zbierac-miejsca";
+
+      const html = await shell();
+
+      expect(hrefs(header(html))).toEqual(["/"]);
+      expect(hrefs(nav(html)).at(-1)).toBe("/news");
+      expect(nav(html)).toMatch(/aria-current="page" href="\/news"/);
+    });
+
+    it("gives an account that has not accepted the terms neither the news link nor the bar", async () => {
+      mocks.getActor.mockResolvedValue(as("user"));
+      mocks.termsAccepted = false;
+
+      const html = await shell();
+
+      expect(hrefs(header(html))).toEqual(["/"]);
+      expect(html).not.toContain('aria-label="Główna"');
+    });
+
+    it("links the header of a signed-in explorer to the start page only (the rest is a form)", async () => {
+      mocks.getActor.mockResolvedValue(as("user"));
+
+      expect(hrefs(header(await shell()))).toEqual(["/"]);
+    });
+
+    it("keeps the first four items of the bar in the order of the screens", async () => {
+      mocks.getActor.mockResolvedValue(as("user"));
+
+      expect(hrefs(nav(await shell())).slice(0, 4)).toEqual([
+        "/",
+        "/my/collections",
+        "/my/want-to-see",
+        "/my",
+      ]);
+    });
+
+    it("draws the bar of a signed-in explorer on a public page with the start item current", async () => {
+      mocks.getActor.mockResolvedValue(as("user"));
+      mocks.pathname = "/collections/demo";
+
+      expect(nav(await shell())).toMatch(/aria-current="page" href="\/"/);
+    });
   });
 
   it("offers the switch to the other theme in the header, also for a guest", async () => {
