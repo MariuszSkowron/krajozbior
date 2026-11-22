@@ -16,6 +16,7 @@
 #   ... wdroz.ps1 -Admin | -Diagnoza | -Otworz | -OdtworzKopie
 #   ... wdroz.ps1 -Import <full path of a *-public.ndjson file> [-OrgSlug <slug>]
 #   ... wdroz.ps1 -Aktualnosci <full path of an aktualnosci-<name>.ndjson file>   news of the team
+#   ... wdroz.ps1 -Zdjecia [-Limit <n>] [-PonowBledy] [-OdtworzBrakujace]   photos from Commons
 # Without -Commit the newest origin/main is used.
 # Keep this file ASCII-only (Windows PowerShell 5.1 reads BOM-less files as ANSI).
 param(
@@ -28,7 +29,11 @@ param(
   [switch]$OdtworzKopie,
   [string]$Aktualnosci = '',
   [string]$Import = '',
-  [string]$OrgSlug = ''
+  [string]$OrgSlug = '',
+  [switch]$Zdjecia,
+  [int]$Limit = 0,
+  [switch]$PonowBledy,
+  [switch]$OdtworzBrakujace
 )
 
 Set-StrictMode -Version Latest
@@ -43,10 +48,15 @@ if ($Otworz) { $modes += 'otworz' }
 if ($OdtworzKopie) { $modes += 'odtworz' }
 if ($Aktualnosci -ne '') { $modes += 'aktualnosci' }
 if ($Import -ne '') { $modes += 'import' }
+if ($Zdjecia) { $modes += 'zdjecia' }
 if ($modes.Count -gt 1) { throw 'Podaj jeden tryb naraz.' }
 if ($OrgSlug -ne '' -and $Import -eq '') { throw '-OrgSlug dziala tylko z -Import <plik>.' }
+if (($Limit -ne 0 -or $PonowBledy -or $OdtworzBrakujace) -and -not $Zdjecia) {
+  throw '-Limit, -PonowBledy i -OdtworzBrakujace dzialaja tylko z -Zdjecia.'
+}
+if ($Limit -ne 0 -and ($Limit -lt 1 -or $Limit -gt 5000)) { throw '-Limit musi byc liczba od 1 do 5000.' }
 if ($modes.Count -eq 0) {
-  if ($Commit -eq '') { throw 'Podaj -Commit <sha> albo tryb (-Bootstrap, -Initial, -Admin, -Diagnoza, -Otworz, -OdtworzKopie, -Aktualnosci <plik>, -Import <plik>).' }
+  if ($Commit -eq '') { throw 'Podaj -Commit <sha> albo tryb (-Bootstrap, -Initial, -Admin, -Diagnoza, -Otworz, -OdtworzKopie, -Aktualnosci <plik>, -Import <plik>, -Zdjecia).' }
   $modes = @('commit')
 }
 $mode = $modes[0]
@@ -101,6 +111,11 @@ if ($mode -eq 'aktualnosci') {
 if ($mode -eq 'import') {
   $deployArgs += @('-ImportFile', $Import)
   if ($OrgSlug -ne '') { $deployArgs += @('-OrgSlug', $OrgSlug) }
+}
+if ($mode -eq 'zdjecia') {
+  if ($Limit -ne 0) { $deployArgs += @('-PhotoLimit', [string]$Limit) }
+  if ($PonowBledy) { $deployArgs += '-PhotoRetryFailed' }
+  if ($OdtworzBrakujace) { $deployArgs += '-PhotoRefetchMissing' }
 }
 & powershell @deployArgs
 exit $LASTEXITCODE

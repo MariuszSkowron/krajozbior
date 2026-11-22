@@ -647,3 +647,38 @@ function Format-ImportSummary([string]$line) {
   }
   return $null
 }
+
+# --- Mode zdjecia: photos from Wikimedia Commons (spec 5.11.5, E4-2z) ---------------------------
+
+# Same bounds as photos:fetch (MAX_LIMIT).
+function Test-PhotoLimit([int]$value) { return ($value -ge 1 -and $value -le 5000) }
+
+# Reason stored for ever in the operations audit: fixed text, no file name, no e-mail.
+function New-PhotosReason {
+  $reason = 'Pobranie zdjec z Commons'
+  if (-not (Test-AuditReason $reason)) { throw 'Powod nie nadaje sie do dziennika.' }
+  return $reason
+}
+
+# One Polish line for the summary line of photos:fetch (JSON on standard output), or $null for any
+# other line. Numbers and reason codes only (the JSON holds no file name, address or title).
+function Format-PhotosSummary([string]$line) {
+  $text = $line.Trim()
+  if (-not $text.StartsWith('{"outcome"')) { return $null }
+  try { $o = $text | ConvertFrom-Json } catch { return $null }
+  if ([string](Get-JsonField $o 'outcome') -ne 'applied') { return $null }
+  $summary = "Pobrane zdjecia: $(Get-JsonField $o 'fetched'). Nieudane: $(Get-JsonField $o 'failed')"
+  $reasons = Get-JsonField $o 'reasons'
+  if ($null -ne $reasons -and @($reasons.PSObject.Properties).Count -gt 0) {
+    $summary += " (powody: $(Format-JsonCounts $reasons))"
+  }
+  $summary += ". Pominiete: $(Get-JsonField $o 'skipped'). Zostalo do pobrania: $(Get-JsonField $o 'remaining')"
+  $requeued = Get-JsonField $o 'requeued'
+  if ($null -ne $requeued -and [int]$requeued -gt 0) { $summary += ". Przywrocone do kolejki: $requeued" }
+  $summary += '.'
+  if ($null -ne (Get-JsonField $o 'stoppedBy')) {
+    $summary += ' Pobieranie wstrzymane: za malo wolnego miejsca na dysku albo nie da sie go odczytac.'
+  }
+  elseif ([int](Get-JsonField $o 'remaining') -gt 0) { $summary += ' Uruchom polecenie ponownie.' }
+  return $summary
+}

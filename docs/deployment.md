@@ -27,7 +27,8 @@ Usługi `db` (PostgreSQL 17), `app`, `proxy` (Caddy, `deploy/Caddyfile`) i jedno
   - `auth:create-admin`: `DATABASE_OPS_URL`, `DATABASE_AUTH_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `AUTH_CLIENT_IP_HEADER` (hasło konta podajesz w poleceniu, nie w pliku);
   - `auth:throttle`: `DATABASE_AUTH_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `AUTH_CLIENT_IP_HEADER`;
   - `news:import`: `DATABASE_OPS_URL`, `BETTER_AUTH_URL` (tylko tryb serwera, uruchamiany przez `-Aktualnosci`, niżej);
-  - `catalog:import`: `DATABASE_URL`, `DATABASE_OPS_URL`, `BETTER_AUTH_URL` (tylko tryb serwera, uruchamiany przez `-Import`, niżej).
+  - `catalog:import`: `DATABASE_URL`, `DATABASE_OPS_URL`, `BETTER_AUTH_URL` (tylko tryb serwera, uruchamiany przez `-Import`, niżej);
+  - `photos:fetch`: `DATABASE_OPS_URL`, `BETTER_AUTH_URL` (uruchamiany przez `-Zdjecia`, niżej; zmienna katalogu zdjęć przychodzi z `environment:` usługi `ops`, nie z pliku operatora).
 
   Kontener `ops` działa z `NODE_ENV=production` (`deploy/compose.yaml`), a wtedy odczyt ustawień logowania wymaga `BETTER_AUTH_URL` (https) i, przy adresie publicznym, `AUTH_CLIENT_IP_HEADER`; bez nich oba polecenia odmawiają z nazwą brakującej zmiennej. Obie zmienne mają mieć te same wartości co w `.env.production`. Zestaw ten pilnuje test `tests/lib/config/operator-env.test.ts`: przy zmianie listy zmień go razem z dokumentacją.
 
@@ -79,6 +80,7 @@ Tryby (`powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.config\krajo
 | `-OdtworzKopie`  | właściciel wkleja klucz kopii; najnowsza kopia jest odtwarzana w jednorazowym kontenerze bez sieci (klucz tylko w `/run`, kasowany zaraz po)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `-Aktualnosci`   | publikacja aktualności redakcji z pliku `-Aktualnosci <plik>`: podgląd, pytanie „tak/nie”, zapis całego pliku albo nic; tylko hasło roli `ops` (sekcja „Publikowanie aktualności” niżej)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `-Import <plik>` | wgranie kolekcji z pliku jako szkiców: podgląd, pytanie „tak/nie”, wgranie; plik żyje na serwerze tylko na czas jednego polecenia (sekcja „Wgrywanie kolekcji” niżej)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `-Zdjecia`       | pobranie zdjęć z Wikimedia Commons (`photos:fetch` w kontenerze `ops`, tylko hasło roli `ops`, bez pytania; sekcja „Pobieranie zdjęć z Commons” niżej)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 Zasady wspólne:
 
@@ -129,6 +131,24 @@ powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.config\krajozbior-de
 6. **Raport:** oba połączenia w jednym pliku raportu trybu (`<data>-import.log` w folderze raportów); adres kuratora jest maskowany i nie trafia do raportu.
 
 Wymagania na serwerze: pierwsze wdrożenie za sobą, konto kuratora i organizacja istnieją (`-Admin`), a działająca wersja ma kod F-K6 (migracja dziennika i obraz `ops`). Starsza wersja odmawia przed zapisem pliku („najpierw wdróż commit z F-K6”). `ImportDir` dopisuje `new-deploy-secrets.ps1 -OdswiezWdroz -ImportDir <folder>` (istniejącego wpisu nie zmienia). Pokaz (`-Target showcase`) nie zna tego trybu.
+
+### Pobieranie zdjęć z Commons (`-Zdjecia`)
+
+Po wgraniu kolekcji (`-Import`) wiersze zdjęć czekają w bazie w stanie „do pobrania”. Ten tryb uruchamia na serwerze `photos:fetch` w kontenerze `ops`: polecenie pobiera z Wikimedia Commons zdjęcia dla tych wierszy, przetwarza je i zapisuje w wolumenie `krajozbior-media` (wolumen wprowadza E4-0b1).
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.config\krajozbior-deploy\wdroz.ps1" -Zdjecia [-Limit <n>] [-PonowBledy] [-OdtworzBrakujace]
+```
+
+- Jedno połączenie, **bez pytania „tak/nie”**: polecenie tylko dodaje pliki dla wierszy, które już są w bazie, i można je powtarzać. Poza hasłem wdrożeniowym (magazyn, potem klucz) tryb nic nie pyta.
+- W ładunku jest **wyłącznie hasło roli `ops`** (bez hasła roli `owner`): tak jak `-Import`, najmniej uprawnień. Plik operatora dostaje tylko `DATABASE_OPS_URL` i `BETTER_AUTH_URL`.
+- Do dziennika operacji idzie wpis `photos_fetch` z operatorem `wlasciciel`, powodem „Pobranie zdjec z Commons” i samymi liczbami.
+- `-Limit <n>` (1–5000) zmienia liczbę zdjęć w jednym uruchomieniu; bez niego działa domyślny limit polecenia, dobrany tak, by jedno uruchomienie trwało rzędu 10 minut (hasło roli `ops` leży w pliku operatora przez cały czas polecenia). `-PonowBledy` próbuje ponownie zdjęcia, które wcześniej się nie pobrały; `-OdtworzBrakujace` ustawia znów „do pobrania” wiersze, których pliku nie ma na dysku (odtworzenie po utracie wolumenu).
+- Podsumowanie po polsku z wiersza JSON polecenia: pobrane, nieudane (z kodami powodów), pominięte, zostało do pobrania; gdy coś zostało, skrypt mówi „uruchom polecenie ponownie”. Kod 3 polecenia („poprzednie pobieranie jeszcze trwa”) oznacza, że działa wspólna blokada doradcza: poczekaj i powtórz.
+- Wymagania na serwerze: pierwsze wdrożenie za sobą, a działająca wersja ma `photos:fetch` w `package.json` i `MEDIA_ROOT` w `deploy/compose.yaml` (wolumen zdjęć usługi `ops`). Starsza wersja odmawia przed uruchomieniem polecenia („najpierw wdróż commit…”).
+- Porządkowanie plików (`photos:sweep`) nie jest częścią tego trybu w E4-2z: polecenie powstaje w osobnej fazie, a po `-Commit` nie uruchamia się nigdy, bo tryb `-Commit` nie ma hasła `ops` (A-B3).
+- Raport: `<data>-zdjecia.log` w folderze raportów. Pokaz (`-Target showcase`) nie zna tego trybu.
+- Nowa wersja `wdroz.ps1` (z przełącznikiem `-Zdjecia`): właściciel odświeża ją poleceniem `new-deploy-secrets.ps1 -OdswiezWdroz` (jedno odświeżenie wystarcza także dla `-Import`).
 
 ### Próba generalna na pokazie
 

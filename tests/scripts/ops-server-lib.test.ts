@@ -150,6 +150,7 @@ const OPS_ENV: Record<string, string[]> = {
   ],
   "news:import": ["DATABASE_OPS_URL", "BETTER_AUTH_URL"],
   "catalog:import": ["DATABASE_URL", "DATABASE_OPS_URL", "BETTER_AUTH_URL"],
+  "photos:fetch": ["DATABASE_OPS_URL", "BETTER_AUTH_URL"],
   "legal:final": [],
 };
 
@@ -929,6 +930,138 @@ describe("mode aktualnosci: news file to the server (remote.sh, E7-R2b)", () => 
 
     expect(start).toBeGreaterThan(0);
     expect(text.slice(start, text.indexOf("kz_main() {", start))).toMatch(/^[\t\n\x20-\x7e]*$/);
+  });
+});
+
+describe("mode zdjecia: photos from Commons (remote.sh, E4-2z)", () => {
+  // Owner password absent on purpose: the mode gets only the ops role password (least privilege).
+  const PHOTOS_ENV = {
+    KZ_REASON: "Pobranie zdjec z Commons",
+    KZ_SITE_HOST: "krajozbior.example",
+    KZ_OPS_PW: PAYLOAD_SECRETS.KZ_OPS_PW,
+  };
+  // A running version with photos:fetch and the media volume, and the EXIT trap of kz_main.
+  const READY = [
+    'kz_state_set initialized x; kz_state_set current-tag "aaaaaaaaaaaa"',
+    'mkdir -p "$KZ_SRC/deploy"; echo \'"photos:fetch": "tsx x"\' >"$KZ_SRC/package.json"; echo "MEDIA_ROOT: /m" >"$KZ_SRC/deploy/compose.yaml"',
+    "trap kz_cleanup EXIT",
+  ].join("\n");
+  const opsStub = (status: number) => `kz_ops() { echo "ops $*"; return ${status}; }`;
+
+  function runPhotos(env: Record<string, string>, prepare: string) {
+    const box = sandbox(ENV_PRODUCTION);
+    const remote = join(SERVER_DIR, "remote.sh").replaceAll("\\", "/");
+
+    return runLib(`. "${remote}"\n${prepare}\nkz_mode_zdjecia`, {
+      KZ_ROOT: box.root,
+      KZ_RUN: box.run,
+      ...PHOTOS_ENV,
+      ...env,
+    });
+  }
+
+  bashIt("runs photos:fetch with the audit operator and reason, default limit untouched", () => {
+    const result = runPhotos({}, `${READY}\n${opsStub(0)}`);
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain(
+      "ops photos:fetch -- --operator wlasciciel --reason Pobranie zdjec z Commons\n",
+    );
+    expect(result.stdout).not.toContain("--limit");
+    expect(result.stdout).toContain("GOTOWE: pobieranie zakonczone");
+  });
+
+  bashIt("passes the limit and the two switches on, only when asked", () => {
+    const result = runPhotos(
+      { KZ_PHOTO_LIMIT: "50", KZ_PHOTO_RETRY_FAILED: "1", KZ_PHOTO_REFETCH_MISSING: "1" },
+      `${READY}\n${opsStub(0)}`,
+    );
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain("--limit 50 --retry-failed --refetch-missing");
+  });
+
+  bashIt("refuses a bad limit before running anything", () => {
+    for (const limit of ["0", "5001", "abc", "1;rm", "-3"]) {
+      const result = runPhotos({ KZ_PHOTO_LIMIT: limit }, `${READY}\n${opsStub(0)}`);
+
+      expect(result.status, limit).toBe(1);
+      expect(result.stdout, limit).toContain("nieprawidlowy limit zdjec");
+      expect(result.stdout, limit).not.toContain("ops photos:fetch");
+    }
+  });
+
+  bashIt(
+    "code 3 says the previous download is still running; others say it can be repeated",
+    () => {
+      const busy = runPhotos({}, `${READY}\n${opsStub(3)}`);
+      const failed = runPhotos({}, `${READY}\n${opsStub(1)}`);
+
+      // Code 3 keeps its own exit status (not a failure): wdroz.ps1 shows "ZAJETE", not "BLAD".
+      expect(busy.status).toBe(3);
+      expect(busy.stdout).toContain("poprzednie pobieranie jeszcze trwa");
+      expect(busy.stdout).not.toContain("BLAD");
+      expect(failed.status).toBe(1);
+      expect(failed.stdout).toContain("mozna powtorzyc");
+    },
+  );
+
+  bashIt("refuses without the audit reason before running anything", () => {
+    const result = runPhotos({ KZ_REASON: "" }, `${READY}\n${opsStub(0)}`);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("brak powodu do dziennika operacji");
+    expect(result.stdout).not.toContain("ops photos:fetch");
+  });
+
+  bashIt("a switch with any value other than 1 adds no flag", () => {
+    const result = runPhotos(
+      { KZ_PHOTO_RETRY_FAILED: "true", KZ_PHOTO_REFETCH_MISSING: "0" },
+      `${READY}\n${opsStub(0)}`,
+    );
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).not.toContain("--retry-failed");
+    expect(result.stdout).not.toContain("--refetch-missing");
+  });
+
+  bashIt("refuses when the running version lacks photos:fetch or the media volume", () => {
+    const noCommand = runPhotos({}, `${READY}\necho '{}' >"$KZ_SRC/package.json"\n${opsStub(0)}`);
+    const noVolume = runPhotos(
+      {},
+      `${READY}\necho 'services: {}' >"$KZ_SRC/deploy/compose.yaml"\n${opsStub(0)}`,
+    );
+
+    expect(noCommand.status).toBe(1);
+    expect(noCommand.stdout).toContain("Najpierw wdroz commit z E4-2a");
+    expect(noVolume.status).toBe(1);
+    expect(noVolume.stdout).toContain("Najpierw wdroz commit z wolumenem");
+
+    for (const result of [noCommand, noVolume]) {
+      expect(result.stdout).not.toContain("ops photos:fetch");
+    }
+  });
+
+  bashIt("refuses before the first deployment", () => {
+    const result = runPhotos({}, opsStub(0));
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("pierwsze wdrozenie jeszcze sie nie odbylo");
+  });
+
+  bashIt("the real kz_ops writes ops.env with the ops URL and the site URL only (no owner)", () => {
+    // The owner password is in the environment on purpose: only the list in kz_ops_env_vars keeps it
+    // out of ops.env.
+    const result = runPhotos(
+      { KZ_OWNER_PW: PAYLOAD_SECRETS.KZ_OWNER_PW },
+      `${READY}\nkz_compose() { echo "compose $*"; echo "ops.env: $(cut -d= -f1 "$KZ_OPS_ENV" | tr '\\n' ' ')"; echo "ops.env body: $(cat "$KZ_OPS_ENV")"; }`,
+    );
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain("run --rm -T ops npm run --silent photos:fetch -- --operator");
+    expect(result.stdout).toMatch(/ops\.env: DATABASE_OPS_URL BETTER_AUTH_URL \n/);
+    expect(result.stdout).toContain("ops.env body: DATABASE_OPS_URL=");
+    expect(result.stdout).not.toContain(PAYLOAD_SECRETS.KZ_OWNER_PW);
   });
 });
 

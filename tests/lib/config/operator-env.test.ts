@@ -36,10 +36,16 @@ const CATALOG_IMPORT_VARIABLES = ["DATABASE_URL", "DATABASE_OPS_URL", "BETTER_AU
 // writes the command, confirms the set (it may add a variable, never drop DATABASE_OPS_URL).
 const NEWS_IMPORT_VARIABLES = ["DATABASE_OPS_URL", "BETTER_AUTH_URL"] as const;
 
+// `photos:fetch` (E4-2z, run by `wdroz.ps1 -Zdjecia`): ops role (DATABASE_OPS_URL) and the site
+// address for the User-Agent (BETTER_AUTH_URL). MEDIA_ROOT comes from `environment:` of the `ops`
+// service, not from ops.env.
+const PHOTOS_FETCH_VARIABLES = ["DATABASE_OPS_URL", "BETTER_AUTH_URL"] as const;
+
 const DOCUMENTED_VARIABLES: Record<string, readonly string[]> = {
   ...OPERATOR_VARIABLES,
   "news:import": NEWS_IMPORT_VARIABLES,
   "catalog:import": CATALOG_IMPORT_VARIABLES,
+  "photos:fetch": PHOTOS_FETCH_VARIABLES,
 };
 
 // Dummy values, only for this test.
@@ -114,12 +120,26 @@ describe("operator file variables (NODE_ENV=production)", () => {
     expect(() => parseOpsEnv(without)).toThrow("DATABASE_OPS_URL");
   });
 
+  it("photos:fetch: the documented set satisfies the operator role settings", () => {
+    expect(() => parseOpsEnv(productionEnv(PHOTOS_FETCH_VARIABLES))).not.toThrow();
+  });
+
+  it("photos:fetch: without DATABASE_OPS_URL the command refuses with its name", () => {
+    expect(() =>
+      parseOpsEnv(
+        productionEnv(PHOTOS_FETCH_VARIABLES.filter((name) => name !== "DATABASE_OPS_URL")),
+      ),
+    ).toThrow("DATABASE_OPS_URL");
+  });
+
   it("matches the lists in docs/deployment.md and in lib.sh", () => {
     const doc = readFileSync(resolve(process.cwd(), "docs/deployment.md"), "utf8");
     const lib = readFileSync(resolve(process.cwd(), "scripts/ops/server/lib.sh"), "utf8");
 
     expect(lib).toContain(`catalog:import) echo "${CATALOG_IMPORT_VARIABLES.join(" ")}" ;;`);
     expect(lib).toContain(`news:import) echo "${NEWS_IMPORT_VARIABLES.join(" ")}" ;;`);
+
+    expect(lib).toContain(`photos:fetch) echo "${PHOTOS_FETCH_VARIABLES.join(" ")}" ;;`);
 
     for (const [command, names] of Object.entries(DOCUMENTED_VARIABLES)) {
       const line = doc.split("\n").find((row) => row.trimStart().startsWith(`- \`${command}\`:`));

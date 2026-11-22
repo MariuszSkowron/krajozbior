@@ -734,6 +734,71 @@ describe("mode aktualnosci: checks on the owner's computer (E7-R2b)", () => {
   );
 });
 
+describe("mode zdjecia: photos from Commons (E4-2z)", () => {
+  psIt("summarises the JSON line of photos:fetch in Polish, ignores other lines", () => {
+    const done = JSON.stringify({
+      outcome: "applied",
+      fetched: 120,
+      failed: 3,
+      skipped: 0,
+      remaining: 177,
+      reasons: { not_found: 2, too_large: 1 },
+      requeued: 0,
+    });
+
+    expect(psJson<string>(`Format-PhotosSummary ${psString(done)}`)).toBe(
+      "Pobrane zdjecia: 120. Nieudane: 3 (powody: not_found=2, too_large=1). Pominiete: 0. Zostalo do pobrania: 177. Uruchom polecenie ponownie.",
+    );
+    expect(
+      psJson<string>(
+        `Format-PhotosSummary ${psString(JSON.stringify({ outcome: "applied", fetched: 5, failed: 0, skipped: 0, remaining: 0, reasons: {}, requeued: 4 }))}`,
+      ),
+    ).toBe(
+      "Pobrane zdjecia: 5. Nieudane: 0. Pominiete: 0. Zostalo do pobrania: 0. Przywrocone do kolejki: 4.",
+    );
+    expect(
+      psJson<string>(
+        `Format-PhotosSummary ${psString(JSON.stringify({ outcome: "applied", fetched: 1, failed: 0, skipped: 9, remaining: 9, reasons: {}, stoppedBy: "space_unreadable" }))}`,
+      ),
+    ).toContain("za malo wolnego miejsca");
+    // Stopped for lack of space: no "run again" (the owner writes to the agent instead).
+    expect(
+      psJson<string>(
+        `Format-PhotosSummary ${psString(JSON.stringify({ outcome: "applied", fetched: 1, failed: 0, skipped: 9, remaining: 9, reasons: {}, stoppedBy: "space_unreadable" }))}`,
+      ),
+    ).not.toContain("Uruchom polecenie ponownie");
+    expect(ps("$null -eq (Format-PhotosSummary '[krajozbior] GOTOWE')").stdout).toBe("True");
+    expect(ps('$null -eq (Format-PhotosSummary \'{"outcome":"preview"}\')').stdout).toBe("True");
+  });
+
+  psIt("limit bounds and a fixed audit reason without an e-mail", () => {
+    expect(
+      psJson<boolean[]>(
+        "@((Test-PhotoLimit 1), (Test-PhotoLimit 5000), (Test-PhotoLimit 0), (Test-PhotoLimit 5001))",
+      ),
+    ).toEqual([true, true, false, false]);
+    expect(psJson<string>("New-PhotosReason")).toBe("Pobranie zdjec z Commons");
+  });
+
+  it("the mode takes only the ops password; wdroz.ps1 passes the options on and checks them", () => {
+    const deploy = withoutComments(readFileSync(join(OPS_DIR, "deploy.ps1"), "utf8"));
+    const starter = withoutComments(readFileSync(join(OPS_DIR, "wdroz.template.ps1"), "utf8"));
+    const mode = deploy.slice(deploy.indexOf("  'zdjecia' {"), deploy.indexOf("  'odtworz' {"));
+
+    expect(mode).toContain("Add-Secret 'KZ_OPS_PW' $vault.Ops");
+    expect(mode).not.toContain("KZ_OWNER_PW");
+    expect(mode).not.toContain("Read-YesNo");
+    expect(deploy).toContain("'import', 'zdjecia'");
+    // Exit code 3 of the mode is "busy", not an error; a stop for lack of space has its own message.
+    expect(deploy).toContain("ZAJETE (kod 3)");
+    expect(deploy).toContain("Napisz agentowi: miejsce.");
+    expect(starter).toContain("'-PhotoLimit'");
+    expect(starter).toContain("'-PhotoRetryFailed'");
+    expect(starter).toContain("'-PhotoRefetchMissing'");
+    expect(starter).toContain("-Limit, -PonowBledy i -OdtworzBrakujace dzialaja tylko z -Zdjecia");
+  });
+});
+
 describe("report masking (Protect-ReportLine)", () => {
   psIt("masks secrets, the server address, e-mail and IP addresses", () => {
     const result = ps(
@@ -987,7 +1052,15 @@ describe("target showcase (rehearsal on the local showcase)", () => {
       expect(result.stderr, call).toContain("nie uzywa folderu sekretow");
     }
 
-    for (const mode of ["bootstrap", "admin", "diagnoza", "otworz", "odtworz", "import"]) {
+    for (const mode of [
+      "bootstrap",
+      "admin",
+      "diagnoza",
+      "otworz",
+      "odtworz",
+      "import",
+      "zdjecia",
+    ]) {
       const result = ps(`Assert-DeployTarget 'showcase' '${mode}' '' ''`);
 
       expect(result.status, mode).not.toBe(0);
