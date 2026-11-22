@@ -305,6 +305,8 @@ try {
     EMAIL_OUTBOX_DIR        = '.data/e2e-email-outbox'
     EMAIL_OUTBOX_TEST_ONLY  = '1'
     EMAIL_FROM              = 'noreply@krajozbior.local'
+    # Photo files of the E2E specs (e2e/commons-photos.spec.ts writes them here), like playwright.config.ts.
+    MEDIA_ROOT              = '.data/e2e-media'
     E2E_PORT                = "$appPort"
     TEST_DATABASE_URL       = "postgres://${IntAdminUser}:$($s.IntAdmin)@127.0.0.1:$intPort/$IntDatabase"
   }

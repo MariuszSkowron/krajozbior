@@ -52,6 +52,42 @@ function errorsOf(content: string, profile?: ImportProfile): readonly ImportFile
 const has = (errors: readonly ImportFileError[], line: number | null, path: string, code: string) =>
   errors.some((error) => error.line === line && error.path === path && error.code === code);
 
+describe("access restriction of a place (E1-S11)", () => {
+  const withRestriction = (value: unknown) =>
+    edited((items) => {
+      items[4]!.access = { ...items[4]!.access, restriction: value };
+    });
+
+  it("defaults to none when the record has no field", () => {
+    const result = parseImportFile(fullFile);
+
+    expect(result.ok && result.places.map((item) => item.input.accessRestriction)).toEqual([
+      "none",
+      "none",
+      "none",
+    ]);
+  });
+
+  it.each(["none", "private", "fenced", "ruin"])("accepts %s in both profiles", (value) => {
+    for (const profile of ["full", "public"] as const) {
+      const base = profile === "full" ? fullFile : publicFile;
+      const content = edited((items) => {
+        items[4]!.access = { ...items[4]!.access, restriction: value };
+      }, base);
+      const result = parseImportFile(content, { profile });
+
+      expect(result.ok && result.places[1]?.input.accessRestriction).toBe(value);
+    }
+  });
+
+  it("refuses an unknown value with the path of the field and no text from the file", () => {
+    const errors = errorsOf(withRestriction("zamkniete"));
+
+    expect(errors.some((error) => error.line === 5 && error.path.startsWith("access"))).toBe(true);
+    expect(JSON.stringify(errors)).not.toContain("zamkniete");
+  });
+});
+
 describe("the fixtures", () => {
   it("full fixture passes and is normalized for the loader", () => {
     const result = parseImportFile(fullFile);
@@ -615,6 +651,61 @@ describe("place record", () => {
 
     expect(has(errors, 4, "image.mime", "bad_value")).toBe(true);
     expect(has(errors, 4, "image.width", "length_or_range")).toBe(true);
+  });
+});
+
+describe("the image block of a place (E4-2a)", () => {
+  it("is accepted by the public profile too and reaches the loader normalized", () => {
+    const withImage = edited((items) => {
+      const place = items[3]!;
+
+      place.image = JSON.parse(
+        fullFile.split("\n").find((line) => line.includes('"image"'))!,
+      ).image;
+      place.image.license_short = "CC BY-SA 3.0 pl";
+      place.image.license_url = "https://creativecommons.org/licenses/by-sa/3.0/pl/deed.en";
+      place.image.width = 3660;
+      delete place.review.flags;
+      delete place.source_refs;
+      delete place.notes;
+    }, publicFile);
+
+    const result = parseImportFile(withImage, { profile: "public" });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    expect(result.places[0]).toMatchObject({
+      imageSkipped: false,
+      image: {
+        commonsFile: "Miejsce testowe pierwsze.jpg",
+        sourceWidth: 3660,
+        authorUrl: null,
+        license: {
+          code: "cc-by-sa-3.0",
+          label: "CC BY-SA 3.0 PL",
+          url: "https://creativecommons.org/licenses/by-sa/3.0/pl/",
+        },
+      },
+    });
+    expect(result.places[1]).toMatchObject({ image: null, imageSkipped: false });
+  });
+
+  it("marks a licence outside the list as skipped without refusing the file", () => {
+    const content = edited((items) => {
+      items[3]!.image.license_short = "CC BY-NC 4.0";
+      items[3]!.image.license_url = "https://creativecommons.org/licenses/by-nc/4.0";
+    });
+    const result = parseImportFile(content);
+
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      expect(result.places[0]).toMatchObject({ image: null, imageSkipped: true });
+    }
   });
 });
 

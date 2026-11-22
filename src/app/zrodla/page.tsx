@@ -96,6 +96,24 @@ export default function SourcesPage() {
         </p>
       </section>
 
+      <section aria-labelledby="zdjecia" className={styles.section}>
+        <h2 id="zdjecia">Zdjęcia z Wikimedia Commons</h2>
+        <p>
+          Zdjęcia miejsc pochodzą z{" "}
+          <a href="https://commons.wikimedia.org/" rel="noopener noreferrer">
+            Wikimedia Commons
+          </a>
+          , wolnego zbioru plików. Każde zdjęcie ma własnego autora i własną licencję, na przykład
+          CC BY-SA albo CC BY. Pod zdjęciem na stronie miejsca podajemy autora, tytuł (jeśli jest),
+          odnośnik do strony pliku w Commons i licencję z odnośnikiem do jej dokładnej wersji.
+        </p>
+        <p>
+          Zmniejszamy zdjęcia i zapisujemy je w formacie WebP, żeby szybko się ładowały; poza tym
+          nie przerabiamy ich. Zdjęcia na licencji CC BY-SA udostępniamy dalej na tej samej
+          licencji.
+        </p>
+      </section>
+
       <section aria-labelledby="opisy" className={styles.section}>
         <h2 id="opisy">Opisy miejsc</h2>
         <p>

@@ -82,7 +82,30 @@ async function populate(user: { id: string; email: string }) {
   // The acceptance of the terms (F-K3): evidence that goes with the account.
   await as(user, `insert into public.terms_acceptance (terms_version) values ('0.2')`);
   // A membership of its own organization, with a colleague, so the account may go.
-  await f.newOrganization(`Gmina ${user.id}`, `gmina-${user.id}`, [user, orgOwner]);
+  const ownOrganization = await f.newOrganization(`Gmina ${user.id}`, `gmina-${user.id}`, [
+    user,
+    orgOwner,
+  ]);
+
+  // An official photo whose rights statement the account filed (E4-2a): the photo stays when the
+  // account goes, `created_by` is cleared (the superuser prepares it; the app role cannot name it).
+  const [{ id: photoPlaceId }] = await admin$<{ id: string }>(
+    `insert into public.places (organization_id, name, latitude, longitude)
+     values ($1, 'Miejsce ze zdjęciem', 54.1, 18.7) returning id`,
+    [ownOrganization],
+  );
+
+  await admin$(
+    `insert into public.place_photos
+       (organization_id, place_id, position, file_state, alt_text, source_kind, author_text,
+        source_url, license_code, license_url, license_label, rights_statement, commons_file,
+        created_by)
+     values ($1, $2, 1, 'pending_fetch', 'Opis', 'commons_import', 'Autor',
+             'https://commons.wikimedia.org/wiki/File:X.jpg', 'cc-by-4.0',
+             'https://creativecommons.org/licenses/by/4.0/', 'CC BY 4.0', 'commons-import/1',
+             'X.jpg', $3)`,
+    [ownOrganization, photoPlaceId, user.id],
+  );
   await admin$(
     `insert into auth.sessions (expires_at, token, user_id) values (now() + interval '1 day', $1, $2)`,
     [randomUUID(), user.id],
