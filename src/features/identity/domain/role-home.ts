@@ -15,3 +15,18 @@ const roleHomes: Record<Role, string> = {
 export function roleHome(role: Role): string {
   return roleHomes[role];
 }
+
+// Where a signed-in account lands right after signing in. A returnTo that already
+// passed return-to.ts wins; otherwise a curator (an account with an approved
+// organization) goes to the panel and everyone else to the account view. The panel
+// still checks the membership itself, so this only chooses a page.
+export function signInDestination({
+  returnTo,
+  isCurator,
+}: Readonly<{ returnTo: string | null; isCurator: boolean }>): string {
+  if (returnTo !== null) {
+    return returnTo;
+  }
+
+  return isCurator ? "/curator" : "/my";
+}
