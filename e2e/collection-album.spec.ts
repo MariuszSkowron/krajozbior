@@ -4,6 +4,7 @@ import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
+import { expectScrollKept } from "./scroll-support";
 
 // E12-4: the collection page as an album: header, state filter (works without JavaScript),
 // grid of cards (a card is a plain link to the place; the selected-place card is gone, D-49). Needs a
@@ -258,34 +259,19 @@ test.describe("the collection as an album", () => {
 
     const before = await page.evaluate(() => window.scrollY);
 
-    // A shorter list lets the browser clamp scrollY to the new maximum, so the check is: the page did
-    // not jump to the top, and scrollY equals the old value or the largest value the page still allows.
-    async function expectScrollKept(previous: number) {
-      const { y, max } = await page.evaluate(() => ({
-        y: window.scrollY,
-        max: document.documentElement.scrollHeight - window.innerHeight,
-      }));
-
-      expect(y).toBeGreaterThan(0);
-      expect(y).toBeLessThanOrEqual(previous + 2);
-      // A small margin for the sticky header and layout settling after the shorter list renders.
-      expect(y).toBeGreaterThanOrEqual(Math.min(previous, max) - 24);
-      await expect(nav).toBeInViewport();
-    }
-
     expect(before).toBeGreaterThan(0);
     await nav.getByRole("link", { name: "Odwiedzone (1)" }).click();
     await expect(page).toHaveURL(/\?stan=odwiedzone$/);
     await expect(card(page, /./)).toHaveCount(1);
     // Let a possible scroll to the top happen before the check.
     await page.waitForTimeout(300);
-    await expectScrollKept(before);
+    await expectScrollKept(page, nav, before);
 
     await nav.getByRole("link", { name: "Do odwiedzenia (2)" }).click();
     await expect(page).toHaveURL(/\?stan=do-odwiedzenia$/);
     await expect(card(page, /./)).toHaveCount(2);
     await page.waitForTimeout(300);
-    await expectScrollKept(before);
+    await expectScrollKept(page, nav, before);
     await page.context().close();
   });
 
