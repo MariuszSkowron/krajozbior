@@ -588,6 +588,9 @@ function mapOutcome(
             ...summary,
             collectionStates: outcome.preview.collections,
             placeStates: outcome.preview.places,
+            ...(Object.keys(outcome.preview.photos ?? {}).length > 0
+              ? { photoStates: outcome.preview.photos }
+              : {}),
             orphanedKeys: outcome.preview.orphanedKeys,
             collectionLimitExceeded: outcome.preview.collectionLimitExceeded,
             ...(outcome.preview.publishable === undefined
@@ -610,6 +613,7 @@ function mapOutcome(
       const publicationRefused = outcome.collections.filter((c) => c.publication === "refused");
       const counts: Record<string, number> = {};
       const placeCounts: Record<string, number> = {};
+      const photoCounts: Record<string, number> = {};
       const publicationCounts: Record<string, number> = {};
 
       for (const collection of outcome.collections) {
@@ -622,6 +626,10 @@ function mapOutcome(
 
         for (const place of collection.places) {
           placeCounts[place.result] = (placeCounts[place.result] ?? 0) + 1;
+
+          for (const photo of place.photos ?? []) {
+            photoCounts[photo] = (photoCounts[photo] ?? 0) + 1;
+          }
         }
       }
 
@@ -636,6 +644,7 @@ function mapOutcome(
             ...summary,
             collectionResults: counts,
             placeResults: placeCounts,
+            ...(Object.keys(photoCounts).length > 0 ? { photoResults: photoCounts } : {}),
             ...(Object.keys(publicationCounts).length > 0
               ? { publicationResults: publicationCounts }
               : {}),

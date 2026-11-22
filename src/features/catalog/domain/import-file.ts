@@ -18,6 +18,10 @@ import {
 } from "@/features/catalog/domain/place";
 import type { PlaceField, PlaceInput } from "@/features/catalog/domain/place";
 import {
+  normalizeCommonsLicense,
+  type NormalizedLicense,
+} from "@/features/catalog/domain/commons-license";
+import {
   ATTRIBUTION_MAX_LENGTH,
   composeAttribution,
 } from "@/features/catalog/domain/place-sources";
@@ -199,9 +203,10 @@ function placeSchema(profile: ImportProfile) {
           flags: z.array(z.string().max(200)).max(MAX_FLAGS).optional(),
         })
       : z.strictObject(reviewShape),
+    // Zdjęcie z Commons jest też w profilu `public` (E4-2a, Q13 A).
+    image: imageSchema.nullish(),
     ...(full
       ? {
-          image: imageSchema.nullish(),
           source_refs: z
             .array(
               z.strictObject({
@@ -250,6 +255,19 @@ export type ImportCollection = Readonly<{
   publish: boolean;
 }>;
 
+/** Zdjęcie z Commons, jak je loader zapisuje (bez adresu pliku: adres buduje `photos:fetch`). */
+export type ImportImage = Readonly<{
+  commonsFile: string;
+  title: string;
+  pageUrl: string;
+  authorText: string;
+  authorUrl: string | null;
+  /** Szerokość oryginału w pikselach (wybór miniatury przy pobieraniu). */
+  sourceWidth: number;
+  license: NormalizedLicense;
+  retrievedAt: string;
+}>;
+
 export type ImportPlace = Readonly<{
   line: number;
   importKey: string;
@@ -264,6 +282,10 @@ export type ImportPlace = Readonly<{
   wikipediaUrl: string | null;
   retrievedAt: string;
   reviewStatus: "approved" | "approved_in_collection";
+  /** Zdjęcie z poprawną licencją; `null`, gdy brak bloku albo licencji nie da się przyjąć. */
+  image: ImportImage | null;
+  /** Blok `image` jest, ale licencja spoza listy (wynik `skipped_unknown_license`). */
+  imageSkipped: boolean;
 }>;
 
 export type ImportFileResult =
@@ -664,6 +686,10 @@ export function parseImportFile(
   }
 
   for (const { line, record } of placeRecords) {
+    const image = record.image ?? null;
+    const licence =
+      image === null ? null : normalizeCommonsLicense(image.license_short, image.license_url);
+
     places.push({
       line,
       importKey: record.import_key,
@@ -679,6 +705,20 @@ export function parseImportFile(
       wikipediaUrl: record.wikipedia_pl ?? null,
       retrievedAt: record.retrieved_at,
       reviewStatus: record.review.status,
+      image:
+        image !== null && licence !== null && licence.ok
+          ? {
+              commonsFile: image.commons_file,
+              title: image.title,
+              pageUrl: image.page_url,
+              authorText: image.author_text,
+              authorUrl: image.author_url ?? null,
+              sourceWidth: image.width,
+              license: licence.license,
+              retrievedAt: image.retrieved_at,
+            }
+          : null,
+      imageSkipped: image !== null && licence !== null && !licence.ok,
     });
   }
 

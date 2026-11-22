@@ -111,7 +111,7 @@ const counts = async (orgSlug: string) => {
   const [row] = await admin$<{ collections: number; places: number; keys: number }>(
     `select (select count(*)::int from collections c join organizations o on o.id = c.organization_id where o.slug = $1) as collections,
             (select count(*)::int from places p join organizations o on o.id = p.organization_id where o.slug = $1) as places,
-            (select count(*)::int from catalog_import_keys k join organizations o on o.id = k.organization_id where o.slug = $1) as keys`,
+            (select count(*)::int from catalog_import_keys k join organizations o on o.id = k.organization_id where o.slug = $1 and k.entity_kind <> 'photo') as keys`,
     [orgSlug],
   );
 

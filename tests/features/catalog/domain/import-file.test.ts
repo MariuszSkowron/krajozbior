@@ -654,6 +654,61 @@ describe("place record", () => {
   });
 });
 
+describe("the image block of a place (E4-2a)", () => {
+  it("is accepted by the public profile too and reaches the loader normalized", () => {
+    const withImage = edited((items) => {
+      const place = items[3]!;
+
+      place.image = JSON.parse(
+        fullFile.split("\n").find((line) => line.includes('"image"'))!,
+      ).image;
+      place.image.license_short = "CC BY-SA 3.0 pl";
+      place.image.license_url = "https://creativecommons.org/licenses/by-sa/3.0/pl/deed.en";
+      place.image.width = 3660;
+      delete place.review.flags;
+      delete place.source_refs;
+      delete place.notes;
+    }, publicFile);
+
+    const result = parseImportFile(withImage, { profile: "public" });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    expect(result.places[0]).toMatchObject({
+      imageSkipped: false,
+      image: {
+        commonsFile: "Miejsce testowe pierwsze.jpg",
+        sourceWidth: 3660,
+        authorUrl: null,
+        license: {
+          code: "cc-by-sa-3.0",
+          label: "CC BY-SA 3.0 PL",
+          url: "https://creativecommons.org/licenses/by-sa/3.0/pl/",
+        },
+      },
+    });
+    expect(result.places[1]).toMatchObject({ image: null, imageSkipped: false });
+  });
+
+  it("marks a licence outside the list as skipped without refusing the file", () => {
+    const content = edited((items) => {
+      items[3]!.image.license_short = "CC BY-NC 4.0";
+      items[3]!.image.license_url = "https://creativecommons.org/licenses/by-nc/4.0";
+    });
+    const result = parseImportFile(content);
+
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      expect(result.places[0]).toMatchObject({ image: null, imageSkipped: true });
+    }
+  });
+});
+
 describe("source keys", () => {
   it("refuses keys that are not in the batch: description, attribution and references", () => {
     const content = edited((items) => {

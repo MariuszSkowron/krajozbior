@@ -102,7 +102,8 @@ Plik składa się z linii, z których każda to obiekt JSON z polem `type`. Kole
 - **`import_key`**: małe litery, dwukropek, potem litery, cyfry, `_` lub `-` (np. `col:nazwa`, `ext:ABC-0001`). Klucze są unikalne osobno dla kolekcji i miejsc.
 - **`access.restriction`** (E1-S11): opcjonalne, jedna z wartości `none` (domyślnie), `private`, `fenced`, `ruin`. Miejsce z wartością inną niż `none` pokazuje odkrywcy ostrzeżenie o zakazie wchodzenia na teren; punkt potwierdzenia wizyty ustaw wtedy w przestrzeni publicznej (np. przy drodze). Pole jest częścią treści miejsca: ponowne wgranie zmienia je w nietkniętym miejscu, a w miejscu edytowanym ręcznie w panelu zostaje wartość z panelu (`kept_manual_edit`). Nieznana wartość odrzuca plik (kod 2).
 - **`access_info`**: loader skleja `access.note`, pustą linię i `access.warning` w jedno pole „Dostępność”; puste części są pomijane; razem do 1000 znaków.
-- **Pola dodatkowe profilu `full`**: `image` (opis zdjęcia z adresami tylko z dozwolonych serwisów obrazów), `source_refs`, `review.flags` oraz `notes`. `notes` to wyłącznie dane pomocnicze dla przeglądającego: loader ich nie czyta, nie zapisuje i nie wypisuje, a w błędach pojawia się tylko słowo `notes`. Profil `public` tych pól nie dopuszcza.
+- **`image`** (oba profile, od E4-2a): opis zdjęcia z Wikimedia Commons (`commons_file`, `title`, `page_url`, `width`, `author_text`, `license_short`, `license_url` i pozostałe pola) z adresami tylko z dozwolonych serwisów. Loader zapisuje z niego wiersz zdjęcia w stanie `pending_fetch` (bez pliku; plik pobiera `photos:fetch`). Adres pliku z `file_url` nie jest używany ani zapisywany. Licencję wyznacza reguła z sekcji „Zdjęcia z Commons” niżej.
+- **Pola dodatkowe profilu `full`**: `source_refs`, `review.flags` oraz `notes`. `notes` to wyłącznie dane pomocnicze dla przeglądającego: loader ich nie czyta, nie zapisuje i nie wypisuje, a w błędach pojawia się tylko słowo `notes`. Profil `public` tych pól nie dopuszcza.
 - Znaki `<` i zero w tekście są odrzucane. Adresy muszą używać `https`; dozwolone serwery artykułów, zdjęć i licencji są zapisane w walidatorze (`src/features/catalog/domain/import-file.ts`).
 
 ### Kody województw (`region`)
@@ -112,6 +113,25 @@ Plik składa się z linii, z których każda to obiekt JSON z polem `type`. Kole
 ## Wyniki w raporcie
 
 Wgranie: dla kolekcji `created`, `updated`, `noop`, `kept_manual_edit`, `kept_manual_delete`, `skipped_already_published`, `refused`; dla składu kolekcji (listy jej miejsc) `synced`, `noop`, `kept_manual_edit`, `kept_manual_delete` i `skipped_already_published`; dla publikacji `published`, `skipped_already_published`, `kept_manual_edit`, `refused`. Usuwanie: `removed`, `orphan_key_removed`, `kept_published`, `kept_in_collection`, `kept_referenced`, `noop`.
+
+## Zdjęcia z Commons (E4-2a)
+
+**Wgranie bloku `image`.** Dla miejsca z blokiem `image` loader tworzy wiersz zdjęcia (`source_kind = commons_import`, `file_state = pending_fetch`, bez pliku, na końcu listy zdjęć miejsca), z podpisem: autor, tytuł, strona pliku w Commons, kod i dokładna nazwa licencji, adres licencji. Wynik dla zdjęcia (raport: `photos` przy miejscu; podsumowanie: `photoResults`): `created`, `updated`, `noop`, `removed` (blok zniknął z pliku albo zmieniła się nazwa pliku w Commons), `kept_manual_edit` (kurator zmienił wiersz), `kept_manual_delete` (kurator usunął zdjęcie, więc nie wraca), `skipped_unknown_license`. Klucz zdjęcia w `catalog_import_keys` ma rodzaj `photo` i postać `img:` plus skrót z klucza miejsca i nazwy pliku. W dzienniku operacji wpis wyniku ma liczby `photos_created`, `photos_updated`, `photos_removed`, `photos_kept_manual`, `photos_skipped_unknown_license`.
+
+**Reguła licencji.** Adres z pliku nie jest porównywany dosłownie: po przycięciu i zamianie `http://` na `https://` host musi być `creativecommons.org`; odcinane są fragment, zapytanie, końcowy `/` i końcowy segment `deed.<język>` albo `legalcode`; z reszty czytana jest rodzina, wersja i opcjonalny kraj. Rodzina i wersja muszą zgadzać się z `license_short` (przycięty, pojedyncze spacje, wielkie litery). Kraj (dwie litery, tylko wersje 2.0, 2.5, 3.0) musi być w obu miejscach albo w żadnym. Przyjmowane: CC0 1.0, domena publiczna, CC BY i CC BY-SA 2.0, 2.5, 3.0, 4.0 (także wersje krajowe, np. „CC BY-SA 3.0 PL”). Reszta (NC, ND, GFDL, sprzeczność, obcy host) daje `skipped_unknown_license` i wiersz nie powstaje. Do bazy trafia adres kanoniczny z kodu i kraju, nigdy tekst z pliku.
+
+**Pobieranie: `npm run photos:fetch`.** Polecenie operatora (rola `krajozbior_ops`, `DATABASE_OPS_URL`; wymaga `MEDIA_ROOT`):
+
+```
+npm run photos:fetch -- --operator "<etykieta>" --reason "<powód>" [--limit <n>] [--org-slug <slug>] [--retry-failed] [--refetch-missing]
+```
+
+- Adres miniatury buduje samo z nazwy pliku w Commons: `https://upload.wikimedia.org/wikipedia/commons/thumb/{a}/{ab}/{nazwa}/{szerokość}px-{nazwa}`; szerokość to największy standardowy krok (20, 40, 60, 120, 250, 330, 500, 960, 1280, 1920) nie większy niż `min(1920, szerokość oryginału)`. Oryginału nie pobiera.
+- Tylko `https` i host `upload.wikimedia.org`; przekierowań nie śledzi automatycznie, każdy krok (najwyżej 3) musi leżeć na tym samym hoście. Limit 20 MB i 30 s na plik, najwyżej 1 żądanie na sekundę, `429` i `503` czekają według `Retry-After` (najwyżej 5 minut). `User-Agent` zawiera ogólną nazwę klienta i adres strony „Źródła danych”.
+- Typ po zawartości (JPEG, PNG); obróbka biblioteką zdjęć w procesie potomnym (budżet 300 KB, bez progu krótszego boku dla Commons, bez powiększania). Na dysku zostaje tylko przetworzona kopia (`main` i `w400`).
+- Jedna próba na wiersz w jednym przebiegu; trzecia nieudana próba daje `fetch_failed` (zdjęcie niewidoczne). `--retry-failed` bierze też takie wiersze, `--refetch-missing` przestawia wiersze `ready` bez pliku na dysku z powrotem na `pending_fetch`.
+- Wspólna blokada doradcza w bazie: drugie uruchomienie w czasie pierwszego kończy się kodem 3 („Poprzednie pobieranie jeszcze trwa”). Strażnik wolnego miejsca (`MEDIA_MIN_FREE_PERCENT`) wstrzymuje przebieg.
+- Na końcu jeden wiersz JSON (`fetched`, `failed`, `skipped`, `remaining`, `reasons`) i wpis `photos_fetch` w dzienniku operacji (same liczby i kody powodów). Kody wyjścia: 0 gotowe, 1 awaria, 2 błąd argumentów, 3 poprzednie pobieranie trwa.
 
 ## Testy
 
