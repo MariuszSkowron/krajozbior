@@ -193,6 +193,39 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     await page.context().close();
   });
 
+  for (const width of [1280, 1440]) {
+    test(`on ${width} px the content is as wide as on the home page and the cards use 3 columns`, async ({
+      browser,
+    }) => {
+      await saveDemoCollection();
+
+      const page = await signedInPage(browser, { width });
+      const contentWidth = () =>
+        page.evaluate(
+          () => document.querySelector("main > :first-child")?.getBoundingClientRect().width ?? 0,
+        );
+
+      await page.goto("/");
+      await expect(page.getByRole("main")).toBeVisible();
+
+      const homeWidth = await contentWidth();
+
+      await page.goto("/my/collections");
+      await expect(list(page).getByRole("link", { name: DEMO_TITLE })).toBeVisible();
+      expect(await contentWidth()).toBe(homeWidth);
+
+      const columns = await page.evaluate(
+        () =>
+          getComputedStyle(
+            document.querySelector('section[aria-labelledby="zapisane"] ul')!,
+          ).gridTemplateColumns.split(" ").length,
+      );
+
+      expect(columns).toBeGreaterThanOrEqual(3);
+      await page.context().close();
+    });
+  }
+
   test("the block 'Pokaż nowe w okolicy' is gone from the screen", async ({ browser }) => {
     await saveDemoCollection();
 

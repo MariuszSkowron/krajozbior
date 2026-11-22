@@ -88,6 +88,13 @@ describe("Moje kolekcje", () => {
     expect(markup).toContain("jest w stanie „W trakcie”.");
   });
 
+  it("uses the wide content width of the home page, also while loading", async () => {
+    const markup = await render();
+
+    expect(markup).toMatch(/^<div class="content-width-wide /);
+    expect(renderToStaticMarkup(loading.default())).toMatch(/^<div class="content-width-wide /);
+  });
+
   it("says 'Zobacz kolekcje' when nothing is saved", async () => {
     mocks.saved.mockResolvedValue({ status: "ok", value: [] });
 
