@@ -1,6 +1,7 @@
 import { CONTACT_EMAIL, LEGAL_PAGES } from "@/features/legal/domain/legal-pages";
 
 import styles from "../app-shell.module.css";
+import { ReportContentLink } from "../report-content-link";
 
 // Stopka powłoki (F-K3, spec E11 5.9): regulamin, polityka prywatności, najważniejsze zasady
 // i kontakt, na komputerze i na telefonie. Oświadczenie o zdjęciach jest osiągalne z regulaminu
@@ -26,6 +27,9 @@ export function SiteFooter() {
             <a className={styles.footerLink} href="/zrodla">
               Źródła danych
             </a>
+          </li>
+          <li>
+            <ReportContentLink className={styles.footerLink} />
           </li>
           <li>
             <a className={styles.footerLink} href={`mailto:${CONTACT_EMAIL}`}>

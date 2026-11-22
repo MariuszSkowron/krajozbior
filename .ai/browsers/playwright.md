@@ -69,5 +69,10 @@ Close the throwaway page, context, and browser in `finally`. Safe to repeat.
   add a second Playwright installation.
 - Keep throwaway exploration specs under the QA artifacts directory, never in a
   discovered test directory.
+  - Wyjątek w tym repozytorium: przejście z kontami demo uruchamia tylko
+    `scripts/test-env/test-env-test.ps1`, który przyjmuje pliki z `e2e/`.
+    Dlatego tymczasowy spec przeglądu UX ma nazwę
+    `e2e/tymczasowy-przeglad-ux-<data>.spec.ts`; `.gitignore` go pomija, nie
+    trafia do commita i jest usuwany po przebiegu.
 - Repository-native committed tests remain authoritative and run with the
   repository's existing command.
