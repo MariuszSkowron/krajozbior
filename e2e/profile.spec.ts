@@ -66,10 +66,13 @@ test.describe("profile and logout", () => {
       "Moje kolekcje",
       "Chcę zobaczyć",
       "Ustawienia",
+      "Napisz do nas",
     ]);
+    // E9-6a: contact is a mailto link to the team's address (no form, no data).
+    const contact = main.getByRole("link", { name: "Napisz do nas" });
+    await expect(contact).toBeVisible();
+    await expect(contact).toHaveAttribute("href", /^mailto:/);
     await expect(main.getByRole("button", { name: "Wyloguj" })).toBeVisible();
-    // No dead entries: contact arrives with its screen (E9-6).
-    await expect(main).not.toContainText("Napisz do nas");
 
     // The bottom bar marks the profile as the current item.
     await expect(page.locator('nav[aria-label="Główna"] a[aria-current="page"]')).toHaveText(
