@@ -46,6 +46,10 @@ const foreignKeys: Record<string, { behaviour: Behaviour; why: string }> = {
     behaviour: "cascade",
     why: "the membership goes; the organization and its content stay (Q8)",
   },
+  "public.user_collections.owner_user_id": {
+    behaviour: "cascade",
+    why: "own collections of the explorer, private; their entries go with them (E8-1a, E8-Q6)",
+  },
   "public.saved_collections.user_id": { behaviour: "cascade", why: "private list of the explorer" },
   "public.visits.user_id": { behaviour: "cascade", why: "private visits of the explorer" },
   "public.want_to_see_places.user_id": {

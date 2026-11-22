@@ -23,6 +23,8 @@ async function signedInPage(browser: Browser, name: string, geolocation = false)
 
   await page.goto("/login");
 
+  await page.getByText("Logowanie hasłem").click();
+
   const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
   await form.getByLabel("E-mail").fill(emailOf(name));
@@ -119,10 +121,12 @@ test.describe("the competition path", () => {
     await waitForHydration(curatorA);
     await curatorA.getByLabel("Nazwa", { exact: true }).fill("Most ze ścieżki");
     await curatorA.getByLabel("Adres", { exact: true }).fill("Tczew");
+    // Współrzędne są w zwiniętej części formularza (K-39).
+    await curatorA.getByText("Ustawienia potwierdzania wizyt").click();
     await curatorA.getByLabel("Szerokość geograficzna").fill("54,0928");
     await curatorA.getByLabel("Długość geograficzna").fill("18.7919");
     await curatorA.getByRole("button", { name: "Dodaj miejsce do kolekcji" }).click();
-    await expect(curatorA).toHaveURL(new RegExp(`${editorPath}$`));
+    await expect(curatorA).toHaveURL(new RegExp(`${editorPath}(\\?.*)?$`));
 
     const placeHref = await curatorA
       .getByRole("link", { name: "Most ze ścieżki" })
@@ -163,7 +167,7 @@ test.describe("the competition path", () => {
     await expect(guest.getByRole("heading", { level: 1, name: "Most ze ścieżki" })).toBeVisible();
     await expect(
       guest.getByRole("link", {
-        name: "Zaloguj się, aby potwierdzić wizytę lub zapisać na Chcę zobaczyć",
+        name: "Zaloguj się, aby potwierdzić wizytę lub zapisać na „Chcę zobaczyć”",
       }),
     ).toBeVisible();
 
@@ -172,7 +176,7 @@ test.describe("the competition path", () => {
 
     await explorer.goto(`/collections/${slug}`);
     await waitForHydration(explorer);
-    await explorer.getByRole("button", { name: "Zapisz kolekcję" }).click();
+    await explorer.getByRole("button", { name: "Zapisuję kolekcję" }).click();
     await expect(explorer.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
     await explorer.goto("/my/collections");
     await expect(explorer.getByRole("link", { name: title })).toContainText("0/1 odwiedzone");
@@ -191,8 +195,8 @@ test.describe("the competition path", () => {
 
     await explorer.goto(`/places/${placeId}`);
     await waitForHydration(explorer);
-    await explorer.getByRole("button", { name: "Potwierdź wizytę" }).click();
-    await expect(explorer.getByText("Wizyta potwierdzona.")).toBeVisible();
+    await explorer.getByRole("button", { name: "Potwierdzam wizytę" }).click();
+    await expect(explorer.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
     await expect(explorer.getByRole("list", { name: "Twój postęp po tej wizycie" })).toContainText(
       "1/1",
     );

@@ -41,11 +41,17 @@ export type PhotoDeps = Readonly<{
 
 export type ServePhotoResult =
   | Readonly<{ status: "not_found" }>
-  | Readonly<{ status: "not_modified"; visibility: PhotoVisibility; etag: string }>
+  | Readonly<{
+      status: "not_modified";
+      visibility: PhotoVisibility;
+      etag: string;
+      size: MediaSize;
+    }>
   | Readonly<{
       status: "ok";
       visibility: PhotoVisibility;
       etag: string;
+      size: MediaSize;
       file: PhotoFile;
     }>;
 
@@ -67,7 +73,7 @@ export async function servePhoto(
   // 304 dopiero po decyzji o dostępie: odpowiedź bez sprawdzenia widoczności zdradzałaby, że
   // zdjęcie istnieje.
   if (etagMatches(ifNoneMatch, etag)) {
-    return { status: "not_modified", visibility: found.visibility, etag };
+    return { status: "not_modified", visibility: found.visibility, etag, size: request.size };
   }
 
   const file = deps.files === null ? null : await deps.files.open(found.storageKey, request.size);
@@ -76,7 +82,7 @@ export async function servePhoto(
     return NOT_FOUND;
   }
 
-  return { status: "ok", visibility: found.visibility, etag, file };
+  return { status: "ok", visibility: found.visibility, etag, size: request.size, file };
 }
 
 async function findPhotoKey(

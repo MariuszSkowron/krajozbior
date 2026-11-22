@@ -106,6 +106,8 @@ async function signedInPage(browser: Browser, email: string): Promise<Page> {
 
   await page.goto("/login");
 
+  await page.getByText("Logowanie hasłem").click();
+
   const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
   await form.getByLabel("E-mail").fill(email);
@@ -247,7 +249,13 @@ test.describe("the map view of a collection", () => {
     await expect(popup).toHaveCount(0);
     await expect(page.locator(`.leaflet-marker-icon[title="${marker}"]`)).toBeFocused();
 
-    await page.getByRole("link", { name: "Pomiń mapę" }).click();
+    // The skip link is hidden visually and appears when it has the focus (K-26).
+    const skip = page.getByRole("link", { name: "Pomiń mapę" });
+
+    expect((await skip.boundingBox())?.width ?? 0).toBeLessThanOrEqual(1);
+    await skip.focus();
+    expect((await skip.boundingBox())?.width ?? 0).toBeGreaterThan(20);
+    await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/#lista-miejsc$/);
   });
 
@@ -289,9 +297,9 @@ test.describe("the map view of a collection", () => {
     await stubTiles(page, "abort");
     await page.goto(MAP);
 
-    await expect(page.getByRole("status").filter({ hasText: "Podkład mapy chwilowo" })).toHaveCount(
-      1,
-    );
+    await expect(
+      page.getByRole("status").filter({ hasText: "Mapa nie wczytała się w całości" }),
+    ).toHaveCount(1);
     await expect(page.locator(".leaflet-marker-icon")).toHaveCount(3);
     await expect(page.getByRole("link", { name: "© OpenStreetMap contributors" })).toBeVisible();
   });

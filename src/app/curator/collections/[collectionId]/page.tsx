@@ -7,8 +7,10 @@ import { COLLECTION_STATUS_LABELS, REGION_LABELS } from "@/features/catalog/doma
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 
 import { CollectionForm } from "../../collection-form";
+import { CoverPicker } from "../../cover-picker";
 import styles from "../../curator.module.css";
 import { pageValue, requireCurator } from "../../curator-session";
+import { placeNotice } from "../../place-notice";
 import { PlaceList } from "../../place-list";
 import { PublicationControls } from "../../publication-controls";
 
@@ -22,11 +24,16 @@ export const metadata: Metadata = { title: "Edycja kolekcji — Krajozbiór" };
 // foreign (R-09, D-15).
 export default async function CollectionEditorPage({
   params,
-}: Readonly<{ params: Promise<{ collectionId: string }> }>) {
+  searchParams,
+}: Readonly<{
+  params: Promise<{ collectionId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}>) {
   const { collectionId } = await params;
+  const query = await searchParams;
   const path = `/curator/collections/${collectionId}`;
   const { actor } = await requireCurator(path);
-  const { collection, places, otherPlaces } = pageValue(
+  const { collection, places, otherPlaces, coverPlacePhotoId, coverCandidates } = pageValue(
     await getCuratorCollection(actor, collectionId, getCatalogDeps()),
     path,
   );
@@ -74,6 +81,16 @@ export default async function CollectionEditorPage({
         collectionId={collection.id}
         places={places.map(({ id, name, address }) => ({ id, name, address }))}
         otherPlaces={otherPlaces}
+        notice={placeNotice(
+          query,
+          places.map((place) => place.id),
+        )}
+      />
+
+      <CoverPicker
+        collectionId={collection.id}
+        currentPhotoId={coverPlacePhotoId}
+        choices={coverCandidates}
       />
 
       <PublicationControls

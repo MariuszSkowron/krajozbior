@@ -5,14 +5,11 @@ import {
   countByState,
   filterByState,
   formatUpdateDate,
-  parseSelectedPlace,
   parseView,
   parseStateFilter,
   shortenDescription,
   type VisitKind,
 } from "@/features/catalog/domain/album-view";
-
-const PLACE = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
 
 describe("parseStateFilter", () => {
   it.each([
@@ -30,17 +27,6 @@ describe("parseStateFilter", () => {
   it("takes the first of a repeated parameter", () => {
     expect(parseStateFilter(["odwiedzone", "do-odwiedzenia"])).toBe("odwiedzone");
     expect(parseStateFilter([])).toBe("wszystkie");
-  });
-});
-
-describe("parseSelectedPlace", () => {
-  it("accepts a UUID (lower-cased) and nothing else", () => {
-    expect(parseSelectedPlace(PLACE)).toBe(PLACE);
-    expect(parseSelectedPlace(PLACE.toUpperCase())).toBe(PLACE);
-    expect(parseSelectedPlace(["not-a-uuid", PLACE])).toBeNull();
-    expect(parseSelectedPlace(undefined)).toBeNull();
-    expect(parseSelectedPlace("")).toBeNull();
-    expect(parseSelectedPlace("1; drop table places")).toBeNull();
   });
 });
 
@@ -71,20 +57,12 @@ describe("the state of the places", () => {
 describe("albumHref", () => {
   it("leaves out the defaults", () => {
     expect(albumHref("kolekcja-1", {})).toBe("/collections/kolekcja-1");
-    expect(albumHref("kolekcja-1", { stan: "wszystkie", miejsce: null })).toBe(
-      "/collections/kolekcja-1",
-    );
+    expect(albumHref("kolekcja-1", { stan: "wszystkie" })).toBe("/collections/kolekcja-1");
   });
 
-  it("writes the filter and the place", () => {
+  it("writes the filter", () => {
     expect(albumHref("kolekcja-1", { stan: "odwiedzone" })).toBe(
       "/collections/kolekcja-1?stan=odwiedzone",
-    );
-    expect(albumHref("kolekcja-1", { miejsce: PLACE })).toBe(
-      `/collections/kolekcja-1?miejsce=${PLACE}`,
-    );
-    expect(albumHref("kolekcja-1", { stan: "do-odwiedzenia", miejsce: PLACE })).toBe(
-      `/collections/kolekcja-1?stan=do-odwiedzenia&miejsce=${PLACE}`,
     );
   });
 });
@@ -101,8 +79,8 @@ describe("parseView and the map view in albumHref (E12-5)", () => {
   it("writes the map view and keeps the other parts", () => {
     expect(albumHref("kolekcja-1", { widok: "karty" })).toBe("/collections/kolekcja-1");
     expect(albumHref("kolekcja-1", { widok: "mapa" })).toBe("/collections/kolekcja-1?widok=mapa");
-    expect(albumHref("kolekcja-1", { widok: "mapa", stan: "odwiedzone", miejsce: PLACE })).toBe(
-      `/collections/kolekcja-1?widok=mapa&stan=odwiedzone&miejsce=${PLACE}`,
+    expect(albumHref("kolekcja-1", { widok: "mapa", stan: "odwiedzone" })).toBe(
+      "/collections/kolekcja-1?widok=mapa&stan=odwiedzone",
     );
   });
 });

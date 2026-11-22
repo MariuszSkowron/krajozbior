@@ -49,6 +49,32 @@
   justify-self: start;
 }
 
+/* Krok 2 logowania kodem: „Wyślij kod ponownie” i „Zmień adres” obok siebie, zawijane na telefonie. */
+.stepActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+/* „Logowanie hasłem”: natywny details; podsumowanie wygląda jak odnośnik i ma duży obszar dotyku. */
+.passwordToggle summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-min);
+  color: var(--color-text-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.passwordToggle summary:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-border-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.passwordToggle[open] summary {
+  margin-block-end: var(--space-md);
+}
+
 .submit[aria-disabled="true"] {
   cursor: progress;
   outline: var(--focus-ring-width) dashed var(--color-border-default);

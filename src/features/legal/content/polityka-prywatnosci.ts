@@ -1,8 +1,8 @@
 // Polityka prywatności: tekst publiczny, przeniesiony z roboczej wersji 0.2 (19 listopada 2026 r.)
 // bez zmian merytorycznych. Wartości z E11-Q12 (okresy przechowywania, czas sesji) są wpisane;
-// miejsca z napisem „DO UZUPEŁNIENIA” czekają na dane od właściciela (śledzenie w panelu
-// Brevo), a test w tests/features/legal/legal-content.test.ts pilnuje, żeby
-// żadne nie trafiło do ruchu publicznego.
+// wyłączone śledzenie wiadomości w Brevo potwierdził właściciel 22.11.2026 (D-49 pkt 8);
+// test w tests/features/legal/legal-content.test.ts pilnuje, żeby żaden znacznik roboczy
+// nie trafił do ruchu publicznego.
 export const POLITYKA_PRYWATNOSCI = `
 ## 1. Kto odpowiada za Twoje dane
 
@@ -73,7 +73,7 @@ Jeśli przetwarzamy dane na podstawie naszego prawnie uzasadnionego interesu, mo
 - **Administrator serwisu** ma dostęp do danych w zakresie potrzebnym do utrzymania serwisu, moderacji i rozpatrywania zgłoszeń.
 - **Firmy przetwarzające dane na nasze zlecenie** (podmioty przetwarzające) na podstawie umowy powierzenia:
   - netcup GmbH, Emmy-Noether-Straße 10, 76131 Karlsruhe, Niemcy — serwer: baza danych, zdjęcia i kopie zapasowe w centrum danych w Norymberdze;
-  - Brevo SAS, 17 rue Salneuve, 75017 Paryż, Francja — wysyłka e-maili z kodami logowania i innych wiadomości dotyczących konta. Wyłączamy w nim śledzenie otwarć wiadomości i kliknięć w linki [DO UZUPEŁNIENIA: potwierdzić w panelu Brevo];
+  - Brevo SAS, 17 rue Salneuve, 75017 Paryż, Francja — wysyłka e-maili z kodami logowania i innych wiadomości dotyczących konta. Wyłączamy w nim śledzenie otwarć wiadomości i kliknięć w linki;
   - Hostido.pl Gałązka spółka jawna, ul. Kartuska 5, 80-103 Gdańsk — obsługa skrzynki pocztowej kontakt@mariuszskowron.pl, na którą przychodzą wiadomości od Ciebie.
 - **Organy publiczne**, jeśli zażądają danych na podstawie przepisów prawa.
 
@@ -89,11 +89,13 @@ Wobec Wielkiej Brytanii Komisja Europejska stwierdziła odpowiedni stopień ochr
 
 Jeśli nie chcesz przekazywać tych danych, nie wybieraj widoku „Mapa”; lista miejsc zawiera te same informacje.
 
+To samo dzieje się w edytorze miejsca w panelu kuratora, gdy kurator wybierze „Pokaż mapę” (widok „Mapa” na stronie kolekcji i „Pokaż mapę” w edytorze to ta sama mapa OpenStreetMap). Kurator, który nie chce przekazywać tych danych, nie wybiera „Pokaż mapę” i ustawia położenie miejsca, wpisując współrzędne w polach formularza.
+
 ## 8. Przekazywanie danych poza Europejski Obszar Gospodarczy
 
 Nasz serwer i kopie zapasowe znajdują się w Niemczech. Poza Europejski Obszar Gospodarczy dane mogą trafić w dwóch sytuacjach:
 
-- gdy wybierzesz widok „Mapa” (punkt 7);
+- gdy wybierzesz widok „Mapa” albo, jako kurator, „Pokaż mapę” w edytorze miejsca (punkt 7);
 - przy wysyłce e-maili: Brevo korzysta z podwykonawców, z których część ma siedzibę lub serwery w Stanach Zjednoczonych (np. Cloudflare — ochrona i przyspieszanie ruchu sieciowego, Zendesk — obsługa zgłoszeń). Podstawą przekazania jest decyzja Komisji Europejskiej o odpowiednim stopniu ochrony danych w ramach EU-US Data Privacy Framework (wobec firm, które do niego przystąpiły) oraz standardowe klauzule umowne zatwierdzone przez Komisję Europejską. Aktualną listę podwykonawców Brevo podaje w swojej umowie powierzenia (załącznik do regulaminu Brevo): <https://www.brevo.com/legal/termsofuse/>.
 
 ## 9. Jak długo przechowujemy dane
@@ -148,7 +150,8 @@ Serwis zapisuje w Twojej przeglądarce wyłącznie informacje niezbędne do świ
 | pliki cookies logowania (z przedrostkiem „krajozbior”) | utrzymanie sesji po zalogowaniu | 30 dni od zalogowania |
 | plik cookie wyglądu | zapamiętanie wybranego wyglądu (nocny albo jasny); powstaje także bez konta, gdy zmienisz wygląd | 1 rok |
 | plik cookie szkicu profilu | zapamiętanie niezapisanych zmian w profilu | 2 minuty |
-| pamięć sesji przeglądarki (sessionStorage) | zapamiętanie adresu e-mail między krokami logowania | do zamknięcia karty |
+| plik cookie adresu logowania (z przedrostkiem „krajozbior”) | zapamiętanie adresu e-mail między krokami logowania kodem; przeglądarka wysyła go tylko na stronę logowania | 10 minut; usuwamy go po zalogowaniu, po wylogowaniu i po kliknięciu „Zmień adres” |
+| pamięć sesji przeglądarki (sessionStorage) | zapamiętanie adresu e-mail wpisanego w formularzu logowania hasłem, gdy strona odświeża się po błędnym haśle | do zamknięcia karty |
 | pamięć sesji przeglądarki (sessionStorage) | zapamiętanie, że zamknąłeś lub zamknęłaś pasek „Wersja testowa” | do zamknięcia karty |
 
 Nie używamy narzędzi analitycznych ani reklamowych. Nie prosimy więc o zgodę na pliki cookies; przepisy nie wymagają jej dla zapisów niezbędnych do świadczenia usługi, o którą prosisz (art. 399 ust. 3 ustawy z 12 lipca 2024 r. — Prawo komunikacji elektronicznej).

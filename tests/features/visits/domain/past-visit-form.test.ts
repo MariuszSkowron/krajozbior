@@ -101,9 +101,7 @@ describe("messages", () => {
     expect(pickedCountMessage(0, 100)).toBe("Wybrane: 0.");
     expect(pickedCountMessage(2, 100)).toBe("Wybrane: 2.");
     expect(pickedCountMessage(99, 100)).toBe("Wybrane: 99.");
-    expect(pickedCountMessage(100, 100)).toBe(
-      "Wybrane: 100. Zaznaczono 100 miejsc — to najwięcej naraz.",
-    );
+    expect(pickedCountMessage(100, 100)).toBe("Wybrane: 100. To najwięcej naraz.");
   });
 });
 

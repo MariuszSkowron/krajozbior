@@ -94,6 +94,12 @@ export function describeFailure(status: number, body: Body, subject: Subject): F
       switch (body.reason) {
         case "no_places":
           return failure("Dodaj do kolekcji co najmniej jedno miejsce, zanim ją opublikujesz.");
+        case "cover_not_allowed":
+          return failure(
+            "To zdjęcie nie może być okładką tej kolekcji (nie jest już gotowe albo jego miejsce wyszło z kolekcji). Odśwież stronę.",
+            [],
+            true,
+          );
         default:
           return failure("Stan kolekcji już się zmienił. Odśwież stronę.", [], true);
       }
@@ -112,8 +118,8 @@ export const fieldHints: Readonly<Record<string, string>> = {
   address: `Adres może mieć najwyżej ${PLACE_ADDRESS_MAX_LENGTH} znaków.`,
   accessInfo: `Informacja o dostępie może mieć najwyżej ${PLACE_ACCESS_MAX_LENGTH} znaków.`,
   accessRestriction: "Wybierz jedną z opcji z listy.",
-  latitude: "Podaj szerokość geograficzną od −90 do 90, na przykład 54.0928.",
-  longitude: "Podaj długość geograficzną od −180 do 180, na przykład 18.7919.",
+  latitude: "Podaj szerokość geograficzną od −90 do 90, na przykład 54,0928.",
+  longitude: "Podaj długość geograficzną od −180 do 180, na przykład 18,7919.",
   visitRadiusM: `Podaj promień jako liczbę całkowitą od ${VISIT_RADIUS_MIN_M} do ${VISIT_RADIUS_MAX_M} metrów.`,
 };
 

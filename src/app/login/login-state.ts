@@ -8,7 +8,7 @@ const PASSWORD_ERRORS: Readonly<Record<string, string>> = {
 // Messages of the e-mail code forms (routes under /api/auth/code).
 const CODE_ERRORS: Readonly<Record<string, string>> = {
   invalid_email: "Podaj poprawny adres e-mail.",
-  invalid_code: "Kod jest nieprawidłowy albo wygasł. Poproś o nowy kod.",
+  invalid_code: "Kod jest nieprawidłowy albo wygasł. Wyślij kod ponownie.",
   code_unavailable: "Logowanie kodem jest chwilowo niedostępne. Spróbuj ponownie.",
   code_too_many_attempts: "Zbyt wiele prób. Spróbuj ponownie za kilka minut.",
 };
@@ -31,6 +31,12 @@ export function codeMessage(errorCode: string): string | undefined {
 // limit is not something the person can fix in them.
 export function marksFieldsInvalid(errorCode: string | undefined): boolean {
   return errorCode === "invalid_credentials";
+}
+
+// Only a wrong or expired code points at the code field; an outage or a rate limit is not
+// something the person can fix in it.
+export function marksCodeInvalid(errorCode: string | undefined): boolean {
+  return errorCode === "invalid_code";
 }
 
 // A page restored from the back/forward cache keeps its old script state,

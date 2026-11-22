@@ -1,0 +1,116 @@
+/*
+ * Mapa w edytorze miejsca kuratora: kontener, pinezka, koło promienia, krzyżyk środka mapy.
+ * Tylko tokeny. Panel jest na komputer; wysokość mapy jest stała, a układ nie przewija się
+ * w poziomie od 360 px.
+ */
+.wrap {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.instruction {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.frame {
+  position: relative;
+}
+
+.map {
+  height: calc(var(--space-xl) * 11);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-image-placeholder);
+}
+
+.map:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-border-focus);
+  outline-offset: var(--space-xs);
+}
+
+/* Krzyżyk jest cały czas na środku mapy, także gdy fokus jest na przycisku pod mapą. */
+.crosshair {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  z-index: 1000;
+  width: var(--space-lg);
+  height: var(--space-lg);
+  translate: -50% -50%;
+  pointer-events: none;
+}
+
+.crosshair::before,
+.crosshair::after {
+  content: "";
+  position: absolute;
+  background: var(--color-text-strong);
+  box-shadow: 0 0 0 1px var(--color-surface-card);
+}
+
+.crosshair::before {
+  inset-block-start: 50%;
+  inset-inline: 0;
+  height: 2px;
+  translate: 0 -50%;
+}
+
+.crosshair::after {
+  inset-block: 0;
+  inset-inline-start: 50%;
+  width: 2px;
+  translate: -50% 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.map :global(.leaflet-tile-pane) {
+  filter: brightness(0.8) contrast(1.05);
+}
+
+:global(.theme-light) .map :global(.leaflet-tile-pane) {
+  filter: none;
+}
+
+.map :global(.leaflet-control-attribution) {
+  background: var(--color-surface-glass);
+  color: var(--color-text-secondary);
+}
+
+.map :global(.leaflet-control-attribution a) {
+  color: var(--color-text-accent);
+}
+
+.map :global(.leaflet-container) {
+  font-family: var(--font-family-base);
+}
+
+.pinWrap {
+  background: none;
+  border: 0;
+}
+
+.pin {
+  display: block;
+  box-sizing: border-box;
+  width: var(--space-xl);
+  height: var(--space-xl);
+  background: var(--color-brand-accent);
+  border: var(--border-width-state) solid var(--color-surface-card);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-overlay);
+}
+
+/* Koło promienia potwierdzania wizyty; klasa trafia na element SVG. */
+.radius {
+  stroke: var(--color-brand-accent);
+  stroke-width: 2px;
+  fill: var(--color-brand-accent);
+  fill-opacity: 0.15;
+}

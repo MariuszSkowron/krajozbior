@@ -30,6 +30,7 @@
     "catalog:import": "tsx --conditions react-server --env-file-if-exists=.env ./scripts/catalog-import.ts",
     "photos:fetch": "tsx --conditions react-server --env-file-if-exists=.env ./scripts/photos-fetch.ts",
     "legal:final": "tsx ./scripts/legal-final.ts",
+    "news:import": "tsx --conditions react-server --env-file-if-exists=.env ./scripts/news-import.ts",
     "ops:curator": "tsx --conditions react-server --env-file-if-exists=.env ./scripts/ops-curator.ts",
     "rename-project": "tsx ./scripts/rename-project.ts"
   },
