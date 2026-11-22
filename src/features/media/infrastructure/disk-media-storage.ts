@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, open, readFile, rename, rm, stat, statfs, unlink } from "node:fs/promises";
+import { mkdir, open, rename, rm, stat, statfs, unlink } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 
 import type { MediaFiles, MediaStorage } from "../application/media-storage";
@@ -72,9 +72,15 @@ export class DiskMediaStorage implements MediaStorage {
   async read(kind: MediaKind, key: string, variant: MediaVariant): Promise<Uint8Array | null> {
     try {
       const path = this.inside(mediaFilePath(kind, key, variant));
-      const info = await stat(path);
-      if (!info.isFile() || info.size === 0) return null;
-      return await readFile(path);
+      // Jeden uchwyt: sprawdzenie i odczyt dotyczą tego samego pliku.
+      const handle = await open(path, "r");
+      try {
+        const info = await handle.stat();
+        if (!info.isFile() || info.size === 0) return null;
+        return await handle.readFile();
+      } finally {
+        await handle.close();
+      }
     } catch {
       return null;
     }
@@ -83,11 +89,10 @@ export class DiskMediaStorage implements MediaStorage {
   async storeOg(kind: MediaKind, key: string, og: Uint8Array): Promise<void> {
     await mkdir(this.tmpDirectory, { recursive: true, mode: DIRECTORY_MODE });
     const target = this.inside(mediaFilePath(kind, key, "og"));
-    const existing = await stat(target).catch(() => undefined);
-    if (existing && !existing.isFile()) throw new Error("Cel zapisu nie jest plikiem.");
     const tmp = join(this.tmpDirectory, `${randomUUID()}.tmp`);
     try {
       await writeSynced(tmp, og);
+      // `rename` pliku na katalog kończy się błędem, więc osobne sprawdzenie celu nie jest potrzebne.
       await rename(tmp, target);
     } catch (error) {
       await unlink(tmp).catch(() => undefined);
