@@ -214,7 +214,7 @@ describe("home page of a signed-in explorer", () => {
     expect(html).toContain("Wieża ciśnień");
     expect(html).toContain("marzec 2019");
     expect(html).toContain("z przeszłości");
-    expect(html).toContain("Miejsce niedostępne w katalogu");
+    expect(html).toContain("Miejsce nie jest już dostępne");
     expect(html).toContain("potwierdzona na miejscu");
     expect(html).toContain("Mosty i zamki");
     // The phone shows the first four favourites; the rest only on a wide screen.

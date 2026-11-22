@@ -106,9 +106,12 @@ const DATE = new Intl.DateTimeFormat("pl-PL", {
   year: "numeric",
 });
 
-/** "18.11.2026": the day in Polish time. */
+/** "8.11.2026": a single date (not a list), in Polish time. */
 export function formatUpdateDate(date: Date): string {
-  return DATE.format(date);
+  const part = (type: string) => DATE.formatToParts(date).find((p) => p.type === type)?.value ?? "";
+
+  // No leading zeros ("5.3.2026"): the browser's own format pads the month, so it is spelled out.
+  return `${Number(part("day"))}.${Number(part("month"))}.${part("year")}`;
 }
 
 /** The text of a description in the panel: whole words, at most `limit` characters, "…" when cut. */

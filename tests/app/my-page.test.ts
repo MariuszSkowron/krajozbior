@@ -120,7 +120,7 @@ describe("profile page", () => {
     const html = renderToStaticMarkup(await MyPage());
 
     expect(html).toContain('data-testid="profile-stats-error"');
-    expect(html).toContain("Nie udało się teraz policzyć Twoich liczb");
+    expect(html).toContain("Nie udało się teraz wczytać podsumowania");
     expect(html).not.toContain('data-testid="profile-stats"');
     // The rest of the profile stays: links and logout.
     expect(html).toContain("/my/settings");

@@ -58,9 +58,8 @@ export default function SourcesPage() {
     <article className={`content-width ${styles.page}`}>
       <h1>Źródła danych</h1>
       <p>
-        Miejsca w Krajozbiorze pochodzą z otwartych danych publicznych. Poniżej wyjaśniamy, skąd je
-        bierzemy i na jakich zasadach możesz z nich korzystać. Pod opisem każdego takiego miejsca
-        widać też podpis jego źródeł.
+        Miejsca w Krajozbiorze pochodzą z otwartych danych publicznych. Pod opisem każdego takiego
+        miejsca widać też podpis jego źródeł.
       </p>
       <p>Dane pobrano: {DATA_RETRIEVED}.</p>
 
@@ -117,7 +116,7 @@ export default function SourcesPage() {
       <section aria-labelledby="opisy" className={styles.section}>
         <h2 id="opisy">Opisy miejsc</h2>
         <p>
-          Opisy układamy sami, z faktów podanych w źródłach powyżej. Redaktor może opis poprawić;
+          Opisy układamy sami, z faktów podanych w źródłach powyżej. Kurator może opis poprawić;
           wtedy tekst jest już jego autorstwa.
         </p>
       </section>

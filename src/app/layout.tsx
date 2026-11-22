@@ -20,7 +20,8 @@ import { shellRole } from "./shell/shell-role";
 
 export const metadata: Metadata = {
   title: "Krajozbiór",
-  description: "Szkielet aplikacji: Next.js, PostgreSQL z regułami dostępu i logowanie.",
+  description:
+    "Kolekcje miejsc do odkrycia w Polsce. Potwierdzaj wizyty na miejscu i zbieraj je w swoim albumie.",
 };
 
 // The bar colour of the browser follows the theme cookie, so the viewport is dynamic.
