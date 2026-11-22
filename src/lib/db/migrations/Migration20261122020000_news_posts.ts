@@ -284,7 +284,11 @@ export class Migration20261122020000_news_posts extends Migration {
         -- A function clause \`set krajozbior.news_write\` would restore the value on exit,
         -- but the migration role may not set a custom parameter in it (not a superuser).
         -- So the switch is turned off again before every exit; an error rolls the
-        -- transaction (or the savepoint of the caller) back.
+        -- transaction (or the savepoint of the caller) back. The switch is NOT a security
+        -- boundary: krajozbior_ops may set this parameter itself. The boundary is: no
+        -- write grants for ops and app, write policies only for the owner with
+        -- session_user = 'krajozbior_ops', and no other owner function reachable by ops
+        -- that writes to news_posts.
         perform set_config('krajozbior.news_write', 'on', true);
 
         v_old := (select n from public.news_posts n where n.id = p_id for update);
@@ -370,15 +374,20 @@ export class Migration20261122020000_news_posts extends Migration {
 
     // The import names a collection by its address; krajozbior_ops gets no read of
     // \`collections\`, only this lookup: one uuid of a published collection of an
-    // approved organization (the existing policy collections_owner_select of the
-    // owner applies), nothing for a draft or an unknown address. Places have no
+    // approved organization, nothing for a draft or an unknown address. The
+    // condition is explicit in the body; the policy collections_owner_select of the
+    // owner is only the second layer. Places have no
     // address; the file gives \`place_id\` directly.
     this.addSql(`
       create function ops_resolve_news_collection(p_slug text) returns uuid
       language sql stable security definer
       set search_path = ''
       as $$
-        select c.id from public.collections c where c.slug = p_slug
+        select c.id from public.collections c
+         where c.slug = p_slug
+           and c.status = 'published'
+           and exists (select from public.organizations o
+                        where o.id = c.organization_id and o.status = 'approved')
       $$;
     `);
     this.addSql(`revoke all on function ops_resolve_news_collection(text) from public;`);
