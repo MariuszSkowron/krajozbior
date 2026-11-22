@@ -2,7 +2,7 @@
 
 Wszystkie istotne zmiany w Krajozbiorze są opisane w tym pliku. Format opiera się na [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), a numeracja wersji na [wersjonowaniu semantycznym](https://semver.org/lang/pl/). Numer w nawiasie (np. `#34`) to numer pull requesta, czyli propozycji zmiany w kodzie, na GitHubie.
 
-Wersja 1.0.0 to pierwsze wydanie, w którym obiecujemy stabilny, opisany sposób działania aplikacji: ścieżka od utworzenia kolekcji przez kuratora do potwierdzenia wizyty przez odkrywcę, ochrona danych prywatnych i instrukcja uruchomienia. Kolejne wersje nie powinny tego psuć: drobne poprawki zwiększą trzecią cyfrę (1.0.1), nowe funkcje drugą (1.1.0), a zmiana łamiąca zgodność pierwszą (2.0.0). Wydanie 1.0 jest bez zdjęć; trafią one do kolejnego wydania.
+Wersja 1.0.0 to pierwsze wydanie, w którym obiecujemy stabilny, opisany sposób działania aplikacji: ścieżka od utworzenia kolekcji przez kuratora do potwierdzenia wizyty przez odkrywcę, ochrona danych prywatnych i instrukcja uruchomienia. Kolejne wersje nie powinny tego psuć: drobne poprawki zwiększą trzecią cyfrę (1.0.1), nowe funkcje drugą (1.1.0), a zmiana łamiąca zgodność pierwszą (2.0.0). Wydanie 1.0 pokazuje zdjęcia miejsc z Wikimedia Commons; wgrywanie własnych zdjęć przez odkrywców przyjdzie w kolejnym wydaniu.
 
 ## [Nieopublikowane]
 
@@ -38,6 +38,7 @@ Na razie nie ma zmian w przygotowaniu: wszystkie scalone zmiany są opisane w wy
 - Motyw jasny lub nocny zapamiętany na koncie: po zalogowaniu na innym urządzeniu wybór jest ten sam; gość i pierwsza wizyta startują w motywie nocnym (#78).
 - Oznaczenie „Nowa w okolicy” przy kolekcjach z ostatnich 30 dni w promieniu 50 km oraz filtr „Stan postępu” w „Moich kolekcjach” (#79).
 - Ostrzeżenie przy miejscu prywatnym, ogrodzonym lub w ruinie: kurator ustawia „Wejście na teren”, odkrywca widzi prośbę, by nie wchodzić na teren (#85).
+- Zdjęcia miejsc z Wikimedia Commons na stronie miejsca, z podpisem: autor, licencja i odnośnik do pliku źródłowego (#88).
 - Przygotowanie do zdjęć miejsc, jeszcze niewidoczne dla użytkowników: miejsce na zdjęcia na serwerze (#81), biblioteka bezpiecznego zmniejszania zdjęć i usuwania z nich lokalizacji GPS i danych autora (#82) oraz dane, licencje i pobieranie zdjęć z Wikimedia Commons (#86).
 
 ### Zmieniono
