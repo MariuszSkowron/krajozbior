@@ -23,7 +23,8 @@ function first(value: string | string[] | undefined): string | undefined {
 
 // E9-5 and E9-2: the settings screen. Sections: "Profil" (first name, initial,
 // region, visibility; E9-2) and "Konto" (the way to delete the account, E9-5);
-// E9-4 adds "Wygląd". No entry without an effect (D-22 point 7). The session is
+// The theme is switched in the header (E9-4, server action; no "Wygląd" section here).
+// No entry without an effect (D-22 point 7). The session is
 // checked on the server; a guest is sent to /login.
 export default async function SettingsPage({ searchParams }: { searchParams: SearchParams }) {
   const actor = await getRequestActor();
