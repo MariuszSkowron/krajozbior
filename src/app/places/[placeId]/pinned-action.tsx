@@ -8,8 +8,8 @@ import styles from "./visit-confirmation.module.css";
 // jest na telefonie przypięty do dolnej krawędzi i zastępuje dolny pasek nawigacji (spec E3,
 // 5.6 i 5.8; reguły w app-shell.module.css reagują na atrybut `data-pinned-action`). Od progu
 // komputera opakowanie jest przezroczyste (`display: contents`), więc układ karty się nie zmienia.
-// Wysokość opakowania (razem z komunikatem stanu, który rośnie przy dłuższym tekście) trafia
-// do `--pinned-action-height` na <html>; z niej liczą się `scroll-padding-bottom` i dolny
+// Wysokość opakowania (sam przycisk albo znacznik „Odwiedzone”) trafia do
+// `--pinned-action-height` na <html>; z niej liczą się `scroll-padding-bottom` i dolny
 // margines treści, żeby przypięty przycisk nie zasłaniał fokusu (WCAG 2.4.11).
 export function PinnedAction({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);

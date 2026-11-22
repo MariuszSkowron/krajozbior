@@ -61,7 +61,7 @@ export function WantToSeeButton({ placeId, initialWanted }: Props) {
         aria-busy={pending}
         onClick={() => void toggle()}
       >
-        {wanted ? "Usuń z Chcę zobaczyć" : "Chcę zobaczyć"}
+        {wanted ? "Usuń z „Chcę zobaczyć”" : "Chcę zobaczyć"}
       </button>
       <p className={styles.feedback} role={error === null ? "status" : "alert"}>
         {error ??

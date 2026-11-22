@@ -5,7 +5,7 @@ import { Client } from "pg";
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
 
-// E2-S6, PR9: a visit from the past ("Byłem tu wcześniej") for one place on its
+// E2-S6, PR9: a visit from the past ("Zaznaczam wcześniejszą wizytę") for one place on its
 // page and for many places on the collection page. Needs a migrated, seeded
 // database like the other specs that sign in; without it the spec is skipped.
 // The cleanup deletes rows of the two demo accounts straight in the database,
@@ -137,7 +137,7 @@ test.describe("a visit from the past", () => {
 
     await saveDemoCollection(a);
     await openBridge(a);
-    await a.getByRole("button", { name: "Byłem tu wcześniej" }).click();
+    await a.getByRole("button", { name: "Zaznaczam wcześniejszą wizytę" }).click();
     await expect(a.getByRole("radio", { name: "Nie pamiętam" })).toBeChecked();
     await expect(a.getByRole("radio", { name: "Nie pamiętam" })).toBeFocused();
     await chooseMonth(a, "marzec", "2019");
@@ -148,8 +148,9 @@ test.describe("a visit from the past", () => {
     await expect(status).toBeVisible();
     await expect(status).toBeFocused();
     await expect(a.getByText("Z przeszłości · marzec 2019")).toBeVisible();
+    await expect(a.getByText("Wizyta z przeszłości zapisana")).toBeVisible();
     // A visit from the past does not hide the confirmation on site (D-10).
-    await expect(a.getByRole("button", { name: "Potwierdź wizytę" })).toBeVisible();
+    await expect(a.getByRole("button", { name: "Potwierdzam wizytę" })).toBeVisible();
     expect(await visitRows(EXPLORER_A)).toEqual([
       { kind: "past", precision: "month", on: "2019-03-01" },
     ]);
@@ -161,7 +162,7 @@ test.describe("a visit from the past", () => {
     // Explorer B has no visit and sees the plain place page.
     await openBridge(b);
     await expect(b.getByText(/^Z przeszłości ·/)).toHaveCount(0);
-    await expect(b.getByRole("button", { name: "Byłem tu wcześniej" })).toBeVisible();
+    await expect(b.getByRole("button", { name: "Zaznaczam wcześniejszą wizytę" })).toBeVisible();
     expect(await visitRows(EXPLORER_B)).toEqual([]);
 
     await a.context().close();
@@ -174,7 +175,7 @@ test.describe("a visit from the past", () => {
     const page = await signedInPage(browser, EXPLORER_A);
 
     await openBridge(page);
-    await page.getByRole("button", { name: "Byłem tu wcześniej" }).click();
+    await page.getByRole("button", { name: "Zaznaczam wcześniejszą wizytę" }).click();
     await page.getByRole("radio", { name: "Rok" }).check();
     await page.getByRole("button", { name: "Zapisz wizytę z przeszłości" }).click();
     await expect(
@@ -195,7 +196,7 @@ test.describe("a visit from the past", () => {
     const page = await signedInPage(browser, EXPLORER_A);
 
     await openBridge(page);
-    await page.getByRole("button", { name: "Byłem tu wcześniej" }).click();
+    await page.getByRole("button", { name: "Zaznaczam wcześniejszą wizytę" }).click();
     await page.getByRole("radio", { name: "Dzień" }).check();
     await page.getByLabel("Data wizyty").fill("2999-01-01");
     await page.getByRole("radio", { name: "Rok" }).check();
@@ -217,14 +218,14 @@ test.describe("a visit from the past", () => {
 
     await page.context().setGeolocation({ ...BRIDGE, accuracy: 500 });
     await openBridge(page);
-    await page.getByRole("button", { name: "Potwierdź wizytę" }).click();
+    await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
     await expect(
       page.getByText(
         "Lokalizacja jest zbyt niedokładna (±500 m). Spróbuj na zewnątrz albo zaznacz wizytę z przeszłości.",
       ),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Byłem tu wcześniej" }).click();
+    await page.getByRole("button", { name: "Zaznaczam wcześniejszą wizytę" }).click();
     await page.getByRole("button", { name: "Zapisz wizytę z przeszłości" }).click();
     await expect(page.getByText("Z przeszłości · data nieznana")).toBeVisible();
     expect(await visitRows(EXPLORER_A)).toEqual([{ kind: "past", precision: "unknown", on: null }]);
@@ -237,19 +238,19 @@ test.describe("a visit from the past", () => {
     const page = await signedInPage(browser, EXPLORER_A, true);
 
     await openBridge(page);
-    await page.getByRole("button", { name: "Byłem tu wcześniej" }).click();
+    await page.getByRole("button", { name: "Zaznaczam wcześniejszą wizytę" }).click();
     await page.getByRole("radio", { name: "Rok" }).check();
     await page.getByRole("textbox", { name: "Rok", exact: true }).fill("2018");
     await page.getByRole("button", { name: "Zapisz wizytę z przeszłości" }).click();
     await expect(page.getByText("Z przeszłości · 2018")).toBeVisible();
 
-    await page.getByRole("button", { name: "Potwierdź wizytę" }).click();
-    await expect(page.getByText("Wizyta potwierdzona.")).toBeVisible();
+    await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
+    await expect(page.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
 
     await page.reload();
-    await expect(page.getByText("Masz już zapisaną wizytę w tym miejscu.")).toBeVisible();
+    await expect(page.getByText("Odwiedzone", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Odwiedzone", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Potwierdź wizytę" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Potwierdzam wizytę" })).toHaveCount(0);
     expect((await visitRows(EXPLORER_A)).map((row) => row.kind).sort()).toEqual([
       "on_site",
       "past",
@@ -261,7 +262,7 @@ test.describe("a visit from the past", () => {
     const page = await signedInPage(browser, EXPLORER_A);
 
     await openBridge(page);
-    await page.getByRole("button", { name: "Byłem tu wcześniej" }).click();
+    await page.getByRole("button", { name: "Zaznaczam wcześniejszą wizytę" }).click();
     await page.getByRole("button", { name: "Zapisz wizytę z przeszłości" }).click();
     await expect(page.getByText("Z przeszłości · data nieznana")).toBeVisible();
 
@@ -271,7 +272,7 @@ test.describe("a visit from the past", () => {
 
     await expect(status).toBeVisible();
     await expect(status).toBeFocused();
-    await expect(page.getByRole("button", { name: "Byłem tu wcześniej" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Zaznaczam wcześniejszą wizytę" })).toBeVisible();
     expect(await visitRows(EXPLORER_A)).toEqual([]);
     await page.context().close();
   });
@@ -325,12 +326,12 @@ test.describe("a visit from the past", () => {
     const page = await signedInPage(browser, EXPLORER_A);
 
     await openBridge(page);
-    await page.getByRole("button", { name: "Byłem tu wcześniej" }).click();
+    await page.getByRole("button", { name: "Zaznaczam wcześniejszą wizytę" }).click();
     await chooseMonth(page, "marzec", "2019");
     await expectNoAccessibilityViolations(page);
 
     await setLightTheme(page);
-    await page.getByRole("button", { name: "Byłem tu wcześniej" }).click();
+    await page.getByRole("button", { name: "Zaznaczam wcześniejszą wizytę" }).click();
     await chooseMonth(page, "marzec", "2019");
     await expectNoAccessibilityViolations(page);
 
@@ -361,7 +362,7 @@ test.describe("a visit from the past", () => {
 
     await page.setViewportSize({ width: 320, height: 640 });
     await openBridge(page);
-    await page.getByRole("button", { name: "Byłem tu wcześniej" }).click();
+    await page.getByRole("button", { name: "Zaznaczam wcześniejszą wizytę" }).click();
     await chooseMonth(page, "marzec", "2019");
 
     const overflow = await page.evaluate(
