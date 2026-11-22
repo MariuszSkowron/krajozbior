@@ -4,6 +4,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef, useState } from "react";
 
+import { TILES_ATTRIBUTION, TILES_URL } from "@/lib/map-tiles";
+
 import styles from "./collection-map.module.css";
 
 export type MapPlace = {
@@ -19,10 +21,6 @@ export type MapPlace = {
 
 export type MapPoint = { latitude: number; longitude: number };
 
-const TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-// The credit required by the tile policy (D-35); the link points to the OSM copyright page.
-const ATTRIBUTION =
-  '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>';
 const MAX_ZOOM = 15;
 const ICON_SIZE = 44;
 
@@ -120,7 +118,7 @@ export default function CollectionMap({
     L.control.zoom({ zoomInTitle: "Przybliż", zoomOutTitle: "Oddal" }).addTo(map);
     L.control.attribution({ prefix: false }).addTo(map);
 
-    const tiles = L.tileLayer(TILES, { attribution: ATTRIBUTION, maxZoom: 19 });
+    const tiles = L.tileLayer(TILES_URL, { attribution: TILES_ATTRIBUTION, maxZoom: 19 });
     let reported = false;
 
     // The notice appears once; the markers and the credit stay (the list is the full replacement).

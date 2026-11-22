@@ -20,7 +20,7 @@ export default async function NewPlacePage({
   const { collectionId } = await params;
   const path = `/curator/collections/${collectionId}/places/new`;
   const { actor } = await requireCurator(path);
-  const { collection } = pageValue(
+  const { collection, places } = pageValue(
     await getCuratorCollection(actor, collectionId, getCatalogDeps()),
     path,
   );
@@ -44,7 +44,11 @@ export default async function NewPlacePage({
           <h1>Nowe miejsce</h1>
         </div>
       </header>
-      <PlaceForm mode="create" collectionId={collection.id} />
+      <PlaceForm
+        mode="create"
+        collectionId={collection.id}
+        collectionPoints={places.map(({ latitude, longitude }) => ({ latitude, longitude }))}
+      />
     </>
   );
 }
