@@ -357,6 +357,42 @@ describe("app shell", () => {
     expect(nav(html)).not.toContain("aria-current");
   });
 
+  // Characterization of the shell before the news entry points (E7-R3): what the header
+  // links to and the order of the bar, so that the new link and the fifth item change
+  // nothing else.
+  describe("characterization of the links of the shell", () => {
+    const hrefs = (fragment: string) =>
+      [...fragment.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => m[1]);
+
+    it("links the header of a guest to the start page and to the login only", async () => {
+      expect(hrefs(header(await shell()))).toEqual(["/", "/login"]);
+    });
+
+    it("links the header of a signed-in explorer to the start page only (the rest is a form)", async () => {
+      mocks.getActor.mockResolvedValue(as("user"));
+
+      expect(hrefs(header(await shell()))).toEqual(["/"]);
+    });
+
+    it("keeps the first four items of the bar in the order of the screens", async () => {
+      mocks.getActor.mockResolvedValue(as("user"));
+
+      expect(hrefs(nav(await shell())).slice(0, 4)).toEqual([
+        "/",
+        "/my/collections",
+        "/my/want-to-see",
+        "/my",
+      ]);
+    });
+
+    it("draws the bar of a signed-in explorer on a public page with the start item current", async () => {
+      mocks.getActor.mockResolvedValue(as("user"));
+      mocks.pathname = "/collections/demo";
+
+      expect(nav(await shell())).toMatch(/aria-current="page" href="\/"/);
+    });
+  });
+
   it("offers the switch to the other theme in the header, also for a guest", async () => {
     expect(header(await shell())).toMatch(
       /<form [^>]+><button [^>]*type="submit"[^>]*value="light"[^>]*>.+Jasny motyw<\/span><\/button><\/form>/,
