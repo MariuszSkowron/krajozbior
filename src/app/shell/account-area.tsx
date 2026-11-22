@@ -4,6 +4,7 @@ import type { Role } from "@/features/identity/domain/actor";
 import { roleLabels } from "@/features/identity/domain/role-home";
 
 import styles from "../app-shell.module.css";
+import { GuestNewsLink } from "./guest-news-link";
 import { LoginLink } from "./login-link";
 import { LogoutForm } from "./logout-form";
 
@@ -18,7 +19,10 @@ export function AccountArea({
   return (
     <div className={styles.account}>
       {role === null ? (
-        <LoginLink />
+        <>
+          <GuestNewsLink />
+          <LoginLink />
+        </>
       ) : (
         <>
           {curatorLink ? (

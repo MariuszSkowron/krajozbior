@@ -3,13 +3,15 @@ import { describe, expect, it } from "vitest";
 import { activeNavHref, isCuratorPath, navItems } from "@/app/shell/nav-items";
 
 describe("pozycje nawigacji", () => {
-  it("ma 4 pozycje istniejących ekranów (Q7)", () => {
+  it("ma 5 pozycji istniejących ekranów, Aktualności są piąte (Q7, E7-R3)", () => {
     expect(navItems.map((item) => item.href)).toEqual([
       "/",
       "/my/collections",
       "/my/want-to-see",
       "/my",
+      "/news",
     ]);
+    expect(navItems.at(-1)?.label).toBe("Aktualności");
   });
 
   it.each([
@@ -19,6 +21,9 @@ describe("pozycje nawigacji", () => {
     ["/my", "/my"],
     ["/my/collections", "/my/collections"],
     ["/my/want-to-see", "/my/want-to-see"],
+    ["/news", "/news"],
+    ["/news/jak-zbierac-miejsca", "/news"],
+    ["/newsy", null],
     ["/login", null],
     ["/curator", null],
     ["/collectionsx", null],

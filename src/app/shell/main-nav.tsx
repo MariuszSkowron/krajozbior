@@ -4,7 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-import { BookmarkIcon, CardsIcon, HomeIcon, ProfileIcon } from "@/design-system/icons/icons";
+import {
+  BookmarkIcon,
+  CardsIcon,
+  HomeIcon,
+  NewsIcon,
+  ProfileIcon,
+} from "@/design-system/icons/icons";
 
 import styles from "../app-shell.module.css";
 import { activeNavHref, isCuratorPath, navItems, type NavIconName } from "./nav-items";
@@ -14,6 +20,7 @@ const icons = {
   cards: CardsIcon,
   bookmark: BookmarkIcon,
   profile: ProfileIcon,
+  news: NewsIcon,
 } satisfies Record<NavIconName, typeof HomeIcon>;
 
 // Główna nawigacja zalogowanego odkrywcy: na telefonie dolny pasek, od progu komputera menu
