@@ -476,7 +476,7 @@ export const postgresCatalogRepository: CatalogRepository = {
   async findPublishedPlace(tx: TransactionContext, id) {
     const place = first(
       await tx.em.execute<
-        (Omit<PublishedPlace, "organization" | "collections" | "source"> & {
+        (Omit<PublishedPlace, "organization" | "collections" | "source" | "cover"> & {
           organizationName: string;
           organizationSlug: string;
           attribution: string | null;
@@ -517,6 +517,22 @@ export const postgresCatalogRepository: CatalogRepository = {
         order by c.title, c.slug`,
       [id],
     );
+    // The cover: the first ready photo by position. This runs in the guest context, so the policy
+    // of `place_photos` leaves only what everyone may see (a hidden photo never comes back); the
+    // application role has no grant on the `hidden_*` columns, so the query does not read them.
+    const cover = first(
+      await tx.em.execute<NonNullable<PublishedPlace["cover"]>[]>(
+        `select id as "photoId", width, height, alt_text as "altText", title,
+                author_text as "authorText", author_url as "authorUrl", source_url as "sourceUrl",
+                source_kind as "sourceKind", license_code as "licenseCode",
+                license_url as "licenseUrl", license_label as "licenseLabel"
+           from public.place_photos
+          where place_id = ? and file_state = 'ready' and storage_key is not null
+          order by position
+          limit 1`,
+        [id],
+      ),
+    );
     const { organizationName, organizationSlug, attribution, wikipediaUrl, wikidataQid, ...rest } =
       place;
 
@@ -525,6 +541,7 @@ export const postgresCatalogRepository: CatalogRepository = {
       organization: { name: organizationName, slug: organizationSlug },
       collections,
       source: attribution === null ? null : { attribution, wikipediaUrl, wikidataQid },
+      cover,
     };
   },
 
