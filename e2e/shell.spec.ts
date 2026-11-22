@@ -25,6 +25,8 @@ async function signedInPage(
 
   await page.goto("/login");
 
+  await page.getByText("Logowanie hasłem").click();
+
   const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
   await form.getByLabel("E-mail").fill(emailOf(name));

@@ -3,8 +3,6 @@
 // reads the address, these decide what it means. An unknown value is the default one, never an
 // error (the address can be written by anyone).
 
-import { isUuid } from "./uuid";
-
 export type StateFilter = "wszystkie" | "odwiedzone" | "do-odwiedzenia";
 
 export const STATE_FILTERS: readonly StateFilter[] = ["wszystkie", "odwiedzone", "do-odwiedzenia"];
@@ -25,13 +23,6 @@ export function parseStateFilter(raw: Raw): StateFilter {
   const value = firstValue(raw);
 
   return STATE_FILTERS.find((filter) => filter === value) ?? "wszystkie";
-}
-
-/** `?miejsce=`: a place id, or `null` for nothing and for anything that is not a UUID. */
-export function parseSelectedPlace(raw: Raw): string | null {
-  const value = firstValue(raw);
-
-  return isUuid(value) ? value.toLowerCase() : null;
 }
 
 /** `?widok=`: the list of cards (default) or the map (E12-5). Anything else is the cards. */
@@ -78,7 +69,7 @@ export function filterByState<T extends Readonly<{ id: string }>>(
  */
 export function albumHref(
   slug: string,
-  view: Readonly<{ stan?: StateFilter; miejsce?: string | null; widok?: CollectionView }>,
+  view: Readonly<{ stan?: StateFilter; widok?: CollectionView }>,
 ): string {
   const query = new URLSearchParams();
 
@@ -88,10 +79,6 @@ export function albumHref(
 
   if (view.stan !== undefined && view.stan !== "wszystkie") {
     query.set("stan", view.stan);
-  }
-
-  if (view.miejsce !== undefined && view.miejsce !== null) {
-    query.set("miejsce", view.miejsce);
   }
 
   const text = query.toString();
@@ -106,9 +93,12 @@ const DATE = new Intl.DateTimeFormat("pl-PL", {
   year: "numeric",
 });
 
-/** "18.11.2026": the day in Polish time. */
+/** "8.11.2026": a single date (not a list), in Polish time. */
 export function formatUpdateDate(date: Date): string {
-  return DATE.format(date);
+  const part = Object.fromEntries(DATE.formatToParts(date).map((p) => [p.type, p.value]));
+
+  // No leading zeros ("5.3.2026"): the browser's own format pads the month, so it is spelled out.
+  return `${Number(part.day)}.${Number(part.month)}.${part.year}`;
 }
 
 /** The text of a description in the panel: whole words, at most `limit` characters, "…" when cut. */

@@ -9,7 +9,7 @@ import { MAX_COLLECTIONS_PER_LIST } from "@/features/catalog/domain/limits";
 type Props = { collectionId: string; initialSaved: boolean };
 
 const MESSAGES: Record<number, string> = {
-  401: "Sesja wygasła. Zaloguj się ponownie.",
+  401: "Zaloguj się, żeby zapisać kolekcję.",
   404: "Ta kolekcja nie jest już dostępna.",
   409: `Masz już ${MAX_COLLECTIONS_PER_LIST} zapisanych kolekcji, to najwięcej. Usuń którąś, by zapisać nową.`,
   429: "Za dużo prób. Spróbuj za chwilę.",
@@ -54,17 +54,17 @@ export function SaveCollectionButton({ collectionId, initialSaved }: Props) {
         type="button"
         className={saved ? "button button--outline" : "button button--primary"}
         disabled={pending}
+        aria-busy={pending}
         onClick={() => void toggle()}
       >
-        {saved ? "Usuń z zapisanych" : "Zapisz kolekcję"}
+        {saved ? "Usuń z zapisanych" : "Zapisuję kolekcję"}
+        {pending ? <span className={styles.spinner} aria-hidden="true" /> : null}
       </button>
       <p className={styles.feedback} role="status">
-        {error ??
-          (saved
-            ? "Ta kolekcja jest w Twoich zapisanych."
-            : removed
-              ? "Usunięto z zapisanych."
-              : "")}
+        {pending
+          ? "Zapisuję…"
+          : (error ??
+            (saved ? "Kolekcja jest zapisana." : removed ? "Usunięto z zapisanych." : ""))}
       </p>
     </div>
   );

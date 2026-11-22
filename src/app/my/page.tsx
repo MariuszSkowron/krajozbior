@@ -6,6 +6,7 @@ import { getRequestActor, loginHref } from "@/app/request-actor";
 import { LogoutForm } from "@/app/shell/logout-form";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
 import { roleLabels } from "@/features/identity/domain/role-home";
+import { CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
 import { logFailure } from "@/lib/log-failure";
 import { getMyProfile } from "@/features/profile/application/profile";
 import { avatarLetter, formatDisplayName } from "@/features/profile/domain/display-name";
@@ -25,7 +26,8 @@ export const metadata: Metadata = { title: "Profil — Krajozbiór" };
 // E9-1: the profile screen. The session is checked on the server, a guest is
 // sent to /login and returns here afterwards. Only entries that lead to an
 // existing screen are shown (D-22 point 7); "Ustawienia" arrived with its screen
-// (E9-5), "Napisz do nas" comes with E9-6. Logging out is a native form
+// (E9-5), "Napisz do nas" with E9-6a (a mailto link to the team's address, no
+// form and no data). Logging out is a native form
 // post, so it works without JavaScript and ends the current session only.
 export default async function MyPage() {
   const actor = await getRequestActor();
@@ -84,7 +86,7 @@ export default async function MyPage() {
         <h2 id="stats-title">Twoje liczby</h2>
         {statsValue === null ? (
           <p className={styles.statsError} data-testid="profile-stats-error">
-            Nie udało się teraz policzyć Twoich liczb. Odśwież stronę za chwilę.
+            Nie udało się wczytać Twoich liczb. Odśwież stronę za chwilę.
           </p>
         ) : (
           /* One definition list: a reader says "Odkryte miejsca, 12", the tiles only look like cards. */
@@ -120,6 +122,11 @@ export default async function MyPage() {
             <Link className={styles.link} href="/my/settings">
               Ustawienia
             </Link>
+          </li>
+          <li>
+            <a className={styles.link} href={`mailto:${CONTACT_EMAIL}`}>
+              Napisz do nas
+            </a>
           </li>
         </ul>
       </nav>

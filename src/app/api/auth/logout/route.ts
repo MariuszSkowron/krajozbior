@@ -1,3 +1,4 @@
+import { loginEmailClearCookieHeader } from "@/app/login/login-email-cookie";
 import { isSameOrigin } from "@/features/identity/domain/origin";
 import { requestedReturnTo } from "@/features/identity/domain/return-to";
 import { getIdentityProvider } from "@/features/identity/infrastructure";
@@ -72,6 +73,8 @@ export async function POST(request: Request) {
 
   // The typed profile form values must not stay on a shared device (L4).
   headers.append("Set-Cookie", clearedProfileDraftCookie());
+  // So is the address kept for the code sign-in (login-email-cookie.ts).
+  headers.append("Set-Cookie", loginEmailClearCookieHeader());
 
   if (isForm) {
     // The deletion screen asks for a fresh sign-in (E9-5, Q7): its logout form

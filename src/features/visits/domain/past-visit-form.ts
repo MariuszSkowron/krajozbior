@@ -55,7 +55,7 @@ export function toPastVisitDateBody(form: PastVisitDateForm): PastVisitDateBody 
 
 const FAILURES: Record<number, (many: boolean) => string> = {
   400: () => "Sprawdź datę: nie może być z przyszłości ani sprzed roku 1900.",
-  401: () => "Sesja wygasła. Zaloguj się ponownie.",
+  401: () => "Zaloguj się, żeby zapisać wizytę.",
   404: (many) =>
     many
       ? "Któreś z zaznaczonych miejsc nie jest już dostępne. Odśwież stronę."
@@ -72,7 +72,11 @@ export function pastVisitFailureMessage(status: number, many: boolean): string {
 
 /** The message for a refused removal of a visit from the past. */
 export function pastVisitRemovalFailureMessage(status: number): string {
-  return status === 401 || status === 429
+  if (status === 401) {
+    return "Zaloguj się, żeby usunąć wizytę.";
+  }
+
+  return status === 429
     ? FAILURES[status]!(false)
     : "Nie udało się usunąć wizyty z przeszłości. Spróbuj ponownie.";
 }
@@ -108,9 +112,7 @@ export function pastVisitSavedMessage(recorded: number, alreadyVisited: number):
  * the other places cannot be chosen any more.
  */
 export function pickedCountMessage(count: number, max: number): string {
-  return count >= max
-    ? `Wybrane: ${count}. Zaznaczono ${max} miejsc — to najwięcej naraz.`
-    : `Wybrane: ${count}.`;
+  return count >= max ? `Wybrane: ${count}. To najwięcej naraz.` : `Wybrane: ${count}.`;
 }
 
 /** Today of the device clock as YYYY-MM-DD (not the UTC day), for the `max` of a date field. */

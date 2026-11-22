@@ -58,7 +58,7 @@ describe("WantToSeeButton", () => {
   it("offers the removal for a place that is on the list, also one that was visited", () => {
     const html = render(true);
 
-    expect(html).toContain("Usuń z Chcę zobaczyć");
+    expect(html).toContain("Usuń z „Chcę zobaczyć”");
     expect(html).toContain("To miejsce jest na Twojej liście „Chcę zobaczyć”.");
   });
 
@@ -76,7 +76,7 @@ describe("WantToSeeButton", () => {
 
     const html = render(false);
 
-    expect(html).toContain("Sesja wygasła.");
+    expect(html).toContain("Zaloguj się, żeby zmienić listę.");
     expect(html).toContain(`href="/login?returnTo=${encodeURIComponent(`/places/${PLACE}`)}"`);
     expect(html).toContain("Zaloguj się ponownie");
   });

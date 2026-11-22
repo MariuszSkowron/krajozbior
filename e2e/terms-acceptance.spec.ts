@@ -94,11 +94,10 @@ async function signInWithCode(page: Page, email: string) {
   await page.goto("/login");
   await page.locator("#code-request-email").fill(email);
   await page.getByRole("button", { name: "Wyślij kod" }).click();
-  await expect(page.getByRole("main").getByRole("status")).toContainText("wysłaliśmy na niego kod");
+  await expect(page.getByRole("main").getByRole("status")).toContainText("kod jest już w drodze");
 
-  await page.locator("#code-verify-email").fill(email);
   await page.locator("#code-verify-code").fill(await codeFor(email, known));
-  await page.getByRole("button", { name: "Zaloguj się kodem" }).click();
+  await page.getByRole("button", { name: "Zaloguj się", exact: true }).click();
   await expect(page).not.toHaveURL(/\/login/);
 }
 
@@ -146,6 +145,11 @@ test.describe("strony prawne, stopka i pasek", () => {
       await expect(footer.getByRole("link", { name: "Kontakt" })).toHaveAttribute(
         "href",
         "mailto:kontakt@mariuszskowron.pl",
+      );
+
+      await expect(footer.getByRole("link", { name: "Zgłoś naruszenie" })).toHaveAttribute(
+        "href",
+        /^mailto:kontakt@mariuszskowron\.pl\?subject=.+&body=.+/,
       );
 
       await footer.getByRole("link", { name: "Regulamin" }).click();

@@ -38,9 +38,17 @@ const foreignKeys: Record<string, { behaviour: Behaviour; why: string }> = {
     behaviour: "cascade",
     why: "which version of the terms the account accepted and when; evidence for the account only (F-K3)",
   },
+  "public.place_photos.created_by": {
+    behaviour: "set null",
+    why: "who of the team filed the rights statement of an official photo; the photo and its signature stay without the person (E4-2a, spec 5.1)",
+  },
   "public.organization_members.user_id": {
     behaviour: "cascade",
     why: "the membership goes; the organization and its content stay (Q8)",
+  },
+  "public.user_collections.owner_user_id": {
+    behaviour: "cascade",
+    why: "own collections of the explorer, private; their entries go with them (E8-1a, E8-Q6)",
   },
   "public.saved_collections.user_id": { behaviour: "cascade", why: "private list of the explorer" },
   "public.visits.user_id": { behaviour: "cascade", why: "private visits of the explorer" },

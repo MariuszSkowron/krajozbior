@@ -120,7 +120,7 @@ describe("profile page", () => {
     const html = renderToStaticMarkup(await MyPage());
 
     expect(html).toContain('data-testid="profile-stats-error"');
-    expect(html).toContain("Nie udało się teraz policzyć Twoich liczb");
+    expect(html).toContain("Nie udało się wczytać Twoich liczb. Odśwież stronę za chwilę.");
     expect(html).not.toContain('data-testid="profile-stats"');
     // The rest of the profile stays: links and logout.
     expect(html).toContain("/my/settings");
@@ -142,10 +142,15 @@ describe("profile page", () => {
     const html = renderToStaticMarkup(await MyPage());
     const hrefs = [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((match) => match[1]);
 
-    // "Ustawienia" arrived with its screen (E9-5); "Napisz do nas" comes with E9-6.
-    expect(hrefs).toEqual(["/my/collections", "/my/want-to-see", "/my/settings"]);
+    // "Ustawienia" arrived with its screen (E9-5); "Napisz do nas" is a mailto link (E9-6a).
+    expect(hrefs).toEqual([
+      "/my/collections",
+      "/my/want-to-see",
+      "/my/settings",
+      "mailto:kontakt@mariuszskowron.pl",
+    ]);
     expect(html).toContain("Ustawienia");
-    expect(html).not.toContain("Napisz do nas");
+    expect(html).toContain("Napisz do nas");
   });
 
   it("ends the session with a native form post to the logout route", async () => {

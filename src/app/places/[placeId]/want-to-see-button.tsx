@@ -11,7 +11,7 @@ import styles from "./visit-confirmation.module.css";
 type Props = { placeId: string; initialWanted: boolean };
 
 const MESSAGES: Record<number, string> = {
-  401: "Sesja wygasła.",
+  401: "Zaloguj się, żeby zmienić listę.",
   404: "To miejsce nie jest już dostępne.",
   409: `Na liście „Chcę zobaczyć” jest już ${MAX_WANT_TO_SEE_LISTED} miejsc, to najwięcej. Usuń któreś, by dodać nowe.`,
   429: "Za dużo prób. Spróbuj za chwilę.",
@@ -61,7 +61,7 @@ export function WantToSeeButton({ placeId, initialWanted }: Props) {
         aria-busy={pending}
         onClick={() => void toggle()}
       >
-        {wanted ? "Usuń z Chcę zobaczyć" : "Chcę zobaczyć"}
+        {wanted ? "Usuń z „Chcę zobaczyć”" : "Chcę zobaczyć"}
       </button>
       <p className={styles.feedback} role={error === null ? "status" : "alert"}>
         {error ??

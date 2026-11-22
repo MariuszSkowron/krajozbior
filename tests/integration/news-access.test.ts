@@ -1100,7 +1100,9 @@ describe("news posts of the editorial version (E7-R1)", () => {
 
       try {
         expect(await allowsNewsImport()).toBe(true);
-        await owner.migrator.down({ to: "Migration20261121150000_account_settings" });
+        // Only the migrations after the photos migration: its own revert restores the audit
+        // CHECKs validated and would fail on the `news_import` entries that stay.
+        await owner.migrator.down({ to: "Migration20261121170000_place_photos" });
         expect(await tableExists()).toBeNull();
         expect(await functions()).toBe(0);
         expect(await allowsNewsImport()).toBe(false);

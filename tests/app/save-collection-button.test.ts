@@ -54,7 +54,7 @@ beforeEach(() => {
 
 describe("SaveCollectionButton", () => {
   it("announces the removal to screen readers after unsaving, and the save after saving", async () => {
-    expect(render(true).status).toBe("Ta kolekcja jest w Twoich zapisanych.");
+    expect(render(true).status).toBe("Kolekcja jest zapisana.");
 
     await click();
     expect(fetch).toHaveBeenLastCalledWith("/api/me/saved-collections/c1", { method: "DELETE" });
@@ -63,7 +63,7 @@ describe("SaveCollectionButton", () => {
 
     await click();
     expect(fetch).toHaveBeenLastCalledWith("/api/me/saved-collections/c1", { method: "PUT" });
-    expect(render(true).status).toBe("Ta kolekcja jest w Twoich zapisanych.");
+    expect(render(true).status).toBe("Kolekcja jest zapisana.");
   });
 
   it("keeps a failed removal as an error, not as an announcement of success", async () => {

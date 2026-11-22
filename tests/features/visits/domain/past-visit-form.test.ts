@@ -62,7 +62,7 @@ describe("toPastVisitDateBody", () => {
 describe("messages", () => {
   it("names the failure by status, for one place and for many", () => {
     expect(pastVisitFailureMessage(400, false)).toContain("Sprawdź datę");
-    expect(pastVisitFailureMessage(401, true)).toContain("Sesja wygasła");
+    expect(pastVisitFailureMessage(401, true)).toContain("Zaloguj się, żeby");
     expect(pastVisitFailureMessage(404, false)).toBe("To miejsce nie jest już dostępne.");
     expect(pastVisitFailureMessage(404, true)).toContain("Któreś z zaznaczonych miejsc");
     expect(pastVisitFailureMessage(429, false)).toContain("Za dużo prób");
@@ -70,7 +70,7 @@ describe("messages", () => {
   });
 
   it("names the failure of a removal", () => {
-    expect(pastVisitRemovalFailureMessage(401)).toContain("Sesja wygasła");
+    expect(pastVisitRemovalFailureMessage(401)).toContain("żeby usunąć wizytę");
     expect(pastVisitRemovalFailureMessage(429)).toContain("Za dużo prób");
     expect(pastVisitRemovalFailureMessage(500)).toContain("Nie udało się usunąć");
   });
@@ -101,9 +101,7 @@ describe("messages", () => {
     expect(pickedCountMessage(0, 100)).toBe("Wybrane: 0.");
     expect(pickedCountMessage(2, 100)).toBe("Wybrane: 2.");
     expect(pickedCountMessage(99, 100)).toBe("Wybrane: 99.");
-    expect(pickedCountMessage(100, 100)).toBe(
-      "Wybrane: 100. Zaznaczono 100 miejsc — to najwięcej naraz.",
-    );
+    expect(pickedCountMessage(100, 100)).toBe("Wybrane: 100. To najwięcej naraz.");
   });
 });
 

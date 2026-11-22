@@ -248,6 +248,7 @@ async function signIn(browser: Browser, name: string): Promise<StorageState> {
   const page = await context.newPage();
 
   await page.goto("/login");
+  await page.getByText("Logowanie hasłem").click();
   const form = page.locator("form", { has: page.getByLabel("Hasło") });
   await form.getByLabel("E-mail").fill(`${name}@demo.krajozbior.local`);
   await form.getByLabel("Hasło").fill(password ?? "");
@@ -348,8 +349,8 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
       .getAttribute("href");
 
     paths.place = placeHref ?? "";
-    await page.getByRole("button", { name: "Zapisz kolekcję" }).click();
-    await expect(page.getByText("Ta kolekcja jest w Twoich zapisanych.")).toBeVisible();
+    await page.getByRole("button", { name: "Zapisuję kolekcję" }).click();
+    await expect(page.getByText("Kolekcja jest zapisana.")).toBeVisible();
     await page.goto(paths.place);
     await waitForHydration(page);
     await page.getByRole("button", { name: "Chcę zobaczyć", exact: true }).click();
@@ -538,7 +539,7 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
       geolocation: location ?? undefined,
     });
 
-    await opened.page.getByRole("button", { name: "Potwierdź wizytę" }).click();
+    await opened.page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
 
     return opened;
   }
@@ -583,7 +584,7 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
     }) => {
       const { context, page } = await openScreen(browser, "explorer", theme, PHONE, paths.place);
 
-      await expect(page.getByRole("button", { name: "Potwierdź wizytę" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Potwierdzam wizytę" })).toBeVisible();
       expect(await axeViolations(page)).toEqual([]);
       await context.close();
     });
@@ -599,7 +600,7 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
     await expect(page.locator(NAV_BAR)).toBeHidden();
     // Dolny margines treści: ostatni element strony kończy się nad przypiętym przyciskiem.
     expect(await contentGap(page)).toBeGreaterThanOrEqual(0);
-    const button = page.getByRole("button", { name: "Potwierdź wizytę" });
+    const button = page.getByRole("button", { name: "Potwierdzam wizytę" });
 
     await expect(button).toBeInViewport({ ratio: 1 });
     const box = (await button.boundingBox())!;
@@ -662,7 +663,7 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
     await expect(page.locator(NAV_BAR)).toBeVisible();
     // Opakowanie jest przezroczyste (`display: contents`), a przycisk leży w karcie „Wizyta”.
     const layout = await page
-      .getByRole("button", { name: "Potwierdź wizytę" })
+      .getByRole("button", { name: "Potwierdzam wizytę" })
       .evaluate((button, dockSelector) => {
         const dock = button.closest(dockSelector)!;
         const card = dock.parentElement!.getBoundingClientRect();
@@ -789,12 +790,12 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
   }) => {
     const { context, page } = await placeWithLocation(browser, BRIDGE);
 
-    await expect(page.getByText("Wizyta potwierdzona.")).toBeVisible();
+    await expect(page.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
     expect(await axeViolations(page)).toEqual([]);
 
     await page.reload();
     await waitForHydration(page);
-    await expect(page.getByText("Masz już zapisaną wizytę w tym miejscu.")).toBeVisible();
+    await expect(page.getByText("Odwiedzone", { exact: true }).first()).toBeVisible();
     expect(await axeViolations(page)).toEqual([]);
 
     await page.goto("/my/want-to-see");

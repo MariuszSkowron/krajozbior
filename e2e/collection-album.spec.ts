@@ -6,7 +6,7 @@ import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
 
 // E12-4: the collection page as an album: header, state filter (works without JavaScript),
-// grid of cards and the panel of the chosen place (desktop only, no new document). Needs a
+// grid of cards (a card is a plain link to the place; the selected-place card is gone, D-49). Needs a
 // migrated, seeded database like the other specs that sign in; without it the spec is skipped.
 // The cleanup deletes rows of the demo explorers straight in the database, so it runs only
 // against the disposable E2E database (parseE2eAdminDatabaseUrl).
@@ -53,6 +53,8 @@ async function signedInPage(browser: Browser, email: string): Promise<Page> {
   const page = await context.newPage();
 
   await page.goto("/login");
+
+  await page.getByText("Logowanie hasłem").click();
 
   const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
@@ -105,8 +107,6 @@ async function visitPast(placeName: string) {
 const card = (page: Page, name: RegExp) =>
   page.getByRole("main").getByRole("list").getByRole("link", { name });
 
-const panelHeading = (page: Page) => page.locator("#panel-miejsca");
-
 test.describe("the collection as an album", () => {
   test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
 
@@ -123,119 +123,32 @@ test.describe("the collection as an album", () => {
     await expect(card(page, /./)).toHaveCount(3);
   });
 
-  test("desktop: a click on a card opens the panel without a new document; time to the panel is measured", async ({
+  test("a card is a link to the page of the place, on a desktop and on a phone, and there is no card of the chosen place", async ({
     page,
   }) => {
     await page.goto(COLLECTION);
     await waitForHydration(page);
-    await expect(panelHeading(page)).toHaveText("Wybrane miejsce");
-
-    // The marker lives in the document: a full reload would remove it. The click time and the
-    // moment the panel heading shows the name come from the page itself (no protocol delay).
-    await page.evaluate(() => {
-      const w = window as unknown as {
-        __document: boolean;
-        __t: { click?: number; panel?: number };
-      };
-
-      w.__document = true;
-      w.__t = {};
-      document.addEventListener("click", () => (w.__t.click = performance.now()), {
-        capture: true,
-      });
-      new MutationObserver(() => {
-        if (document.getElementById("panel-miejsca")?.textContent === "Most Tczewski") {
-          w.__t.panel ??= performance.now();
-        }
-      }).observe(document.body, { childList: true, subtree: true, characterData: true });
-    });
-
-    const bridge = card(page, /Most Tczewski/);
-
-    await bridge.click();
-    await expect(panelHeading(page)).toHaveText("Most Tczewski");
-    await expect(page).toHaveURL(/\?miejsce=[0-9a-f-]{36}$/);
-    await expect(bridge).toHaveAttribute("aria-current", "true");
-    // Same document, the focus stays on the card, the page is not scrolled to the top.
-    expect(
-      await page.evaluate(() => (window as unknown as { __document?: boolean }).__document),
-    ).toBe(true);
-    await expect(bridge).toBeFocused();
-
-    const times = await page.evaluate(
-      () => (window as unknown as { __t: { click: number; panel: number } }).__t,
-    );
-    const elapsed = Math.round(times.panel - times.click);
-
-    console.log(`[e12-4] czas od kliknięcia do panelu: ${elapsed} ms (próg 300 ms)`);
-    test.info().annotations.push({ type: "czas do panelu", description: `${elapsed} ms` });
-    expect(elapsed).toBeLessThan(1500);
-
-    const aside = page.getByRole("complementary");
-
-    await expect(aside.getByText("Tczew", { exact: true })).toBeVisible();
-    await expect(aside.getByRole("link", { name: "Otwórz stronę miejsca" })).toHaveAttribute(
-      "href",
-      /\/places\/[0-9a-f-]{36}$/,
-    );
-    // A guest has no visits and no list.
-    await expect(aside.getByRole("button")).toHaveCount(0);
-
-    // Another card changes the panel in the same document.
-    await card(page, /Zamek w Gniewie/).click();
-    await expect(panelHeading(page)).toHaveText("Zamek w Gniewie");
-    expect(
-      await page.evaluate(() => (window as unknown as { __document?: boolean }).__document),
-    ).toBe(true);
-  });
-
-  test("a click with Ctrl and the link of the panel still lead to the page of the place", async ({
-    page,
-    context,
-  }) => {
-    await page.goto(COLLECTION);
-    await waitForHydration(page);
-
-    const opened = context.waitForEvent("page");
-
-    await card(page, /Most Tczewski/).click({ modifiers: ["Control"] });
-    await expect((await opened).url()).toMatch(/\/places\/[0-9a-f-]{36}$/);
-    await expect(panelHeading(page)).toHaveText("Wybrane miejsce");
+    await expect(page.getByRole("complementary")).toHaveCount(0);
+    await expect(page.getByText("Wybrane miejsce")).toHaveCount(0);
 
     await card(page, /Most Tczewski/).click();
-    await page.getByRole("link", { name: "Otwórz stronę miejsca" }).click();
     await expect(page).toHaveURL(/\/places\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("heading", { level: 1, name: "Most Tczewski" })).toBeVisible();
-  });
 
-  test("phone: a card leads to the page of the place and the panel is not shown", async ({
-    page,
-  }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(COLLECTION);
     await waitForHydration(page);
-    await expect(page.getByRole("complementary")).toBeHidden();
-
-    await card(page, /Most Tczewski/).click();
-    await expect(page).toHaveURL(/\/places\/[0-9a-f-]{36}$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Most Tczewski" })).toBeVisible();
-
-    // A shared link with a chosen place gives no panel on a phone either.
-    const placeId = page.url().split("/").pop();
-
-    await page.goto(`${COLLECTION}?miejsce=${placeId}`);
-    await expect(page.getByRole("complementary")).toBeHidden();
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
 
     expect(overflow).toBeLessThanOrEqual(0);
+    await card(page, /Most Tczewski/).click();
+    await expect(page).toHaveURL(/\/places\/[0-9a-f-]{36}$/);
   });
 
-  test("without JavaScript a card is a link to the page of the place, and the address can still choose the place", async ({
-    browser,
-  }) => {
+  test("without JavaScript a card is a link to the page of the place", async ({ browser }) => {
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
 
@@ -245,24 +158,20 @@ test.describe("the collection as an album", () => {
 
     expect(href).toMatch(/^\/places\/[0-9a-f-]{36}$/);
 
-    await page.goto(`${COLLECTION}?miejsce=${href.split("/").pop()}`);
-    await expect(panelHeading(page)).toHaveText("Most Tczewski");
-    await expect(card(page, /Most Tczewski/)).toHaveAttribute("aria-current", "true");
-
     await card(page, /Most Tczewski/).click();
     await expect(page).toHaveURL(new RegExp(`${href}$`));
     await context.close();
   });
 
-  test("a place that is not in the collection, and a bad value, give no panel and no error", async ({
+  test("an old address with a chosen place gives the plain collection, without an error", async ({
     page,
   }) => {
     for (const value of ["11111111-1111-4111-8111-111111111111", "nie-uuid"]) {
       const response = await page.goto(`${COLLECTION}?miejsce=${value}`);
 
       expect(response?.status()).toBe(200);
-      await expect(panelHeading(page)).toHaveText("Wybrane miejsce");
-      await expect(page.getByRole("link", { name: "Otwórz stronę miejsca" })).toHaveCount(0);
+      await expect(page.getByText("Wybrane miejsce")).toHaveCount(0);
+      await expect(card(page, /./)).toHaveCount(3);
     }
   });
 
@@ -331,36 +240,61 @@ test.describe("the collection as an album", () => {
     await page.context().close();
   });
 
-  test("an explorer: the panel shows the state of the visit and the list button", async ({
+  test("an explorer: a click on a state filter does not scroll the page (scrollY is the same before and after)", async ({
     browser,
   }) => {
     const page = await signedInPage(browser, EXPLORER);
 
     await visitPast("Most Tczewski");
+    // A low window, so that the page is longer than the screen and the filter can be scrolled to.
+    await page.setViewportSize({ width: 1280, height: 400 });
     await page.goto(COLLECTION);
     await waitForHydration(page);
 
-    const aside = page.getByRole("complementary");
+    const nav = page.getByRole("navigation", { name: "Filtr miejsc" });
 
-    await card(page, /Most Tczewski/).click();
-    await expect(panelHeading(page)).toHaveText("Most Tczewski");
-    await expect(aside.getByText("Z przeszłości", { exact: true })).toBeVisible();
-    await expect(aside.getByRole("button", { name: "Chcę zobaczyć", exact: true })).toBeVisible();
+    await nav.scrollIntoViewIfNeeded();
+    await page.evaluate(() => window.scrollBy(0, 120));
 
-    await card(page, /Zamek w Gniewie/).click();
-    await expect(panelHeading(page)).toHaveText("Zamek w Gniewie");
-    await expect(aside.getByText("Do odwiedzenia", { exact: true })).toBeVisible();
+    const before = await page.evaluate(() => window.scrollY);
+
+    // A shorter list lets the browser clamp scrollY to the new maximum, so the check is: the page did
+    // not jump to the top, and scrollY equals the old value or the largest value the page still allows.
+    async function expectScrollKept(previous: number) {
+      const { y, max } = await page.evaluate(() => ({
+        y: window.scrollY,
+        max: document.documentElement.scrollHeight - window.innerHeight,
+      }));
+
+      expect(y).toBeGreaterThan(0);
+      expect(y).toBeLessThanOrEqual(previous + 2);
+      // A small margin for the sticky header and layout settling after the shorter list renders.
+      expect(y).toBeGreaterThanOrEqual(Math.min(previous, max) - 24);
+      await expect(nav).toBeInViewport();
+    }
+
+    expect(before).toBeGreaterThan(0);
+    await nav.getByRole("link", { name: "Odwiedzone (1)" }).click();
+    await expect(page).toHaveURL(/\?stan=odwiedzone$/);
+    await expect(card(page, /./)).toHaveCount(1);
+    // Let a possible scroll to the top happen before the check.
+    await page.waitForTimeout(300);
+    await expectScrollKept(before);
+
+    await nav.getByRole("link", { name: "Do odwiedzenia (2)" }).click();
+    await expect(page).toHaveURL(/\?stan=do-odwiedzenia$/);
+    await expect(card(page, /./)).toHaveCount(2);
+    await page.waitForTimeout(300);
+    await expectScrollKept(before);
     await page.context().close();
   });
 
-  test("accessibility: the album with the panel, as a guest and as an explorer, in both themes", async ({
+  test("accessibility: the album, as a guest and as an explorer, in both themes", async ({
     browser,
     page,
   }) => {
     await page.goto(COLLECTION);
     await waitForHydration(page);
-    await card(page, /Most Tczewski/).click();
-    await expect(panelHeading(page)).toHaveText("Most Tczewski");
     await inBothThemes(page, () => expectNoAccessibilityViolations(page));
 
     const explorer = await signedInPage(browser, EXPLORER);
@@ -368,8 +302,6 @@ test.describe("the collection as an album", () => {
     await visitPast("Most Tczewski");
     await explorer.goto(`${COLLECTION}?stan=do-odwiedzenia`);
     await waitForHydration(explorer);
-    await card(explorer, /Zamek w Gniewie/).click();
-    await expect(panelHeading(explorer)).toHaveText("Zamek w Gniewie");
     await inBothThemes(explorer, () => expectNoAccessibilityViolations(explorer));
     await explorer.context().close();
   });

@@ -80,6 +80,8 @@ async function signedInPage(browser: Browser, email: string): Promise<Page> {
 
   await page.goto("/login");
 
+  await page.getByText("Logowanie hasłem").click();
+
   const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
   await form.getByLabel("E-mail").fill(email);
@@ -206,13 +208,13 @@ test.describe("home page with the catalog", () => {
     await a.goto(`/collections/${DEMO_SLUG}`);
     await a.goto((await a.getByRole("link", { name: /Most Tczewski/ }).getAttribute("href")) ?? "");
     await waitForHydration(a);
-    await a.getByRole("button", { name: "Byłem tu wcześniej" }).click();
+    await a.getByRole("button", { name: "Zaznaczam wcześniejszą wizytę" }).click();
     await a.getByRole("radio", { name: "Rok" }).check();
     await a.getByRole("textbox", { name: "Rok", exact: true }).fill("2018");
     await a.getByRole("button", { name: "Zapisz wizytę z przeszłości" }).click();
     await expect(a.getByText("Z przeszłości · 2018")).toBeVisible();
     await a.goto(`/collections/${DEMO_SLUG}`);
-    await a.getByRole("button", { name: "Zapisz kolekcję" }).click();
+    await a.getByRole("button", { name: "Zapisuję kolekcję" }).click();
     await expect(a.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
 
     await a.goto("/");
@@ -225,7 +227,7 @@ test.describe("home page with the catalog", () => {
       "1",
     );
 
-    const favorites = a.getByRole("region", { name: "Ulubione kolekcje" });
+    const favorites = a.getByRole("region", { name: "Moje kolekcje" });
 
     await expect(favorites.getByRole("link", { name: /Mosty i zamki/ })).toContainText("1/3");
     await expect(favorites.getByRole("link", { name: "Wszystkie moje kolekcje" })).toHaveAttribute(
