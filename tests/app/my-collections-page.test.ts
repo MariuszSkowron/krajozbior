@@ -57,15 +57,15 @@ describe("Moje kolekcje", () => {
     expect(markup).toContain('href="/my/collections?stan=w-trakcie"');
     expect(markup).toContain('href="/my/collections?stan=nierozpoczete"');
     expect(markup).toContain('href="/my/collections?stan=ukonczone"');
-    expect(markup).toMatch(/aria-current="page"[^>]*>Wszystkie<span[^>]*>\(3\)/);
-    expect(markup).toMatch(/>W trakcie<span[^>]*>\(1\)/);
+    expect(markup).toMatch(/aria-current="page"[^>]*>Wszystkie <span[^>]*>\(3\)/);
+    expect(markup).toMatch(/>W trakcie <span[^>]*>\(1\)/);
     expect(markup.match(/href="\/collections\//g)).toHaveLength(3);
   });
 
   it("shows only the matching collections and marks the chosen state", async () => {
     const markup = await render("w-trakcie");
 
-    expect(markup).toMatch(/aria-current="page"[^>]*>W trakcie</);
+    expect(markup).toMatch(/aria-current="page"[^>]*>W trakcie <span/);
     expect(markup).toContain("Zapisane kolekcje (1 z 3)");
     expect(markup.match(/href="\/collections\//g)).toHaveLength(1);
     expect(markup).toContain('href="/collections/b"');

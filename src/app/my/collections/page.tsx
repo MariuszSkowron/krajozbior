@@ -135,7 +135,7 @@ export default async function MyCollectionsPage({ searchParams }: { searchParams
                 scroll={false}
                 aria-current={value === filter ? "page" : undefined}
               >
-                {PROGRESS_FILTER_LABELS[value]}
+                {PROGRESS_FILTER_LABELS[value]}{" "}
                 <span className={styles.filterCount}>({counts[value]})</span>
               </Link>
             ))}

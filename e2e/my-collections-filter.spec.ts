@@ -6,10 +6,10 @@ import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 
 // E12-S4: "Moje kolekcje": the filter by the state of progress (?stan=), state buttons that are
 // links (one click, no script needed, no jump to the top). The block "Pokaż nowe w okolicy" was
-// removed from this screen (D-49). Needs a migrated,
-// seeded database like the other specs that sign in; without it the spec is skipped. The saved
-// collection and the visits are written straight in the disposable E2E database, and the cleanup
-// removes those of the demo explorer before and after each test.
+// removed from this screen (D-49). Needs a migrated, seeded database like the other specs that
+// sign in; without it the spec is skipped. The saved collection and the visits are written
+// straight in the disposable E2E database, and the cleanup removes those of the demo explorer
+// before and after each test.
 const password = process.env.DEMO_ACCOUNT_PASSWORD;
 
 const EXPLORER = "user@demo.krajozbior.local";
