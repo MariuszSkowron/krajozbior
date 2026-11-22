@@ -132,6 +132,7 @@ export async function updatePlace(
       description: input.description ?? current.description,
       address: input.address ?? current.address,
       accessInfo: input.accessInfo ?? current.accessInfo,
+      accessRestriction: input.accessRestriction ?? current.accessRestriction,
       latitude: input.latitude ?? current.latitude,
       longitude: input.longitude ?? current.longitude,
       visitRadiusM: input.visitRadiusM ?? current.visitRadiusM,
