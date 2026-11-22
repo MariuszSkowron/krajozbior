@@ -1,8 +1,8 @@
 // Polityka prywatności: tekst publiczny, przeniesiony z roboczej wersji 0.2 (19 listopada 2026 r.)
 // bez zmian merytorycznych. Wartości z E11-Q12 (okresy przechowywania, czas sesji) są wpisane;
-// miejsca z napisem „DO UZUPEŁNIENIA” czekają na dane od właściciela (śledzenie w panelu
-// Brevo), a test w tests/features/legal/legal-content.test.ts pilnuje, żeby
-// żadne nie trafiło do ruchu publicznego.
+// wyłączone śledzenie wiadomości w Brevo potwierdził właściciel 22.11.2026 (D-49 pkt 8);
+// test w tests/features/legal/legal-content.test.ts pilnuje, żeby żaden znacznik roboczy
+// nie trafił do ruchu publicznego.
 export const POLITYKA_PRYWATNOSCI = `
 ## 1. Kto odpowiada za Twoje dane
 
@@ -73,7 +73,7 @@ Jeśli przetwarzamy dane na podstawie naszego prawnie uzasadnionego interesu, mo
 - **Administrator serwisu** ma dostęp do danych w zakresie potrzebnym do utrzymania serwisu, moderacji i rozpatrywania zgłoszeń.
 - **Firmy przetwarzające dane na nasze zlecenie** (podmioty przetwarzające) na podstawie umowy powierzenia:
   - netcup GmbH, Emmy-Noether-Straße 10, 76131 Karlsruhe, Niemcy — serwer: baza danych, zdjęcia i kopie zapasowe w centrum danych w Norymberdze;
-  - Brevo SAS, 17 rue Salneuve, 75017 Paryż, Francja — wysyłka e-maili z kodami logowania i innych wiadomości dotyczących konta. Wyłączamy w nim śledzenie otwarć wiadomości i kliknięć w linki [DO UZUPEŁNIENIA: potwierdzić w panelu Brevo];
+  - Brevo SAS, 17 rue Salneuve, 75017 Paryż, Francja — wysyłka e-maili z kodami logowania i innych wiadomości dotyczących konta. Wyłączamy w nim śledzenie otwarć wiadomości i kliknięć w linki;
   - Hostido.pl Gałązka spółka jawna, ul. Kartuska 5, 80-103 Gdańsk — obsługa skrzynki pocztowej kontakt@mariuszskowron.pl, na którą przychodzą wiadomości od Ciebie.
 - **Organy publiczne**, jeśli zażądają danych na podstawie przepisów prawa.
 
