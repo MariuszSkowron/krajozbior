@@ -20,6 +20,8 @@ export const AUDIT_OPERATIONS = [
   // The loader `catalog:import --target server` (Migration20261121140000).
   "catalog_import",
   "catalog_remove",
+  // The command `photos:fetch` (Migration20261121170000).
+  "photos_fetch",
   // The command `news:import` (E7-R, Migration20261122020000_news_posts); the caller
   // writes the entry in the transaction of `ops_put_news`, without `details`.
   "news_import",
@@ -42,6 +44,7 @@ export const AUDIT_ERROR_CODES = [
   "organization_details_required",
   "import_refused",
   "import_failed",
+  "photos_fetch_failed",
   // Refusals of `ops_put_news` (Migration20261122020000_news_posts).
   "invalid_transition",
   "stale_link",
@@ -87,7 +90,7 @@ export type AuditEntry = Readonly<{
   after: Record<string, unknown> | null;
   outcome: AuditOutcome;
   code: AuditErrorCode | null;
-  /** Batch details; only `catalog_import` and `catalog_remove` (a CHECK enforces it). */
+  /** Batch details; only `catalog_import`, `catalog_remove` and `photos_fetch` (a CHECK enforces it). */
   details?: Record<string, unknown> | null;
 }>;
 

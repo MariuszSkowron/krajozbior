@@ -65,7 +65,7 @@ Dokument rozdziela obowiązujące dziś zasady pracy od wymagań, które trzeba 
 
 ### Granice zaufania i błędy
 
-- Błąd bazy po wyjściu z kontekstu użytkownika (`runInUserContext`, `runInGuestContext`) czytaj tylko przez `code` (SQLSTATE) i `constraint`, nigdy przez `message` ani `detail`: w produkcji tych pól nie ma (wartości użytkownika nie mogą trafić do dziennika), w testach są (`src/lib/db/database-error.ts`).
+- Błąd bazy po wyjściu z kontekstu użytkownika (`runInUserContext`, `runInGuestContext`) czytaj tylko przez `code` (SQLSTATE) i `constraint`, nigdy przez `message` ani `detail`: w produkcji tych pól nie ma (wartości użytkownika nie mogą trafić do dziennika), w testach są (`src/lib/db/database-error.ts`). Ta sama zasada obowiązuje w dzienniku biblioteki logowania: przekazujemy jej własny dziennik (`authLogger` w `src/features/identity/infrastructure/auth-logger.ts`, opcja `logger` w `createAuth`), który wypisuje tylko nazwę błędu i SQLSTATE. W funkcjach przekazywanych bibliotece (hooki, wysyłka kodu) nie wypisuj całego błędu przez `console`; użyj `logFailure`.
 - Waliduj każdą konfigurację zewnętrzną i dane wejściowe po stronie serwera schematami Zod; typy przeglądarki nie zastępują walidacji żądania.
 - Zwracaj stabilne kody błędów i bezpieczne komunikaty. Nie ujawniaj SQL, ścieżek, tokenów, sekretów, konfiguracji, stosów ani danych osobowych. Szczegóły diagnostyczne loguj wyłącznie po stronie serwera z redakcją pól wrażliwych.
 - Sprawdzaj autoryzację na serwerze przy każdym żądaniu. Dla operacji osobistych weryfikuj właściciela; dla operacji roli z zakresem weryfikuj rolę i dopasowanie zakresu do zasobu. Ukrycie elementu UI nie jest zabezpieczeniem.

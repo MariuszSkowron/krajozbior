@@ -48,9 +48,9 @@ const maxNewsPerOrganization = 200;
 const noControl = `'[\\u0001-\\u001f\\u007f-\\u009f]'`;
 const noControlButLineFeed = `'[\\u0001-\\u0009\\u000b-\\u001f\\u007f-\\u009f]'`;
 
-const previousOperations = `'grant_curator', 'revoke_curator', 'set_organization_status', 'set_user_role', 'delete_account', 'catalog_import', 'catalog_remove'`;
+const previousOperations = `'grant_curator', 'revoke_curator', 'set_organization_status', 'set_user_role', 'delete_account', 'catalog_import', 'catalog_remove', 'photos_fetch'`;
 const operations = `${previousOperations}, 'news_import'`;
-const previousErrorCodes = `'user_not_found', 'organization_not_found', 'kind_mismatch', 'person_member_limit', 'organization_details_required', 'import_refused', 'import_failed'`;
+const previousErrorCodes = `'user_not_found', 'organization_not_found', 'kind_mismatch', 'person_member_limit', 'organization_details_required', 'import_refused', 'import_failed', 'photos_fetch_failed'`;
 const errorCodes = `${previousErrorCodes}, 'invalid_transition', 'stale_link', 'too_many_news', 'slug_taken'`;
 
 const writeAllowed = `session_user = 'krajozbior_ops' and current_setting('krajozbior.news_write', true) = 'on'`;

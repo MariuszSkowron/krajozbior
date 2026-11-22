@@ -919,16 +919,21 @@ describe("known limitations (not caught, by design)", () => {
   });
 });
 
-// Two warm-up runs skip the cold start; the median of several runs is compared
-// with the limit, not one run, so a single slow run under load (parallel tests,
-// a build) does not fail the test. A real slowdown moves the median too.
-function medianMilliseconds(command: string): number {
-  findRemoteAccess(command);
-  findRemoteAccess(command);
+// The goal is to catch catastrophic regex backtracking (ReDoS), which takes
+// seconds or more on these inputs, not to micro-optimise. A tight limit of
+// 100 ms failed under machine load (105-200 ms) although the code was fine, so
+// the limit is 500 ms: normal runs take a few milliseconds, ReDoS exceeds the
+// limit by orders of magnitude. Two warm-up runs skip the cold start and the
+// median of several runs is compared, so one slow run does not fail the test.
+const LIMIT_MS = 500;
+
+function medianMilliseconds(run: () => void): number {
+  run();
+  run();
   const times: number[] = [];
   for (let i = 0; i < 9; i += 1) {
     const start = performance.now();
-    findRemoteAccess(command);
+    run();
     times.push(performance.now() - start);
   }
   times.sort((a, b) => a - b);
@@ -936,14 +941,14 @@ function medianMilliseconds(command: string): number {
 }
 
 describe("speed on a 20 000-character line", () => {
-  it.each(longCommands)("checks %s in under 100 ms (median)", (_, command) => {
-    expect(medianMilliseconds(command)).toBeLessThan(100);
+  it.each(longCommands)("checks %s in under 500 ms (median)", (_, command) => {
+    expect(medianMilliseconds(() => findRemoteAccess(command))).toBeLessThan(LIMIT_MS);
   });
 
   it.each(veryLongCommands)(
-    "checks %s (100 000 characters) in under 100 ms (median)",
+    "checks %s (100 000 characters) in under 500 ms (median)",
     (_, command) => {
-      expect(medianMilliseconds(command)).toBeLessThan(100);
+      expect(medianMilliseconds(() => findRemoteAccess(command))).toBeLessThan(LIMIT_MS);
     },
   );
 

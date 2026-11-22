@@ -75,6 +75,7 @@ describe("fieldHints", () => {
       "description",
       "address",
       "accessInfo",
+      "accessRestriction",
       "latitude",
       "longitude",
       "visitRadiusM",
