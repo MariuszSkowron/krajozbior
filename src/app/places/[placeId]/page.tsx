@@ -17,6 +17,7 @@ import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-
 import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
 import { PinnedAction } from "./pinned-action";
+import { PlaceAccessNotice } from "./place-access-notice";
 import { PlacePhoto } from "./place-photo";
 import { PlaceSources } from "./place-sources";
 import { VisitConfirmation } from "./visit-confirmation";
@@ -115,6 +116,7 @@ export default async function PlacePage({ params }: { params: Params }) {
         <h1>{place.name}</h1>
         <p className={styles.meta}>Prowadzi: {place.organization.name}</p>
       </header>
+      <PlaceAccessNotice restriction={place.accessRestriction} />
       {place.cover === null ? null : <PlacePhoto cover={place.cover} placeName={place.name} />}
       <dl className={styles.facts}>
         {place.address === "" ? null : (

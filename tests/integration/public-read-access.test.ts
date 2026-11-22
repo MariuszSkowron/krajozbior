@@ -194,6 +194,7 @@ describe("public read of collections and places (guest context)", () => {
         description: "Opis miejsca",
         address: "Tczew",
         accessInfo: "Wejście od rynku",
+        accessRestriction: "none",
         latitude: 54.0928,
         longitude: 18.7919,
         visitRadiusM: 200,

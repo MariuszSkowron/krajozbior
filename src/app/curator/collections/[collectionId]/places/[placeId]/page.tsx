@@ -55,6 +55,7 @@ export default async function PlaceEditorPage({
           description: place.description,
           address: place.address,
           accessInfo: place.accessInfo,
+          accessRestriction: place.accessRestriction,
           latitude: place.latitude,
           longitude: place.longitude,
           visitRadiusM: place.visitRadiusM,

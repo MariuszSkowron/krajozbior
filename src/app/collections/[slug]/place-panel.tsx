@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PlaceAccessNotice } from "@/app/places/[placeId]/place-access-notice";
 import { PlaceSources } from "@/app/places/[placeId]/place-sources";
 import { WantToSeeButton } from "@/app/places/[placeId]/want-to-see-button";
 import { StatusBadge } from "@/design-system/components/status-badge";
@@ -62,6 +63,7 @@ export function PlacePanel({ panel }: Readonly<{ panel: PanelPlace }>) {
               )}
             </p>
           )}
+          <PlaceAccessNotice restriction={ok.place.accessRestriction} headingLevel={3} />
           <dl className={albumStyles.panelFacts}>
             {ok.place.address === "" ? null : (
               <div>
