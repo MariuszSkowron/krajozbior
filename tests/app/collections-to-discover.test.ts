@@ -2,6 +2,7 @@ import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { RecentCollection } from "@/features/catalog/application/catalog-types";
 import type { NearbyCandidate } from "@/features/catalog/domain/nearby";
 
 // No DOM in unit tests: the hooks are replaced by a small store that survives repeated calls of
@@ -36,7 +37,39 @@ vi.mock("react", async (importOriginal) => ({
   useSyncExternalStore: () => store.supported,
 }));
 
-const { NearbyCollections } = await import("@/app/home/nearby-collections");
+const { CollectionsToDiscover } = await import("@/app/home/collections-to-discover");
+
+// "Kolekcje do odkrycia" (K-34): one list, sorted by distance after a click. The list of the
+// server is in the order "newest first": "daleko" first, so a sort by distance is visible.
+const collections: RecentCollection[] = [
+  {
+    id: "c-daleko",
+    slug: "daleko",
+    title: "Daleko",
+    region: "malopolskie",
+    organization: { name: "Gmina B" },
+    placeCount: 1,
+    cover: null,
+  },
+  {
+    id: "c-bez",
+    slug: "bez-miejsc",
+    title: "Bez miejsc",
+    region: "lodzkie",
+    organization: { name: "Gmina D" },
+    placeCount: 0,
+    cover: null,
+  },
+  {
+    id: "c-blisko",
+    slug: "blisko",
+    title: "Blisko",
+    region: "pomorskie",
+    organization: { name: "Gmina A" },
+    placeCount: 3,
+    cover: null,
+  },
+];
 
 const candidates: NearbyCandidate[] = [
   {
@@ -86,7 +119,7 @@ function findButton(node: ReactNode): ReactElement<Props> | null {
 function render() {
   store.cursor = 0;
 
-  return NearbyCollections({ candidates }) as ReactElement;
+  return CollectionsToDiscover({ collections, candidates }) as ReactElement;
 }
 
 const html = () => renderToStaticMarkup(render());
@@ -123,15 +156,22 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("NearbyCollections", () => {
-  it("shows only the button before a click and does not read the position, even when it could", () => {
+const order = (markup: string) =>
+  [...markup.matchAll(/href="\/collections\/([^"]+)"/g)].map((match) => match[1]);
+
+describe("CollectionsToDiscover", () => {
+  it("shows the list in the server order and the button, and does not read the position before a click", () => {
     const geolocation = stubGeolocation((success) => success(reading(54.1, 18)));
     const markup = html();
 
-    expect(markup).toMatch(/<button [^>]*>Pokaż kolekcje w okolicy<\/button>/);
-    expect(markup).toMatch(/<p role="status"><\/p>/);
-    expect(markup).not.toContain("/collections/");
+    expect(markup).toMatch(/<h2[^>]*>Kolekcje do odkrycia<\/h2>/);
+    expect(markup).toMatch(/<a [^>]*href="\/search"[^>]*>Wszystkie kolekcje<\/a>/);
+    expect(markup).toMatch(/<button [^>]*>Pokaż najbliższe<\/button>/);
+    expect(markup).toContain("Położenie zostaje w tej przeglądarce.");
+    expect(markup).toMatch(/<p role="status"[^>]*><\/p>/);
+    expect(order(markup)).toEqual(["daleko", "bez-miejsc", "blisko"]);
     expect(markup).not.toContain("Nowa w okolicy");
+    expect(markup).not.toContain(" km · ");
     expect(geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
 
@@ -146,7 +186,7 @@ describe("NearbyCollections", () => {
       timeout: 10_000,
       maximumAge: 600_000,
     });
-    expect(html()).toMatch(/<p role="status">Ustalam Twoje położenie…<\/p>/);
+    expect(html()).toMatch(/<p role="status"[^>]*>Ustalam Twoje położenie…<\/p>/);
     expect(html()).toContain('aria-disabled="true"');
 
     // A second click while locating does not start another reading.
@@ -154,17 +194,18 @@ describe("NearbyCollections", () => {
     expect(geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
   });
 
-  it("lists the nearby collections with the distance, and keeps the far one out", () => {
+  it("sorts the same list by distance (nearest first, one without a distance last) and keeps the far one", () => {
     stubGeolocation((success) => success(reading(54, 18)));
     click();
 
     const markup = html();
 
-    expect(markup).toContain("Jedna kolekcja w promieniu 50 km.");
-    expect(markup).toContain('href="/collections/blisko"');
-    expect(markup).toContain("11 km · 3 miejsca");
-    expect(markup).toContain("Nowa w okolicy");
-    expect(markup).not.toContain("/collections/daleko");
+    expect(markup).toContain("Kolekcje od najbliższej.");
+    expect(order(markup)).toEqual(["blisko", "daleko", "bez-miejsc"]);
+    expect(markup).toContain("11 km · 3 miejsca · Gmina A");
+    expect(markup).toMatch(/\d{3} km · 1 miejsce · Gmina B/);
+    expect(markup).toContain("0 miejsc · Gmina D");
+    expect(markup.match(/Nowa w okolicy/g)).toHaveLength(1);
     expect(markup).toContain("Sprawdź ponownie");
     // Neither the position nor the accuracy is kept anywhere in the markup.
     expect(markup).not.toMatch(/54\.0|18\.0/);
@@ -182,12 +223,23 @@ describe("NearbyCollections", () => {
         firstPublishedAt,
       }));
     const run = (list: NearbyCandidate[]) => {
+      const own = list.map((candidate) => ({
+        ...collections[2]!,
+        id: candidate.slug,
+        slug: candidate.slug,
+        title: candidate.title,
+      }));
+
       store.values = [];
       store.cursor = 0;
-      findButton(NearbyCollections({ candidates: list }) as ReactElement)?.props.onClick?.();
+      findButton(
+        CollectionsToDiscover({ collections: own, candidates: list }) as ReactElement,
+      )?.props.onClick?.();
       store.cursor = 0;
 
-      return renderToStaticMarkup(NearbyCollections({ candidates: list }) as ReactElement);
+      return renderToStaticMarkup(
+        CollectionsToDiscover({ collections: own, candidates: list }) as ReactElement,
+      );
     };
 
     const old = run(withDates([new Date(Date.now() - 31 * day).toISOString(), null, "nie data"]));
@@ -199,19 +251,16 @@ describe("NearbyCollections", () => {
     );
   });
 
-  it("says when the reading is coarse, and when no collection lies in the radius", () => {
+  it("says when the reading is coarse, and does not drop a collection that lies far away", () => {
     stubGeolocation((success) => success(reading(54, 18, 8000)));
     click();
     expect(html()).toContain("Lokalizacja jest niedokładna");
 
-    stubGeolocation((success) => success(reading(0, 0)));
+    // From the other end of the world every collection is still on the list, nearest first.
+    stubGeolocation((success) => success(reading(-40, 170)));
     click();
 
-    const markup = html();
-
-    expect(markup).toContain("W promieniu 50 km nie ma jeszcze kolekcji.");
-    expect(markup).toMatch(/<a [^>]*href="\/search"[^>]*>Zobacz wszystkie kolekcje<\/a>/);
-    expect(markup).not.toContain("/collections/");
+    expect(order(html())).toHaveLength(3);
   });
 
   it.each([
@@ -226,8 +275,10 @@ describe("NearbyCollections", () => {
 
       const markup = html();
 
-      expect(markup).toContain(`<p role="status">${text}</p>`);
+      expect(markup).toMatch(new RegExp(`<p role="status"[^>]*>${text}</p>`));
       expect(markup).toContain('href="/search"');
+      // The list stays whole in the original order.
+      expect(order(markup)).toEqual(["daleko", "bez-miejsc", "blisko"]);
       expect(markup).toContain("Sprawdź ponownie");
     },
   );
@@ -249,8 +300,8 @@ describe("NearbyCollections", () => {
 
       const markup = html();
 
-      expect(markup).toContain(
-        '<p role="status">Ustalanie położenia trwało zbyt długo. Spróbuj ponownie.</p>',
+      expect(markup).toMatch(
+        /<p role="status"[^>]*>Ustalanie położenia trwało zbyt długo\. Spróbuj ponownie\.<\/p>/,
       );
       expect(markup).toContain("Sprawdź ponownie");
       expect(markup).not.toContain('aria-disabled="true"');
@@ -258,7 +309,7 @@ describe("NearbyCollections", () => {
       // The answer that comes after the limit changes nothing.
       late(reading(54, 18));
       expect(html()).toContain("Ustalanie położenia trwało zbyt długo");
-      expect(html()).not.toContain("/collections/");
+      expect(html()).not.toContain(" km · ");
 
       // And the explorer can try again.
       click();
@@ -320,7 +371,7 @@ describe("NearbyCollections", () => {
 
   it("has no code path that could send or store a position (source check)", async () => {
     const { readFile } = await import("node:fs/promises");
-    const source = await readFile("src/app/home/nearby-collections.tsx", "utf8");
+    const source = await readFile("src/app/home/collections-to-discover.tsx", "utf8");
 
     for (const forbidden of [
       "fetch(",
@@ -340,7 +391,7 @@ describe("NearbyCollections", () => {
     }
   });
 
-  it("shows only the link when the browser has no geolocation", () => {
+  it("keeps the list and the link, and offers no button, when the browser has no geolocation", () => {
     store.supported = false;
 
     const markup = html();
@@ -348,20 +399,48 @@ describe("NearbyCollections", () => {
     expect(markup).toContain("Ta przeglądarka nie obsługuje lokalizacji.");
     expect(markup).toContain('href="/search"');
     expect(markup).not.toContain("<button");
+    expect(order(markup)).toHaveLength(3);
+  });
+
+  it("keeps the list without a button when only the positions could not be read", () => {
+    store.cursor = 0;
+
+    const markup = renderToStaticMarkup(
+      CollectionsToDiscover({ collections, candidates: null }) as ReactElement,
+    );
+
+    expect(order(markup)).toHaveLength(3);
+    expect(markup).not.toContain("<button");
+
+    // A click handler is never reachable without positions; the guard is harmless anyway.
+    const geolocation = stubGeolocation(() => undefined);
+
+    expect(
+      findButton(CollectionsToDiscover({ collections, candidates: null }) as ReactElement),
+    ).toBeNull();
+    expect(geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
 
   it("shows a message and no button when the list could not be read", () => {
     store.cursor = 0;
 
-    const markup = renderToStaticMarkup(NearbyCollections({ candidates: null }) as ReactElement);
+    const markup = renderToStaticMarkup(
+      CollectionsToDiscover({ collections: null, candidates }) as ReactElement,
+    );
 
     expect(markup).toMatch(/role="alert"[^>]*>Nie udało się wczytać kolekcji\. Odśwież stronę\./);
     expect(markup).not.toContain("<button");
+    expect(markup).toMatch(/<a [^>]*href="\/search"[^>]*>Wszystkie kolekcje<\/a>/);
+  });
 
-    // A click handler is never reachable without a list; the guard is harmless anyway.
-    const geolocation = stubGeolocation(() => undefined);
+  it("says so, with no button, when there are no published collections yet", () => {
+    store.cursor = 0;
 
-    expect(findButton(NearbyCollections({ candidates: null }) as ReactElement)).toBeNull();
-    expect(geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    const markup = renderToStaticMarkup(
+      CollectionsToDiscover({ collections: [], candidates }) as ReactElement,
+    );
+
+    expect(markup).toContain("Nie ma jeszcze opublikowanych kolekcji.");
+    expect(markup).not.toContain("<button");
   });
 });

@@ -4,8 +4,8 @@ import { PinIcon } from "../icons/icons";
 import { CollectionProgress } from "./collection-progress";
 import styles from "./collection-card.module.css";
 
-// Karta kolekcji: okładka (zdjęcie wybrane przez kuratora, E4-3) albo, gdy jej nie ma, okładka
-// zastępcza (gradient), region wersalikami w kroju mono, nazwa szeryfem i postęp „9/24”. Zdjęcie
+// Karta kolekcji: okładka (zdjęcie wybrane przez kuratora, E4-3) albo, gdy jej nie ma, pole
+// zastępcze (jasne tło z pinezką), region wersalikami w kroju mono, nazwa szeryfem i postęp „9/24”. Zdjęcie
 // ma tekst alternatywny, tło zastępcze jest ozdobą (`aria-hidden`). Cała karta jest jednym linkiem, więc nie ma
 // zagnieżdżonych elementów interaktywnych; nazwa to nagłówek wewnątrz linku (domyślnie `h3`,
 // poziom ustawia `headingLevel`, żeby hierarchia na ekranie nie przeskakiwała), żeby czytnik
@@ -45,7 +45,9 @@ export function CollectionCard({
           />
         </div>
       ) : (
-        <div className={styles.cover} aria-hidden="true" />
+        <div className={`${styles.cover} ${styles.coverEmpty}`} aria-hidden="true">
+          <PinIcon className={styles.coverPin} />
+        </div>
       )}
       <div className={styles.body}>
         <span className={styles.region}>

@@ -142,16 +142,18 @@ export function nearbyProblemMessage(problem: NearbyProblem): string {
   }
 }
 
-/** The message of a finished reading: how many collections lie near, or that none does. */
-export function nearbySummaryMessage(count: number, coarse: boolean): string {
+/**
+ * The message of a finished reading (K-34): the single list is sorted by distance; `count` is the
+ * number of collections that have a known distance (a collection without places has none).
+ */
+export function nearbySortedMessage(count: number, coarse: boolean): string {
   if (count === 0) {
-    return `W promieniu ${NEARBY_RADIUS_KM} km nie ma jeszcze kolekcji.`;
+    return "Żadna kolekcja nie ma jeszcze miejsc z położeniem, więc nie ma jak ich uporządkować.";
   }
 
-  const found =
-    count === 1
-      ? `Jedna kolekcja w promieniu ${NEARBY_RADIUS_KM} km.`
-      : `Kolekcje w promieniu ${NEARBY_RADIUS_KM} km: ${count}.`;
+  const sorted = "Kolekcje od najbliższej.";
 
-  return coarse ? `${found} Lokalizacja jest niedokładna, więc odległości są przybliżone.` : found;
+  return coarse
+    ? `${sorted} Lokalizacja jest niedokładna, więc odległości są przybliżone.`
+    : sorted;
 }

@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getHomeAlbum: vi.fn(),
   listRecent: vi.fn(),
   listNearby: vi.fn(),
+  getProfile: vi.fn(),
 }));
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
@@ -14,6 +15,8 @@ vi.mock("@/features/identity/infrastructure", () => ({
 }));
 vi.mock("@/features/album/infrastructure/album-deps", () => ({ getAlbumDeps: () => ({}) }));
 vi.mock("@/features/catalog/infrastructure/catalog-deps", () => ({ getCatalogDeps: () => ({}) }));
+vi.mock("@/features/profile/infrastructure/profile-deps", () => ({ getProfileDeps: () => ({}) }));
+vi.mock("@/features/profile/application/profile", () => ({ getMyProfile: mocks.getProfile }));
 vi.mock("@/features/album/application/home-album", () => ({ getHomeAlbum: mocks.getHomeAlbum }));
 vi.mock("@/features/catalog/application/public-catalog", () => ({
   listRecentlyPublishedCollections: mocks.listRecent,
@@ -104,6 +107,7 @@ beforeEach(() => {
   mocks.listRecent.mockReset().mockResolvedValue(discover);
   mocks.listNearby.mockReset().mockResolvedValue(nearby);
   mocks.getHomeAlbum.mockReset().mockResolvedValue({ status: "ok", value: album });
+  mocks.getProfile.mockReset().mockResolvedValue({ status: "ok", value: { firstName: "Anna" } });
 });
 
 describe("home page of a guest", () => {
@@ -157,32 +161,37 @@ describe("home page of a guest", () => {
     expect(await render({ wylogowanie: "blad" })).toMatch(
       /role="status"[^>]*>Nie udało się wylogować\./,
     );
-    // Nothing of the sign-out in the default page (the "W okolicy" status region is empty).
+    // Nothing of the sign-out in the default page (the sorting status region is empty).
     const plain = await render();
 
     expect(plain.match(/role="status"/g)).toHaveLength(1);
-    expect(plain).toMatch(/<p role="status"><\/p>/);
+    expect(plain).toMatch(/<p role="status"[^>]*><\/p>/);
     expect(plain).not.toContain("Wylogowano.");
     expect(plain).not.toContain("Nie udało się wylogować");
   });
 
-  it("shows the section W okolicy with the button only, and no position or list before a click (E12-3)", async () => {
+  it("has one section of collections with the sorting button, and no separate W okolicy (K-34, D-49)", async () => {
     const html = await render();
 
-    expect(html).toMatch(/<h2[^>]*>W okolicy<\/h2>/);
-    expect(html).toMatch(/<button [^>]*>Pokaż kolekcje w okolicy<\/button>/);
-    expect(html).toMatch(/<p role="status"><\/p>/);
-    // The only link to the collection is the one of "Kolekcje do odkrycia", not a nearby card.
+    expect(html).not.toContain("W okolicy");
+    expect(html.match(/<h2[^>]*>Kolekcje do odkrycia<\/h2>/g)).toHaveLength(1);
+    expect(html).toMatch(/<button [^>]*>Pokaż najbliższe<\/button>/);
+    expect(html).toContain("Położenie zostaje w tej przeglądarce.");
+    expect(html).toMatch(/<p role="status"[^>]*><\/p>/);
     expect(html.match(/href="\/collections\/mosty-i-zamki"/g)).toHaveLength(1);
+    // A wider layout on a computer (K-35) and a link with a class of its own (K-36).
+    expect(html).toMatch(/class="content-width-wide /);
+    expect(html).toMatch(
+      /<a class="[^"]*sectionLink[^"]*" href="\/search">Wszystkie kolekcje<\/a>/,
+    );
   });
 
-  it("shows a message in the W okolicy section when its read fails, and the rest works", async () => {
+  it("keeps the list, without the button, when the read of positions fails, and the rest works", async () => {
     mocks.listNearby.mockRejectedValue(new Error("db down: secret-host"));
 
     const html = await render();
 
-    expect(html).toMatch(/<h2[^>]*>W okolicy<\/h2>/);
-    expect(html).not.toContain("Pokaż kolekcje w okolicy");
+    expect(html).not.toContain("Pokaż najbliższe");
     expect(html).toContain("Mosty i zamki");
     expect(console.error).toHaveBeenCalledWith("Home nearby read failed:", "Error");
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
@@ -192,11 +201,11 @@ describe("home page of a guest", () => {
     expect(await render({ konto: "usuniete" })).toMatch(
       /role="status"[^>]*>Twoje konto zostało usunięte\./,
     );
-    // Only the empty status region of "W okolicy" remains; no deletion message.
+    // Only the empty status region of the sorting remains; no deletion message.
     const other = await render({ konto: "inne" });
 
     expect(other.match(/role="status"/g)).toHaveLength(1);
-    expect(other).toMatch(/<p role="status"><\/p>/);
+    expect(other).toMatch(/<p role="status"[^>]*><\/p>/);
     expect(other).not.toContain("Twoje konto zostało usunięte.");
   });
 });
@@ -209,8 +218,10 @@ describe("home page of a signed-in explorer", () => {
   it("shows the summary, the favourites with X/Y progress, the visits and the collections to discover", async () => {
     const html = await render();
 
-    expect(html).toMatch(/<h1[^>]*>Dzień dobry<\/h1>/);
-    expect(html).toMatch(/<a [^>]*href="\/my"[^>]*>Profil<\/a>/);
+    expect(html).toMatch(/<h1[^>]*>Dzień dobry, Anna<\/h1>/);
+    // K-37: no announcement of what is below and no "Profil" button (the menu has it).
+    expect(html).not.toContain("Oto Twój album");
+    expect(html).not.toContain("Profil");
     expect(html).not.toContain("Zaloguj się");
     expect(html).toMatch(/<dt>Odkryte miejsca<\/dt><dd>7<\/dd>/);
     expect(html).toMatch(/<dt>Regiony<\/dt><dd>2<\/dd>/);
@@ -226,6 +237,16 @@ describe("home page of a signed-in explorer", () => {
     expect(html).toContain("Mosty i zamki");
     // The phone shows the first four favourites; the rest only on a wide screen.
     expect(html.match(/phoneHidden/g)?.length ?? 0).toBe(2);
+  });
+
+  it("greets without a name when the profile has none, or cannot be read (K-37)", async () => {
+    mocks.getProfile.mockResolvedValue({ status: "ok", value: { firstName: null } });
+    expect(await render()).toMatch(/<h1[^>]*>Dzień dobry<\/h1>/);
+
+    mocks.getProfile.mockRejectedValue(new Error("db down: secret-profile"));
+    expect(await render()).toMatch(/<h1[^>]*>Dzień dobry<\/h1>/);
+    expect(console.error).toHaveBeenCalledWith("Home profile read failed:", "Error");
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
   });
 
   it("points the empty favourites to the list of all collections", async () => {
