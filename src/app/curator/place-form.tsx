@@ -3,7 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import { ACCESS_RESTRICTION_LABELS } from "@/features/catalog/domain/place-access-notice";
 import {
+  ACCESS_RESTRICTIONS,
+  type AccessRestriction,
   PLACE_ACCESS_MAX_LENGTH,
   PLACE_ADDRESS_MAX_LENGTH,
   PLACE_DESCRIPTION_MAX_LENGTH,
@@ -23,6 +26,7 @@ type PlaceValues = Readonly<{
   description: string;
   address: string;
   accessInfo: string;
+  accessRestriction: AccessRestriction;
   latitude: number;
   longitude: number;
   visitRadiusM: number;
@@ -38,6 +42,7 @@ const FIELDS = {
   description: ["place-description", "Opis"],
   address: ["place-address", "Adres"],
   accessInfo: ["place-access", "Dostęp"],
+  accessRestriction: ["place-access-restriction", "Wejście na teren"],
   latitude: ["place-latitude", "Szerokość geograficzna"],
   longitude: ["place-longitude", "Długość geograficzna"],
   visitRadiusM: ["place-radius", "Promień potwierdzania wizyty"],
@@ -92,6 +97,7 @@ function PlaceFields({
       description: text("description"),
       address: text("address"),
       accessInfo: text("accessInfo"),
+      accessRestriction: text("accessRestriction"),
       latitude: parseNumberField(text("latitude")),
       longitude: parseNumberField(text("longitude")),
       visitRadiusM: parseNumberField(text("visitRadiusM")),
@@ -202,6 +208,26 @@ function PlaceFields({
           )}
         </Field>
       </div>
+      <Field
+        id={FIELDS.accessRestriction[0]}
+        label="Wejście na teren"
+        help="Odkrywca zobaczy przy miejscu ostrzeżenie, żeby nie wchodzić na teren. Punkt potwierdzenia wizyty ustaw wtedy w przestrzeni publicznej, na przykład przy drodze."
+        invalidHint={hint("accessRestriction")}
+      >
+        {(aria) => (
+          <select
+            {...aria}
+            name="accessRestriction"
+            defaultValue={stored?.accessRestriction ?? "none"}
+          >
+            {ACCESS_RESTRICTIONS.map((value) => (
+              <option key={value} value={value}>
+                {ACCESS_RESTRICTION_LABELS[value]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
       <fieldset className={styles.fieldset}>
         <legend>Lokalizacja i potwierdzanie wizyt</legend>
         <div className={styles.row3}>

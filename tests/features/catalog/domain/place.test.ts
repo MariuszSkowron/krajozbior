@@ -13,6 +13,7 @@ describe("validatePlaceInput", () => {
         description: "",
         address: "",
         accessInfo: "",
+        accessRestriction: "none",
         latitude: 54.09,
         longitude: 18.78,
         visitRadiusM: 200,
@@ -35,6 +36,16 @@ describe("validatePlaceInput", () => {
     });
   });
 
+  it.each(["none", "private", "fenced", "ruin"] as const)(
+    "accepts the access restriction %s",
+    (accessRestriction) => {
+      expect(validatePlaceInput({ ...valid, accessRestriction })).toMatchObject({
+        ok: true,
+        value: { accessRestriction },
+      });
+    },
+  );
+
   it.each([
     [{ visitRadiusM: 49 }, "visitRadiusM"],
     [{ visitRadiusM: 2001 }, "visitRadiusM"],
@@ -52,6 +63,8 @@ describe("validatePlaceInput", () => {
     [{ address: "x".repeat(201) }, "address"],
     [{ accessInfo: "x".repeat(1001) }, "accessInfo"],
     [{ accessInfo: 7 }, "accessInfo"],
+    [{ accessRestriction: "closed" }, "accessRestriction"],
+    [{ accessRestriction: null }, "accessRestriction"],
     [{ name: "a\u0000b" }, "name"],
     [{ description: "a\u0000b" }, "description"],
   ])("rejects %j", (patch, field) => {

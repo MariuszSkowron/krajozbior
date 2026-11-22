@@ -1,0 +1,24 @@
+/*
+ * Podpis zdjęcia: mały, spokojny tekst pod zdjęciem. Kolor drugorzędny i akcent z tokenów (kontrast
+ * 4,5:1 w obu motywach); długie nazwy autorów i adresy łamią się zamiast poszerzać stronę.
+ */
+.credit {
+  display: grid;
+  gap: var(--space-xs);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.credit p {
+  margin: 0;
+  max-width: 40rem;
+  overflow-wrap: anywhere;
+}
+
+.credit a {
+  color: var(--color-text-accent);
+}
+
+.title {
+  color: var(--color-text-primary);
+}
