@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { describeFailure, fieldHints, parseNumberField } from "@/app/curator/failure-message";
 
+describe("describeFailure of the cover choice (E4-3)", () => {
+  it("explains a photo that cannot be the cover and offers a reload", () => {
+    expect(describeFailure(422, { reason: "cover_not_allowed" }, "collection")).toMatchObject({
+      message: expect.stringContaining("nie może być okładką"),
+      stale: true,
+    });
+  });
+});
+
 describe("describeFailure", () => {
   it("lists the fields the server refused", () => {
     expect(describeFailure(400, { fields: ["title", 5, "summary"] }, "collection")).toEqual({

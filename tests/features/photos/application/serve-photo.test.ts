@@ -85,6 +85,7 @@ describe("servePhoto", () => {
       status: "not_modified",
       visibility: "public",
       etag,
+      size: "main",
     });
     expect(open).not.toHaveBeenCalled();
 

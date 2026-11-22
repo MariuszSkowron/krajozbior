@@ -37,7 +37,7 @@ export async function handleMediaRequest(
       case "not_found":
         return notFound();
       case "not_modified": {
-        const headers = photoHeaders(result.visibility, result.etag);
+        const headers = photoHeaders(result.visibility, result.etag, result.size);
 
         delete headers["Content-Type"];
 
@@ -47,7 +47,7 @@ export async function handleMediaRequest(
         return new Response(result.file.body, {
           status: 200,
           headers: {
-            ...photoHeaders(result.visibility, result.etag),
+            ...photoHeaders(result.visibility, result.etag, result.size),
             "Content-Length": String(result.file.length),
           },
         });
