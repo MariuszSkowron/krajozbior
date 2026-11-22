@@ -80,6 +80,12 @@
 /src/features/catalog/             @MariuszSkowron
 /tests/features/catalog/           @MariuszSkowron
 
+# Zdjęcia miejsc (E4-2a, tabela `place_photos`: klasa Publiczna po publikacji, inaczej CUR):
+# pobieranie z Wikimedia Commons jako rola operatora (`photos:fetch`); migracja i testy dostępu
+# mają właściciela przez /src/lib/db/ i /tests/integration/
+/src/features/photos/              @MariuszSkowron
+/tests/features/photos/            @MariuszSkowron
+
 # Album odkrywcy: zapisane kolekcje, wizyty (dane PRIV; wizytę na miejscu tworzy funkcja bazy)
 /src/features/album/               @MariuszSkowron
 /tests/features/album/             @MariuszSkowron
