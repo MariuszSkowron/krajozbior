@@ -201,6 +201,7 @@ describe("public read of collections and places (guest context)", () => {
         organization: { name: "Gmina A", slug: "gmina-a" },
         collections: [{ slug: collection.slug, title: "Publiczna" }],
         source: null,
+        cover: null,
       },
     });
   });
