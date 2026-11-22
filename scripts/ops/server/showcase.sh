@@ -1,5 +1,6 @@
 # shellcheck shell=bash
-# Target "showcase" of the deployment: the rehearsal of `-Initial` and `-Commit` on the local
+# Target "showcase" of the deployment: the rehearsal of `-Initial`, `-Commit` and `-Aktualnosci`
+# (E7-R2b) on the local
 # showcase (spec 5.4 "Kto co robi", D-E11-7, D-E11-8). The ONLY place where the rehearsal differs
 # from the server. deploy-showcase.ps1 sends lib.sh + preamble + remote.sh + this file to a local
 # Git Bash (never to the server), so the steps of remote.sh (backup, build with the commit label,
@@ -57,8 +58,16 @@ kz_ops() {
     shift
   done
   [ "${1:-}" = "--" ] && shift
-  kz_compose --profile ops run --rm -T "${run_opts[@]}" ops npm run --silent "$command" -- "$@"
+  # `-v C:/folder:/imports:ro` (mode aktualnosci) would be rewritten by Git Bash as a list of
+  # paths; Docker Desktop wants the text untouched.
+  MSYS2_ARG_CONV_EXCL='*' kz_compose --profile ops run --rm -T "${run_opts[@]}" ops npm run --silent "$command" -- "$@"
 }
+
+# Mode aktualnosci (E7-R2b): the `ops` container of the showcase runs with NODE_ENV=development on
+# the local database (compose.showcase.yaml), so news:import needs neither the server mode nor the
+# confirmed host (they exist only for the production container) and the showcase has no
+# KZ_SITE_HOST. Prints nothing.
+kz_news_target_args() { return 0; }
 
 kz_require_ops_env_file() { return 0; }
 
