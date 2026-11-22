@@ -56,29 +56,21 @@ export default async function MyCollectionsPage({ searchParams }: { searchParams
   const params = await searchParams;
   const filter = parseProgressFilter(params.stan);
   let result;
+  let ownResult;
 
   try {
-    result = await listMyCollectionsWithProgress(actor, getAlbumDeps());
+    // Two independent reads, one after the other would only make the page slower.
+    [result, ownResult] = await Promise.all([
+      listMyCollectionsWithProgress(actor, getAlbumDeps()),
+      listOwnCollections(actor, getOwnCollectionsDeps()),
+    ]);
   } catch (error) {
     logReadFailure("My collections read", error);
     // Handled by error.tsx next to this page: a server error with a Polish message.
     throw new Error("My collections read failed");
   }
 
-  if (result.status !== "ok") {
-    redirect(loginHref("/my/collections"));
-  }
-
-  let ownResult;
-
-  try {
-    ownResult = await listOwnCollections(actor, getOwnCollectionsDeps());
-  } catch (error) {
-    logReadFailure("My own collections read", error);
-    throw new Error("My own collections read failed");
-  }
-
-  if (ownResult.status !== "ok") {
+  if (result.status !== "ok" || ownResult.status !== "ok") {
     redirect(loginHref("/my/collections"));
   }
 
