@@ -55,10 +55,30 @@ const LINK_CANDIDATE = /https:\/\/[^\s<>"]+/gi;
 
 const TRAILING_PUNCTUATION = ".,;:!?'";
 
-function isShortener(hostname: string): boolean {
-  return NEWS_LINK_SHORTENERS.some(
-    (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
-  );
+// `URL` keeps the trailing dot of a host (`bit.ly.` is the same site as `bit.ly`), so
+// the dots are cut in a loop before any comparison (B1). A loop, not `/\.+$/`, which is
+// quadratic on a long run of dots.
+function withoutTrailingDots(hostname: string): string {
+  let end = hostname.length;
+
+  while (end > 0 && hostname[end - 1] === ".") {
+    end -= 1;
+  }
+
+  return hostname.slice(0, end);
+}
+
+function isShortener(host: string): boolean {
+  return NEWS_LINK_SHORTENERS.some((domain) => host === domain || host.endsWith(`.${domain}`));
+}
+
+const IPV4_HOST = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+
+// An address of a device (an IP number, in any notation `URL` normalizes) or of a
+// host without a dot (`localhost`, a name in a local network) is not a link for
+// a reader: it can point into the reader's own network (N1). It stays plain text.
+function isLocalOrNumericHost(host: string): boolean {
+  return host.startsWith("[") || !host.includes(".") || IPV4_HOST.test(host);
 }
 
 function hasNonAscii(text: string): boolean {
@@ -131,8 +151,14 @@ function toLink(candidate: string): LinkAttempt {
     return { kind: "error", error: "credentials" };
   }
 
-  if (isShortener(url.hostname)) {
+  const host = withoutTrailingDots(url.hostname);
+
+  if (isShortener(host)) {
     return { kind: "error", error: "shortener" };
+  }
+
+  if (isLocalOrNumericHost(host)) {
+    return { kind: "text" };
   }
 
   return {
@@ -224,11 +250,15 @@ export function codePointLength(text: string): number {
  * `http://` address, `javascript:` and everything else stay plain text.
  */
 export function parseNewsBody(body: string): NewsBodyResult {
+  // Cheap cut before any normalizing, counting or matching (N3): even if every
+  // character were a two-unit one (or a CRLF), this much text is over the limit.
+  if (body.length > NEWS_BODY_MAX_LENGTH * 2) {
+    return { ok: false, error: "too_long" };
+  }
+
   const text = normalizeLineBreaks(body);
 
-  // Cheap cut before any counting or matching: even if every character were a
-  // two-unit one, this much text is over the limit.
-  if (text.length > NEWS_BODY_MAX_LENGTH * 2 || codePointLength(text) > NEWS_BODY_MAX_LENGTH) {
+  if (codePointLength(text) > NEWS_BODY_MAX_LENGTH) {
     return { ok: false, error: "too_long" };
   }
 

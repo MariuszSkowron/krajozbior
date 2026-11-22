@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { NEWS_BODY_MAX_LENGTH } from "@/features/news/domain/limits";
+import {
+  NEWS_BODY_MAX_LENGTH,
+  NEWS_EVENT_MAX_DATE,
+  NEWS_EVENT_MIN_DATE,
+} from "@/features/news/domain/limits";
 import {
   hasForbiddenCharacter,
   isCalendarDate,
+  isEventDate,
   parseHiddenReason,
   validateNewsInput,
 } from "@/features/news/domain/news-input";
@@ -18,6 +23,16 @@ const valid = {
 
 function errorsOf(input: unknown) {
   const result = validateNewsInput(input);
+
+  if (result.ok) {
+    throw new Error("expected errors");
+  }
+
+  return result.errors;
+}
+
+function errorsOfStrict(input: unknown) {
+  const result = validateNewsInput(input, { strict: true });
 
   if (result.ok) {
     throw new Error("expected errors");
@@ -121,9 +136,50 @@ describe("validateNewsInput: accepted input", () => {
 });
 
 describe("validateNewsInput: shape", () => {
-  it("refuses a body that is not an object", () => {
-    expect(errorsOf(null)).toHaveLength(1);
-    expect(errorsOf(null)[0].field).toBe("kind");
+  it("refuses a body that is not an object, with a Polish message on the whole form (S4)", () => {
+    for (const input of [null, undefined, [], "tekst", 5, true]) {
+      expect(errorsOf(input)).toEqual([
+        { field: "form", message: "Formularz ma nieprawidłowy format." },
+      ]);
+    }
+  });
+
+  it("drops an unknown field in the default mode", () => {
+    expect(validateNewsInput({ ...valid, evnetStartsOn: "2027-05-01" }).ok).toBe(true);
+  });
+
+  it("refuses an unknown field in the strict mode, one error per field", () => {
+    expect(validateNewsInput({ ...valid, evnetStartsOn: "2027-05-01" }, { strict: true })).toEqual({
+      ok: false,
+      errors: [{ field: "form", message: "Nieznane pole: „evnetStartsOn”." }],
+    });
+    expect(errorsOfStrict({ ...valid, a: 1, b: 2 }).map((error) => error.message)).toEqual([
+      "Nieznane pole: „a”.",
+      "Nieznane pole: „b”.",
+    ]);
+    expect(errorsOfStrict({ ...valid, ["x".repeat(100)]: 1 })[0].message).toBe(
+      `Nieznane pole: „${"x".repeat(40)}”.`,
+    );
+  });
+
+  it("accepts every known field in the strict mode and keeps the other rules", () => {
+    const full = {
+      ...valid,
+      body: "Treść",
+      collectionId: ID,
+      placeId: ID,
+      eventStartsOn: null,
+      eventEndsOn: null,
+    };
+
+    expect(validateNewsInput(full, { strict: true }).ok).toBe(true);
+    expect(validateNewsInput(valid, { strict: false }).ok).toBe(true);
+    expect(errorsOfStrict({ ...valid, title: "abc" }).map((error) => error.field)).toEqual([
+      "title",
+    ]);
+    expect(errorsOfStrict(null)).toEqual([
+      { field: "form", message: "Formularz ma nieprawidłowy format." },
+    ]);
   });
 
   it("reports a missing or wrong kind, title and lead with their own messages", () => {
@@ -203,6 +259,65 @@ describe("validateNewsInput: texts", () => {
     }
   });
 
+  it("refuses a title or a lead made only of invisible characters (S5)", () => {
+    // Six characters, so only the visible count rejects it (trim drops the ﻿).
+    const zeroWidth = "​‌‍⁠​‌﻿";
+
+    expect(fieldMessage({ ...valid, title: zeroWidth }, "title")).toBe(
+      "Tytuł musi mieć co najmniej 5 widocznych znaków.",
+    );
+    expect(fieldMessage({ ...valid, title: `ab${zeroWidth}` }, "title")).toBe(
+      "Tytuł musi mieć co najmniej 5 widocznych znaków.",
+    );
+    expect(fieldMessage({ ...valid, title: "a­ㅤ  bc" }, "title")).toBe(
+      "Tytuł musi mieć co najmniej 5 widocznych znaków.",
+    );
+    expect(fieldMessage({ ...valid, lead: "​​" }, "lead")).toBe(
+      "Krótki tekst musi zawierać widoczne znaki.",
+    );
+    expect(validateNewsInput({ ...valid, title: "abcd​e" }).ok).toBe(true);
+    // A joiner inside an emoji sequence is allowed.
+    expect(validateNewsInput({ ...valid, title: "Rodzina 👨‍👩‍👧" }).ok).toBe(true);
+  });
+
+  it("refuses a lone surrogate in every text (N2)", () => {
+    expect(fieldMessage({ ...valid, title: "Tytuł\ud800x" }, "title")).toBe(
+      "Tytuł zawiera niedozwolone znaki sterujące.",
+    );
+    expect(fieldMessage({ ...valid, lead: "a\udc00" }, "lead")).toBeDefined();
+    expect(fieldMessage({ ...valid, body: "a\ud83d" }, "body")).toBe(
+      "Treść zawiera niedozwolone znaki sterujące.",
+    );
+    expect(parseHiddenReason("powód z \ud800 surogatem")).toBeNull();
+    expect(hasForbiddenCharacter("pełna para \u{1F5FA}", false)).toBe(false);
+  });
+
+  it("cuts the raw length before normalizing (S1)", () => {
+    // 236 spaces and 5 letters: 241 units, over twice the title limit, so refused at once;
+    // the same text trimmed would be a valid title.
+    const padded = `${" ".repeat(236)}abcde`;
+
+    expect(fieldMessage({ ...valid, title: padded }, "title")).toBe(
+      "Tytuł ma mieć od 5 do 120 znaków.",
+    );
+    expect(validateNewsInput({ ...valid, title: `${" ".repeat(235)}abcde` }).ok).toBe(true);
+    expect(fieldMessage({ ...valid, lead: `${" ".repeat(556)}abcde` }, "lead")).toBe(
+      "Krótki tekst ma mieć od 1 do 280 znaków.",
+    );
+    expect(fieldMessage({ ...valid, body: "a".repeat(NEWS_BODY_MAX_LENGTH * 2 + 1) }, "body")).toBe(
+      "Treść może mieć najwyżej 5000 znaków.",
+    );
+    expect(parseHiddenReason(`${" ".repeat(796)}powód 1234`)).toBeNull();
+  });
+
+  it("answers quickly for a huge text", () => {
+    const huge = "a".repeat(5_000_000);
+    const errors = errorsOf({ ...valid, title: huge, lead: huge, body: huge });
+
+    expect(errors.map((error) => error.field)).toEqual(["title", "lead", "body"]);
+    expect(parseHiddenReason(huge)).toBeNull();
+  });
+
   it("reports the body limit with the number from the constant", () => {
     expect(fieldMessage({ ...valid, body: "a".repeat(NEWS_BODY_MAX_LENGTH + 1) }, "body")).toBe(
       "Treść może mieć najwyżej 5000 znaków.",
@@ -259,6 +374,24 @@ describe("validateNewsInput: dates (Q11)", () => {
     }
   });
 
+  it("accepts the edges of the range 2000-01-01 to 2100-12-31 and refuses beyond it (S3)", () => {
+    for (const edge of [NEWS_EVENT_MIN_DATE, NEWS_EVENT_MAX_DATE]) {
+      expect(validateNewsInput({ ...event, eventStartsOn: edge }).ok).toBe(true);
+    }
+
+    for (const outside of ["1999-12-31", "2101-01-01", "0000-01-01", "0001-01-01", "9999-12-31"]) {
+      expect(fieldMessage({ ...event, eventStartsOn: outside }, "eventStartsOn")).toBe(
+        "Podaj poprawną datę rozpoczęcia.",
+      );
+      expect(
+        fieldMessage(
+          { ...event, eventStartsOn: "2027-05-01", eventEndsOn: outside },
+          "eventEndsOn",
+        ),
+      ).toBe("Podaj poprawną datę zakończenia.");
+    }
+  });
+
   it("refuses an end before the start", () => {
     expect(
       fieldMessage(
@@ -308,6 +441,18 @@ describe("isCalendarDate", () => {
     expect(isCalendarDate("2027-04-31")).toBe(false);
     expect(isCalendarDate("2027-01-32")).toBe(false);
     expect(isCalendarDate("")).toBe(false);
+  });
+});
+
+describe("isEventDate", () => {
+  it("is a real date inside the range of the constants", () => {
+    expect(NEWS_EVENT_MIN_DATE).toBe("2000-01-01");
+    expect(NEWS_EVENT_MAX_DATE).toBe("2100-12-31");
+    expect(isEventDate("2000-01-01")).toBe(true);
+    expect(isEventDate("2100-12-31")).toBe(true);
+    expect(isEventDate("1999-12-31")).toBe(false);
+    expect(isEventDate("2101-01-01")).toBe(false);
+    expect(isEventDate("2027-02-30")).toBe(false);
   });
 });
 

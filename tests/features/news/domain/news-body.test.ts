@@ -187,6 +187,23 @@ describe("parseNewsBody: refused addresses", () => {
     }
   });
 
+  it("refuses a shortener written with trailing dots, capitals or full-width letters (B1)", () => {
+    for (const domain of NEWS_LINK_SHORTENERS) {
+      for (const host of [
+        `${domain}.`,
+        `www.${domain}.`,
+        `${domain}..`,
+        `${domain.toUpperCase()}.`,
+      ]) {
+        expect(parseNewsBody(`https://${host}/abc`)).toEqual({ ok: false, error: "shortener" });
+      }
+    }
+
+    expect(parseNewsBody("https://bit.ly./abc")).toEqual({ ok: false, error: "shortener" });
+    expect(parseNewsBody("https://bit.ly../abc")).toEqual({ ok: false, error: "shortener" });
+    expect(parseNewsBody("https://ｂｉｔ.ｌｙ/abc")).toEqual({ ok: false, error: "shortener" });
+  });
+
   it("does not take a longer domain that merely ends in the same letters for a shortener", () => {
     expect(parseNewsBody("https://hot.co/x").ok).toBe(true);
     expect(parseNewsBody("https://mybit.ly.example/x").ok).toBe(true);
@@ -278,35 +295,112 @@ describe("parseNewsBody: limits", () => {
 });
 
 describe("parseNewsBody: time for hostile input (S3, no catastrophic backtracking)", () => {
-  const MAX_MS = 250;
+  // A normal run takes a few milliseconds; catastrophic backtracking on 5000
+  // characters would take orders of magnitude longer. The limit is generous so a busy
+  // machine does not fail it (K-16): two warm-up runs, then the median of five.
+  const MAX_MS = 500;
+  const RUNS = 5;
 
-  function timed(body: string) {
-    const start = performance.now();
-    const result = parseNewsBody(body);
+  function medianMs(body: string): number {
+    parseNewsBody(body);
+    parseNewsBody(body);
 
-    return { result, ms: performance.now() - start };
+    const times: number[] = [];
+
+    for (let run = 0; run < RUNS; run += 1) {
+      const start = performance.now();
+
+      parseNewsBody(body);
+      times.push(performance.now() - start);
+    }
+
+    times.sort((a, b) => a - b);
+
+    return times[Math.floor(RUNS / 2)];
   }
 
-  it.each([
-    ["one long address", `https://${"a".repeat(4990)}`],
-    ["a thousand scheme starts", "https://".repeat(600)],
-    ["closing brackets after an address", `https://example.org/${")".repeat(4970)}`],
-    ["punctuation after an address", `https://example.org/${".,;:!?'".repeat(700)}`],
-    ["scheme without end", `${"https:/".repeat(700)}`],
-    ["many spaces and blank lines", `${" \n".repeat(2400)}x`],
-    ["a long run of angle brackets", `https://a${"<>".repeat(2400)}`],
-    ["nested openings", `https://example.org/${"(".repeat(2400)}${")".repeat(2400)}`],
-  ])("handles %s quickly", (_name, body) => {
-    const { result, ms } = timed(body);
+  const kindsOf = (body: string) => {
+    const result = parseNewsBody(body);
 
-    expect(ms).toBeLessThan(MAX_MS);
-    expect(typeof result.ok).toBe("boolean");
+    return result.ok
+      ? { linkCount: result.linkCount, kinds: result.paragraphs.map((p) => p.map((f) => f.kind)) }
+      : result;
+  };
+
+  it.each([
+    ["one long address", `https://${"a".repeat(4985)}.pl`, 1, [["link"]]],
+    ["a long host without a dot", `https://${"a".repeat(4990)}`, 0, [["text"]]],
+    ["a thousand scheme starts", "https://".repeat(600), 0, [["text"]]],
+    [
+      "closing brackets after an address",
+      `https://example.org/${")".repeat(4970)}`,
+      1,
+      [["link", "text"]],
+    ],
+    [
+      "punctuation after an address",
+      `https://example.org/${".,;:!?'".repeat(700)}`,
+      1,
+      [["link", "text"]],
+    ],
+    ["scheme without end", "https:/".repeat(700), 0, [["text"]]],
+    ["many spaces and blank lines", `${" \n".repeat(2400)}x`, 0, [["text"]]],
+    ["a long run of angle brackets", `https://a.pl${"<>".repeat(2400)}`, 1, [["link", "text"]]],
+    [
+      "nested openings",
+      `https://example.org/${"(".repeat(2400)}${")".repeat(2400)}`,
+      1,
+      [["link"]],
+    ],
+  ])("handles %s quickly and gives the exact result", (_name, body, linkCount, kinds) => {
+    expect(kindsOf(body)).toEqual({ linkCount, kinds });
+    expect(medianMs(body)).toBeLessThan(MAX_MS);
   });
 
-  it("returns at once for an oversized body, before matching", () => {
-    const { result, ms } = timed(`https://${"a".repeat(2_000_000)}`);
+  it("cuts the closing brackets after an address and keeps them as text", () => {
+    const result = ok(`https://example.org/${")".repeat(4970)}`);
 
-    expect(result).toEqual({ ok: false, error: "too_long" });
-    expect(ms).toBeLessThan(MAX_MS);
+    expect(result.paragraphs[0]).toEqual([
+      { kind: "link", href: "https://example.org/", text: "https://example.org/", original: null },
+      { kind: "text", text: ")".repeat(4970) },
+    ]);
+  });
+
+  it("returns at once for an oversized body, before normalizing and matching", () => {
+    const body = `https://${"a".repeat(2_000_000)}`;
+
+    expect(parseNewsBody(body)).toEqual({ ok: false, error: "too_long" });
+    expect(medianMs(body)).toBeLessThan(MAX_MS);
+  });
+
+  it("refuses 10001 units before normalizing, and accepts 10000 of two-unit characters", () => {
+    expect(parseNewsBody("a".repeat(NEWS_BODY_MAX_LENGTH * 2 + 1))).toEqual({
+      ok: false,
+      error: "too_long",
+    });
+    expect(parseNewsBody("\u{1F5FA}".repeat(NEWS_BODY_MAX_LENGTH)).ok).toBe(true);
+  });
+});
+
+describe("parseNewsBody: addresses of devices and local hosts stay text (N1)", () => {
+  it.each([
+    "https://localhost/admin",
+    "https://intranet/x",
+    "https://127.0.0.1/",
+    "https://0x7f000001/",
+    "https://192.168.0.1:8080/panel",
+    "https://[::1]/",
+    "https://2130706433/",
+  ])("does not make a link of %s", (address) => {
+    const result = ok(`Zobacz ${address}`);
+
+    expect(result.linkCount).toBe(0);
+    expect(result.paragraphs).toEqual([[{ kind: "text", text: `Zobacz ${address}` }]]);
+  });
+
+  it("does not count such an address in the limit of links", () => {
+    const body = `${Array.from({ length: 6 }, () => "https://localhost").join(" ")} https://example.org`;
+
+    expect(ok(body).linkCount).toBe(1);
   });
 });

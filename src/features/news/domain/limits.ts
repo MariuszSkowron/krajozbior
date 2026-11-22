@@ -11,6 +11,11 @@ export const NEWS_BODY_MAX_LENGTH = 5000;
 export const NEWS_HIDDEN_REASON_MIN_LENGTH = 10;
 export const NEWS_HIDDEN_REASON_MAX_LENGTH = 400;
 
+// The dates of an event (S3): PostgreSQL has no year 0, and a year far from today is a
+// slip of the curator. The `CHECK` of E7-1a repeats this exact range.
+export const NEWS_EVENT_MIN_DATE = "2000-01-01";
+export const NEWS_EVENT_MAX_DATE = "2100-12-31";
+
 // Q18: at most this many links in one news body.
 export const NEWS_MAX_LINKS = 5;
 

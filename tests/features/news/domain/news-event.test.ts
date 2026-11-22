@@ -26,7 +26,7 @@ describe("isNewsEventEnded (zone Europe/Warsaw)", () => {
   });
 
   it("counts the day in Poland: just after midnight there is already the next day", () => {
-    // Summer time, UTC+2: 22:30 UTC on May 10 is 00:30 on May 11 in Poland.
+    // Summer time, UTC+2: 22:00 UTC on May 10 is 00:00 on May 11 in Poland.
     expect(isNewsEventEnded(event("2027-05-10"), new Date("2027-05-10T21:59:00Z"))).toBe(false);
     expect(isNewsEventEnded(event("2027-05-10"), new Date("2027-05-10T22:00:00Z"))).toBe(true);
     // Winter time, UTC+1.
