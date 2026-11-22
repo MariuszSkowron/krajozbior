@@ -112,9 +112,7 @@ export function pastVisitSavedMessage(recorded: number, alreadyVisited: number):
  * the other places cannot be chosen any more.
  */
 export function pickedCountMessage(count: number, max: number): string {
-  return count >= max
-    ? `Wybrane: ${count}. Zaznaczono ${max} miejsc — to najwięcej naraz.`
-    : `Wybrane: ${count}.`;
+  return count >= max ? `Wybrane: ${count}. To najwięcej naraz.` : `Wybrane: ${count}.`;
 }
 
 /** Today of the device clock as YYYY-MM-DD (not the UTC day), for the `max` of a date field. */
