@@ -14,6 +14,8 @@
 /coverage
 /playwright-report
 /test-results*/
+# tymczasowe przejście skilla przeglad-ux; nigdy nie trafia do gita
+/e2e/tymczasowy-przeglad-ux-*.spec.ts
 
 # next.js
 /.next/
