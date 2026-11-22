@@ -17,12 +17,26 @@
 .hero {
   display: grid;
   gap: var(--space-md);
-  justify-items: start;
 }
 
 .hero h1,
 .hero p {
   margin: 0;
+}
+
+.heroIntro {
+  display: grid;
+  gap: var(--space-md);
+  justify-items: start;
+}
+
+/* Komputer (K-35): wstęp po lewej, wyszukiwarka obok, w jednej linii z górą wstępu. */
+@media (min-width: 48rem) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-xl);
+  }
 }
 
 .lead {

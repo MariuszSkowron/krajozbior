@@ -10,19 +10,21 @@ import {
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import type { Actor } from "@/features/identity/domain/actor";
 import { CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
+import { getMyProfile } from "@/features/profile/application/profile";
+import { getProfileDeps } from "@/features/profile/infrastructure/profile-deps";
 
 import { AlbumSummary } from "./home/album-summary";
 import { CollectionsToDiscover } from "./home/collections-to-discover";
 import { FavoriteCollections } from "./home/favorite-collections";
-import { NearbyCollections } from "./home/nearby-collections";
 import { RecentVisits } from "./home/recent-visits";
 import styles from "./home.module.css";
 import { SearchForm } from "./search/search-form";
 
 export const dynamic = "force-dynamic";
 
-// Kolekcje do odkrycia na stronie głównej.
-const DISCOVER_LIMIT = 6;
+// Kolekcje do odkrycia na stronie głównej. Przycisk „Pokaż najbliższe” sortuje właśnie tę listę,
+// więc jest dłuższa niż dawna lista „W okolicy” (sześć), ale mieści się w trzech–czterech rzędach.
+const DISCOVER_LIMIT = 12;
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -42,8 +44,8 @@ async function loadDiscover() {
   }
 }
 
-// The list for "W okolicy": public, the same for everyone. The distance is counted in the
-// browser, so the position of the device never comes here (E12-3).
+// The list behind "Pokaż najbliższe": public, the same for everyone. The distance is counted in
+// the browser, so the position of the device never comes here (E12-3).
 async function loadNearby() {
   try {
     return await listNearbyCandidates(getCatalogDeps());
@@ -68,6 +70,20 @@ async function loadAlbum(actor: Actor) {
   }
 }
 
+// The first name for the greeting (the same profile read as the profile screen). Without a
+// name, or when the read fails, the greeting is said without it; the failure is logged by class.
+async function loadFirstName(actor: Actor): Promise<string | null> {
+  try {
+    const result = await getMyProfile(actor, getProfileDeps());
+
+    return result.status === "ok" ? result.value.firstName : null;
+  } catch (error) {
+    logReadFailure("Home profile read", error);
+
+    return null;
+  }
+}
+
 // The home page (E12-1). A guest sees the introduction and the collections to discover; a
 // signed-in explorer sees their album first. It reads the session only to choose the
 // version; a failed lookup shows the guest version.
@@ -83,14 +99,15 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const signOutFailed = first(params.wylogowanie) === "blad";
   // Only a signal for the message after deleting the account (E9-5).
   const accountDeleted = first(params.konto) === "usuniete";
-  const [discover, nearby, album] = await Promise.all([
+  const [discover, nearby, album, firstName] = await Promise.all([
     loadDiscover(),
     loadNearby(),
     actor === null ? Promise.resolve(null) : loadAlbum(actor),
+    actor === null ? Promise.resolve(null) : loadFirstName(actor),
   ]);
 
   return (
-    <div className={`content-width ${styles.page}`}>
+    <div className={`content-width-wide ${styles.page}`}>
       {accountDeleted ? (
         <p role="status" className={styles.status}>
           Twoje konto zostało usunięte.
@@ -114,33 +131,29 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         </p>
       ) : null}
       <section className={styles.hero} aria-labelledby="start-title">
-        {actor === null ? (
-          <>
-            <h1 id="start-title">Odkrywaj miejsca i zbieraj je w swoim albumie</h1>
-            <p className={styles.lead}>
-              Krajozbiór to kolekcje ciekawych miejsc w Polsce. Przeglądaj je bez konta; po
-              zalogowaniu zapiszesz kolekcję i zaznaczysz miejsca już odwiedzone.
-            </p>
-            <div className={styles.actions}>
-              <Link className="button button--primary" href="/login">
-                Zaloguj się
-              </Link>
-              <Link className="button button--outline" href="#do-odkrycia">
-                Zobacz kolekcje
-              </Link>
-            </div>
-          </>
-        ) : (
-          <>
-            <h1 id="start-title">Dzień dobry</h1>
-            <p className={styles.lead}>Oto Twój album i kolekcje, które warto odkryć.</p>
-            <div className={styles.actions}>
-              <Link className="button button--outline" href="/my">
-                Profil
-              </Link>
-            </div>
-          </>
-        )}
+        <div className={styles.heroIntro}>
+          {actor === null ? (
+            <>
+              <h1 id="start-title">Odkrywaj miejsca i zbieraj je w swoim albumie</h1>
+              <p className={styles.lead}>
+                Krajozbiór to kolekcje ciekawych miejsc w Polsce. Przeglądaj je bez konta; po
+                zalogowaniu zapiszesz kolekcję i zaznaczysz miejsca już odwiedzone.
+              </p>
+              <div className={styles.actions}>
+                <Link className="button button--primary" href="/login">
+                  Zaloguj się
+                </Link>
+                <Link className="button button--outline" href="#do-odkrycia">
+                  Zobacz kolekcje
+                </Link>
+              </div>
+            </>
+          ) : (
+            <h1 id="start-title">
+              {firstName === null ? "Dzień dobry" : `Dzień dobry, ${firstName}`}
+            </h1>
+          )}
+        </div>
         <SearchForm id="home-search" />
       </section>
       {album === null ? null : (
@@ -149,9 +162,8 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           <FavoriteCollections collections={album.favorites} />
         </>
       )}
-      <NearbyCollections candidates={nearby} />
       {album === null ? null : <RecentVisits visits={album.recentVisits} />}
-      <CollectionsToDiscover collections={discover} />
+      <CollectionsToDiscover collections={discover} candidates={nearby} />
     </div>
   );
 }

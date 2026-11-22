@@ -7,8 +7,9 @@ import axe from "axe-core";
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
 
-// E12-3: "W okolicy" on the home page. The position is read only after a click (even when the
-// permission is already granted), is counted in the browser and never leaves it: no request
+// E12-3 / K-34: "Pokaż najbliższe" sorts the one section "Kolekcje do odkrycia" on the home page.
+// The position is read only after a click (even when the permission is already granted), is
+// counted in the browser and never leaves it: no request
 // (RSC included), no console line. The tests write nothing to the database, but they rely on the
 // seeded demo collection, so they run only against the disposable E2E database
 // (parseE2eAdminDatabaseUrl) and are skipped without it.
@@ -66,7 +67,7 @@ async function shot(page: Page, name: string) {
 
   mkdirSync(SCREENSHOT_DIR, { recursive: true });
   await page
-    .locator("#okolica-title")
+    .locator("#odkrycie-title")
     .locator("..")
     .screenshot({
       path: join(SCREENSHOT_DIR, `${name}-${size}.png`),
@@ -133,9 +134,9 @@ async function contextAt(
   return { context, page };
 }
 
-const section = (page: Page) => page.getByRole("region", { name: "W okolicy" });
+const section = (page: Page) => page.getByRole("region", { name: "Kolekcje do odkrycia" });
 
-test.describe("W okolicy on the home page", () => {
+test.describe("'Pokaż najbliższe' in 'Kolekcje do odkrycia' on the home page", () => {
   test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
 
   test.beforeAll(() => {
@@ -153,11 +154,15 @@ test.describe("W okolicy on the home page", () => {
     await waitForHydration(page);
     await page.waitForTimeout(1500);
 
-    const button = section(page).getByRole("button", { name: "Pokaż kolekcje w okolicy" });
+    const button = section(page).getByRole("button", { name: "Pokaż najbliższe" });
 
     await expect(button).toBeVisible();
-    // A plain string matches a substring of the accessible name, so no regular expression is needed.
-    await expect(section(page).getByRole("link", { name: DEMO_TITLE })).toHaveCount(0);
+    await expect(section(page).getByText("Położenie zostaje w tej przeglądarce.")).toBeVisible();
+    // K-34: one list. Before a click the card is there in the order of the server, with no
+    // distance. A plain string matches a substring of the accessible name, so no regular
+    // expression is needed.
+    await expect(section(page).getByRole("link", { name: DEMO_TITLE })).toBeVisible();
+    await expect(section(page).getByText(/^\d+ km · /)).toHaveCount(0);
     expect(await geoCalls(page)).toEqual([]);
     await shot(page, "idle");
     await inBothThemes(page, async (theme) => {
@@ -170,10 +175,8 @@ test.describe("W okolicy on the home page", () => {
     const card = section(page).getByRole("link", { name: DEMO_TITLE });
 
     await expect(card).toHaveAttribute("href", `/collections/${DEMO_SLUG}`);
-    await expect(section(page).getByRole("status")).toContainText(
-      "Jedna kolekcja w promieniu 50 km.",
-    );
-    await expect(section(page).getByText(/^\d+ km · 3 miejsca$/)).toBeVisible();
+    await expect(section(page).getByRole("status")).toContainText("Kolekcje od najbliższej.");
+    await expect(section(page).getByText(/^\d+ km · 3 miejsca · /)).toBeVisible();
     // E12-S4: the demo collection was published a moment ago and lies within 50 km.
     await expect(section(page).getByText("Nowa w okolicy", { exact: true })).toBeVisible();
     await expect(section(page).getByRole("button", { name: "Sprawdź ponownie" })).toBeVisible();
@@ -210,8 +213,8 @@ test.describe("W okolicy on the home page", () => {
 
     await page.goto("/");
     await waitForHydration(page);
-    await section(page).getByRole("button", { name: "Pokaż kolekcje w okolicy" }).click();
-    await expect(section(page).getByRole("status")).toContainText("w promieniu 50 km");
+    await section(page).getByRole("button", { name: "Pokaż najbliższe" }).click();
+    await expect(section(page).getByRole("status")).toContainText("Kolekcje od najbliższej.");
     await shot(page, "found");
     expect(
       await page.evaluate(
@@ -221,22 +224,22 @@ test.describe("W okolicy on the home page", () => {
     await context.close();
   });
 
-  test("says so when no collection lies within 50 km, and links to all collections", async ({
+  test("far from every collection the list is still whole, with the distance and no 'Nowa w okolicy' mark", async ({
     browser,
   }) => {
     const { context, page } = await contextAt(browser, FAR);
 
     await page.goto("/");
     await waitForHydration(page);
-    await section(page).getByRole("button", { name: "Pokaż kolekcje w okolicy" }).click();
-    await expect(section(page).getByRole("status")).toHaveText(
-      "W promieniu 50 km nie ma jeszcze kolekcji.",
-    );
+    await section(page).getByRole("button", { name: "Pokaż najbliższe" }).click();
+    await expect(section(page).getByRole("status")).toHaveText("Kolekcje od najbliższej.");
     await expect(
-      section(page).getByRole("link", { name: "Zobacz wszystkie kolekcje" }),
+      section(page).getByRole("link", { name: "Wszystkie kolekcje", exact: true }),
     ).toHaveAttribute("href", "/search");
-    await expect(section(page).getByRole("link", { name: /Mosty i zamki/ })).toHaveCount(0);
-    await shot(page, "empty");
+    await expect(section(page).getByRole("link", { name: DEMO_TITLE })).toBeVisible();
+    await expect(section(page).getByText(/^\d{3,} km · 3 miejsca · /)).toBeVisible();
+    await expect(section(page).getByText("Nowa w okolicy", { exact: true })).toHaveCount(0);
+    await shot(page, "far");
     await inBothThemes(page, () => expectNoAccessibilityViolations(page));
     await context.close();
   });
@@ -246,9 +249,9 @@ test.describe("W okolicy on the home page", () => {
 
     await page.goto("/");
     await waitForHydration(page);
-    await section(page).getByRole("button", { name: "Pokaż kolekcje w okolicy" }).click();
+    await section(page).getByRole("button", { name: "Pokaż najbliższe" }).click();
     await expect(section(page).getByRole("status")).toContainText(
-      "Lokalizacja jest niedokładna, więc odległości są przybliżone.",
+      "Położenie jest niedokładne, więc odległości są przybliżone.",
     );
     await shot(page, "coarse");
     await context.close();
@@ -261,12 +264,12 @@ test.describe("W okolicy on the home page", () => {
 
     await page.goto("/");
     await waitForHydration(page);
-    await section(page).getByRole("button", { name: "Pokaż kolekcje w okolicy" }).click();
+    await section(page).getByRole("button", { name: "Pokaż najbliższe" }).click();
     await expect(section(page).getByRole("status")).toHaveText(
-      "Nie mamy dostępu do lokalizacji. Możesz włączyć go w ustawieniach przeglądarki.",
+      "Nie mamy zgody na użycie lokalizacji. Włączysz ją w ustawieniach przeglądarki.",
     );
     await expect(
-      section(page).getByRole("link", { name: "Zobacz wszystkie kolekcje" }),
+      section(page).getByRole("link", { name: "Wszystkie kolekcje", exact: true }),
     ).toBeVisible();
     await expect(section(page).getByRole("button", { name: "Sprawdź ponownie" })).toBeVisible();
     await shot(page, "denied");
@@ -275,7 +278,7 @@ test.describe("W okolicy on the home page", () => {
     await context.grantPermissions(["geolocation"]);
     await context.setGeolocation(NEAR);
     await section(page).getByRole("button", { name: "Sprawdź ponownie" }).click();
-    await expect(section(page).getByRole("status")).toContainText("w promieniu 50 km");
+    await expect(section(page).getByRole("status")).toContainText("Kolekcje od najbliższej.");
     for (const secret of SECRETS) {
       expect(traffic.join("\n")).not.toContain(secret);
       expect(logs.join("\n")).not.toContain(secret);
@@ -295,7 +298,7 @@ test.describe("W okolicy on the home page", () => {
       section(page).getByText("Ta przeglądarka nie obsługuje lokalizacji."),
     ).toBeVisible();
     await expect(
-      section(page).getByRole("link", { name: "Zobacz wszystkie kolekcje" }),
+      section(page).getByRole("link", { name: "Wszystkie kolekcje", exact: true }),
     ).toBeVisible();
     await expect(section(page).getByRole("button")).toHaveCount(0);
     await shot(page, "unsupported");
@@ -319,8 +322,8 @@ test.describe("W okolicy on the home page", () => {
     await expect(page).toHaveURL(/\/my$/);
     await page.goto("/");
     await waitForHydration(page);
-    await section(page).getByRole("button", { name: "Pokaż kolekcje w okolicy" }).click();
-    await expect(section(page).getByRole("status")).toContainText("Jedna kolekcja");
+    await section(page).getByRole("button", { name: "Pokaż najbliższe" }).click();
+    await expect(section(page).getByRole("status")).toContainText("Kolekcje od najbliższej.");
     await inBothThemes(page, () => expectNoAccessibilityViolations(page));
 
     const targets = await page.evaluate(() =>
