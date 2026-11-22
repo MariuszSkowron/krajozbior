@@ -196,6 +196,8 @@ async function signedInCurator(browser: Browser, theme: "light" | "dark"): Promi
 
   await page.goto("/login");
 
+  await page.getByText("Logowanie hasłem").click();
+
   const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
   await form.getByLabel("E-mail").fill(emailOf("curator-a"));
@@ -404,6 +406,8 @@ test.describe("collection cover", () => {
     const page = await context.newPage();
 
     await page.goto("/login");
+
+    await page.getByText("Logowanie hasłem").click();
 
     const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
