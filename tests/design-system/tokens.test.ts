@@ -455,12 +455,12 @@ describe("brak kolorów poza tokens.css", () => {
     (file) => /\.(css|tsx?)$/.test(file) && !colorFiles.has(file.replaceAll("\\", "/")),
   );
   const colorLiteral = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|color-mix)\(/i;
-  const ringMix = /color-mix\(in srgb, var\(--[a-z-]+\) \d+%, transparent\)/g;
+  const ringMix = /color-mix\(\s*in srgb,\s*var\(--[a-z-]+\)\s+\d+%,\s*transparent\s*\)/g;
   // Wąski wyjątek (E6-4a, D-52): środek opalizacji to mieszanka początku i końca TEJ SAMEJ
   // kategorii; odwołanie wsteczne \1 wymusza jedną kategorię, a w argumentach są wyłącznie tokeny
   // `color.legendary.*` (bez literałów koloru).
   const legendaryMix =
-    /color-mix\(in oklch, var\(--color-legendary-([a-z-]+)-start\)( \d+%)?, var\(--color-legendary-\1-end\)( \d+%)?\)/g;
+    /color-mix\(\s*in oklch,\s*var\(--color-legendary-([a-z-]+)-start\)(\s+\d+%)?,\s*var\(--color-legendary-\1-end\)(\s+\d+%)?\s*\)/g;
   const strip = (text: string) => text.replace(ringMix, "").replace(legendaryMix, "");
 
   it.each(files)("%s nie zawiera literałów koloru", (file) => {

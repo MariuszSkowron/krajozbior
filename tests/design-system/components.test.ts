@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -6,11 +8,23 @@ import { CollectionCard } from "@/design-system/components/collection-card";
 import { CollectionProgress } from "@/design-system/components/collection-progress";
 import { StatusBadge } from "@/design-system/components/status-badge";
 import {
+  LegendaryCard,
+  legendaryCategories,
+  type LegendaryCardCategory,
+} from "@/design-system/components/legendary-card";
+import { LegendaryCardReveal } from "@/design-system/components/legendary-card-reveal";
+import {
   BookmarkIcon,
   CardsIcon,
+  ColumnCapitalIcon,
+  CompassRoseIcon,
   HomeIcon,
+  LeafIcon,
+  MoonStarIcon,
   PinIcon,
   ProfileIcon,
+  RosetteIcon,
+  SignetIcon,
 } from "@/design-system/icons/icons";
 
 const render = (element: Parameters<typeof renderToStaticMarkup>[0]) =>
@@ -112,17 +126,206 @@ describe("CollectionCard", () => {
   });
 });
 
-describe("ikony", () => {
-  it.each([HomeIcon, CardsIcon, BookmarkIcon, ProfileIcon, PinIcon])(
-    "%o jest ozdobą ukrytą przed czytnikiem ekranu, kontur 1,7 px",
-    (Icon) => {
-      const html = render(createElement(Icon, { size: 24, className: "x" }));
+const sampleCard = {
+  eventName: "Noc Muzeów",
+  collectionTitle: "Wieże ciśnień Pomorza",
+  placeName: "Wieża ciśnień w Tczewie",
+  dateLabel: "16.05.2026, 22:40",
+} as const;
 
-      expect(html).toContain('aria-hidden="true"');
-      expect(html).toContain('focusable="false"');
-      expect(html).toContain('stroke-width="1.7"');
-      expect(html).toContain('viewBox="0 0 24 24"');
-      expect(html).toContain('width="24"');
-    },
+const categoryLabels: Record<LegendaryCardCategory, string> = {
+  culture_night: "Noc kultury",
+  heritage: "Dziedzictwo",
+  national_holiday: "Święto narodowe",
+  nature_sky: "Przyroda i niebo",
+  trail_community: "Szlak i wspólnota",
+  krajozbior: "Krajozbiór",
+};
+
+describe("LegendaryCard", () => {
+  it("lista kategorii to dokładnie sześć identyfikatorów z D-52", () => {
+    expect([...legendaryCategories]).toEqual(Object.keys(categoryLabels));
+  });
+
+  it.each(legendaryCategories)("%s: nazwa kategorii tekstem, symbol ozdobą, data-category", (c) => {
+    const html = render(createElement(LegendaryCard, { ...sampleCard, category: c }));
+
+    expect(html).toContain(`data-category="${c}"`);
+    expect(html).toContain(categoryLabels[c]);
+    expect(html).toContain("LEGENDARNA");
+    expect(html).toMatch(/<svg [^>]*aria-hidden="true"/);
+    expect(html).toContain("Noc Muzeów");
+    expect(html).toContain("Wieże ciśnień Pomorza");
+    expect(html).toContain("Wieża ciśnień w Tczewie");
+    expect(html).toContain("16.05.2026, 22:40");
+    expect(html).not.toContain("data-playing");
+  });
+
+  it("bez propsa category to Krajozbiór", () => {
+    const html = render(createElement(LegendaryCard, sampleCard));
+
+    expect(html).toContain('data-category="krajozbior"');
+    expect(html).toContain("Krajozbiór");
+  });
+
+  it("Święto narodowe nie ma warstwy iskier ani rozbłysku pierścienia", () => {
+    const html = render(
+      createElement(LegendaryCard, { ...sampleCard, category: "national_holiday", playing: true }),
+    );
+
+    expect(html).not.toContain('data-layer="sparks"');
+    expect(html).not.toContain('data-layer="ring"');
+    expect(html).toContain('data-layer="glow"');
+  });
+
+  it("iskry (gwiazdy) ma tylko Noc kultury", () => {
+    for (const c of legendaryCategories) {
+      const html = render(createElement(LegendaryCard, { ...sampleCard, category: c }));
+      expect(html.includes('data-layer="sparks"')).toBe(c === "culture_night");
+    }
+  });
+
+  it("efekt gra tylko z propsem playing", () => {
+    const html = render(createElement(LegendaryCard, { ...sampleCard, playing: true }));
+
+    expect(html).toContain('data-playing="true"');
+  });
+
+  it("nazwa wydarzenia jest nagłówkiem o wskazanym poziomie", () => {
+    const html = render(createElement(LegendaryCard, { ...sampleCard, headingLevel: 2 }));
+
+    expect(html).toMatch(/<h2 class="[^"]*">Noc Muzeów<\/h2>/);
+  });
+});
+
+describe("LegendaryCardReveal", () => {
+  it("zakryta: przycisk zasłony z nazwą dostępną, pusty region aria-live, karta niedostępna", () => {
+    const html = render(createElement(LegendaryCardReveal, { card: sampleCard }));
+
+    expect(html).toContain('aria-label="Odsłoń kartę: Noc Muzeów"');
+    expect(html).toMatch(/<button type="button"/);
+    expect(html).toMatch(/aria-live="polite"[^>]*><\/div>/);
+    expect(html).toContain("inert");
+    expect(html).toContain("Karta z wydarzenia Noc Muzeów czeka w Twojej skrytce");
+    expect(html).toContain("Dotknij karty albo przesuń ją w górę");
+    expect(html).toContain('data-state="sealed"');
+  });
+
+  it("scena jest zawsze nocna (klasa theme-dark na korzeniu)", () => {
+    const html = render(createElement(LegendaryCardReveal, { card: sampleCard }));
+
+    expect(html).toMatch(/^<section class="theme-dark /);
+  });
+
+  it("motion=reduce ustawia data-motion na korzeniu, auto nie", () => {
+    const reduce = render(
+      createElement(LegendaryCardReveal, { card: sampleCard, motion: "reduce" }),
+    );
+    const auto = render(createElement(LegendaryCardReveal, { card: sampleCard }));
+
+    expect(reduce).toContain('data-motion="reduce"');
+    expect(auto).not.toContain("data-motion");
+  });
+
+  it("odsłonięta od początku: bez zasłony, pusty region aria-live, miejsce w nagłówku, przyciski", () => {
+    const html = render(
+      createElement(LegendaryCardReveal, {
+        card: sampleCard,
+        initialState: "revealed",
+        actions: createElement("button", { type: "button" }, "Zobacz w kolekcji"),
+      }),
+    );
+
+    expect(html).not.toContain("Odsłoń kartę");
+    expect(html).toMatch(/aria-live="polite"[^>]*><\/div>/);
+    expect(html).toMatch(/<h2 [^>]*>Wieża ciśnień w Tczewie<\/h2>/);
+    expect(html).toContain("Zobacz w kolekcji");
+    expect(html).not.toContain("inert");
+    expect(html).toContain('data-state="revealed"');
+  });
+});
+
+// WCAG 2.2.2 i 2.3.1: żadnej pętli bez końca, najwyżej 3 cykle, łączny czas poniżej 5 s;
+// efekty kategorii mają dokładnie jeden cykl i czas nie dłuższy niż motion.duration.reveal.
+describe("ruch karty legendarnej (pliki CSS)", () => {
+  const dir = new URL("../../src/design-system/components/", import.meta.url);
+  const tokensCss = readFileSync(
+    new URL("../../src/design-system/tokens/tokens.css", import.meta.url),
+    "utf8",
   );
+  const duration = (token: string) => {
+    const match = new RegExp(`--${token}:\\s*(\\d+)ms;`).exec(tokensCss);
+    if (match === null) throw new Error(`Brak tokenu --${token}`);
+    return Number(match[1]);
+  };
+  const files = ["legendary-card.module.css", "legendary-card-reveal.module.css"];
+
+  function animations(file: string): string[] {
+    const css = readFileSync(new URL(file, dir), "utf8");
+    return [...css.matchAll(/^\s*animation:\s*([^;]+);/gm)]
+      .map((m) => m[1].trim())
+      .filter((value) => !/^none\b/.test(value));
+  }
+
+  it.each(files)("%s: brak pętli bez końca", (file) => {
+    const css = readFileSync(new URL(file, dir), "utf8");
+    expect(css).not.toMatch(/infinite/);
+  });
+
+  it.each(files)("%s: czas z tokenu, najwyżej 3 cykle, łącznie poniżej 5 s", (file) => {
+    const found = animations(file);
+    expect(found.length).toBeGreaterThan(0);
+    for (const value of found) {
+      const token = /var\(--(motion-duration-[a-z]+)\)/.exec(value);
+      expect(token, value).not.toBeNull();
+      const withoutVars = value.replace(/var\([^)]*\)/g, "");
+      const cycles = Number(/\s(\d+)\s*$/.exec(withoutVars)?.[1] ?? 1);
+      expect(cycles, value).toBeLessThanOrEqual(3);
+      expect(duration(token![1]) * cycles, value).toBeLessThan(5000);
+    }
+  });
+
+  it("efekty kategorii: jeden cykl w motion.duration.reveal", () => {
+    const found = animations("legendary-card.module.css");
+    expect(found.length).toBeGreaterThanOrEqual(8);
+    for (const value of found) {
+      expect(value, value).toContain("var(--motion-duration-reveal)");
+      expect(value, value).toMatch(/\s1$/);
+    }
+    expect(duration("motion-duration-reveal")).toBeLessThanOrEqual(1200);
+  });
+
+  it("tryb wysokiego kontrastu ukrywa warstwy opalizacji i efektów", () => {
+    const css = readFileSync(new URL("legendary-card.module.css", dir), "utf8");
+    const forced = css.slice(css.indexOf("@media (forced-colors: active)"));
+    for (const layer of [".sheen", ".sparks", ".sweep", ".aurora", ".ring", ".glow", ".edge"]) {
+      expect(forced).toContain(layer);
+    }
+    expect(forced).toMatch(/display:\s*none/);
+    expect(forced).toContain("CanvasText");
+  });
+});
+
+describe("ikony", () => {
+  it.each([
+    HomeIcon,
+    CardsIcon,
+    BookmarkIcon,
+    ProfileIcon,
+    PinIcon,
+    MoonStarIcon,
+    ColumnCapitalIcon,
+    RosetteIcon,
+    LeafIcon,
+    CompassRoseIcon,
+    SignetIcon,
+  ])("%o jest ozdobą ukrytą przed czytnikiem ekranu, kontur 1,7 px", (Icon) => {
+    const html = render(createElement(Icon, { size: 24, className: "x" }));
+
+    expect(html).toContain('aria-hidden="true"');
+    expect(html).toContain('focusable="false"');
+    expect(html).toContain('stroke-width="1.7"');
+    expect(html).toContain('viewBox="0 0 24 24"');
+    expect(html).toContain('width="24"');
+  });
 });

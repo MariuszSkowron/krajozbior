@@ -1,0 +1,478 @@
+/*
+ * Karta legendarna (E6-4a, D-52). Ramka z opalizującego gradientu (tokeny color.legendary.*),
+ * wnętrze na stałym tle color.surface.card. Tekst i symbol mają stały kolor z tokenów tekstu i
+ * nigdy nie stoją na barwach opalizacji. Stan końcowy każdego efektu leży w regułach bazowych
+ * (np. gwiazdy zapalone); animacja to tylko warstwa nad nim, jeden cykl w czasie
+ * motion.duration.reveal, bez pętli. Środek gradientu liczy color-mix tej samej kategorii.
+ */
+.card {
+  --legendary-gradient: linear-gradient(
+    135deg,
+    var(--color-legendary-krajozbior-start),
+    color-mix(
+      in oklch,
+      var(--color-legendary-krajozbior-start),
+      var(--color-legendary-krajozbior-end)
+    ),
+    var(--color-legendary-krajozbior-end)
+  );
+  --legendary-glow: color-mix(in srgb, var(--color-legendary-krajozbior-end) 55%, transparent);
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 18rem;
+  aspect-ratio: 5 / 7;
+  padding: 2px;
+  color: var(--color-text-primary);
+  background: var(--legendary-gradient);
+  border-radius: var(--radius-lg);
+  overflow-wrap: anywhere;
+}
+
+.cultureNight {
+  --legendary-gradient: linear-gradient(
+    135deg,
+    var(--color-legendary-culture-night-start),
+    color-mix(
+      in oklch,
+      var(--color-legendary-culture-night-start),
+      var(--color-legendary-culture-night-end)
+    ),
+    var(--color-legendary-culture-night-end)
+  );
+  --legendary-glow: color-mix(in srgb, var(--color-legendary-culture-night-end) 55%, transparent);
+}
+
+.heritage {
+  --legendary-gradient: linear-gradient(
+    135deg,
+    var(--color-legendary-heritage-start),
+    color-mix(in oklch, var(--color-legendary-heritage-start), var(--color-legendary-heritage-end)),
+    var(--color-legendary-heritage-end)
+  );
+  --legendary-glow: color-mix(in srgb, var(--color-legendary-heritage-end) 55%, transparent);
+}
+
+.nationalHoliday {
+  --legendary-gradient: linear-gradient(
+    135deg,
+    var(--color-legendary-national-holiday-start),
+    color-mix(
+      in oklch,
+      var(--color-legendary-national-holiday-start),
+      var(--color-legendary-national-holiday-end)
+    ),
+    var(--color-legendary-national-holiday-end)
+  );
+  --legendary-glow: color-mix(
+    in srgb,
+    var(--color-legendary-national-holiday-start) 60%,
+    transparent
+  );
+}
+
+.natureSky {
+  --legendary-gradient: linear-gradient(
+    135deg,
+    var(--color-legendary-nature-sky-start),
+    color-mix(
+      in oklch,
+      var(--color-legendary-nature-sky-start),
+      var(--color-legendary-nature-sky-end)
+    ),
+    var(--color-legendary-nature-sky-end)
+  );
+  --legendary-glow: color-mix(in srgb, var(--color-legendary-nature-sky-end) 45%, transparent);
+}
+
+.trailCommunity {
+  --legendary-gradient: linear-gradient(
+    135deg,
+    var(--color-legendary-trail-community-start),
+    color-mix(
+      in oklch,
+      var(--color-legendary-trail-community-start),
+      var(--color-legendary-trail-community-end)
+    ),
+    var(--color-legendary-trail-community-end)
+  );
+  --legendary-glow: color-mix(in srgb, var(--color-legendary-trail-community-end) 70%, transparent);
+}
+
+.krajozbior {
+  /* Domyślna kategoria: wartości zmiennych są już w .card. */
+  --legendary-ring: var(--color-legendary-krajozbior-end);
+}
+
+/* Połysk ramki: wąski jasny pas pod wnętrzem, widoczny tylko na obramowaniu. */
+.sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(115deg, transparent 35%, var(--legendary-glow) 50%, transparent 65%);
+  pointer-events: none;
+}
+
+.edge,
+.glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Szlak i wspólnota: ciepły błysk po ramce (pod wnętrzem; widać tylko obramowanie). */
+.edge {
+  z-index: 0;
+  background: linear-gradient(105deg, transparent 30%, var(--legendary-glow) 50%, transparent 70%);
+  opacity: 0;
+}
+
+/* Święto narodowe: spokojne rozjaśnienie ramki, bez iskier. */
+.glow {
+  z-index: 2;
+  box-shadow: inset 0 0 1.25rem var(--legendary-glow);
+  opacity: 0;
+}
+
+.face {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  box-sizing: border-box;
+  block-size: 100%;
+  overflow: hidden;
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border-radius: calc(var(--radius-lg) - 2px);
+}
+
+.face > :not([aria-hidden="true"]) {
+  position: relative;
+  z-index: 1;
+}
+
+.label {
+  margin: 0;
+  color: var(--color-text-label);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-label);
+}
+
+.eventName {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-heading);
+  letter-spacing: var(--font-tracking-display);
+}
+
+.collection {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: auto 0 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.meta > :last-child {
+  color: var(--color-text-label);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+}
+
+.category {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0;
+  padding-block-start: var(--space-sm);
+  color: var(--color-text-label);
+  border-block-start: 1px solid var(--color-border-subtle);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.symbol {
+  flex: none;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+}
+
+/* --- Efekty kategorii: warstwy ozdobne, stan końcowy w regule bazowej --- */
+
+/* Noc kultury: gwiazdy zapalone na stałe; podczas odsłaniania zapalają się po kolei. */
+.sparks {
+  position: absolute;
+  inset-block-start: var(--space-md);
+  inset-inline-end: var(--space-md);
+  inline-size: 3rem;
+  block-size: 2rem;
+  pointer-events: none;
+}
+
+.star {
+  position: absolute;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  background: var(--color-legendary-culture-night-end);
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+}
+
+.starA {
+  inset-block-start: 0.1rem;
+  inset-inline-end: 0.2rem;
+}
+
+.starB {
+  inset-block-start: 1rem;
+  inset-inline-end: 1.4rem;
+}
+
+.starC {
+  inset-block-start: 0.35rem;
+  inset-inline-end: 2.4rem;
+}
+
+/* Dziedzictwo: połysk przesuwa się raz jak światło po metalu. */
+.sweep,
+.aurora {
+  position: absolute;
+  inset-block: 0;
+  inline-size: 60%;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.sweep {
+  inset-inline-start: 0;
+  background: linear-gradient(105deg, transparent 20%, var(--legendary-glow) 50%, transparent 80%);
+}
+
+/* Przyroda i niebo: jedna łagodna fala zorzy przez kartę. */
+.aurora {
+  inset-inline-start: 0;
+  background: linear-gradient(90deg, transparent, var(--legendary-glow), transparent);
+}
+
+/* Krajozbiór: pierścień rozbłyska raz. */
+.ring {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  inline-size: 40%;
+  aspect-ratio: 1;
+  margin-block-start: -20%;
+  margin-inline-start: -20%;
+  border: 2px solid var(--legendary-ring, var(--color-legendary-krajozbior-end));
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card[data-playing="true"] .starA {
+  animation: starA var(--motion-duration-reveal) var(--motion-easing-standard) 1;
+}
+
+.card[data-playing="true"] .starB {
+  animation: starB var(--motion-duration-reveal) var(--motion-easing-standard) 1;
+}
+
+.card[data-playing="true"] .starC {
+  animation: starC var(--motion-duration-reveal) var(--motion-easing-standard) 1;
+}
+
+.card[data-playing="true"] .sweep {
+  animation: sweep var(--motion-duration-reveal) var(--motion-easing-standard) 1;
+}
+
+.card[data-playing="true"] .aurora {
+  animation: aurora var(--motion-duration-reveal) var(--motion-easing-standard) 1;
+}
+
+.card[data-playing="true"] .edge {
+  animation: edge var(--motion-duration-reveal) var(--motion-easing-standard) 1;
+}
+
+.card[data-playing="true"] .glow {
+  animation: glow var(--motion-duration-reveal) var(--motion-easing-standard) 1;
+}
+
+.card[data-playing="true"] .ring {
+  animation: ring var(--motion-duration-reveal) var(--motion-easing-standard) 1;
+}
+
+@keyframes starA {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+
+  30% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
+
+  50% {
+    transform: scale(1);
+  }
+}
+
+@keyframes starB {
+  0%,
+  25% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+
+  55% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
+
+  75% {
+    transform: scale(1);
+  }
+}
+
+@keyframes starC {
+  0%,
+  50% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+
+  80% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes sweep {
+  from {
+    opacity: 1;
+    transform: translateX(-100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(170%);
+  }
+}
+
+@keyframes aurora {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+
+  40%,
+  70% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(170%);
+  }
+}
+
+@keyframes edge {
+  from {
+    opacity: 1;
+    transform: translateX(-100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes glow {
+  0% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes ring {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  30% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+
+/*
+ * Tryb wysokiego kontrastu: bez opalizacji i efektów; obrys, tekst i symbol w kolorach systemowych.
+ */
+@media (forced-colors: active) {
+  .card {
+    background: none;
+    border: 2px solid CanvasText;
+    padding: 0;
+  }
+
+  .sheen,
+  .edge,
+  .glow,
+  .sparks,
+  .sweep,
+  .aurora,
+  .ring {
+    display: none;
+  }
+
+  .face {
+    background: Canvas;
+    border-radius: inherit;
+  }
+
+  .label,
+  .eventName,
+  .collection,
+  .meta,
+  .meta > :last-child,
+  .category {
+    color: CanvasText;
+  }
+
+  .category {
+    border-block-start-color: CanvasText;
+  }
+
+  .symbol {
+    color: CanvasText;
+  }
+}
