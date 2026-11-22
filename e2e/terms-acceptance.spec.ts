@@ -148,6 +148,11 @@ test.describe("strony prawne, stopka i pasek", () => {
         "mailto:kontakt@mariuszskowron.pl",
       );
 
+      await expect(footer.getByRole("link", { name: "Zgłoś naruszenie" })).toHaveAttribute(
+        "href",
+        /^mailto:kontakt@mariuszskowron\.pl\?subject=.+&body=.+/,
+      );
+
       await footer.getByRole("link", { name: "Regulamin" }).click();
       await expect(page).toHaveURL(/\/regulamin$/);
       await expect(page.getByRole("heading", { level: 1, name: "Regulamin" })).toBeVisible();

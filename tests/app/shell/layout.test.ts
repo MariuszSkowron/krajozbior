@@ -110,6 +110,17 @@ describe("app shell", () => {
     }
   });
 
+  it("has the report link in the footer, pointing at the current page (E5-0)", async () => {
+    mocks.pathname = "/collections/demo";
+    const html = await shell();
+    const footer = html.match(/<footer[^>]*>.*<\/footer>/)?.[0] ?? "";
+    const href = footer.match(/href="(mailto:[^"]*subject=[^"]*)">Zgłoś naruszenie<\/a>/)?.[1];
+
+    expect(href).toBeDefined();
+    expect(decodeURIComponent(href!.replaceAll("&amp;", "&"))).toContain("/collections/demo");
+    expect(footer).toMatch(/href="mailto:kontakt@mariuszskowron\.pl">Kontakt<\/a>/);
+  });
+
   describe("the terms screen (E11-Q4 A)", () => {
     it("replaces the page of a signed-in account that has not accepted the terms, and hides the menu", async () => {
       mocks.getActor.mockResolvedValue(as("user"));
