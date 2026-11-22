@@ -118,8 +118,8 @@ export const fieldHints: Readonly<Record<string, string>> = {
   address: `Adres może mieć najwyżej ${PLACE_ADDRESS_MAX_LENGTH} znaków.`,
   accessInfo: `Informacja o dostępie może mieć najwyżej ${PLACE_ACCESS_MAX_LENGTH} znaków.`,
   accessRestriction: "Wybierz jedną z opcji z listy.",
-  latitude: "Podaj szerokość geograficzną od −90 do 90, na przykład 54.0928.",
-  longitude: "Podaj długość geograficzną od −180 do 180, na przykład 18.7919.",
+  latitude: "Podaj szerokość geograficzną od −90 do 90, na przykład 54,0928.",
+  longitude: "Podaj długość geograficzną od −180 do 180, na przykład 18,7919.",
   visitRadiusM: `Podaj promień jako liczbę całkowitą od ${VISIT_RADIUS_MIN_M} do ${VISIT_RADIUS_MAX_M} metrów.`,
 };
 

@@ -34,6 +34,8 @@ async function expectNoAccessibilityViolations(page: Page) {
 }
 
 async function logIn(page: Page, email: string) {
+  await page.getByText("Logowanie hasłem").click();
+
   const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
   await form.getByLabel("E-mail").fill(email);
@@ -99,7 +101,7 @@ test.describe("saved collections", () => {
     page,
   }) => {
     await page.goto(`/collections/${DEMO_SLUG}`);
-    await page.getByRole("link", { name: "Zapisz kolekcję" }).click();
+    await page.getByRole("link", { name: "Zaloguj się, aby zapisać kolekcję" }).click();
 
     await expect(page).toHaveURL(
       new RegExp(`/login\\?returnTo=${encodeURIComponent(`/collections/${DEMO_SLUG}`)}$`),
@@ -108,13 +110,13 @@ test.describe("saved collections", () => {
     await expect(page).toHaveURL(new RegExp(`/collections/${DEMO_SLUG}$`));
     await expect(page.getByRole("heading", { level: 1, name: DEMO_TITLE })).toBeVisible();
 
-    await page.getByRole("button", { name: "Zapisz kolekcję" }).click();
+    await page.getByRole("button", { name: "Zapisuję kolekcję" }).click();
     await expect(page.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
-    await expect(page.getByText("Ta kolekcja jest w Twoich zapisanych.")).toBeVisible();
+    await expect(page.getByText("Kolekcja jest zapisana.")).toBeVisible();
     await expectNoAccessibilityViolations(page);
 
     await page.getByRole("button", { name: "Usuń z zapisanych" }).click();
-    await expect(page.getByRole("button", { name: "Zapisz kolekcję" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Zapisuję kolekcję" })).toBeVisible();
     // The page has more than one live region (the list of places has its own, empty one).
     await expect(page.getByRole("status").filter({ hasText: "Usunięto z zapisanych." })).toHaveText(
       "Usunięto z zapisanych.",
@@ -136,7 +138,7 @@ test.describe("saved collections", () => {
     await expectNoAccessibilityViolations(pageA);
 
     await pageA.goto(`/collections/${DEMO_SLUG}`);
-    await pageA.getByRole("button", { name: "Zapisz kolekcję" }).click();
+    await pageA.getByRole("button", { name: "Zapisuję kolekcję" }).click();
     await expect(pageA.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
 
     await pageA.goto("/my/collections");
@@ -158,7 +160,7 @@ test.describe("saved collections", () => {
     ).toBeVisible();
     await expect(pageB.getByRole("link", { name: DEMO_TITLE })).toHaveCount(0);
     await pageB.goto(`/collections/${DEMO_SLUG}`);
-    await expect(pageB.getByRole("button", { name: "Zapisz kolekcję" })).toBeVisible();
+    await expect(pageB.getByRole("button", { name: "Zapisuję kolekcję" })).toBeVisible();
 
     // B's delete of A's save changes nothing: it is silent and A still has it.
     const deleted = await pageB.request.delete(`/api/me/saved-collections/${await demoId()}`, {
@@ -178,7 +180,7 @@ test.describe("saved collections", () => {
 
     await page.setViewportSize({ width: 320, height: 640 });
     await page.goto(`/collections/${DEMO_SLUG}`);
-    await page.getByRole("button", { name: "Zapisz kolekcję" }).click();
+    await page.getByRole("button", { name: "Zapisuję kolekcję" }).click();
     await expect(page.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
     await page.goto("/my/collections");
     await expect(page.getByRole("heading", { level: 1, name: "Moje kolekcje" })).toBeVisible();

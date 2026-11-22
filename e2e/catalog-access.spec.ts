@@ -14,6 +14,8 @@ const emailOf = (name: string) => `${name}@demo.krajozbior.local`;
 async function signIn(page: Page, name: string) {
   await page.goto("/login");
 
+  await page.getByText("Logowanie hasłem").click();
+
   const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
   await form.getByLabel("E-mail").fill(emailOf(name));
@@ -76,10 +78,12 @@ async function addPlace(page: Page, editorPath: string, name: string) {
   await waitForHydration(page);
   await page.getByLabel("Nazwa", { exact: true }).fill(name);
   await page.getByLabel("Adres", { exact: true }).fill("Tczew");
+  // Współrzędne są w zwiniętej części formularza (K-39).
+  await page.getByText("Ustawienia potwierdzania wizyt").click();
   await page.getByLabel("Szerokość geograficzna").fill("54,0928");
   await page.getByLabel("Długość geograficzna").fill("18.7919");
   await page.getByRole("button", { name: "Dodaj miejsce do kolekcji" }).click();
-  await expect(page).toHaveURL(new RegExp(`${editorPath}$`));
+  await expect(page).toHaveURL(new RegExp(`${editorPath}(\\?.*)?$`));
   await expect(page.getByRole("link", { name })).toBeVisible();
 }
 
@@ -175,16 +179,19 @@ test.describe("curator panel", () => {
     // The place editor.
     await curator.getByRole("link", { name: "Drugie miejsce" }).click();
     await expect(curator.getByRole("heading", { level: 1, name: "Drugie miejsce" })).toBeVisible();
+    await curator.getByText("Ustawienia potwierdzania wizyt").click();
     await curator.getByLabel("Promień potwierdzania wizyty (m)").fill("20");
     await curator.getByRole("button", { name: "Zapisz zmiany" }).click();
     await expect(curator.locator("main [role=alert]")).toContainText("Popraw zaznaczone pola");
     await expect(
       curator.locator("main [role=alert]").getByRole("link", { name: /Promień/ }),
     ).toBeVisible();
+    // The place form with the folded part open and the error summary (the save leaves the page).
+    await expectNoAccessibilityViolations(curator);
     await curator.getByLabel("Promień potwierdzania wizyty (m)").fill("300");
     await curator.getByRole("button", { name: "Zapisz zmiany" }).click();
     await expect(
-      curator.getByRole("status").filter({ hasText: "Zapisano zmiany miejsca." }),
+      curator.getByRole("status").filter({ hasText: "Zapisano zmiany miejsca" }),
     ).toBeVisible();
     await expectNoAccessibilityViolations(curator);
 

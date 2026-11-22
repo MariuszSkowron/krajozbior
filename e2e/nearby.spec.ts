@@ -312,6 +312,8 @@ test.describe("'Pokaż najbliższe' in 'Kolekcje do odkrycia' on the home page",
 
     await page.goto("/login");
 
+    await page.getByText("Logowanie hasłem").click();
+
     const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
     await form.getByLabel("E-mail").fill(EXPLORER_A);

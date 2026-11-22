@@ -72,6 +72,11 @@
 /src/app/global-error.tsx          @MariuszSkowron
 /tests/app/error-pages.test.ts     @MariuszSkowron
 
+# Testy logowania (granice logowania kodem i hasłem, ciasteczko z adresem między krokami)
+/tests/app/api/                    @MariuszSkowron
+/tests/app/login/                  @MariuszSkowron
+/e2e/login.spec.ts                 @MariuszSkowron
+
 # Organizacje i członkostwa kuratorów (dane CUR, polecenie operatora)
 /src/features/organizations/       @MariuszSkowron
 /tests/features/organizations/     @MariuszSkowron
@@ -88,6 +93,8 @@
 /src/app/news/                    @MariuszSkowron
 /e2e/news*.spec.ts                @MariuszSkowron
 /scripts/news-import.ts           @MariuszSkowron
+/tests/integration/news-*.test.ts @MariuszSkowron
+/docs/news-import.md              @MariuszSkowron
 
 # Zdjęcia miejsc (E4-2a, tabela `place_photos`: klasa Publiczna po publikacji, inaczej CUR):
 # pobieranie z Wikimedia Commons jako rola operatora (`photos:fetch`); migracja i testy dostępu

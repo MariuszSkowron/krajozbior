@@ -12,7 +12,7 @@ import {
 function render(patch: Partial<PastVisitDateForm>): string {
   return renderToStaticMarkup(
     createElement(PastVisitDateFields, {
-      legend: "Kiedy tu byłeś?",
+      legend: "Kiedy to było?",
       value: { ...EMPTY_PAST_VISIT_DATE, ...patch },
       onChange: () => undefined,
     }),

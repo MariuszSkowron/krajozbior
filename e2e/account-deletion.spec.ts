@@ -96,11 +96,10 @@ async function signInWithCode(page: Page, email: string, from = "/login") {
   await page.goto(from);
   await page.locator("#code-request-email").fill(email);
   await page.getByRole("button", { name: "Wyślij kod" }).click();
-  await expect(page.getByRole("main").getByRole("status")).toContainText("wysłaliśmy na niego kod");
+  await expect(page.getByRole("main").getByRole("status")).toContainText("kod jest już w drodze");
 
-  await page.locator("#code-verify-email").fill(email);
   await page.locator("#code-verify-code").fill(await codeFor(email, known));
-  await page.getByRole("button", { name: "Zaloguj się kodem" }).click();
+  await page.getByRole("button", { name: "Zaloguj się", exact: true }).click();
   await expect(page).not.toHaveURL(/\/login/);
   await acceptTermsWhenAsked(page);
 }
@@ -285,6 +284,8 @@ test.describe("deleting the account", () => {
     const page = await context.newPage();
 
     await page.goto("/login");
+
+    await page.getByText("Logowanie hasłem").click();
 
     const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
