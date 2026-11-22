@@ -163,7 +163,7 @@ test.describe("the competition path", () => {
     await expect(guest.getByRole("heading", { level: 1, name: "Most ze ścieżki" })).toBeVisible();
     await expect(
       guest.getByRole("link", {
-        name: "Zaloguj się, aby potwierdzić wizytę lub zapisać na Chcę zobaczyć",
+        name: "Zaloguj się, aby potwierdzić wizytę lub zapisać na „Chcę zobaczyć”",
       }),
     ).toBeVisible();
 
@@ -191,8 +191,8 @@ test.describe("the competition path", () => {
 
     await explorer.goto(`/places/${placeId}`);
     await waitForHydration(explorer);
-    await explorer.getByRole("button", { name: "Potwierdź wizytę" }).click();
-    await expect(explorer.getByText("Wizyta potwierdzona.")).toBeVisible();
+    await explorer.getByRole("button", { name: "Potwierdzam wizytę" }).click();
+    await expect(explorer.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
     await expect(explorer.getByRole("list", { name: "Twój postęp po tej wizycie" })).toContainText(
       "1/1",
     );

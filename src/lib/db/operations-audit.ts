@@ -22,6 +22,9 @@ export const AUDIT_OPERATIONS = [
   "catalog_remove",
   // The command `photos:fetch` (Migration20261121170000).
   "photos_fetch",
+  // The command `news:import` (E7-R, Migration20261122020000_news_posts); the caller
+  // writes the entry in the transaction of `ops_put_news`, without `details`.
+  "news_import",
 ] as const;
 
 export type AuditOperation = (typeof AUDIT_OPERATIONS)[number];
@@ -42,6 +45,12 @@ export const AUDIT_ERROR_CODES = [
   "import_refused",
   "import_failed",
   "photos_fetch_failed",
+  // Refusals of `ops_put_news` (Migration20261122020000_news_posts).
+  "invalid_transition",
+  "stale_link",
+  "too_many_news",
+  // Written by the import itself when the address of a new item is taken (not by the function).
+  "slug_taken",
 ] as const;
 
 export type AuditErrorCode = (typeof AUDIT_ERROR_CODES)[number];

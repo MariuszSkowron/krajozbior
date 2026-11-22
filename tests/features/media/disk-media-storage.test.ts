@@ -52,6 +52,41 @@ describe("DiskMediaStorage", () => {
     expect((await stat(join(root, "p", "a1", KEY, "main.webp"))).mode & 0o777).toBe(0o600);
   });
 
+  it("read zwraca zawartość pliku, a null dla braku, katalogu i pliku o zerowej długości", async () => {
+    await storage.store("place", KEY, { main: bytes("glowny"), w400: bytes("mini") });
+    await mkdir(join(root, "p", "a1", KEY, "og.jpg"));
+    expect(new TextDecoder().decode((await storage.read("place", KEY, "main"))!)).toBe("glowny");
+    expect(await storage.read("place", KEY, "og")).toBeNull();
+    await writeFile(join(root, "p", "a1", KEY, "w400.webp"), "");
+    expect(await storage.read("place", KEY, "w400")).toBeNull();
+    expect(await storage.read("place", "b2c3d4e5-f6a7-4890-8bcd-123456789abc", "main")).toBeNull();
+  });
+
+  it("storeOg dopisuje og.jpg atomowo (tmp, fsync, rename), zastępuje pusty plik i nie rusza reszty", async () => {
+    await storage.store("place", KEY, { main: bytes("glowny"), w400: bytes("mini") });
+    const og = join(root, "p", "a1", KEY, "og.jpg");
+
+    await writeFile(og, "");
+    await storage.storeOg("place", KEY, bytes("jpeg"));
+    expect(await readFile(og, "utf8")).toBe("jpeg");
+    expect(await readFile(join(root, "p", "a1", KEY, "main.webp"), "utf8")).toBe("glowny");
+    expect(await readdir(storage.tmpDirectory)).toEqual([]);
+    if (process.platform !== "win32") expect((await stat(og)).mode & 0o777).toBe(0o600);
+  });
+
+  it("storeOg nie tworzy zdjęcia, którego nie ma, i nie zostawia pliku w tmp/ po błędzie", async () => {
+    await expect(storage.storeOg("place", KEY, bytes("jpeg"))).rejects.toThrow();
+    expect(await readdir(storage.tmpDirectory)).toEqual([]);
+    expect(await storage.exists("place", KEY, "og")).toBe(false);
+  });
+
+  it("storeOg odmawia, gdy cel jest katalogiem", async () => {
+    await storage.store("place", KEY, { main: bytes("a"), w400: bytes("b") });
+    await mkdir(join(root, "p", "a1", KEY, "og.jpg"));
+    await expect(storage.storeOg("place", KEY, bytes("jpeg"))).rejects.toThrow();
+    expect(await readdir(storage.tmpDirectory)).toEqual([]);
+  });
+
   it("nadpisuje istniejące zdjęcie atomowo (rename)", async () => {
     await storage.store("place", KEY, { main: bytes("stary"), w400: bytes("stary") });
     await storage.store("place", KEY, { main: bytes("nowy"), w400: bytes("nowy") });

@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, rm, stat, unlink } from "node:fs/promises";
+import { mkdtemp, readdir, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -9,8 +9,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { checkFreeSpace } from "@/features/media/domain/free-space";
 import { mediaFilePath } from "@/features/media/domain/media-key";
 import { DiskMediaStorage } from "@/features/media/infrastructure/disk-media-storage";
-import { processImageBytes } from "@/features/media/infrastructure/image-processor";
 import {
+  ogFromMainBytes,
+  processImageBytes,
+} from "@/features/media/infrastructure/image-processor";
+import {
+  backfillOgFiles,
   fetchCommonsPhotos,
   requeueMissingFiles,
   type PhotoFetchDeps,
@@ -151,7 +155,12 @@ function deps(
     },
     lookupVersion: async (commonsFile) => currentVersion(commonsFile),
     process: (bytes) =>
-      processImageBytes(bytes, { tmpDirectory: storage.tmpDirectory, minShortSide: 0 }),
+      processImageBytes(bytes, {
+        tmpDirectory: storage.tmpDirectory,
+        minShortSide: 0,
+        ogJpeg: true,
+      }),
+    makeOg: (main) => ogFromMainBytes(main, { tmpDirectory: storage.tmpDirectory }),
     storage,
     checkSpace: () => checkFreeSpace(() => storage.diskSpace(), 0),
     sleep: async () => undefined,
@@ -211,6 +220,14 @@ describe("photos:fetch", () => {
       (await stat(join(root, mediaFilePath("place", ready.storage_key!, "w400")))).isFile(),
     ).toBe(true);
 
+    // The og file for the link preview is made here (child process), not by the web server.
+    const ogPath = join(root, mediaFilePath("place", ready.storage_key!, "og"));
+    const ogMeta = await sharp(ogPath).metadata();
+
+    expect(ogMeta.format).toBe("jpeg");
+    expect(ogMeta.width).toBe(1200);
+    expect((await stat(ogPath)).size).toBeLessThanOrEqual(200 * 1024);
+
     // A picture under 600 px is accepted for Commons and is not enlarged.
     expect(await row(tiny)).toMatchObject({ file_state: "ready", width: 300, height: 200 });
     expect(await row(broken)).toMatchObject({ file_state: "pending_fetch", fetch_attempts: 1 });
@@ -219,6 +236,40 @@ describe("photos:fetch", () => {
     expect((await readdir(storage.tmpDirectory)).filter((name) => name.endsWith(".in"))).toEqual(
       [],
     );
+  });
+
+  it("fills in a missing or empty og file of a photo fetched earlier (--backfill-og), once and atomically", async () => {
+    const where = await scope();
+    const id = await pending(where, "Starsze zdjęcie.jpg", 3000);
+
+    await fetchCommonsPhotos(deps({ "Starsze_zdj%C4%99cie.jpg": big }), {
+      organizationSlug: where.slug,
+    });
+
+    const { storage_key: key } = await row(id);
+    const ogPath = join(root, mediaFilePath("place", key!, "og"));
+
+    // As if the photo had been fetched before E4-3: no og file.
+    await unlink(ogPath);
+    expect(await backfillOgFiles(deps({}))).toMatchObject({ created: 1 });
+
+    const made = await sharp(ogPath).metadata();
+
+    expect(made.format).toBe("jpeg");
+    expect(made.width).toBe(1200);
+
+    // A second run leaves it alone; an empty file (an interrupted write) is replaced.
+    expect(await backfillOgFiles(deps({}))).toMatchObject({ created: 0 });
+    await writeFile(ogPath, "");
+    expect(await backfillOgFiles(deps({}))).toMatchObject({ created: 1 });
+    expect((await stat(ogPath)).size).toBeGreaterThan(0);
+    expect((await readdir(storage.tmpDirectory)).filter((n) => n.endsWith(".tmp"))).toEqual([]);
+
+    // A main file that is not a WebP is refused by the child process and counted as a failure.
+    await writeFile(join(root, mediaFilePath("place", key!, "main")), big);
+    await unlink(ogPath);
+    expect(await backfillOgFiles(deps({}))).toMatchObject({ created: 0 });
+    await expect(stat(ogPath)).rejects.toThrow();
   });
 
   it("ends a row as fetch_failed after the third failed attempt, and retries it on request", async () => {

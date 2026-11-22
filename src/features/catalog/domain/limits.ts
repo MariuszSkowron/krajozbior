@@ -10,6 +10,8 @@ export const curatorWriteLimit: ActionLimit = { limit: 120, windowSeconds: 10 * 
 // stop a runaway account from making every page and progress count expensive.
 export const MAX_COLLECTIONS_PER_LIST = 200;
 export const MAX_PLACES_PER_COLLECTION = 500;
+/** The cover picker of the editor lists at most this many photos (D-25 style bound, E4-3). */
+export const MAX_COVER_CANDIDATES = 200;
 
 /** Largest request body of a curator route; bigger gets 413. */
 export const CURATOR_BODY_MAX_BYTES = 16 * 1024;

@@ -80,6 +80,15 @@
 /src/features/catalog/             @MariuszSkowron
 /tests/features/catalog/           @MariuszSkowron
 
+# Aktualności zespołu (E7-R: dane publiczne po publikacji, zapis tylko funkcją operatora
+# z wpisem w dzienniku; migracja i trasy API mają już właściciela przez /src/lib/db/migrations/
+# i /src/app/api/)
+/src/features/news/               @MariuszSkowron
+/tests/features/news/             @MariuszSkowron
+/src/app/news/                    @MariuszSkowron
+/e2e/news*.spec.ts                @MariuszSkowron
+/scripts/news-import.ts           @MariuszSkowron
+
 # Zdjęcia miejsc (E4-2a, tabela `place_photos`: klasa Publiczna po publikacji, inaczej CUR):
 # pobieranie z Wikimedia Commons jako rola operatora (`photos:fetch`); migracja i testy dostępu
 # mają właściciela przez /src/lib/db/ i /tests/integration/
@@ -94,6 +103,12 @@
 /tests/features/media/             @MariuszSkowron
 /e2e/commons-photos.spec.ts        @MariuszSkowron
 
+# Okładka kolekcji (E4-3): wybór ze zdjęć miejsc w edytorze kuratora (/src/app/curator/ i trasa w
+# /src/app/api/ mają już właściciela), wyzwalacze i RLS w migracji (/src/lib/db/), przypadek użycia
+# w /src/features/catalog/, test dostępu w /tests/integration/. Test przeglądarki i test widoku:
+/e2e/collection-cover.spec.ts      @MariuszSkowron
+/tests/app/collection-cover.test.ts @MariuszSkowron
+
 # Album odkrywcy: zapisane kolekcje, wizyty (dane PRIV; wizytę na miejscu tworzy funkcja bazy)
 /src/features/album/               @MariuszSkowron
 /tests/features/album/             @MariuszSkowron
@@ -101,6 +116,17 @@
 /tests/features/visits/            @MariuszSkowron
 /tests/support/album-fixtures.ts   @MariuszSkowron
 /e2e/album-access.spec.ts          @MariuszSkowron
+
+# Własne kolekcje odkrywców (E8-1a, dane PRIV: kolekcje i wpisy widoczne tylko dla autora): moduł,
+# ekrany w /src/app/my/collections/own/, test dwóch kont w przeglądarce i test odmowy dostępu.
+# Trasy /src/app/api/me/own-collections/ i migracja mają już właściciela przez /src/app/api/
+# i /src/lib/db/.
+/src/features/own-collections/     @MariuszSkowron
+/tests/features/own-collections/   @MariuszSkowron
+/src/app/my/collections/own/       @MariuszSkowron
+/src/app/api/me/own-collections/   @MariuszSkowron
+/tests/integration/own-collections-access.test.ts @MariuszSkowron
+/e2e/own-collections.spec.ts       @MariuszSkowron
 
 # Lista „Chcę zobaczyć” odkrywcy (dane PRIV) i jej testy dostępu
 /src/features/want-to-see/         @MariuszSkowron

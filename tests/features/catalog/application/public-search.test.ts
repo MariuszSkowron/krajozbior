@@ -17,6 +17,7 @@ const collection = (title: string): RecentCollection => ({
   region: "pomorskie",
   organization: { name: "Gmina" },
   placeCount: 1,
+  cover: null,
 });
 const place = (name: string): SearchPlaceHit => ({
   id: name,
