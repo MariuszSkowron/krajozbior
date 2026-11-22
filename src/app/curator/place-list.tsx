@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, useTransition, type FormEvent } from "reac
 import { callApi } from "./curator-api";
 import { failed, Field, FeedbackRegion, type Feedback } from "./curator-ui";
 import styles from "./curator.module.css";
+import type { PlaceNotice } from "./place-notice";
 
 type ListedPlace = Readonly<{ id: string; name: string; address: string }>;
 
@@ -15,14 +16,19 @@ type PlaceListProps = Readonly<{
   places: readonly ListedPlace[];
   /** Places of the organization that are not in this collection yet. */
   otherPlaces: readonly ListedPlace[];
+  /** "Zapisano zmiany miejsca" / "Dodano miejsce" after returning from the place editor. */
+  notice: PlaceNotice | null;
 }>;
 
 // The places of a collection in order. A list with buttons "Wyżej" / "Niżej"
 // instead of dragging: it works from the keyboard and needs no precise gesture
 // (docs/design/accessibility.md). Every change is a request; the order shown is
 // always the one the server returned after the reload.
-export function PlaceList({ collectionId, places, otherPlaces }: PlaceListProps) {
+export function PlaceList({ collectionId, places, otherPlaces, notice }: PlaceListProps) {
   const router = useRouter();
+  // Kept in state: the parameter leaves the address right away, the message stays until a
+  // next action on the list.
+  const [rowNotice, setRowNotice] = useState(notice);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [busy, setBusy] = useState(false);
   const [refreshing, startTransition] = useTransition();
@@ -41,7 +47,29 @@ export function PlaceList({ collectionId, places, otherPlaces }: PlaceListProps)
     }
   }, [order]);
 
+  // After returning from the editor: the row with the message takes the focus (read once, with
+  // its content) and scrolls into view; the parameter is removed so a refresh does not repeat it.
+  useEffect(() => {
+    if (notice === null) {
+      return;
+    }
+
+    const row = document.getElementById(`place-${notice.placeId}`);
+
+    row?.focus();
+    row?.scrollIntoView({ block: "center" });
+
+    const url = new URL(window.location.href);
+
+    if (url.searchParams.has("saved") || url.searchParams.has("added")) {
+      url.searchParams.delete("saved");
+      url.searchParams.delete("added");
+      window.history.replaceState(window.history.state, "", url);
+    }
+  }, [notice]);
+
   function reload() {
+    setRowNotice(null);
     startTransition(() => router.refresh());
   }
 
@@ -171,7 +199,12 @@ export function PlaceList({ collectionId, places, otherPlaces }: PlaceListProps)
         <>
           <ol className={styles.placeList} aria-label="Miejsca w kolejności">
             {places.map((place, index) => (
-              <li key={place.id} className={styles.placeItem}>
+              <li
+                key={place.id}
+                id={`place-${place.id}`}
+                tabIndex={-1}
+                className={styles.placeItem}
+              >
                 <span className={styles.position} aria-hidden="true">
                   {index + 1}
                 </span>
@@ -182,6 +215,12 @@ export function PlaceList({ collectionId, places, otherPlaces }: PlaceListProps)
                   <span className={styles.muted}>
                     {place.address === "" ? "Bez adresu" : place.address}
                   </span>
+                  {rowNotice?.placeId === place.id ? (
+                    <p className={styles.rowNotice} role="status">
+                      <span aria-hidden="true">✓</span>
+                      {rowNotice.message}
+                    </p>
+                  ) : null}
                 </div>
                 <div className={styles.rowActions}>
                   <button

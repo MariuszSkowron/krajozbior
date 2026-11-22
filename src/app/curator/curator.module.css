@@ -214,8 +214,38 @@
 
 .row3 {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
   gap: var(--space-lg);
+}
+
+/* Położenie miejsca: linia stanu pinezki i zwinięte ustawienia potwierdzania wizyt. */
+.pinStatus {
+  margin-block: 0 var(--space-md);
+  font-weight: var(--font-weight-strong);
+}
+
+.fieldset > * + * {
+  margin-block-start: var(--space-md);
+}
+
+.settings summary {
+  cursor: pointer;
+  font-weight: var(--font-weight-strong);
+}
+
+.settings[open] summary {
+  margin-block-end: var(--space-md);
+}
+
+/* Komunikat przy miejscu po powrocie z formularza (K-40). */
+.rowNotice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: 0;
+  color: var(--color-feedback-success);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
 }
 
 .fieldset {

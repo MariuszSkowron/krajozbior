@@ -121,10 +121,12 @@ test.describe("the competition path", () => {
     await waitForHydration(curatorA);
     await curatorA.getByLabel("Nazwa", { exact: true }).fill("Most ze ścieżki");
     await curatorA.getByLabel("Adres", { exact: true }).fill("Tczew");
+    // Współrzędne są w zwiniętej części formularza (K-39).
+    await curatorA.getByText("Ustawienia potwierdzania wizyt").click();
     await curatorA.getByLabel("Szerokość geograficzna").fill("54,0928");
     await curatorA.getByLabel("Długość geograficzna").fill("18.7919");
     await curatorA.getByRole("button", { name: "Dodaj miejsce do kolekcji" }).click();
-    await expect(curatorA).toHaveURL(new RegExp(`${editorPath}$`));
+    await expect(curatorA).toHaveURL(new RegExp(`${editorPath}(\\?.*)?$`));
 
     const placeHref = await curatorA
       .getByRole("link", { name: "Most ze ścieżki" })

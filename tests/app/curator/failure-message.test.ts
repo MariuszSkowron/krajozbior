@@ -94,6 +94,13 @@ describe("fieldHints", () => {
   });
 });
 
+describe("hints of the coordinate fields", () => {
+  it("give the examples with a comma, like the fields", () => {
+    expect(fieldHints.latitude).toContain("54,0928");
+    expect(fieldHints.longitude).toContain("18,7919");
+  });
+});
+
 describe("parseNumberField", () => {
   it("accepts a comma or a dot as the decimal mark", () => {
     expect(parseNumberField("54,0928")).toBe(54.0928);

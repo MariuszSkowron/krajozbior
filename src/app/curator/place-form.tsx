@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { ACCESS_RESTRICTION_LABELS } from "@/features/catalog/domain/place-access-notice";
 import {
@@ -20,6 +20,14 @@ import { callApi } from "./curator-api";
 import { failed, Field, FeedbackRegion, type Feedback } from "./curator-ui";
 import styles from "./curator.module.css";
 import { fieldHints, parseNumberField } from "./failure-message";
+import {
+  describePin,
+  formatCoordinate,
+  readPosition,
+  readRadius,
+  type PinPosition,
+} from "./place-coordinates";
+import { PlaceMapLoader } from "./place-map-loader";
 
 type PlaceValues = Readonly<{
   name: string;
@@ -33,7 +41,7 @@ type PlaceValues = Readonly<{
 }>;
 
 type PlaceFormProps = Readonly<
-  | { mode: "create"; collectionId: string }
+  | { mode: "create"; collectionId: string; collectionPoints: readonly PinPosition[] }
   | { mode: "edit"; collectionId: string; place: PlaceValues & { id: string; version: number } }
 >;
 
@@ -48,9 +56,9 @@ const FIELDS = {
   visitRadiusM: ["place-radius", "Promień potwierdzania wizyty"],
 } as const;
 
-// Fields of a place; coordinates are typed in by hand (no map yet). Same shape
-// as the collection form: the outer part keeps the message, the fields are
-// keyed by the stored version.
+// Fields of a place; the position is set with a pin on the map (K-39) or typed in the folded
+// "Ustawienia potwierdzania wizyt". Same shape as the collection form: the outer part keeps the
+// message, the fields are keyed by the stored version.
 export function PlaceForm(props: PlaceFormProps) {
   const router = useRouter();
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -82,6 +90,58 @@ function PlaceFields({
   const hint = (name: keyof typeof FIELDS) =>
     refused.includes(name) ? fieldHints[name] : undefined;
   const stored = props.mode === "edit" ? props.place : null;
+  const [latitudeText, setLatitudeText] = useState(
+    stored === null ? "" : formatCoordinate(stored.latitude),
+  );
+  const [longitudeText, setLongitudeText] = useState(
+    stored === null ? "" : formatCoordinate(stored.longitude),
+  );
+  const [radiusText, setRadiusText] = useState(
+    String(stored?.visitRadiusM ?? VISIT_RADIUS_DEFAULT_M),
+  );
+  // The pin follows the fields only for a value in range (readPosition), set on leaving a field.
+  const [position, setPosition] = useState<PinPosition | null>(
+    stored === null ? null : { latitude: stored.latitude, longitude: stored.longitude },
+  );
+  const [mapShown, setMapShown] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [openedFor, setOpenedFor] = useState<Feedback | null>(null);
+  const [tilesFailed, setTilesFailed] = useState(false);
+  const [positionMissing, setPositionMissing] = useState(false);
+  const showMapButton = useRef<HTMLButtonElement>(null);
+  const missingNotice = useRef<HTMLParagraphElement>(null);
+  const focusShowButton = useRef(false);
+  const coordinatesRefused = ["latitude", "longitude", "visitRadiusM"].some((name) =>
+    refused.includes(name),
+  );
+
+  // A refused coordinate sits in the folded part: open it before the summary moves the focus.
+  if (coordinatesRefused && openedFor !== feedback) {
+    setOpenedFor(feedback);
+    setSettingsOpen(true);
+  }
+
+  useEffect(() => {
+    if (!mapShown && focusShowButton.current) {
+      focusShowButton.current = false;
+      showMapButton.current?.focus();
+    }
+  }, [mapShown]);
+
+  function pick(next: PinPosition) {
+    setPosition(next);
+    setLatitudeText(formatCoordinate(next.latitude));
+    setLongitudeText(formatCoordinate(next.longitude));
+    setPositionMissing(false);
+  }
+
+  function commitTyped(latitude: string, longitude: string) {
+    const typed = readPosition(latitude, longitude);
+
+    if (typed !== null) {
+      setPosition(typed);
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -92,6 +152,16 @@ function PlaceFields({
 
     const data = new FormData(event.currentTarget);
     const text = (name: string) => String(data.get(name) ?? "");
+
+    // No pin and no typed coordinates: say it here (the server refuses it as well).
+    if (text("latitude").trim() === "" || text("longitude").trim() === "") {
+      setPositionMissing(true);
+      requestAnimationFrame(() => missingNotice.current?.focus());
+
+      return;
+    }
+
+    setPositionMissing(false);
     const values = {
       name: text("name"),
       description: text("description"),
@@ -106,7 +176,7 @@ function PlaceFields({
     setPending(true);
 
     if (props.mode === "create") {
-      const result = await callApi(
+      const result = await callApi<{ placeId?: string } | null>(
         "POST",
         `/api/curator/collections/${props.collectionId}/places`,
         "place",
@@ -114,7 +184,13 @@ function PlaceFields({
       );
 
       if (result.ok) {
-        router.push(`/curator/collections/${props.collectionId}`);
+        const placeId = String(result.value?.placeId ?? "");
+
+        router.push(
+          `/curator/collections/${props.collectionId}${
+            placeId === "" ? "" : `?added=${encodeURIComponent(placeId)}`
+          }`,
+        );
 
         return;
       }
@@ -130,12 +206,11 @@ function PlaceFields({
       ...values,
     });
 
-    setPending(false);
-
     if (result.ok) {
-      onFeedback({ kind: "success", message: "Zapisano zmiany miejsca." });
-      router.refresh();
+      // The collection shows "Zapisano zmiany miejsca" at the row (K-40).
+      router.push(`/curator/collections/${props.collectionId}?saved=${props.place.id}`);
     } else {
+      setPending(false);
       onFeedback(failed(result.failure));
     }
   }
@@ -229,63 +304,117 @@ function PlaceFields({
         )}
       </Field>
       <fieldset className={styles.fieldset}>
-        <legend>Lokalizacja i potwierdzanie wizyt</legend>
-        <div className={styles.row3}>
-          <Field
-            id={FIELDS.latitude[0]}
-            label="Szerokość geograficzna"
-            help="Od −90 do 90, na przykład 54.0928."
-            invalidHint={hint("latitude")}
-          >
-            {(aria) => (
-              <input
-                {...aria}
-                name="latitude"
-                type="text"
-                inputMode="decimal"
-                defaultValue={stored === null ? "" : String(stored.latitude)}
-                required
-                autoComplete="off"
-              />
-            )}
-          </Field>
-          <Field
-            id={FIELDS.longitude[0]}
-            label="Długość geograficzna"
-            help="Od −180 do 180, na przykład 18.7919."
-            invalidHint={hint("longitude")}
-          >
-            {(aria) => (
-              <input
-                {...aria}
-                name="longitude"
-                type="text"
-                inputMode="decimal"
-                defaultValue={stored === null ? "" : String(stored.longitude)}
-                required
-                autoComplete="off"
-              />
-            )}
-          </Field>
-          <Field
-            id={FIELDS.visitRadiusM[0]}
-            label="Promień potwierdzania wizyty (m)"
-            help={`Od ${VISIT_RADIUS_MIN_M} do ${VISIT_RADIUS_MAX_M} m. W tym promieniu odkrywca potwierdzi wizytę.`}
-            invalidHint={hint("visitRadiusM")}
-          >
-            {(aria) => (
-              <input
-                {...aria}
-                name="visitRadiusM"
-                type="text"
-                inputMode="numeric"
-                defaultValue={String(stored?.visitRadiusM ?? VISIT_RADIUS_DEFAULT_M)}
-                required
-                autoComplete="off"
-              />
-            )}
-          </Field>
-        </div>
+        <legend>Położenie miejsca</legend>
+        <p className={styles.pinStatus} aria-live="polite" data-testid="pin-status">
+          {describePin(position)}
+        </p>
+        {positionMissing ? (
+          <p ref={missingNotice} tabIndex={-1} role="alert" className={styles.fieldError}>
+            <span className={styles.errorPrefix}>Błąd: </span>
+            Ustaw położenie pinezką na mapie albo wpisz współrzędne w części „Ustawienia
+            potwierdzania wizyt”.
+          </p>
+        ) : null}
+        {mapShown ? (
+          <PlaceMapLoader
+            position={position}
+            radiusM={readRadius(radiusText)}
+            bounds={props.mode === "create" ? props.collectionPoints : []}
+            onPick={pick}
+            onTilesFailed={() => {
+              setTilesFailed(true);
+              setSettingsOpen(true);
+            }}
+            onHide={() => {
+              focusShowButton.current = true;
+              setMapShown(false);
+            }}
+          />
+        ) : (
+          <div className={styles.actions}>
+            <button
+              ref={showMapButton}
+              type="button"
+              className="button button--outline"
+              onClick={() => setMapShown(true)}
+            >
+              Pokaż mapę
+            </button>
+          </div>
+        )}
+        {tilesFailed ? (
+          <p role="status" className={styles.help}>
+            Nie udało się wczytać mapy. Wpisz współrzędne w części „Ustawienia potwierdzania wizyt”.
+          </p>
+        ) : null}
+        <details
+          className={styles.settings}
+          open={settingsOpen}
+          onToggle={(event) => setSettingsOpen(event.currentTarget.open)}
+        >
+          <summary>Ustawienia potwierdzania wizyt</summary>
+          <div className={styles.row3}>
+            <Field
+              id={FIELDS.latitude[0]}
+              label="Szerokość geograficzna"
+              help="Od −90 do 90, na przykład 54,0928."
+              invalidHint={hint("latitude")}
+            >
+              {(aria) => (
+                <input
+                  {...aria}
+                  name="latitude"
+                  type="text"
+                  inputMode="decimal"
+                  value={latitudeText}
+                  onChange={(event) => setLatitudeText(event.target.value)}
+                  onBlur={() => commitTyped(latitudeText, longitudeText)}
+                  required
+                  autoComplete="off"
+                />
+              )}
+            </Field>
+            <Field
+              id={FIELDS.longitude[0]}
+              label="Długość geograficzna"
+              help="Od −180 do 180, na przykład 18,7919."
+              invalidHint={hint("longitude")}
+            >
+              {(aria) => (
+                <input
+                  {...aria}
+                  name="longitude"
+                  type="text"
+                  inputMode="decimal"
+                  value={longitudeText}
+                  onChange={(event) => setLongitudeText(event.target.value)}
+                  onBlur={() => commitTyped(latitudeText, longitudeText)}
+                  required
+                  autoComplete="off"
+                />
+              )}
+            </Field>
+            <Field
+              id={FIELDS.visitRadiusM[0]}
+              label="Promień potwierdzania wizyty (m)"
+              help={`Od ${VISIT_RADIUS_MIN_M} do ${VISIT_RADIUS_MAX_M} m. W tym promieniu odkrywca potwierdzi wizytę.`}
+              invalidHint={hint("visitRadiusM")}
+            >
+              {(aria) => (
+                <input
+                  {...aria}
+                  name="visitRadiusM"
+                  type="text"
+                  inputMode="numeric"
+                  value={radiusText}
+                  onChange={(event) => setRadiusText(event.target.value)}
+                  required
+                  autoComplete="off"
+                />
+              )}
+            </Field>
+          </div>
+        </details>
       </fieldset>
       <div className={styles.actions}>
         <button
