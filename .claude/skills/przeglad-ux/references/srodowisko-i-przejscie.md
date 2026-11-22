@@ -52,10 +52,10 @@ Narzędziem przeglądarki projektu jest Playwright (`.ai/agentic.config.json`, d
 
 ## Gdy coś nie działa
 
-| Objaw | Co zrobić |
-|---|---|
-| Logowanie kontem demo odrzucone | Sprawdź, czy środowisko jest świeże (`test-env-down.ps1`); serwer musi mieć flagę kont demo, którą ustawia `playwright.config.ts`. Nie obchodź logowania. |
-| Skrypt odrzuca argumenty | Dozwolone są tylko ścieżki `e2e/…*.spec.ts`, `-g <tekst>` i `--output <katalog w repo>` (`scripts/test-env/test-env-args.mjs`). |
-| Zajęty port | Skrypt sam wybiera wolny port; adres odczytaj z `.data/test-env/<stanowisko>/test-env.json`. |
-| Potwierdzenie wizyty nie reaguje na lokalizację | Sprawdź, czy kontekst ma nadane uprawnienie `geolocation`. |
-| Sesja wygasła w trakcie | Zapisz to jako ustalenie, jeśli użytkownik nie dostał jasnego komunikatu, i zacznij ścieżkę od nowa. |
+| Objaw                                           | Co zrobić                                                                                                                                                 |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Logowanie kontem demo odrzucone                 | Sprawdź, czy środowisko jest świeże (`test-env-down.ps1`); serwer musi mieć flagę kont demo, którą ustawia `playwright.config.ts`. Nie obchodź logowania. |
+| Skrypt odrzuca argumenty                        | Dozwolone są tylko ścieżki `e2e/…*.spec.ts`, `-g <tekst>` i `--output <katalog w repo>` (`scripts/test-env/test-env-args.mjs`).                           |
+| Zajęty port                                     | Skrypt sam wybiera wolny port; adres odczytaj z `.data/test-env/<stanowisko>/test-env.json`.                                                              |
+| Potwierdzenie wizyty nie reaguje na lokalizację | Sprawdź, czy kontekst ma nadane uprawnienie `geolocation`.                                                                                                |
+| Sesja wygasła w trakcie                         | Zapisz to jako ustalenie, jeśli użytkownik nie dostał jasnego komunikatu, i zacznij ścieżkę od nowa.                                                      |

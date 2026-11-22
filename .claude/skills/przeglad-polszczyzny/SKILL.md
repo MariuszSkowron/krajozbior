@@ -21,11 +21,11 @@ Ten skill czyta teksty aplikacji tak, jak czyta je odkrywca, i wypisuje miejsca,
 
 Zgłaszasz tylko błędy językowe. To samo zdanie może mieć osobne ustalenia w innym skillu.
 
-| Problem                                                                   | Skill                  |
-| ------------------------------------------------------------------------- | ---------------------- |
-| tekst poprawny, ale bez emocji, ogólnikowy, z hype'em, niezgodny z głosem  | `przeglad-tonu`        |
+| Problem                                                                                                | Skill                  |
+| ------------------------------------------------------------------------------------------------------ | ---------------------- |
+| tekst poprawny, ale bez emocji, ogólnikowy, z hype'em, niezgodny z głosem                              | `przeglad-tonu`        |
 | zdanie puste, zbędne, interfejs mówi o sobie albo o „systemie”, pusty dopisek celu („aby kontynuować”) | `przeglad-wypelniaczy` |
-| układ ekranu, kolejność kroków, brak wyjścia w przepływie, dostępność     | `przeglad-ux`          |
+| układ ekranu, kolejność kroków, brak wyjścia w przepływie, dostępność                                  | `przeglad-ux`          |
 
 Przykład podziału: „Sesja wygasła.” jest poprawne językowo (tu brak ustalenia); o tym, czy słowo „sesja” pasuje do ekranu, rozstrzyga `przeglad-wypelniaczy`.
 

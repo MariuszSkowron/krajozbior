@@ -4,12 +4,12 @@ Wspólny kontrakt trzech skilli przeglądu tekstów (`przeglad-polszczyzny`, `pr
 
 ## 1. Zakres wejścia
 
-| Zakres            | Jak go podać                                  | Co czytasz                                                                 |
-| ----------------- | --------------------------------------------- | -------------------------------------------------------------------------- |
-| cała aplikacja    | brak argumentu albo `cala-aplikacja`          | `src/app/`, `src/features/**/domain/`, `src/design-system/`, `src/lib/email/` |
-| ścieżka           | np. `src/app/places`                          | tylko ta ścieżka                                                           |
-| diff gałęzi       | `diff` albo nazwa gałęzi                      | `git diff origin/main...HEAD -- src` (tylko dodane i zmienione linie)       |
-| wklejony tekst    | tekst w wiadomości                            | tylko wklejony tekst; miejsce w tabeli: „tekst wklejony”                   |
+| Zakres         | Jak go podać                         | Co czytasz                                                                    |
+| -------------- | ------------------------------------ | ----------------------------------------------------------------------------- |
+| cała aplikacja | brak argumentu albo `cala-aplikacja` | `src/app/`, `src/features/**/domain/`, `src/design-system/`, `src/lib/email/` |
+| ścieżka        | np. `src/app/places`                 | tylko ta ścieżka                                                              |
+| diff gałęzi    | `diff` albo nazwa gałęzi             | `git diff origin/main...HEAD -- src` (tylko dodane i zmienione linie)         |
+| wklejony tekst | tekst w wiadomości                   | tylko wklejony tekst; miejsce w tabeli: „tekst wklejony”                      |
 
 Przy diffie zapisz w raporcie dokładne polecenie, którego użyłeś.
 
@@ -54,8 +54,8 @@ napisz wtedy, co sprawdzono.>
 
 ## Ustalenia
 
-| # | Miejsce (ekran, `plik:linia`) | Cytat | Reguła | Dlaczego to problem dla odkrywcy | Propozycja | Waga |
-| - | ----------------------------- | ----- | ------ | -------------------------------- | ---------- | ---- |
+| #   | Miejsce (ekran, `plik:linia`) | Cytat | Reguła | Dlaczego to problem dla odkrywcy | Propozycja | Waga |
+| --- | ----------------------------- | ----- | ------ | -------------------------------- | ---------- | ---- |
 
 ## Treści kuratorów (opcjonalnie)
 

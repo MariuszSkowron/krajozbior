@@ -4,12 +4,12 @@ Kroki 6–7 skilla `przeglad-ux`: jak ważyć ustalenia, jak wygląda raport w `
 
 ## Skala wag (wpływ na użytkownika)
 
-| Waga | Kiedy | Przykład |
-|---|---|---|
-| Krytyczna | Użytkownik nie wykona zadania albo traci dane; błąd 5xx; treść znika lub zasłania inną | nie da się zapisać wizyty na telefonie |
-| Wysoka | Zadanie wykonalne, ale łatwo się pomylić lub nie zauważyć wyniku; brak obsługi klawiaturą; kontrast poniżej AA; błędy w konsoli | zapis wizyty bez widocznej zmiany przycisku (Z-2); nagłówek i profil różnie opisują rolę (Z-8) |
-| Średnia | Zbędny wysiłek lub zamęt, ale wynik jest jasny | filtr przenosi na górę strony (Z-4); ciągłe przełączanie listy i mapy na szerokim ekranie (Z-12) |
-| Niska | Niespójność wyglądu, drobny szum | link w domyślnym stylu przeglądarki (Z-11) |
+| Waga      | Kiedy                                                                                                                           | Przykład                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Krytyczna | Użytkownik nie wykona zadania albo traci dane; błąd 5xx; treść znika lub zasłania inną                                          | nie da się zapisać wizyty na telefonie                                                           |
+| Wysoka    | Zadanie wykonalne, ale łatwo się pomylić lub nie zauważyć wyniku; brak obsługi klawiaturą; kontrast poniżej AA; błędy w konsoli | zapis wizyty bez widocznej zmiany przycisku (Z-2); nagłówek i profil różnie opisują rolę (Z-8)   |
+| Średnia   | Zbędny wysiłek lub zamęt, ale wynik jest jasny                                                                                  | filtr przenosi na górę strony (Z-4); ciągłe przełączanie listy i mapy na szerokim ekranie (Z-12) |
+| Niska     | Niespójność wyglądu, drobny szum                                                                                                | link w domyślnym stylu przeglądarki (Z-11)                                                       |
 
 W obrębie wagi szereguj według liczby użytkowników, których dotyczy (gość i odkrywca przed kuratorem), i według tego, jak często ekran jest używany.
 
@@ -35,7 +35,7 @@ Stan repozytorium: wynik `git status` po przeglądzie (czysty | lista plików); 
 ## Pięć najważniejszych
 
 1. [UX-01] <tytuł> — <jedno zdanie, dlaczego to najważniejsze>
-...
+   ...
 
 ## Ustalenia
 
@@ -66,7 +66,7 @@ Stan repozytorium: wynik `git status` po przeglądzie (czysty | lista plików); 
 ## Mapa pokrycia
 
 | Trasa | Rola | Telefon | Komputer | Nocny | Jasny | Klawiatura | Stany |
-|---|---|---|---|---|---|---|---|
+| ----- | ---- | ------- | -------- | ----- | ----- | ---------- | ----- |
 ```
 
 ## Reguły ustaleń
@@ -85,6 +85,7 @@ Tylko gdy zlecenie tego wymaga. Bez linku do `<docs>`, bez treści prywatnej, be
 Przegląd UX całej aplikacji (YYYY-MM-DD): wynik <wynik>; ustalenia: krytyczne N, wysokie N, średnie N, niskie N.
 
 Najważniejsze dla użytkownika:
+
 - <problem jednym zdaniem, bez nazw prywatnych>
 - …
 

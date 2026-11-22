@@ -51,13 +51,13 @@ Dla każdej roli przejdź zadania z `references/sciezki-rol.md`, zaczynając od 
 
 Na ekranach ze ścieżek sprawdź kolejno (szczegóły w `references/sciezki-rol.md`, sekcja „Warianty”):
 
-| Wariant | Jak |
-|---|---|
-| Telefon | ok. 390 × 844 px |
-| Komputer | ok. 1440 × 900 px; sprawdź wykorzystanie szerokości (Z-10) |
-| Motyw | nocny i jasny: przełącznik motywu w nagłówku albo ciasteczko `krajozbior-theme` (emulacja schematu kolorów systemu nie działa w tej aplikacji) |
-| Stany danych | pusty, błąd, ładowanie, długa treść |
-| Klawiatura | sam Tab, Enter, Esc; widoczny fokus; link „Przejdź do treści” |
+| Wariant      | Jak                                                                                                                                            |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Telefon      | ok. 390 × 844 px                                                                                                                               |
+| Komputer     | ok. 1440 × 900 px; sprawdź wykorzystanie szerokości (Z-10)                                                                                     |
+| Motyw        | nocny i jasny: przełącznik motywu w nagłówku albo ciasteczko `krajozbior-theme` (emulacja schematu kolorów systemu nie działa w tej aplikacji) |
+| Stany danych | pusty, błąd, ładowanie, długa treść                                                                                                            |
+| Klawiatura   | sam Tab, Enter, Esc; widoczny fokus; link „Przejdź do treści”                                                                                  |
 
 ### 5. Ocena według list kontrolnych
 
@@ -107,13 +107,13 @@ Raport kończy się jednym z wyników:
 
 ## Pliki pomocnicze
 
-| Kiedy | Plik |
-|---|---|
+| Kiedy                                                    | Plik                                   |
+| -------------------------------------------------------- | -------------------------------------- |
 | Krok 2: start środowiska, logowanie kontami demo, zrzuty | `references/srodowisko-i-przejscie.md` |
-| Kroki 3–4: zadania każdej roli i warianty ekranu | `references/sciezki-rol.md` |
-| Krok 5: zasady właściciela Z-1…Z-13 z przykładami | `references/zasady-wlasciciela.md` |
-| Krok 5: lista wizualna i dostępność | `references/lista-kontrolna.md` |
-| Kroki 6–7: skala wag, szablon raportu, skrót publiczny | `references/szablon-raportu.md` |
+| Kroki 3–4: zadania każdej roli i warianty ekranu         | `references/sciezki-rol.md`            |
+| Krok 5: zasady właściciela Z-1…Z-13 z przykładami        | `references/zasady-wlasciciela.md`     |
+| Krok 5: lista wizualna i dostępność                      | `references/lista-kontrolna.md`        |
+| Kroki 6–7: skala wag, szablon raportu, skrót publiczny   | `references/szablon-raportu.md`        |
 
 ---
 

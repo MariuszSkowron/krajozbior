@@ -51,12 +51,12 @@ Zasady przeglądu:
 
 **Przegląd tego, co widzi użytkownik.** Niezależnie od poziomu A, B lub C każdy PR, który zmienia ekran, przepływ albo tekst widoczny dla użytkownika, przechodzi dodatkowo cztery przeglądy. Każdy ma jedno zadanie:
 
-| Skill                  | Co sprawdza                                                                                   | Na czym pracuje                       |
-| ---------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `om-ux-review-pr`      | układ, przepływ i stany zmienionych ekranów, z zasadami projektu (`.ai/skills/om-ux-review-pr/`) | zmienione ekrany w przeglądarce       |
-| `przeglad-polszczyzny` | poprawność językową: kalki z angielskiego, odmianę, interpunkcję, spójność nazw               | teksty z diffu                        |
-| `przeglad-tonu`        | głos produktu: emocję bez przesady, konkret zamiast ogólnika                                  | teksty z diffu                        |
-| `przeglad-wypelniaczy` | puste zdania i zwroty typowe dla tekstów pisanych przez AI, teksty wybijające z rytmu         | teksty z diffu                        |
+| Skill                  | Co sprawdza                                                                                      | Na czym pracuje                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------- |
+| `om-ux-review-pr`      | układ, przepływ i stany zmienionych ekranów, z zasadami projektu (`.ai/skills/om-ux-review-pr/`) | zmienione ekrany w przeglądarce |
+| `przeglad-polszczyzny` | poprawność językową: kalki z angielskiego, odmianę, interpunkcję, spójność nazw                  | teksty z diffu                  |
+| `przeglad-tonu`        | głos produktu: emocję bez przesady, konkret zamiast ogólnika                                     | teksty z diffu                  |
+| `przeglad-wypelniaczy` | puste zdania i zwroty typowe dla tekstów pisanych przez AI, teksty wybijające z rytmu            | teksty z diffu                  |
 
 - **Kiedy.** Diff dotyka stron w `src/app/` (poza `src/app/api/`), komponentów lub komunikatów w `src/features/` i `src/design-system/` albo wiadomości w `src/lib/email/` i zmienia to, co użytkownik zobaczy. Zmiana wyłącznie w logice, testach lub dokumentacji tych przeglądów nie wymaga; autor zapisuje wtedy w runie „nie dotyczy” z powodem.
 - **Kto.** Przeglądy zleca orkiestrator po przeglądzie kodu, świeżemu agentowi (Sonnet). Trzy skille tekstowe pracują na jednej, wspólnie zebranej liście tekstów. Wzorcem jest `docs/design/voice-and-tone.md`.

@@ -30,12 +30,12 @@ Sprawdź 11 zasad z `docs/design/voice-and-tone.md` i tabelę „Jesteśmy / Nie
 
 **Pytanie:** czy tekst mówi rzecz, którą da się zobaczyć, policzyć albo odwiedzić?
 
-| Ogólnik                     | Konkret                                                 |
-| --------------------------- | ------------------------------------------------------- |
-| ciekawe miejsca             | wieże ciśnień, kapliczki, stare dworce                  |
-| w Twojej okolicy            | 6 km od Ciebie                                          |
-| wiele kolekcji              | 14 kolekcji na Pomorzu                                  |
-| niedawno                    | 8.11.2026                                               |
+| Ogólnik          | Konkret                                |
+| ---------------- | -------------------------------------- |
+| ciekawe miejsca  | wieże ciśnień, kapliczki, stare dworce |
+| w Twojej okolicy | 6 km od Ciebie                         |
+| wiele kolekcji   | 14 kolekcji na Pomorzu                 |
+| niedawno         | 8.11.2026                              |
 
 Przed: „Krajozbiór to kolekcje ciekawych miejsc w Polsce.” (aplikacja, `src/app/page.tsx:121`)
 Po: „Krajozbiór to kolekcje wież ciśnień, kapliczek i dworców w Polsce.” `[POTRZEBNE: rodzaje miejsc, które naprawdę są w katalogu]`

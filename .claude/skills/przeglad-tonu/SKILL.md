@@ -19,11 +19,11 @@ Ten skill sprawdza, czy teksty aplikacji mówią głosem Krajozbioru: jak przewo
 
 ## Czego ten skill nie ocenia
 
-| Problem                                                                      | Skill                  |
-| ---------------------------------------------------------------------------- | ---------------------- |
-| kalki, interpunkcja, odmiana, „byłeś”, zapis dat i liczb                     | `przeglad-polszczyzny` |
+| Problem                                                                                                                                                      | Skill                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| kalki, interpunkcja, odmiana, „byłeś”, zapis dat i liczb                                                                                                     | `przeglad-polszczyzny` |
 | puste zdania, dopowiedzenia, interfejs mówi o sobie lub o „systemie”, słowa urzędowe i systemowe („operacja”, „użytkownik”), zdanie pasujące do każdej firmy | `przeglad-wypelniaczy` |
-| układ ekranu, przepływ, kolejność kroków, dostępność                        | `przeglad-ux`          |
+| układ ekranu, przepływ, kolejność kroków, dostępność                                                                                                         | `przeglad-ux`          |
 
 Granica z `przeglad-wypelniaczy`: ten skill pyta „czy zdanie ma właściwy ton i siłę?”, tamten „czy to zdanie w ogóle jest potrzebne?”. Zdanie do usunięcia zgłasza tamten; zdanie do wzmocnienia — ten. Granica z `przeglad-ux`: brak wyjścia w samym przepływie (np. nie ma przycisku) to UX; tekst odmowy, który nie mówi o istniejącym wyjściu, to ton (zasada „Odmowa z wyjściem”).
 

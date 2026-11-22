@@ -6,11 +6,11 @@ Krótkie testy do przebiegów T2, T3 i T5. Wybrane z ram copywriterskich i przep
 
 Dopisz w myślach na początku nagłówka lub zachęty „Teraz możesz…”. Jeśli wynik jest **prawdziwy** i **kusi**, tekst działa. Jeśli brzmi pusto albo nie mówi o nowej możliwości, przepisz.
 
-| Tekst                                          | „Teraz możesz…”                                                | Werdykt                  |
-| ---------------------------------------------- | -------------------------------------------------------------- | ------------------------ |
-| „Odkrywaj miejsca i zbieraj je w albumie”       | …zbierać odwiedzone miejsca w albumie                           | działa, ale ogólnie      |
-| „Nowoczesna platforma turystyczna”             | …mieć nowoczesną platformę                                      | nie działa               |
-| „Zobacz, które wieże ciśnień Pomorza masz za sobą” | …zobaczyć, które wieże masz za sobą                         | działa, konkret          |
+| Tekst                                              | „Teraz możesz…”                       | Werdykt             |
+| -------------------------------------------------- | ------------------------------------- | ------------------- |
+| „Odkrywaj miejsca i zbieraj je w albumie”          | …zbierać odwiedzone miejsca w albumie | działa, ale ogólnie |
+| „Nowoczesna platforma turystyczna”                 | …mieć nowoczesną platformę            | nie działa          |
+| „Zobacz, które wieże ciśnień Pomorza masz za sobą” | …zobaczyć, które wieże masz za sobą   | działa, konkret     |
 
 Test jest filtrem, nie wzorem do przepisywania każdego zdania. Tekst, który go przechodzi, zostaje bez ustalenia.
 
@@ -26,12 +26,12 @@ Gdy brakuje kroku, zgłoś, którego. Nie każdy ekran potrzebuje wszystkich trz
 
 ## 3. Skala hype'u
 
-| Poziom | Przykład                                                     | Ocena                    |
-| ------ | ------------------------------------------------------------ | ------------------------ |
-| 0      | „Wizyta potwierdzona.”                                       | za płasko w chwili radości |
-| 1      | „Wieża ciśnień w Tczewie jest w Twoim albumie.”               | dobrze                   |
-| 2      | „Masz ją! Wieża w Tczewie jest w Twoim albumie.”              | dopuszczalne przy ukończeniu kolekcji |
-| 3      | „Niesamowite! Właśnie przeżyłeś niezapomnianą przygodę!!!”    | hype — zgłoś             |
+| Poziom | Przykład                                                   | Ocena                                 |
+| ------ | ---------------------------------------------------------- | ------------------------------------- |
+| 0      | „Wizyta potwierdzona.”                                     | za płasko w chwili radości            |
+| 1      | „Wieża ciśnień w Tczewie jest w Twoim albumie.”            | dobrze                                |
+| 2      | „Masz ją! Wieża w Tczewie jest w Twoim albumie.”           | dopuszczalne przy ukończeniu kolekcji |
+| 3      | „Niesamowite! Właśnie przeżyłeś niezapomnianą przygodę!!!” | hype — zgłoś                          |
 
 Ostrzegawcze słowa (poziom 3): niesamowity, niezapomniany, wyjątkowy, unikalny, magiczny, epicki, przygoda życia, odkryj prawdziwą…, najlepszy, rewolucyjny. Nie zakazujemy ich mechanicznie: „wyjątkowy” w opisie kuratora z faktem obok może zostać.
 
