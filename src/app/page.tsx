@@ -119,7 +119,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
             <h1 id="start-title">Odkrywaj miejsca i zbieraj je w swoim albumie</h1>
             <p className={styles.lead}>
               Krajozbiór to kolekcje ciekawych miejsc w Polsce. Przeglądaj je bez konta; po
-              zalogowaniu zapiszesz kolekcję i zaznaczysz miejsca, w których już byłeś.
+              zalogowaniu zapiszesz kolekcję i zaznaczysz miejsca już odwiedzone.
             </p>
             <div className={styles.actions}>
               <Link className="button button--primary" href="/login">

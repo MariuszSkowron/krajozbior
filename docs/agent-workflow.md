@@ -49,6 +49,21 @@ Zasady przeglądu:
 - Ustalenia bezpieczeństwa trafiają do raportu `<docs>/.ai/security/YYYY-MM-DD-pr-<n>.md` i do zadania w `<docs>` z etykietą `security`. Publiczny PR dostaje tylko status `security-review`.
 - Recenzent sprawdza, czy nowe ścieżki wrażliwe trafiły do `CODEOWNERS`; brak wpisu to uwaga blokująca.
 
+**Przegląd tego, co widzi użytkownik.** Niezależnie od poziomu A, B lub C każdy PR, który zmienia ekran, przepływ albo tekst widoczny dla użytkownika, przechodzi dodatkowo cztery przeglądy. Każdy ma jedno zadanie:
+
+| Skill                  | Co sprawdza                                                                                      | Na czym pracuje                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------- |
+| `om-ux-review-pr`      | układ, przepływ i stany zmienionych ekranów, z zasadami projektu (`.ai/skills/om-ux-review-pr/`) | zmienione ekrany w przeglądarce |
+| `przeglad-polszczyzny` | poprawność językową: kalki z angielskiego, odmianę, interpunkcję, spójność nazw                  | teksty z diffu                  |
+| `przeglad-tonu`        | głos produktu: emocję bez przesady, konkret zamiast ogólnika                                     | teksty z diffu                  |
+| `przeglad-wypelniaczy` | puste zdania i zwroty typowe dla tekstów pisanych przez AI, teksty wybijające z rytmu            | teksty z diffu                  |
+
+- **Kiedy.** Diff dotyka stron w `src/app/` (poza `src/app/api/`), komponentów lub komunikatów w `src/features/` i `src/design-system/` albo wiadomości w `src/lib/email/` i zmienia to, co użytkownik zobaczy. Zmiana wyłącznie w logice, testach lub dokumentacji tych przeglądów nie wymaga; autor zapisuje wtedy w runie „nie dotyczy” z powodem.
+- **Kto.** Przeglądy zleca orkiestrator po przeglądzie kodu, świeżemu agentowi (Sonnet). Trzy skille tekstowe pracują na jednej, wspólnie zebranej liście tekstów. Wzorcem jest `docs/design/voice-and-tone.md`.
+- **Wynik.** Raporty trafiają do `<docs>/.ai/qa/`, a do publicznego PR tylko skrót. Skille niczego nie poprawiają. Błędy językowe bez zmiany znaczenia (literówka, interpunkcja, odmiana) agent poprawek wprowadza od razu; zmianę treści, tonu albo wyglądu orkiestrator zgłasza właścicielowi (etap 4).
+- **Cała aplikacja.** Skill `przeglad-ux` przechodzi ścieżki wszystkich ról przed pokazem, przed wydaniem i po serii scaleń; razem z nim trzy skille tekstowe przechodzą po wszystkich tekstach. Z wyników powstaje jedna zbiorcza lista poprawek.
+- Skille są dostosowanymi wersjami publicznych skilli na licencji MIT; licencja i autor oryginału są w folderze każdego skilla. Nowy skill z zewnątrz przechodzi przed dodaniem niezależny przegląd bezpieczeństwa i dopasowania do produktu.
+
 ### Etap 4. Poprawki
 
 - Uwagi drobne (minor, nit) agent poprawek wprowadza od razu i raportuje po fakcie.

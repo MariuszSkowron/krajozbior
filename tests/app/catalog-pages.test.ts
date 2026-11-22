@@ -59,6 +59,7 @@ const collection = {
   ],
   placeCount: 1,
   contentUpdatedAt: new Date("2026-11-18T10:00:00Z"),
+  cover: null,
 };
 
 const place = {
@@ -67,12 +68,14 @@ const place = {
   description: "Opis",
   address: "Tczew",
   accessInfo: "Od rynku",
+  accessRestriction: "none",
   latitude: 54,
   longitude: 18,
   visitRadiusM: 200,
   organization: { name: "Gmina A", slug: "gmina-a" },
   collections: [{ slug: "kolekcja-a1b2c3", title: "Wieże Tczewa" }],
   source: null,
+  cover: null,
 };
 
 // Each case uses its own address: the pages read through React's per-request cache.
@@ -168,6 +171,42 @@ describe("public catalog pages", () => {
     expect(html).not.toContain("db down");
   });
 
+  it("show the cover of a place with its credit, and no photo block without one (E4-2b)", async () => {
+    const cover = {
+      photoId: "0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b",
+      width: 1280,
+      height: 853,
+      altText: "Most Tczewski",
+      title: null,
+      authorText: "Fikcyjny Autor",
+      authorUrl: null,
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:Most.jpg",
+      sourceKind: "commons_import",
+      licenseCode: "cc-by-4.0",
+      licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+      licenseLabel: "CC BY 4.0",
+    };
+
+    mocks.place.mockResolvedValueOnce({ status: "ok", value: { ...place, cover } });
+
+    const withCover = renderToStaticMarkup(
+      await placePage.default({ params: Promise.resolve({ placeId: next() }) }),
+    );
+
+    expect(withCover).toContain(`/media/p/${cover.photoId}/main`);
+    expect(withCover).toContain("Autor: Fikcyjny Autor");
+    expect(withCover).toContain(">CC BY 4.0</a>");
+
+    mocks.place.mockResolvedValueOnce({ status: "ok", value: place });
+
+    const without = renderToStaticMarkup(
+      await placePage.default({ params: Promise.resolve({ placeId: next() }) }),
+    );
+
+    expect(without).not.toContain("<figure");
+    expect(without).not.toContain("/media/p/");
+  });
+
   it("say so when a collection has no places yet", async () => {
     mocks.collection.mockResolvedValue({ status: "ok", value: { ...collection, places: [] } });
 
@@ -206,6 +245,35 @@ describe("public catalog pages", () => {
     expect(
       await placePage.generateMetadata({ params: Promise.resolve({ placeId: next() }) }),
     ).toEqual({ title: "Most Tczewski — Krajozbiór" });
+  });
+
+  describe("the access notice of a place page (E1-S11)", () => {
+    const render = async (accessRestriction: string) => {
+      mocks.place.mockResolvedValue({ status: "ok", value: { ...place, accessRestriction } });
+
+      return renderToStaticMarkup(
+        await placePage.default({ params: Promise.resolve({ placeId: next() }) }),
+      );
+    };
+
+    it("shows nothing for a place without a restriction", async () => {
+      expect(await render("none")).not.toContain("place-access-notice");
+    });
+
+    it.each([
+      ["private", "Teren prywatny"],
+      ["fenced", "Teren ogrodzony"],
+      ["ruin", "Ruina"],
+    ])("shows the notice for %s as a section with a heading", async (restriction, title) => {
+      const html = await render(restriction);
+
+      expect(html).toContain('data-testid="place-access-notice"');
+      const headingId = /<h2 id="([^"]+)"[^>]*>Wejście na teren<\/h2>/.exec(html)?.[1];
+      expect(headingId).toBeTruthy();
+      expect(html).toContain(`aria-labelledby="${headingId}"`);
+      expect(html).toMatch(new RegExp(`<strong[^>]*>${title}</strong>`));
+      expect(html).toContain("nie wchodź na teren");
+    });
   });
 
   describe("the sources line of a place page", () => {
@@ -295,7 +363,7 @@ describe("public catalog pages", () => {
       const html = await render();
 
       expect(html.match(/Zaloguj się, aby/g)).toHaveLength(1);
-      expect(html).toContain("Zaloguj się, aby potwierdzić wizytę lub zapisać na Chcę zobaczyć");
+      expect(html).toContain("Zaloguj się, aby potwierdzić wizytę lub zapisać na „Chcę zobaczyć”");
       expect(html).toContain("Po zalogowaniu wrócisz na tę stronę.");
     });
 
@@ -305,9 +373,10 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Masz już zapisaną wizytę w tym miejscu.");
-      expect(html).toContain("Usuń z Chcę zobaczyć");
-      expect(html).not.toContain("Potwierdź wizytę");
+      expect(html).toContain("Odwiedzone");
+      expect(html).not.toContain("Masz już zapisaną wizytę");
+      expect(html).toContain("Usuń z „Chcę zobaczyć”");
+      expect(html).not.toContain("Potwierdzam wizytę");
     });
 
     it("shows nothing about the list for a visited place that is not on it", async () => {
@@ -316,7 +385,8 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Masz już zapisaną wizytę w tym miejscu.");
+      expect(html).toContain("Odwiedzone");
+      expect(html).not.toContain("Masz już zapisaną wizytę");
       expect(html).not.toContain("Chcę zobaczyć");
     });
 
@@ -326,7 +396,7 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Potwierdź wizytę");
+      expect(html).toContain("Potwierdzam wizytę");
       expect(html).toContain("Lista „Chcę zobaczyć” jest chwilowo niedostępna.");
       expect(html).not.toContain(">Chcę zobaczyć<");
     });
@@ -337,17 +407,17 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Potwierdź wizytę");
+      expect(html).toContain("Potwierdzam wizytę");
       expect(html).toContain("chwilowo niedostępna");
     });
 
-    it("offers 'Byłem tu wcześniej' to an explorer without a visit, outside the pinned button", async () => {
+    it("offers 'Zaznaczam wcześniejszą wizytę' to an explorer without a visit, outside the pinned button", async () => {
       mocks.visited.mockResolvedValue({ status: "ok", value: none });
       mocks.wanted.mockResolvedValue({ status: "ok", value: { wanted: false } });
 
       const html = await render();
 
-      expect(html).toContain("Byłem tu wcześniej");
+      expect(html).toContain("Zaznaczam wcześniejszą wizytę");
       expect(html).not.toContain("Usuń wizytę z przeszłości");
     });
 
@@ -361,10 +431,11 @@ describe("public catalog pages", () => {
       const html = await render();
 
       expect(html).toContain("Z przeszłości · marzec 2019");
-      expect(html).toContain("Potwierdź wizytę");
+      expect(html).toContain("Wizyta z przeszłości zapisana");
+      expect(html).toContain("Potwierdzam wizytę na miejscu");
       expect(html).toContain("Potwierdź na miejscu, gdy tu będziesz.");
       expect(html).toContain("Usuń wizytę z przeszłości");
-      expect(html).not.toContain("Byłem tu wcześniej");
+      expect(html).not.toContain("Zaznaczam wcześniejszą wizytę");
       expect(html).not.toContain("Masz już zapisaną wizytę");
     });
 
@@ -377,7 +448,8 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Masz już zapisaną wizytę w tym miejscu.");
+      expect(html).toContain("Odwiedzone");
+      expect(html).not.toContain("Masz już zapisaną wizytę");
       expect(html).not.toContain("Z przeszłości");
       expect(html).not.toContain("Usuń wizytę z przeszłości");
     });
@@ -578,6 +650,20 @@ describe("public catalog pages", () => {
 
         expect(html).toContain("Żadne miejsce nie pasuje do tego filtra.");
         expect(html).not.toContain("Zaznacz odwiedzone");
+      });
+
+      it("shows the access notice in the panel of a place with a restriction, under an h3", async () => {
+        mocks.place.mockResolvedValue({
+          status: "ok",
+          value: { ...place, id: second.id, accessRestriction: "ruin" },
+        });
+
+        const html = await render({ miejsce: second.id });
+
+        const headingId = /<h3 id="([^"]+)"[^>]*>Wejście na teren<\/h3>/.exec(html)?.[1];
+        expect(headingId).toBeTruthy();
+        expect(html).toContain(`aria-labelledby="${headingId}"`);
+        expect(html).toMatch(/<strong[^>]*>Ruina<\/strong>/);
       });
 
       it("keeps a card a plain link to the place page (works without JavaScript)", async () => {

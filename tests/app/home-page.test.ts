@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getActor: vi.fn(),
@@ -38,6 +38,7 @@ const discover = [
     region: "pomorskie",
     organization: { name: "Gmina A" },
     placeCount: 3,
+    cover: null,
   },
 ];
 
@@ -91,7 +92,13 @@ const album = {
   ],
 };
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-22T10:00:00Z"));
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   mocks.getActor.mockReset().mockResolvedValue(null);
   mocks.listRecent.mockReset().mockResolvedValue(discover);
@@ -214,7 +221,7 @@ describe("home page of a signed-in explorer", () => {
     expect(html).toContain("Wieża ciśnień");
     expect(html).toContain("marzec 2019");
     expect(html).toContain("z przeszłości");
-    expect(html).toContain("Miejsce niedostępne w katalogu");
+    expect(html).toContain("Miejsce nie jest już dostępne");
     expect(html).toContain("potwierdzona na miejscu");
     expect(html).toContain("Mosty i zamki");
     // The phone shows the first four favourites; the rest only on a wide screen.

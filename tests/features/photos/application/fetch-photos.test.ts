@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { MediaProcessingError } from "@/features/media/domain/processing-error";
 import type { ProcessedImage } from "@/features/media/infrastructure/image-processor";
+import type {
+  CommonsVersionInfo,
+  CommonsVersionLookup,
+} from "@/features/photos/domain/commons-version";
 import {
+  backfillOgFiles,
   fetchCommonsPhotos,
   MAX_FETCH_ATTEMPTS,
   MIN_REQUEST_INTERVAL_MS,
@@ -25,7 +30,22 @@ const photo = (overrides: Partial<PendingPhoto> = {}): PendingPhoto => ({
   commonsFile: "Example.jpg",
   sourceWidth: 3000,
   fetchAttempts: 0,
+  retrievedAt: new Date("2026-11-20T00:00:00Z"),
+  licenseCode: "cc-by-sa-4.0",
   ...overrides,
+});
+
+// Odpowiedź API o wersję pliku: ta sama, starsza niż dzień doboru, ta sama licencja i szerokość.
+const currentVersion = (overrides: Partial<CommonsVersionInfo> = {}) => ({
+  ok: true as const,
+  info: {
+    timestamp: Date.parse("2026-01-02T03:04:05Z"),
+    width: 3000,
+    licenseShort: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+    fileName: "Example.jpg",
+    ...overrides,
+  },
 });
 
 function setup(
@@ -46,12 +66,16 @@ function setup(
     store: vi.fn(async () => undefined),
     remove: vi.fn(async () => undefined),
     exists: vi.fn(async () => true),
+    read: vi.fn(async () => null),
+    storeOg: vi.fn(async () => undefined),
     diskSpace: vi.fn(async () => ({ freeBytes: 1, totalBytes: 1 })),
   };
   const deps: PhotoFetchDeps = {
     repository,
     download: vi.fn(async () => ({ ok: true as const, bytes: new Uint8Array([7]) })),
+    lookupVersion: vi.fn(async (): Promise<CommonsVersionLookup> => currentVersion()),
     process: vi.fn(async () => processed),
+    makeOg: vi.fn(async () => new Uint8Array([9])),
     storage,
     checkSpace: vi.fn(async () => ({ ok: true as const, freePercent: 50 })),
     sleep: vi.fn(async () => undefined),
@@ -114,6 +138,67 @@ describe("fetchCommonsPhotos", () => {
     expect(last.repository.recordFailure).toHaveBeenCalledWith("photo-1", 3, "fetch_failed");
   });
 
+  it("asks for the current version of the named file before the download", async () => {
+    const { deps } = setup([photo({ commonsFile: "File:Example.jpg" })]);
+
+    await fetchCommonsPhotos(deps);
+
+    expect(deps.lookupVersion).toHaveBeenCalledWith("File:Example.jpg");
+  });
+
+  it.each([
+    [
+      "a newer version",
+      currentVersion({ timestamp: Date.parse("2026-11-20T00:00:01Z") }),
+      "file_changed",
+    ],
+    ["another source width", currentVersion({ width: 2999 }), "file_changed"],
+    ["a file that is gone", { ok: false as const, reason: "file_gone" as const }, "file_gone"],
+    ["a file with another name", currentVersion({ fileName: "Moved.jpg" }), "file_gone"],
+    [
+      "another licence",
+      currentVersion({
+        licenseShort: "CC BY 4.0",
+        licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+      }),
+      "license_changed",
+    ],
+  ])(
+    "ends a row for good, without a download, on %s",
+    async (_name, lookup: CommonsVersionLookup, reason) => {
+      const { deps, repository, storage } = setup([photo()], {
+        lookupVersion: vi.fn(async () => lookup),
+      });
+      const report = await fetchCommonsPhotos(deps);
+
+      expect(deps.download).not.toHaveBeenCalled();
+      expect(deps.process).not.toHaveBeenCalled();
+      expect(storage.store).not.toHaveBeenCalled();
+      expect(repository.markReady).not.toHaveBeenCalled();
+      expect(repository.recordFailure).toHaveBeenCalledWith("photo-1", 1, "fetch_failed");
+      expect(report).toMatchObject({ fetched: 0, failed: 1, reasons: { [reason]: 1 } });
+    },
+  );
+
+  it("counts an API error as an ordinary attempt without a download", async () => {
+    const { deps, repository } = setup([photo()], {
+      lookupVersion: vi.fn(async () => ({ ok: false as const, reason: "api_error" as const })),
+    });
+    const report = await fetchCommonsPhotos(deps);
+
+    expect(deps.download).not.toHaveBeenCalled();
+    expect(repository.recordFailure).toHaveBeenCalledWith("photo-1", 1, "pending_fetch");
+    expect(report.reasons).toEqual({ api_error: 1 });
+  });
+
+  it("does not ask the API for a row without a usable source width", async () => {
+    const { deps } = setup([photo({ sourceWidth: null })]);
+
+    await fetchCommonsPhotos(deps);
+
+    expect(deps.lookupVersion).not.toHaveBeenCalled();
+  });
+
   it("fails a row without a usable source width without a request", async () => {
     for (const sourceWidth of [null, 10]) {
       const { deps, repository } = setup([photo({ sourceWidth })]);
@@ -152,6 +237,8 @@ describe("fetchCommonsPhotos", () => {
         }),
         remove: vi.fn(async () => undefined),
         exists: vi.fn(),
+        read: vi.fn(),
+        storeOg: vi.fn(),
         diskSpace: vi.fn(),
       },
     });
@@ -256,5 +343,86 @@ describe("requeueMissingFiles", () => {
     expect(await requeueMissingFiles(repository, { ...storage, exists })).toBe(1);
     expect(repository.requeue).toHaveBeenCalledTimes(1);
     expect(repository.requeue).toHaveBeenCalledWith("b");
+  });
+});
+
+describe("og file from the fetch (E4-3)", () => {
+  it("stores the og file made by the processing together with main and w400", async () => {
+    const og = new Uint8Array([8, 8]);
+    const { deps, storage } = setup([photo()], {
+      process: vi.fn(async () => ({ ...processed, og })),
+    });
+
+    await fetchCommonsPhotos(deps, { limit: 10 });
+
+    expect(storage.store).toHaveBeenCalledWith("place", "11111111-1111-4111-8111-111111111111", {
+      main: processed.main,
+      w400: processed.thumb,
+      og,
+    });
+  });
+});
+
+describe("backfillOgFiles", () => {
+  const ready = [
+    { id: "a", storageKey: "key-a" },
+    { id: "b", storageKey: "key-b" },
+    { id: "c", storageKey: "key-c" },
+    { id: "d", storageKey: "key-d" },
+  ];
+
+  function backfillSetup(overrides: Partial<PhotoFetchDeps> = {}) {
+    const { deps, storage } = setup([], undefined, { listReady: vi.fn(async () => ready) });
+    // a has og, b has none, c has no main file, d is an empty og (read answers null).
+    const read = vi.fn(async (_kind: string, key: string, variant: string) => {
+      if (variant === "og") return key === "key-a" ? new Uint8Array([1]) : null;
+      return key === "key-c" ? null : new Uint8Array([5]);
+    });
+    const storeOg = vi.fn(async () => undefined);
+    const makeOg = vi.fn(async () => new Uint8Array([9]));
+
+    return {
+      deps: { ...deps, storage: { ...storage, read, storeOg }, makeOg, ...overrides },
+      read,
+      storeOg,
+      makeOg,
+    };
+  }
+
+  it("makes og only where it is missing, one photo at a time, and counts the failures", async () => {
+    const { deps, storeOg, makeOg } = backfillSetup();
+
+    expect(await backfillOgFiles(deps)).toEqual({ created: 2, failed: 1 });
+    expect(makeOg).toHaveBeenCalledTimes(2);
+    expect(storeOg).toHaveBeenCalledWith("place", "key-b", new Uint8Array([9]));
+    expect(storeOg).toHaveBeenCalledWith("place", "key-d", new Uint8Array([9]));
+    expect(storeOg).not.toHaveBeenCalledWith("place", "key-a", expect.anything());
+  });
+
+  it("counts a failed encode or a failed write and goes on", async () => {
+    const makeOg = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("processing_failed"))
+      .mockResolvedValue(new Uint8Array([9]));
+    const { deps, storeOg } = backfillSetup({ makeOg });
+
+    expect(await backfillOgFiles(deps)).toEqual({ created: 1, failed: 2 });
+    expect(storeOg).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops when there is not enough free space", async () => {
+    const checkSpace = vi.fn(async () => ({
+      ok: false as const,
+      reason: "uploads_paused" as const,
+      freePercent: 1,
+    }));
+    const { deps, makeOg } = backfillSetup({ checkSpace } as Partial<PhotoFetchDeps>);
+
+    expect(await backfillOgFiles(deps)).toEqual({
+      created: 0,
+      failed: 0,
+      stoppedBy: "uploads_paused",
+    });
+    expect(makeOg).not.toHaveBeenCalled();
   });
 });

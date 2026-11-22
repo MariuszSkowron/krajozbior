@@ -17,7 +17,7 @@ export function FavoriteCollections({
   return (
     <section className={styles.section} aria-labelledby="ulubione-title">
       <div className={styles.sectionHead}>
-        <h2 id="ulubione-title">Ulubione kolekcje</h2>
+        <h2 id="ulubione-title">Moje kolekcje</h2>
         {collections.length === 0 ? null : (
           <Link href="/my/collections">Wszystkie moje kolekcje</Link>
         )}

@@ -6,6 +6,7 @@ import type { TransactionContext } from "@/lib/db/user-context";
 import type {
   CatalogRepository,
   CollectionRow,
+  CoverCandidate,
   CuratorCollectionSummary,
   CuratorOwnPlace,
   CuratorPlaceItem,
@@ -16,7 +17,11 @@ import type {
   SearchPlaceHit,
 } from "../application/catalog-types";
 import type { CollectionStatus, Region } from "../domain/collection";
-import { MAX_COLLECTIONS_PER_LIST, MAX_PLACES_PER_COLLECTION } from "../domain/limits";
+import {
+  MAX_COLLECTIONS_PER_LIST,
+  MAX_COVER_CANDIDATES,
+  MAX_PLACES_PER_COLLECTION,
+} from "../domain/limits";
 import { SEARCH_TIME_BUDGET_MS, foldSql, remainingBudgetMs } from "../domain/search";
 
 // Raw SQL on the transaction of the use case (user or guest context), so the
@@ -29,7 +34,8 @@ const collectionColumns = `c.id, c.slug, c.organization_id as "organizationId", 
 const returningCollection = `id, slug, organization_id as "organizationId", title,
   summary, region, status, first_published_at as "firstPublishedAt", version`;
 const placeColumns = `id, organization_id as "organizationId", name, description, address,
-  access_info as "accessInfo", latitude, longitude, visit_radius_m as "visitRadiusM", version`;
+  access_info as "accessInfo", access_restriction as "accessRestriction", latitude, longitude,
+  visit_radius_m as "visitRadiusM", version`;
 
 const first = <T>(rows: readonly T[]): T | null => rows[0] ?? null;
 
@@ -50,6 +56,23 @@ export function isSlugTaken(error: unknown): boolean {
   );
 }
 
+// The cover guard (23514 on the trigger `collections_cover_guard`): the photo is not a ready,
+// visible photo of a place in the collection. Foreign keys give 23503 for a photo that does not
+// exist, which is the same answer for the curator (the photo cannot be a cover).
+export function isCoverRejected(error: unknown): boolean {
+  const { code, constraint, cause } = (error ?? {}) as {
+    code?: unknown;
+    constraint?: unknown;
+    cause?: unknown;
+  };
+
+  return (
+    (code === "23514" && constraint === "collections_cover_guard") ||
+    code === "23503" ||
+    (cause !== undefined && isCoverRejected(cause))
+  );
+}
+
 // PostgreSQL error 57014: the statement was cancelled (the time limit of the search).
 export function isQueryCancelled(error: unknown): boolean {
   const { code, cause } = (error ?? {}) as { code?: unknown; cause?: unknown };
@@ -64,20 +87,43 @@ type CollectionCardRow = {
   region: Region;
   organizationName: string;
   placeCount: number;
+  coverPhotoId: string | null;
+  coverWidth: number | null;
+  coverHeight: number | null;
+  coverAltText: string | null;
 };
 
 const toRecentCollection = ({
   organizationName,
+  coverPhotoId,
+  coverWidth,
+  coverHeight,
+  coverAltText,
   ...rest
 }: CollectionCardRow): RecentCollection => ({
   ...rest,
   organization: { name: organizationName },
+  cover:
+    coverPhotoId === null || coverWidth === null || coverHeight === null || coverAltText === null
+      ? null
+      : { photoId: coverPhotoId, width: coverWidth, height: coverHeight, altText: coverAltText },
 });
 
-// The columns of a collection card (public fields only); the collection is `c`, its organization `o`.
+// The columns of a collection card (public fields only); the collection is `c`, its organization
+// `o`, its cover photo `cph` (see `collectionCardJoin`). A card shows the id, size and description
+// of the cover photo, never the author or any column the application role cannot read.
 const collectionCardColumns = `c.id, c.slug, c.title, c.region, o.name as "organizationName",
   (select count(*)::int from public.collection_places cp
-    where cp.collection_id = c.id) as "placeCount"`;
+    where cp.collection_id = c.id) as "placeCount",
+  cph.id as "coverPhotoId", cph.width as "coverWidth", cph.height as "coverHeight",
+  cph.alt_text as "coverAltText"`;
+
+// The cover is joined in the context of the list (the guest), so the policy of `place_photos`
+// leaves the photo only when everyone may see it (ready, not hidden, in a public collection);
+// the conditions are repeated for the reader of the query. No cover or a photo nobody may see
+// gives nulls: the card keeps the placeholder.
+const collectionCardJoin = `left join public.place_photos cph
+    on cph.id = c.cover_place_photo_id and cph.file_state = 'ready' and cph.storage_key is not null`;
 
 const LIKE = `like ? escape '\\'`;
 
@@ -181,6 +227,61 @@ export const postgresCatalogRepository: CatalogRepository = {
     return rows.length > 0;
   },
 
+  async findCollectionCoverId(tx, collectionId) {
+    const rows = await tx.em.execute<{ coverId: string | null }[]>(
+      `select c.cover_place_photo_id as "coverId"
+         from public.collections c
+        where c.id = ? and app_org_permission(c.organization_id) = 'full_edit'`,
+      [collectionId],
+    );
+
+    return rows[0]?.coverId ?? null;
+  },
+
+  async listCoverCandidates(tx, collectionId) {
+    // The photos are read as the curator (policy of `place_photos`: own organization), so a
+    // hidden photo (no grant on `hidden_at`) is dropped by the trigger on choice, not here; the
+    // list shows ready photos only and the guard has the last word.
+    return tx.em.execute<CoverCandidate[]>(
+      `select ph.id as "photoId", p.id as "placeId", p.name as "placeName",
+              ph.alt_text as "altText", ph.width, ph.height
+         from public.collection_places cp
+         join public.places p on p.id = cp.place_id
+         join public.place_photos ph on ph.place_id = p.id
+        where cp.collection_id = ? and ph.file_state = 'ready' and ph.storage_key is not null
+        order by cp.position, ph.position
+        limit ?`,
+      [collectionId, MAX_COVER_CANDIDATES],
+    );
+  },
+
+  async setCollectionCover(tx, collectionId, photoId) {
+    // A savepoint keeps the transaction usable when the guard refuses the photo (23514).
+    await tx.em.execute(`savepoint collection_cover`);
+
+    try {
+      const rows = await tx.em.execute<{ id: string }[]>(
+        `update public.collections
+            set cover_place_photo_id = ?, updated_at = now()
+          where id = ? and app_org_permission(organization_id) = 'full_edit'
+          returning id`,
+        [photoId, collectionId],
+      );
+
+      await tx.em.execute(`release savepoint collection_cover`);
+
+      return rows.length > 0;
+    } catch (error) {
+      if (isCoverRejected(error)) {
+        await tx.em.execute(`rollback to savepoint collection_cover`);
+
+        return "rejected";
+      }
+
+      throw error;
+    }
+  },
+
   async listOrganizationCollections(tx, organizationId) {
     // The driver returns timestamptz as text here.
     const rows = await tx.em.execute<
@@ -220,7 +321,8 @@ export const postgresCatalogRepository: CatalogRepository = {
   async listCollectionPlaces(tx, collectionId) {
     return tx.em.execute<CuratorPlaceItem[]>(
       `select p.id, p.organization_id as "organizationId", p.name, p.description, p.address,
-              p.access_info as "accessInfo", p.latitude, p.longitude,
+              p.access_info as "accessInfo", p.access_restriction as "accessRestriction",
+              p.latitude, p.longitude,
               p.visit_radius_m as "visitRadiusM", p.version, cp.position
          from public.collection_places cp
          join public.places p on p.id = cp.place_id
@@ -269,8 +371,9 @@ export const postgresCatalogRepository: CatalogRepository = {
   async insertPlace(tx, organizationId, values) {
     const rows = await tx.em.execute<PlaceRow[]>(
       `insert into public.places
-         (organization_id, name, description, address, access_info, latitude, longitude, visit_radius_m)
-       values (?, ?, ?, ?, ?, ?, ?, ?)
+         (organization_id, name, description, address, access_info, access_restriction,
+          latitude, longitude, visit_radius_m)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?)
        returning ${placeColumns}`,
       [
         organizationId,
@@ -278,6 +381,7 @@ export const postgresCatalogRepository: CatalogRepository = {
         values.description,
         values.address,
         values.accessInfo,
+        values.accessRestriction,
         values.latitude,
         values.longitude,
         values.visitRadiusM,
@@ -324,7 +428,7 @@ export const postgresCatalogRepository: CatalogRepository = {
       await tx.em.execute<PlaceRow[]>(
         `update public.places
             set name = ?, description = ?, address = ?, access_info = ?,
-                latitude = ?, longitude = ?, visit_radius_m = ?,
+                access_restriction = ?, latitude = ?, longitude = ?, visit_radius_m = ?,
                 version = version + 1, updated_at = now()
           where id = ? and version = ?
           returning ${placeColumns}`,
@@ -333,6 +437,7 @@ export const postgresCatalogRepository: CatalogRepository = {
           values.description,
           values.address,
           values.accessInfo,
+          values.accessRestriction,
           values.latitude,
           values.longitude,
           values.visitRadiusM,
@@ -382,7 +487,7 @@ export const postgresCatalogRepository: CatalogRepository = {
   async findPublishedCollection(tx: TransactionContext, slug) {
     const collection = first(
       await tx.em.execute<
-        (Omit<PublishedCollection, "organization" | "places" | "contentUpdatedAt"> & {
+        (Omit<PublishedCollection, "organization" | "places" | "contentUpdatedAt" | "cover"> & {
           organizationName: string;
           organizationSlug: string;
           contentUpdatedAt: string;
@@ -430,6 +535,21 @@ export const postgresCatalogRepository: CatalogRepository = {
         order by cp.position`,
       [collection.id],
     );
+    // The cover with its credit. The guest context leaves only a photo everyone may see; the
+    // application role has no grant on the `hidden_*` columns, so the query does not read them.
+    const cover = first(
+      await tx.em.execute<NonNullable<PublishedCollection["cover"]>[]>(
+        `select ph.id as "photoId", ph.width, ph.height, ph.alt_text as "altText", ph.title,
+                ph.author_text as "authorText", ph.author_url as "authorUrl",
+                ph.source_url as "sourceUrl", ph.source_kind as "sourceKind",
+                ph.license_code as "licenseCode", ph.license_url as "licenseUrl",
+                ph.license_label as "licenseLabel"
+           from public.collections c
+           join public.place_photos ph on ph.id = c.cover_place_photo_id
+          where c.id = ? and ph.file_state = 'ready' and ph.storage_key is not null`,
+        [collection.id],
+      ),
+    );
     const { organizationName, organizationSlug, contentUpdatedAt, ...rest } = collection;
 
     return {
@@ -437,41 +557,29 @@ export const postgresCatalogRepository: CatalogRepository = {
       contentUpdatedAt: new Date(contentUpdatedAt),
       organization: { name: organizationName, slug: organizationSlug },
       places,
+      cover,
     };
   },
 
   async listRecentlyPublishedCollections(tx: TransactionContext, limit) {
-    const rows = await tx.em.execute<
-      {
-        id: string;
-        slug: string;
-        title: string;
-        region: RecentCollection["region"];
-        organizationName: string;
-        placeCount: number;
-      }[]
-    >(
-      `select c.id, c.slug, c.title, c.region, o.name as "organizationName",
-              (select count(*)::int from public.collection_places cp
-                where cp.collection_id = c.id) as "placeCount"
+    const rows = await tx.em.execute<CollectionCardRow[]>(
+      `select ${collectionCardColumns}
          from public.collections c
          join public.organizations o on o.id = c.organization_id
+         ${collectionCardJoin}
         where c.status = 'published' and o.status = 'approved'
         order by c.first_published_at desc, c.id
         limit ?`,
       [limit],
     );
 
-    return rows.map(({ organizationName, ...rest }) => ({
-      ...rest,
-      organization: { name: organizationName },
-    }));
+    return rows.map(toRecentCollection);
   },
 
   async findPublishedPlace(tx: TransactionContext, id) {
     const place = first(
       await tx.em.execute<
-        (Omit<PublishedPlace, "organization" | "collections" | "source"> & {
+        (Omit<PublishedPlace, "organization" | "collections" | "source" | "cover"> & {
           organizationName: string;
           organizationSlug: string;
           attribution: string | null;
@@ -480,7 +588,7 @@ export const postgresCatalogRepository: CatalogRepository = {
         })[]
       >(
         `select p.id, p.name, p.description, p.address, p.access_info as "accessInfo",
-                p.latitude, p.longitude, p.visit_radius_m as "visitRadiusM",
+                p.access_restriction as "accessRestriction", p.latitude, p.longitude, p.visit_radius_m as "visitRadiusM",
                 o.name as "organizationName", o.slug as "organizationSlug",
                 s.attribution, s.wikipedia_url as "wikipediaUrl", s.wikidata_qid as "wikidataQid"
            from public.places p
@@ -512,6 +620,22 @@ export const postgresCatalogRepository: CatalogRepository = {
         order by c.title, c.slug`,
       [id],
     );
+    // The cover: the first ready photo by position. This runs in the guest context, so the policy
+    // of `place_photos` leaves only what everyone may see (a hidden photo never comes back); the
+    // application role has no grant on the `hidden_*` columns, so the query does not read them.
+    const cover = first(
+      await tx.em.execute<NonNullable<PublishedPlace["cover"]>[]>(
+        `select id as "photoId", width, height, alt_text as "altText", title,
+                author_text as "authorText", author_url as "authorUrl", source_url as "sourceUrl",
+                source_kind as "sourceKind", license_code as "licenseCode",
+                license_url as "licenseUrl", license_label as "licenseLabel"
+           from public.place_photos
+          where place_id = ? and file_state = 'ready' and storage_key is not null
+          order by position
+          limit 1`,
+        [id],
+      ),
+    );
     const { organizationName, organizationSlug, attribution, wikipediaUrl, wikidataQid, ...rest } =
       place;
 
@@ -520,6 +644,7 @@ export const postgresCatalogRepository: CatalogRepository = {
       organization: { name: organizationName, slug: organizationSlug },
       collections,
       source: attribution === null ? null : { attribution, wikipediaUrl, wikidataQid },
+      cover,
     };
   },
 
@@ -564,6 +689,7 @@ export const postgresCatalogRepository: CatalogRepository = {
       `select ${collectionCardColumns}
          from public.collections c
          join public.organizations o on o.id = c.organization_id
+         ${collectionCardJoin}
         where ${publishedCollection} ${region === null ? "" : "and c.region = ?"}
         order by c.title, c.id
         limit ?`,
@@ -593,6 +719,7 @@ export const postgresCatalogRepository: CatalogRepository = {
       `select ${collectionCardColumns}
          from public.collections c
          join public.organizations o on o.id = c.organization_id
+         ${collectionCardJoin}
         where ${publishedCollection} ${region === null ? "" : "and c.region = ?"}
           and (${foldSql("c.title")} ${LIKE}
             or ${foldSql("c.summary")} ${LIKE}

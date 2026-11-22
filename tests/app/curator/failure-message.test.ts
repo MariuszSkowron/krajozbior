@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { describeFailure, fieldHints, parseNumberField } from "@/app/curator/failure-message";
 
+describe("describeFailure of the cover choice (E4-3)", () => {
+  it("explains a photo that cannot be the cover and offers a reload", () => {
+    expect(describeFailure(422, { reason: "cover_not_allowed" }, "collection")).toMatchObject({
+      message: expect.stringContaining("nie może być okładką"),
+      stale: true,
+    });
+  });
+});
+
 describe("describeFailure", () => {
   it("lists the fields the server refused", () => {
     expect(describeFailure(400, { fields: ["title", 5, "summary"] }, "collection")).toEqual({
@@ -54,7 +63,7 @@ describe("describeFailure", () => {
   });
 
   it.each([
-    [401, "Sesja wygasła"],
+    [401, "Zaloguj się ponownie"],
     [403, "Nie masz uprawnień"],
     [404, "Nie znaleziono"],
     [413, "zbyt duże"],
@@ -75,6 +84,7 @@ describe("fieldHints", () => {
       "description",
       "address",
       "accessInfo",
+      "accessRestriction",
       "latitude",
       "longitude",
       "visitRadiusM",

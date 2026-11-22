@@ -72,8 +72,8 @@ export interface AlbumRepository {
   /**
    * Saves the collection for the actor if it is public in this very statement; a
    * repeated save changes nothing. `not_found`: the collection is not public (any
-   * more). `too_many`: the actor already has MAX_COLLECTIONS_PER_LIST saved
-   * collections that the list shows (D-28). The count is taken under a lock of
+   * more). `too_many`: the actor already has MAX_COLLECTIONS_PER_LIST collections on
+   * the list, own (E8-1a) and saved ones together (D-28, [P-E8-A3]). The count is taken under a lock of
    * the actor, so two simultaneous saves cannot both take the last place.
    */
   saveCollection(tx: TransactionContext, collectionId: string): Promise<SaveCollectionResult>;

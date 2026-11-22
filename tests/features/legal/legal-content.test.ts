@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { LOGIN_EMAIL_MAX_AGE_SECONDS } from "@/app/login/login-email-cookie";
 import { LEGAL_DOCUMENTS } from "@/features/legal/content";
 import { LEGAL_PAGES, isLegalPath } from "@/features/legal/domain/legal-pages";
 import { findLegalMarkers } from "@/features/legal/domain/markers";
@@ -31,10 +32,6 @@ function inlinesOf(blocks: readonly Block[]): Inline[] {
 // no longer in the texts. The hard gate is `npm run legal:final` (no marker at all), run before
 // the password comes off the service (spec 5.4a, docs/deployment.md).
 const OPEN_LEGAL_MARKERS: readonly Readonly<{ marker: string; owner: string }>[] = [
-  {
-    marker: "polityka-prywatnosci: [DO UZUPEŁNIENIA: potwierdzić w panelu Brevo]",
-    owner: "właściciel, z panelu Brevo (D-41 pkt 2)",
-  },
   {
     marker: "regulamin: [DO UZUPEŁNIENIA: data pierwszego wdrożenia]",
     owner: "w dniu wdrożenia (D-41 pkt 2)",
@@ -107,6 +104,15 @@ describe("the texts agree with the code (finding 15 of the review)", () => {
 
     expect(minutes).toBe(2);
     expect(policy).toContain(`| zapamiętanie niezapisanych zmian w profilu | ${minutes} minuty |`);
+  });
+
+  it("names the login address cookie as long as the code keeps it (D-49)", () => {
+    const minutes = LOGIN_EMAIL_MAX_AGE_SECONDS / 60;
+
+    expect(minutes).toBe(10);
+    expect(policy).toContain(
+      `| zapamiętanie adresu e-mail między krokami logowania kodem; przeglądarka wysyła go tylko na stronę logowania | ${minutes} minut;`,
+    );
   });
 
   it("gives the agreed periods of the backups and the technical logs (E11-Q12)", () => {

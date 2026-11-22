@@ -181,6 +181,7 @@ describe("public read of collections and places (guest context)", () => {
         ],
         placeCount: 2,
         contentUpdatedAt: expect.any(Date),
+        cover: null,
       },
     });
 
@@ -194,12 +195,14 @@ describe("public read of collections and places (guest context)", () => {
         description: "Opis miejsca",
         address: "Tczew",
         accessInfo: "Wejście od rynku",
+        accessRestriction: "none",
         latitude: 54.0928,
         longitude: 18.7919,
         visitRadiusM: 200,
         organization: { name: "Gmina A", slug: "gmina-a" },
         collections: [{ slug: collection.slug, title: "Publiczna" }],
         source: null,
+        cover: null,
       },
     });
   });
@@ -331,9 +334,11 @@ describe("public read of collections and places (guest context)", () => {
       region: "pomorskie",
       organization: { name: "Gmina B" },
       placeCount: 2,
+      cover: null,
     });
     // The fields are public ones only: no organization id, no version, no status.
     expect(Object.keys(list[0]!).sort()).toEqual([
+      "cover",
       "id",
       "organization",
       "placeCount",
@@ -511,6 +516,7 @@ describe("public read of collections and places (guest context)", () => {
       // Public fields only: the new ones are the number and the date, nothing of the draft.
       expect(result.status === "ok" ? Object.keys(result.value).sort() : []).toEqual([
         "contentUpdatedAt",
+        "cover",
         "id",
         "organization",
         "placeCount",

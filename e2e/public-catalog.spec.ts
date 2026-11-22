@@ -34,6 +34,8 @@ async function expectNoAccessibilityViolations(page: Page) {
 async function signInAsCurator(page: Page) {
   await page.goto("/login");
 
+  await page.getByText("Logowanie hasłem").click();
+
   const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
   await form.getByLabel("E-mail").fill("curator-a@demo.krajozbior.local");
@@ -117,6 +119,13 @@ test.describe("public catalog pages", () => {
     await expect(page.getByRole("link", { name: DEMO_TITLE })).toHaveAttribute(
       "href",
       `/collections/${DEMO_SLUG}`,
+    );
+    // E5-0: odnośnik „Zgłoś naruszenie” pod treścią miejsca wskazuje adres tej strony.
+    const report = page.getByRole("main").getByRole("link", { name: "Zgłoś naruszenie" });
+
+    await expect(report).toHaveAttribute("href", /^mailto:/);
+    expect(decodeURIComponent((await report.getAttribute("href")) ?? "")).toContain(
+      new URL(page.url()).pathname,
     );
     await expectNoAccessibilityViolations(page);
   });

@@ -141,6 +141,8 @@ describe("operator file variables (NODE_ENV=production)", () => {
 
     expect(lib).toContain(`photos:fetch) echo "${PHOTOS_FETCH_VARIABLES.join(" ")}" ;;`);
 
+    expect(lib).toContain(`photos:fetch) echo "${PHOTOS_FETCH_VARIABLES.join(" ")}" ;;`);
+
     for (const [command, names] of Object.entries(DOCUMENTED_VARIABLES)) {
       const line = doc.split("\n").find((row) => row.trimStart().startsWith(`- \`${command}\`:`));
 

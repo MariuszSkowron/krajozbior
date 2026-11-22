@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createCommonsClient,
+  isAllowedCommonsApiUrl,
   isAllowedCommonsUrl,
   MAX_RETRY_AFTER_MS,
   parseRetryAfter,
@@ -234,5 +235,135 @@ describe("commons client: waiting and failures", () => {
       ok: false,
       reason: "network_error",
     });
+  });
+});
+
+describe("commons client: version lookup", () => {
+  const apiAnswer = (overrides: Record<string, unknown> = {}) =>
+    new Response(
+      JSON.stringify({
+        query: {
+          pages: [
+            {
+              title: "File:Example.jpg",
+              imageinfo: [
+                {
+                  timestamp: "2026-01-02T03:04:05Z",
+                  url: "https://upload.wikimedia.org/wikipedia/commons/a/a9/Example.jpg",
+                  width: 3000,
+                  extmetadata: {
+                    LicenseShortName: { value: "CC BY-SA 4.0" },
+                    LicenseUrl: { value: "https://creativecommons.org/licenses/by-sa/4.0/" },
+                  },
+                },
+              ],
+              ...overrides,
+            },
+          ],
+        },
+      }),
+      { status: 200 },
+    );
+
+  it("asks the fixed API address with the user agent and without following redirects", async () => {
+    const { api, calls } = client([apiAnswer()]);
+    const result = await api.lookupVersion("File:Example.jpg");
+
+    expect(result).toMatchObject({ ok: true, info: { width: 3000, fileName: "Example.jpg" } });
+
+    const address = new URL(calls[0]!.url);
+
+    expect(address.origin + address.pathname).toBe("https://commons.wikimedia.org/w/api.php");
+    expect(address.searchParams.get("titles")).toBe("File:Example.jpg");
+    expect(calls[0]!.init.redirect).toBe("manual");
+    expect(calls[0]!.init.headers).toMatchObject({ "User-Agent": UA });
+  });
+
+  it("reports a missing page as a file that is gone", async () => {
+    const { api } = client([apiAnswer({ missing: true, imageinfo: undefined })]);
+
+    expect(await api.lookupVersion("File:Example.jpg")).toEqual({
+      ok: false,
+      reason: "file_gone",
+    });
+  });
+
+  it("refuses a name that cannot be asked for, without a request", async () => {
+    const { api, calls } = client([]);
+
+    expect(await api.lookupVersion("a/b.jpg")).toEqual({ ok: false, reason: "file_gone" });
+    expect(calls).toHaveLength(0);
+  });
+
+  it.each([
+    ["a redirect", redirect("https://commons.wikimedia.org/w/api.php")],
+    ["a server error", new Response(null, { status: 500 })],
+    ["a body that is not JSON", new Response("<html>", { status: 200 })],
+    ["an answer of another shape", new Response('{"error":{}}', { status: 200 })],
+    ["a connection that breaks", new Error("boom")],
+  ])("reports %s as an API error", async (_name, response) => {
+    expect(await client([response]).api.lookupVersion("File:Example.jpg")).toEqual({
+      ok: false,
+      reason: "api_error",
+    });
+  });
+
+  it("refuses an answer above the limit", async () => {
+    const big = new Response("x".repeat(1024 * 1024 + 1), { status: 200 });
+
+    expect(await client([big]).api.lookupVersion("File:Example.jpg")).toEqual({
+      ok: false,
+      reason: "api_error",
+    });
+  });
+
+  it("waits for Retry-After on 429 and 503, and gives up after three waits", async () => {
+    const waiting = client([
+      new Response(null, { status: 429, headers: { "retry-after": "2" } }),
+      new Response(null, { status: 503 }),
+      apiAnswer(),
+    ]);
+
+    expect(await waiting.api.lookupVersion("File:Example.jpg")).toMatchObject({ ok: true });
+    expect(waiting.sleep.mock.calls.map(([milliseconds]) => milliseconds)).toEqual([2000, 1000]);
+
+    const limited = () => new Response(null, { status: 429, headers: { "retry-after": "1" } });
+    const giving = client([limited(), limited(), limited(), limited(), apiAnswer()]);
+
+    expect(await giving.api.lookupVersion("File:Example.jpg")).toEqual({
+      ok: false,
+      reason: "api_error",
+    });
+    expect(giving.sleep).toHaveBeenCalledTimes(3);
+  });
+
+  it("times out a request that never answers", async () => {
+    const fetchImpl = ((_url: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+      })) as unknown as typeof fetch;
+    const api = createCommonsClient({ userAgent: UA, fetchImpl, timeoutMs: 20 });
+
+    expect(await api.lookupVersion("File:Example.jpg")).toEqual({
+      ok: false,
+      reason: "api_error",
+    });
+  });
+
+  it("accepts only the fixed API address", () => {
+    expect(isAllowedCommonsApiUrl(new URL("https://commons.wikimedia.org/w/api.php?a=b"))).toBe(
+      true,
+    );
+    expect(isAllowedCommonsApiUrl(new URL("http://commons.wikimedia.org/w/api.php"))).toBe(false);
+    expect(isAllowedCommonsApiUrl(new URL("https://commons.wikimedia.org/w/index.php"))).toBe(
+      false,
+    );
+    expect(isAllowedCommonsApiUrl(new URL("https://upload.wikimedia.org/w/api.php"))).toBe(false);
+    expect(isAllowedCommonsApiUrl(new URL("https://u:p@commons.wikimedia.org/w/api.php"))).toBe(
+      false,
+    );
+    expect(isAllowedCommonsApiUrl(new URL("https://commons.wikimedia.org:8443/w/api.php"))).toBe(
+      false,
+    );
   });
 });

@@ -1,8 +1,8 @@
 // Polityka prywatności: tekst publiczny, przeniesiony z roboczej wersji 0.2 (19 listopada 2026 r.)
 // bez zmian merytorycznych. Wartości z E11-Q12 (okresy przechowywania, czas sesji) są wpisane;
-// miejsca z napisem „DO UZUPEŁNIENIA” czekają na dane od właściciela (śledzenie w panelu
-// Brevo), a test w tests/features/legal/legal-content.test.ts pilnuje, żeby
-// żadne nie trafiło do ruchu publicznego.
+// wyłączone śledzenie wiadomości w Brevo potwierdził właściciel 22.11.2026 (D-49 pkt 8);
+// test w tests/features/legal/legal-content.test.ts pilnuje, żeby żaden znacznik roboczy
+// nie trafił do ruchu publicznego.
 export const POLITYKA_PRYWATNOSCI = `
 ## 1. Kto odpowiada za Twoje dane
 
@@ -63,6 +63,7 @@ Jeśli przetwarzamy dane na podstawie naszego prawnie uzasadnionego interesu, mo
 - Jeśli zgodzisz się na to osobno, możemy pokazać zdjęcie w materiałach promujących serwis. Zgodę możesz w każdej chwili cofnąć; materiałów już opublikowanych nie usuniemy, ale nie użyjemy zdjęcia w nowych materiałach.
 - Pamiętaj: zdjęcie można dodać tylko po wizycie, więc podpisane zdjęcie pokazuje innym, że byłeś lub byłaś w tym miejscu.
 - Zasady korzystania ze zdjęć opisują regulamin i oświadczenie o prawach do zdjęcia.
+- Przy zdjęciach miejsc z Wikimedia Commons pokazujemy imię i nazwisko albo pseudonim autora w postaci podanej w opisie pliku w Commons, bo wymaga tego licencja zdjęcia (nasz prawnie uzasadniony interes, art. 6 ust. 1 lit. f RODO). Jeśli jesteś autorem i nie chcesz, żebyśmy pokazywali Twoje zdjęcie, napisz do nas — zdejmiemy je.
 
 ## 6. Kto widzi Twoje dane
 
@@ -72,7 +73,7 @@ Jeśli przetwarzamy dane na podstawie naszego prawnie uzasadnionego interesu, mo
 - **Administrator serwisu** ma dostęp do danych w zakresie potrzebnym do utrzymania serwisu, moderacji i rozpatrywania zgłoszeń.
 - **Firmy przetwarzające dane na nasze zlecenie** (podmioty przetwarzające) na podstawie umowy powierzenia:
   - netcup GmbH, Emmy-Noether-Straße 10, 76131 Karlsruhe, Niemcy — serwer: baza danych, zdjęcia i kopie zapasowe w centrum danych w Norymberdze;
-  - Brevo SAS, 17 rue Salneuve, 75017 Paryż, Francja — wysyłka e-maili z kodami logowania i innych wiadomości dotyczących konta. Wyłączamy w nim śledzenie otwarć wiadomości i kliknięć w linki [DO UZUPEŁNIENIA: potwierdzić w panelu Brevo];
+  - Brevo SAS, 17 rue Salneuve, 75017 Paryż, Francja — wysyłka e-maili z kodami logowania i innych wiadomości dotyczących konta. Wyłączamy w nim śledzenie otwarć wiadomości i kliknięć w linki;
   - Hostido.pl Gałązka spółka jawna, ul. Kartuska 5, 80-103 Gdańsk — obsługa skrzynki pocztowej kontakt@mariuszskowron.pl, na którą przychodzą wiadomości od Ciebie.
 - **Organy publiczne**, jeśli zażądają danych na podstawie przepisów prawa.
 
@@ -147,7 +148,8 @@ Serwis zapisuje w Twojej przeglądarce wyłącznie informacje niezbędne do świ
 | pliki cookies logowania (z przedrostkiem „krajozbior”) | utrzymanie sesji po zalogowaniu | 30 dni od zalogowania |
 | plik cookie wyglądu | zapamiętanie wybranego wyglądu (nocny albo jasny); powstaje także bez konta, gdy zmienisz wygląd | 1 rok |
 | plik cookie szkicu profilu | zapamiętanie niezapisanych zmian w profilu | 2 minuty |
-| pamięć sesji przeglądarki (sessionStorage) | zapamiętanie adresu e-mail między krokami logowania | do zamknięcia karty |
+| plik cookie adresu logowania (z przedrostkiem „krajozbior”) | zapamiętanie adresu e-mail między krokami logowania kodem; przeglądarka wysyła go tylko na stronę logowania | 10 minut; usuwamy go po zalogowaniu, po wylogowaniu i po kliknięciu „Zmień adres” |
+| pamięć sesji przeglądarki (sessionStorage) | zapamiętanie adresu e-mail wpisanego w formularzu logowania hasłem, gdy strona odświeża się po błędnym haśle | do zamknięcia karty |
 | pamięć sesji przeglądarki (sessionStorage) | zapamiętanie, że zamknąłeś lub zamknęłaś pasek „Wersja testowa” | do zamknięcia karty |
 
 Nie używamy narzędzi analitycznych ani reklamowych. Nie prosimy więc o zgodę na pliki cookies; przepisy nie wymagają jej dla zapisów niezbędnych do świadczenia usługi, o którą prosisz (art. 399 ust. 3 ustawy z 12 lipca 2024 r. — Prawo komunikacji elektronicznej).

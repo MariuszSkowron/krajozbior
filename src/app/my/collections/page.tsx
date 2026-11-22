@@ -15,9 +15,15 @@ import {
 import { listNearbyCandidates } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
+import { CollectionCard } from "@/design-system/components/collection-card";
+import { StatusBadge } from "@/design-system/components/status-badge";
+import { listOwnCollections } from "@/features/own-collections/application/own-collections";
+import { OWN_REGION_LABELS } from "@/features/own-collections/domain/own-collection";
+import { getOwnCollectionsDeps } from "@/features/own-collections/infrastructure/own-collections-deps";
 
 import catalog from "../../catalog.module.css";
 import styles from "./collections.module.css";
+import ownStyles from "./own/own.module.css";
 import { SavedCollectionsList, type SavedCollectionItem } from "./saved-collections-list";
 
 // Private page: rendered on every request, never cached by a shared cache.
@@ -50,19 +56,25 @@ export default async function MyCollectionsPage({ searchParams }: { searchParams
   const params = await searchParams;
   const filter = parseProgressFilter(params.stan);
   let result;
+  let ownResult;
 
   try {
-    result = await listMyCollectionsWithProgress(actor, getAlbumDeps());
+    // Two independent reads, one after the other would only make the page slower.
+    [result, ownResult] = await Promise.all([
+      listMyCollectionsWithProgress(actor, getAlbumDeps()),
+      listOwnCollections(actor, getOwnCollectionsDeps()),
+    ]);
   } catch (error) {
     logReadFailure("My collections read", error);
     // Handled by error.tsx next to this page: a server error with a Polish message.
     throw new Error("My collections read failed");
   }
 
-  if (result.status !== "ok") {
+  if (result.status !== "ok" || ownResult.status !== "ok") {
     redirect(loginHref("/my/collections"));
   }
 
+  const own = ownResult.value;
   const collections = result.value;
   const candidates = collections.length === 0 ? null : await loadNearbyCandidates();
   const candidateOf = new Map((candidates ?? []).map((candidate) => [candidate.slug, candidate]));
@@ -87,8 +99,39 @@ export default async function MyCollectionsPage({ searchParams }: { searchParams
     <div className={`content-width ${catalog.page}`}>
       <header className={catalog.header}>
         <h1>Moje kolekcje</h1>
-        <p className={catalog.summary}>Kolekcje, które zapisałeś, razem z Twoim postępem.</p>
+        <p className={catalog.summary}>
+          Kolekcje, które zapisałeś, i Twoje własne, razem z Twoim postępem.
+        </p>
       </header>
+      <section className={catalog.section} aria-labelledby="moje">
+        <div className={ownStyles.sectionHead}>
+          <h2 id="moje">Moje własne kolekcje ({own.length})</h2>
+          <Link className="button button--primary" href="/my/collections/own/new">
+            Nowa kolekcja
+          </Link>
+        </div>
+        {own.length === 0 ? (
+          <p className={ownStyles.muted}>
+            Nie masz jeszcze własnych kolekcji. Własna kolekcja jest prywatna: widzisz ją tylko Ty.
+          </p>
+        ) : (
+          <ul className={styles.grid}>
+            {own.map((collection) => (
+              <li key={collection.id}>
+                <CollectionCard
+                  href={`/my/collections/own/${collection.id}`}
+                  title={collection.title}
+                  regionLabel={OWN_REGION_LABELS[collection.region]}
+                  progress={{ visited: collection.visited, total: collection.total }}
+                />
+                <p className={styles.cardNote}>
+                  <StatusBadge tone="neutral">Prywatna</StatusBadge>
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
       {collections.length === 0 ? (
         <section className={styles.empty} aria-labelledby="pusto">
           <h2 id="pusto">Nie masz jeszcze zapisanych kolekcji</h2>

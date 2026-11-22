@@ -4,7 +4,7 @@ import type { TransactionContext } from "@/lib/db/user-context";
 
 import type { CollectionInput, CollectionStatus, Region } from "../domain/collection";
 import type { NearbyCandidate } from "../domain/nearby";
-import type { PlaceInput } from "../domain/place";
+import type { AccessRestriction, PlaceInput } from "../domain/place";
 
 // What a curator sees of a collection and a place of the own organization.
 export type CollectionRow = Readonly<{
@@ -37,8 +37,22 @@ export type CuratorPlaceItem = Readonly<PlaceRow & { position: number }>;
 
 export type CuratorOwnPlace = Readonly<{ id: string; name: string; address: string }>;
 
+/** A ready, visible photo of a place of the collection that may become its cover (E4-3). */
+export type CoverCandidate = Readonly<{
+  photoId: string;
+  placeId: string;
+  placeName: string;
+  altText: string;
+  width: number;
+  height: number;
+}>;
+
 export type CuratorCollectionDetail = Readonly<{
   collection: CollectionRow;
+  /** The chosen cover photo, or `null` (the card shows the placeholder, docs#39 AC2). */
+  coverPlacePhotoId: string | null;
+  /** Photos the curator can choose from: ready, not hidden, of places in this collection. */
+  coverCandidates: readonly CoverCandidate[];
   places: readonly CuratorPlaceItem[];
   /** Places of the same organization that are not in this collection yet. */
   otherPlaces: readonly CuratorOwnPlace[];
@@ -70,6 +84,16 @@ export type PublishedCollection = Readonly<{
    * places. Removing a place does not move it (no trace is kept without a migration, D-E12-2).
    */
   contentUpdatedAt: Date;
+  /** The cover photo with what its credit needs (E4-3), or `null` (no cover chosen). */
+  cover: PlaceCover | null;
+}>;
+
+/** The cover on a card: a small photo of the collection, public fields only (E4-3). */
+export type CollectionCover = Readonly<{
+  photoId: string;
+  width: number;
+  height: number;
+  altText: string;
 }>;
 
 // One card of "Kolekcje do odkrycia" on the home page: public fields only.
@@ -80,6 +104,8 @@ export type RecentCollection = Readonly<{
   region: Region;
   organization: Readonly<{ name: string }>;
   placeCount: number;
+  /** The cover photo (E4-3); `null` keeps the placeholder background of the card. */
+  cover: CollectionCover | null;
 }>;
 
 // One place found by the public search: the first public collection (alphabetically) it lies in.
@@ -110,6 +136,8 @@ export type PublishedPlace = Readonly<{
   description: string;
   address: string;
   accessInfo: string;
+  /** E1-S11: `none` or why the grounds should not be entered (private, fenced, ruin). */
+  accessRestriction: AccessRestriction;
   latitude: number;
   longitude: number;
   visitRadiusM: number;
@@ -117,6 +145,24 @@ export type PublishedPlace = Readonly<{
   collections: readonly Readonly<{ slug: string; title: string }>[];
   /** Only a place made from a loaded file has one (`place_sources`); other places keep `null`. */
   source: PublishedPlaceSource | null;
+  /** The first public photo of the place (D-E4-7) with what its credit needs, or `null`. */
+  cover: PlaceCover | null;
+}>;
+
+/** A public photo of a place, as the place page shows it: size of the file and the credit. */
+export type PlaceCover = Readonly<{
+  photoId: string;
+  width: number;
+  height: number;
+  altText: string;
+  title: string | null;
+  authorText: string;
+  authorUrl: string | null;
+  sourceUrl: string | null;
+  sourceKind: "own" | "third_party" | "commons_import";
+  licenseCode: string;
+  licenseUrl: string | null;
+  licenseLabel: string;
 }>;
 
 export type PublishedPlaceSource = Readonly<{
@@ -171,6 +217,23 @@ export interface CatalogRepository {
     slug: string,
   ): Promise<CollectionRow | null | "slug_taken">;
   deleteCollection(tx: TransactionContext, id: string): Promise<boolean>;
+  /** The cover photo id of an editable collection (`null`: none). */
+  findCollectionCoverId(tx: TransactionContext, collectionId: string): Promise<string | null>;
+  /** Ready, not hidden photos of the places of the collection, in the order of the places. */
+  listCoverCandidates(
+    tx: TransactionContext,
+    collectionId: string,
+  ): Promise<readonly CoverCandidate[]>;
+  /**
+   * Sets or clears (`null`) the cover. `"rejected"` when the database refuses the photo
+   * (it is not a ready, visible photo of a place in this collection, error 23514); the
+   * transaction stays usable after it. `false` when no editable collection has this id.
+   */
+  setCollectionCover(
+    tx: TransactionContext,
+    collectionId: string,
+    photoId: string | null,
+  ): Promise<boolean | "rejected">;
   /** Collections of one organization, newest change first, at most MAX_COLLECTIONS_PER_LIST (curator list). */
   listOrganizationCollections(
     tx: TransactionContext,
@@ -299,5 +362,5 @@ export type CuratorOutcome<T> =
     }>
   | Readonly<{
       status: "unprocessable";
-      reason: "no_places" | "already_published" | "not_published";
+      reason: "no_places" | "already_published" | "not_published" | "cover_not_allowed";
     }>;

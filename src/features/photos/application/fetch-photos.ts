@@ -6,6 +6,7 @@ import { MediaProcessingError } from "@/features/media/domain/processing-error";
 import type { ProcessedImage } from "@/features/media/infrastructure/image-processor";
 
 import { buildCommonsThumbUrl } from "../domain/commons-url";
+import { decideVersion, type CommonsVersionLookup } from "../domain/commons-version";
 import type { CommonsFetchResult } from "../infrastructure/commons-http";
 
 // `photos:fetch` (E4-2a, spec 5.5 i 5.11.5): wiersze `commons_import` w stanie `pending_fetch`
@@ -24,6 +25,9 @@ export type PendingPhoto = Readonly<{
   commonsFile: string;
   sourceWidth: number | null;
   fetchAttempts: number;
+  /** Dzień przebiegu doboru; wersja pliku nowsza niż on jest odrzucana. */
+  retrievedAt: Date | null;
+  licenseCode: string;
 }>;
 
 export type MarkReadyValues = Readonly<{
@@ -75,10 +79,71 @@ export async function requeueMissingFiles(
   return requeued;
 }
 
+export type OgBackfillReport = Readonly<{
+  /** Zdjęcia, które dostały nowy `og.jpg`. */
+  created: number;
+  /** Zdjęcia bez `main.webp` albo takie, z których nie udało się zrobić JPEG. */
+  failed: number;
+  /** Przebieg przerwany: `space_unreadable` albo `uploads_paused`. */
+  stoppedBy?: string;
+}>;
+
+/**
+ * `--backfill-og`: jednorazowe uzupełnienie `og.jpg` dla zdjęć `ready` pobranych przed E4-3.
+ * Jedno zdjęcie naraz (jeden proces potomny), każdy zapis atomowy z `fsync`; zdjęcia, które już
+ * mają `og.jpg`, są pomijane, więc polecenie można powtarzać.
+ */
+export async function backfillOgFiles(
+  deps: Pick<PhotoFetchDeps, "repository" | "storage" | "makeOg" | "checkSpace">,
+  limit: number = Number.POSITIVE_INFINITY,
+): Promise<OgBackfillReport> {
+  let created = 0;
+  let failed = 0;
+
+  for (const row of await deps.repository.listReady()) {
+    // `limit` liczy zdjęcia obrobione w tym przebiegu (udane i nieudane); reszta przy kolejnym.
+    if (created + failed >= limit) {
+      break;
+    }
+
+    // `read` daje `null` także dla pliku o zerowej długości (przerwany zapis), który trzeba zastąpić.
+    if ((await deps.storage.read("place", row.storageKey, "og")) !== null) {
+      continue;
+    }
+
+    const space = await deps.checkSpace();
+
+    if (!space.ok) {
+      return { created, failed, stoppedBy: space.reason };
+    }
+
+    const main = await deps.storage.read("place", row.storageKey, "main");
+
+    if (main === null) {
+      failed += 1;
+      continue;
+    }
+
+    try {
+      await deps.storage.storeOg("place", row.storageKey, await deps.makeOg(main));
+      created += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+
+  return { created, failed };
+}
+
 export type PhotoFetchDeps = Readonly<{
   repository: PhotoFetchRepository;
   download: (address: string) => Promise<CommonsFetchResult>;
+  /** Pytanie do API Commons o bieżącą wersję pliku (tuż przed pobraniem miniatury). */
+  lookupVersion: (commonsFile: string) => Promise<CommonsVersionLookup>;
+  /** Obróbka pobranego pliku (proces potomny); dla zdjęć oficjalnych z `ogJpeg: true`. */
   process: (bytes: Uint8Array) => Promise<ProcessedImage>;
+  /** JPEG do `og:image` z istniejącego `main.webp` (proces potomny); tylko dla `--backfill-og`. */
+  makeOg: (main: Uint8Array) => Promise<Uint8Array>;
   storage: MediaStorage;
   checkSpace: () => Promise<FreeSpaceVerdict>;
   sleep: (milliseconds: number) => Promise<void>;
@@ -115,6 +180,23 @@ async function fetchOne(deps: PhotoFetchDeps, photo: PendingPhoto): Promise<Outc
     return { ok: false, reason: "bad_source" };
   }
 
+  // Miniatura zawsze pochodzi z wersji bieżącej, a każdy może wgrać nową. Pobieramy tylko wersję
+  // nie nowszą niż dzień doboru, pod tą samą nazwą i z tą samą licencją; inaczej koniec bez prób.
+  const verdict = decideVersion(await deps.lookupVersion(photo.commonsFile), {
+    commonsFile: photo.commonsFile,
+    sourceWidth: photo.sourceWidth,
+    licenseCode: photo.licenseCode,
+    retrievedAt: photo.retrievedAt,
+  });
+
+  if (!verdict.ok) {
+    return {
+      ok: false,
+      reason: verdict.reason,
+      ...(verdict.reason === "api_error" ? {} : { final: true }),
+    };
+  }
+
   const downloaded = await deps.download(address);
 
   if (!downloaded.ok) {
@@ -138,7 +220,13 @@ async function fetchOne(deps: PhotoFetchDeps, photo: PendingPhoto): Promise<Outc
   const sha = createHash("sha256").update(processed.main).digest();
 
   try {
-    await deps.storage.store("place", key, { main: processed.main, w400: processed.thumb });
+    // JPEG do podglądu linku (`og`) powstaje tu, w procesie potomnym obróbki, i trafia na dysk
+    // razem z resztą (trasa `/media` tylko go serwuje).
+    await deps.storage.store("place", key, {
+      main: processed.main,
+      w400: processed.thumb,
+      ...(processed.og === undefined ? {} : { og: processed.og }),
+    });
   } catch {
     return { ok: false, reason: "storage_failed" };
   }

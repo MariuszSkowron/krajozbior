@@ -16,8 +16,12 @@ import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-
 
 import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
+import { ReportContentLink } from "../../report-content-link";
 import { PinnedAction } from "./pinned-action";
+import { PlaceAccessNotice } from "./place-access-notice";
+import { PlacePhoto } from "./place-photo";
 import { PlaceSources } from "./place-sources";
+import reportStyles from "./report-link.module.css";
 import { VisitConfirmation } from "./visit-confirmation";
 import visitStyles from "./visit-confirmation.module.css";
 import { WantToSeeButton } from "./want-to-see-button";
@@ -112,8 +116,10 @@ export default async function PlacePage({ params }: { params: Params }) {
     <div className={`content-width ${styles.page}`}>
       <header className={styles.header}>
         <h1>{place.name}</h1>
-        <p className={styles.meta}>Prowadzi: {place.organization.name}</p>
+        <p className={styles.meta}>Kurator: {place.organization.name}</p>
       </header>
+      <PlaceAccessNotice restriction={place.accessRestriction} />
+      {place.cover === null ? null : <PlacePhoto cover={place.cover} placeName={place.name} />}
       <dl className={styles.facts}>
         {place.address === "" ? null : (
           <div>
@@ -140,7 +146,7 @@ export default async function PlacePage({ params }: { params: Params }) {
         {visit.kind === "guest" ? (
           <div className={albumStyles.guestAction}>
             <Link className="button button--primary" href={visit.loginHref}>
-              Zaloguj się, aby potwierdzić wizytę lub zapisać na Chcę zobaczyć
+              Zaloguj się, aby potwierdzić wizytę lub zapisać na „Chcę zobaczyć”
             </Link>
             <p className={albumStyles.feedback}>Po zalogowaniu wrócisz na tę stronę.</p>
           </div>
@@ -152,11 +158,15 @@ export default async function PlacePage({ params }: { params: Params }) {
                   <StatusBadge tone="success">Odwiedzone</StatusBadge>
                 </p>
               </PinnedAction>
-              <p>Masz już zapisaną wizytę w tym miejscu.</p>
               {visit.wanted === true ? <WantToSeeButton placeId={place.id} initialWanted /> : null}
             </div>
           ) : (
-            <VisitConfirmation placeId={place.id} initialWanted={visit.wanted} past={visit.past} />
+            <VisitConfirmation
+              placeId={place.id}
+              initialWanted={visit.wanted}
+              past={visit.past}
+              radiusM={place.visitRadiusM}
+            />
           )
         ) : visit.kind === "unavailable" ? (
           <p className={albumStyles.feedback}>
@@ -176,6 +186,9 @@ export default async function PlacePage({ params }: { params: Params }) {
           ))}
         </ul>
       </section>
+      <p className={reportStyles.report}>
+        <ReportContentLink path={`/places/${place.id}`} title={place.name} />
+      </p>
     </div>
   );
 }

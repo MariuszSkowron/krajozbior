@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CollectionCard } from "@/design-system/components/collection-card";
 import type { RecentCollection } from "@/features/catalog/application/catalog-types";
+import { cardCoverImage } from "@/features/catalog/domain/collection-cover";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
 import { formatPlaceCount } from "@/features/catalog/domain/place-count";
 
@@ -33,6 +34,7 @@ export function CollectionsToDiscover({
                 href={`/collections/${collection.slug}`}
                 title={collection.title}
                 regionLabel={REGION_LABELS[collection.region]}
+                cover={cardCoverImage(collection.cover)}
               />
               <p className={styles.cardNote}>
                 {formatPlaceCount(collection.placeCount)} · {collection.organization.name}
