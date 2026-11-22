@@ -175,7 +175,6 @@ describe("PostgreSQL migrations and transactions", () => {
                 to_regclass('public.collections')::text as collections,
                 (select count(*) from pg_policies
                   where tablename in ('collections', 'collection_places', 'places')
-                    and policyname not like 'collections_owner_cover_%'
                     and 'krajozbior_owner' = any (roles))::text as "ownerPolicies"`,
         [],
         "get",

@@ -207,47 +207,49 @@ describe("collection cover", () => {
     expect(await privilege("krajozbior_auth", "update")).toBe(false);
   });
 
-  it("lets nobody call the trigger functions directly; only the app role may call the hidden check", async () => {
-    const callable = await admin$<{ proname: string }>(
-      `select p.proname
+  it("lets nobody call the trigger functions directly, and no role but the superuser gets a policy for them", async () => {
+    const callable = await admin$<{ proname: string; definer: boolean }>(
+      `select p.proname, p.prosecdef as definer
          from pg_proc p
-        where p.proname in ('collections_cover_guard', 'place_photos_clear_cover',
-                            'collection_places_clear_cover')
+        where p.proname in ('collections_cover_guard', 'collection_places_clear_cover')
           and (has_function_privilege('krajozbior_app', p.oid, 'execute')
-            or has_function_privilege('krajozbior_ops', p.oid, 'execute'))`,
+            or has_function_privilege('krajozbior_ops', p.oid, 'execute')
+            or has_function_privilege('krajozbior_auth', p.oid, 'execute')
+            or p.prosecdef)`,
     );
 
+    // Neither is callable by a role, and neither is `security definer` (they run with the rights
+    // of the writer, so the owner role needs no policy for them).
     expect(callable).toEqual([]);
 
-    const hidden = await admin$<{ app: boolean; ops: boolean; auth: boolean; definer: boolean }>(
-      `select has_function_privilege('krajozbior_app', p.oid, 'execute') as app,
-              has_function_privilege('krajozbior_ops', p.oid, 'execute') as ops,
-              has_function_privilege('krajozbior_auth', p.oid, 'execute') as auth,
-              p.prosecdef as definer
-         from pg_proc p
-        where p.proname = 'collection_cover_photo_hidden'`,
+    const ownerPolicies = await admin$<{ policyname: string }>(
+      `select policyname from pg_policies
+        where tablename in ('collections', 'collection_places', 'places', 'visits')
+          and 'krajozbior_owner' = any (roles) and policyname like '%cover%'`,
     );
 
-    expect(hidden).toEqual([{ app: true, ops: false, auth: false, definer: true }]);
+    expect(ownerPolicies).toEqual([]);
   });
 
-  it("tells whether a photo is hidden only to a curator of its organization", async () => {
-    const place = await newPlace(orgA);
-    const visible = await photo(place, orgA);
-    const hiddenPhoto = await photo(place, orgA);
+  it("keeps the eligibility column of `place_photos` away from the app role (it would tell a hidden photo)", async () => {
+    const allowed = async (role: string, column: string, privilege: string) =>
+      (
+        await admin$<{ allowed: boolean }>(
+          `select has_column_privilege($1, $2, $3, $4) as allowed`,
+          [role, "public.place_photos", column, privilege],
+        )
+      )[0]!.allowed;
 
-    await admin$(`update public.place_photos set hidden_at = now() where id = $1`, [hiddenPhoto]);
+    for (const role of ["krajozbior_app", "krajozbior_ops", "krajozbior_auth"]) {
+      expect(await allowed(role, "cover_eligible", "select")).toBe(false);
+      expect(await allowed(role, "cover_eligible", "update")).toBe(false);
+      expect(await allowed(role, "cover_eligible", "insert")).toBe(false);
+    }
 
-    const ask = async (actor: { id: string }, photoId: string) =>
-      (await as(actor, `select public.collection_cover_photo_hidden(?) as hidden`, [photoId]))[0]!
-        .hidden;
-
-    expect(await ask(curA, hiddenPhoto)).toBe(true);
-    expect(await ask(curA, visible)).toBe(false);
-    // Another organization, an account without a membership and a missing photo: always false.
-    expect(await ask(curB, hiddenPhoto)).toBe(false);
-    expect(await ask(explorer, hiddenPhoto)).toBe(false);
-    expect(await ask(curA, randomUUID())).toBe(false);
+    // A generated column: nobody writes it, not even a superuser.
+    await expect(
+      admin$(`update public.place_photos set cover_eligible = true where false`),
+    ).rejects.toThrow(/generated column/);
   });
 
   describe("who may set the cover", () => {
@@ -355,8 +357,17 @@ describe("collection cover", () => {
 
       await admin$(`update public.place_photos set hidden_at = now() where id = $1`, [hidden]);
 
+      // Not ready: the guard (23514). Hidden: the foreign key on `(id, cover_eligible)` (23503),
+      // because the app role cannot read `hidden_at`; the use case answers both the same way.
       await expect(setRaw(curA, collection.id, pending)).rejects.toThrow(guardRejected);
-      await expect(setRaw(curA, collection.id, hidden)).rejects.toThrow(guardRejected);
+      await expect(setRaw(curA, collection.id, hidden)).rejects.toThrow(
+        /collections_cover_place_photo_fkey/,
+      );
+      for (const placePhotoId of [pending, hidden]) {
+        expect(
+          await setCollectionCover(asActor(curA), collection.id, { placePhotoId }, deps),
+        ).toEqual({ status: "unprocessable", reason: "cover_not_allowed" });
+      }
       expect(await coverOf(collection.id)).toBeNull();
     });
 
@@ -452,28 +463,30 @@ describe("collection cover", () => {
       expect(await getPublishedCollection(collection.slug, deps)).toEqual({ status: "not_found" });
     });
 
-    it("keeps no cover on a card when the photo is no longer visible to a guest", async () => {
+    it("shows no cover on the page and the card once the photo is hidden, and does not bring it back when it is shown again", async () => {
       const place = await newPlace(orgA);
       const photoId = await photo(place, orgA);
       const collection = await newCollection(orgA, [place], true);
 
       await setCollectionCover(asActor(curA), collection.id, { placePhotoId: photoId }, deps);
-      // The trigger clears it; even before it, the policy of `place_photos` leaves no hidden photo.
-      await admin$(`alter table public.place_photos disable trigger place_photos_clear_cover`);
+      await admin$(`update public.place_photos set hidden_at = now() where id = $1`, [photoId]);
 
-      try {
-        await admin$(`update public.place_photos set hidden_at = now() where id = $1`, [photoId]);
-
-        const page = await getPublishedCollection(collection.slug, deps);
-        const card = (await listRecentlyPublishedCollections(200, deps)).find(
+      const cardOf = async () =>
+        (await listRecentlyPublishedCollections(200, deps)).find(
           (item) => item.id === collection.id,
         );
+      const page = await getPublishedCollection(collection.slug, deps);
 
-        expect(page.status === "ok" && page.value.cover).toBeNull();
-        expect(card?.cover).toBeNull();
-      } finally {
-        await admin$(`alter table public.place_photos enable trigger place_photos_clear_cover`);
-      }
+      expect(page.status === "ok" && page.value.cover).toBeNull();
+      expect((await cardOf())?.cover).toBeNull();
+
+      // The photo is shown again: the cover stays empty until the curator chooses it again.
+      await admin$(`update public.place_photos set hidden_at = null where id = $1`, [photoId]);
+      expect(await coverOf(collection.id)).toBeNull();
+      expect((await cardOf())?.cover).toBeNull();
+
+      await setCollectionCover(asActor(curA), collection.id, { placePhotoId: photoId }, deps);
+      expect((await cardOf())?.cover).toMatchObject({ photoId });
     });
   });
 

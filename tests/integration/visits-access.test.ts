@@ -504,30 +504,11 @@ describe("visits and the visit function", () => {
       const [{ n }] = await admin$<{ n: string }>(
         `select count(*) as n from pg_policies
           where schemaname = 'public' and 'krajozbior_owner' = any (roles)
-            and tablename in ('collections', 'collection_places', 'places', 'visits')
-            and policyname not like 'collections_owner_cover_%'`,
+            and tablename in ('collections', 'collection_places', 'places', 'visits')`,
       );
 
       // collections, collection_places, places: SELECT; visits: SELECT and INSERT.
       expect(Number(n)).toBe(5);
-      // The two policies of the cover cleanup (E4-3) are counted apart and exactly: they see only
-      // collections that have a cover, and the only write they allow clears the cover.
-      const coverPolicies = await admin$<{
-        cmd: string;
-        qual: string | null;
-        with_check: string | null;
-      }>(
-        `select cmd, qual, with_check from pg_policies
-          where tablename = 'collections' and 'krajozbior_owner' = any (roles)
-            and policyname like 'collections_owner_cover_%'
-          order by cmd`,
-      );
-
-      expect(coverPolicies.map(({ cmd }) => cmd)).toEqual(["SELECT", "UPDATE"]);
-      expect(coverPolicies.every(({ qual }) => qual === "(cover_place_photo_id IS NOT NULL)")).toBe(
-        true,
-      );
-      expect(coverPolicies[1]!.with_check).toBe("(cover_place_photo_id IS NULL)");
       const visitPolicies = await admin$<{ cmd: string; with_check: string | null }>(
         `select cmd, with_check from pg_policies
           where tablename = 'visits' and 'krajozbior_owner' = any (roles) order by cmd`,
