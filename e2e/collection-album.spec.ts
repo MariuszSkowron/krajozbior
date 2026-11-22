@@ -6,7 +6,7 @@ import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
 
 // E12-4: the collection page as an album: header, state filter (works without JavaScript),
-// grid of cards (a card is a plain link to the place; the card "Wybrane miejsce" is gone, D-49). Needs a
+// grid of cards (a card is a plain link to the place; the selected-place card is gone, D-49). Needs a
 // migrated, seeded database like the other specs that sign in; without it the spec is skipped.
 // The cleanup deletes rows of the demo explorers straight in the database, so it runs only
 // against the disposable E2E database (parseE2eAdminDatabaseUrl).

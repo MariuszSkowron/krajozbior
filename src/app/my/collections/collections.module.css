@@ -85,11 +85,11 @@
   width: 1em;
   height: 1em;
   margin-inline-start: var(--space-sm);
-  border: 2px solid currentColor;
+  border: var(--focus-ring-width) solid currentColor;
   border-inline-end-color: transparent;
   border-radius: 50%;
   vertical-align: -0.125em;
-  animation: spin 800ms linear infinite;
+  animation: spin var(--motion-duration-enter) linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -250,6 +250,7 @@ test.describe("the map view of a collection", () => {
     // The skip link is hidden visually and appears when it has the focus (K-26).
     const skip = page.getByRole("link", { name: "Pomiń mapę" });
 
+    expect((await skip.boundingBox())?.width ?? 0).toBeLessThanOrEqual(1);
     await skip.focus();
     expect((await skip.boundingBox())?.width ?? 0).toBeGreaterThan(20);
     await page.keyboard.press("Enter");

@@ -99,7 +99,7 @@ test.describe("saved collections", () => {
     page,
   }) => {
     await page.goto(`/collections/${DEMO_SLUG}`);
-    await page.getByRole("link", { name: "Zapisuję kolekcję" }).click();
+    await page.getByRole("link", { name: "Zaloguj się, aby zapisać kolekcję" }).click();
 
     await expect(page).toHaveURL(
       new RegExp(`/login\\?returnTo=${encodeURIComponent(`/collections/${DEMO_SLUG}`)}$`),

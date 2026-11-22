@@ -161,7 +161,7 @@ export default async function CollectionPage({
         {album.kind === "guest" ? (
           <div className={albumStyles.guestAction}>
             <Link className="button button--primary" href={album.loginHref}>
-              Zapisuję kolekcję
+              Zaloguj się, aby zapisać kolekcję
             </Link>
             <p className={albumStyles.feedback}>
               Aby zapisać kolekcję, zalogujesz się i wrócisz tutaj.

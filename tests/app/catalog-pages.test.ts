@@ -694,7 +694,7 @@ describe("public catalog pages", () => {
         expect(html).not.toContain("Filtr miejsc");
         expect(html).toContain(`href="/places/${second.id}"`);
         expect(html).toContain("Brama");
-        expect(html).toContain("Zapisuję kolekcję");
+        expect(html).toContain("Zaloguj się, aby zapisać kolekcję");
       });
     });
   });

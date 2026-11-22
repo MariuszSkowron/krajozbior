@@ -48,23 +48,33 @@
 .mapBlock {
   display: grid;
   gap: var(--space-sm);
+  position: relative;
 }
 
 /* Link „Pomiń mapę”: ukryty wizualnie, ale dostępny dla czytników i klawisza Tab; po fokusie
-   pojawia się nad mapą (WCAG 2.4.1). Nie wolno go usuwać ani chować przez display/visibility. */
+   nakłada się na lewy górny róg mapy, bez przesuwania układu (jak „Przejdź do treści”, WCAG
+   2.4.1). Nie wolno go usuwać ani chować przez display/visibility. Warstwa 1100 leży nad
+   panelami i kontrolkami mapy (Leaflet do 1000). */
 .skipLink {
-  justify-self: start;
-  min-height: var(--size-touch-min);
+  position: absolute;
+  inset-block-start: var(--space-sm);
+  inset-inline-start: var(--space-sm);
+  z-index: 1100;
   display: inline-flex;
   align-items: center;
+  min-height: var(--size-touch-min);
+  padding-inline: var(--space-md);
+  background: var(--color-surface-card);
   color: var(--color-text-accent);
+  font-weight: var(--font-weight-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-overlay);
 }
 
 .skipLink:not(:focus) {
-  position: absolute;
   width: 1px;
   height: 1px;
-  margin: -1px;
+  min-height: 0;
   padding: 0;
   overflow: hidden;
   clip-path: inset(50%);
