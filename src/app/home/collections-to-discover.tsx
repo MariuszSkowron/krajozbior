@@ -45,8 +45,14 @@ function problemOf(error: GeolocationPositionError): NearbyProblem {
 // A little more than the 10 s timeout passed to the geolocation API.
 const NEARBY_CLIENT_TIMEOUT_MS = 12_000;
 
+// "pending": the server and the first render in the browser (hydration), so the button is not
+// shown before the component is ready in the browser. "unsupported": no geolocation at all.
+type Support = "pending" | "supported" | "unsupported";
+
 const noSubscription = () => () => undefined;
-const hasGeolocation = () => typeof navigator !== "undefined" && "geolocation" in navigator;
+const browserSupport = (): Support =>
+  typeof navigator !== "undefined" && "geolocation" in navigator ? "supported" : "unsupported";
+const serverSupport = (): Support => "pending";
 
 // The collections themselves are sorted by distance; one without a known distance (no place with
 // a position) goes last, in its original order.
@@ -78,8 +84,8 @@ export function CollectionsToDiscover({
 }>) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const busy = useRef(false);
-  // The server renders the button; a browser without geolocation drops it after hydration.
-  const supported = useSyncExternalStore(noSubscription, hasGeolocation, () => true);
+  // The button is rendered only in the browser, after hydration, and only with geolocation.
+  const support = useSyncExternalStore(noSubscription, browserSupport, serverSupport);
 
   const attempt = useRef(0);
 
@@ -167,7 +173,7 @@ export function CollectionsToDiscover({
         <>
           {canSort ? (
             <div className={styles.sortBar}>
-              {supported ? (
+              {support === "supported" ? (
                 <>
                   <button
                     type="button"
@@ -181,7 +187,7 @@ export function CollectionsToDiscover({
                 </>
               ) : null}
               <p role="status" className={styles.sortStatus}>
-                {supported ? message : nearbyProblemMessage("unsupported")}
+                {support === "unsupported" ? nearbyProblemMessage("unsupported") : message}
               </p>
             </div>
           ) : null}

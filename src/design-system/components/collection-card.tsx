@@ -5,11 +5,12 @@ import { CollectionProgress } from "./collection-progress";
 import styles from "./collection-card.module.css";
 
 // Karta kolekcji: okładka (zdjęcie wybrane przez kuratora, E4-3) albo, gdy jej nie ma, pole
-// zastępcze (jasne tło z pinezką), region wersalikami w kroju mono, nazwa szeryfem i postęp „9/24”. Zdjęcie
-// ma tekst alternatywny, tło zastępcze jest ozdobą (`aria-hidden`). Cała karta jest jednym linkiem, więc nie ma
-// zagnieżdżonych elementów interaktywnych; nazwa to nagłówek wewnątrz linku (domyślnie `h3`,
-// poziom ustawia `headingLevel`, żeby hierarchia na ekranie nie przeskakiwała), żeby czytnik
-// ekranu mógł po niej nawigować. Komponent przyjmuje proste dane: nie zna reguł domeny.
+// zastępcze (jasne tło z pinezką), region wersalikami w kroju mono, nazwa szeryfem i postęp
+// „9/24”. Zdjęcie ma tekst alternatywny, tło zastępcze jest ozdobą (`aria-hidden`). Cała karta
+// jest jednym linkiem, więc nie ma zagnieżdżonych elementów interaktywnych; nazwa to nagłówek
+// wewnątrz linku (domyślnie `h3`, poziom ustawia `headingLevel`, żeby hierarchia na ekranie nie
+// przeskakiwała), żeby czytnik ekranu mógł po niej nawigować. Komponent przyjmuje proste dane:
+// nie zna reguł domeny.
 // Karta z odznaką lub tekstem w kolorze akcentu nie zmienia tła po najechaniu (obrys i cień).
 export function CollectionCard({
   href,

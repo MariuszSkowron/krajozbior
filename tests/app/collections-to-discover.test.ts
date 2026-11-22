@@ -7,7 +7,11 @@ import type { NearbyCandidate } from "@/features/catalog/domain/nearby";
 
 // No DOM in unit tests: the hooks are replaced by a small store that survives repeated calls of
 // the component function (the same approach as tests/app/visit-confirmation.test.ts).
-const store = vi.hoisted(() => ({ values: [] as unknown[], cursor: 0, supported: true }));
+const store = vi.hoisted(() => ({
+  values: [] as unknown[],
+  cursor: 0,
+  support: "supported" as "pending" | "supported" | "unsupported",
+}));
 
 vi.mock("react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react")>()),
@@ -34,7 +38,7 @@ vi.mock("react", async (importOriginal) => ({
 
     return store.values[index];
   },
-  useSyncExternalStore: () => store.supported,
+  useSyncExternalStore: () => store.support,
 }));
 
 const { CollectionsToDiscover } = await import("@/app/home/collections-to-discover");
@@ -149,7 +153,7 @@ function click() {
 beforeEach(() => {
   store.values = [];
   store.cursor = 0;
-  store.supported = true;
+  store.support = "supported";
 });
 
 afterEach(() => {
@@ -391,8 +395,20 @@ describe("CollectionsToDiscover", () => {
     }
   });
 
+  it("leaves the button out before the component is ready in the browser (server and hydration)", () => {
+    store.support = "pending";
+
+    const markup = html();
+
+    expect(markup).not.toContain("<button");
+    expect(markup).not.toContain("Położenie zostaje w tej przeglądarce.");
+    expect(markup).toMatch(/<p role="status"[^>]*><\/p>/);
+    expect(order(markup)).toEqual(["daleko", "bez-miejsc", "blisko"]);
+    expect(markup).toContain('href="/search"');
+  });
+
   it("keeps the list and the link, and offers no button, when the browser has no geolocation", () => {
-    store.supported = false;
+    store.support = "unsupported";
 
     const markup = html();
 

@@ -406,7 +406,7 @@
   }
 
   /*
-   * Zalogowany na komputerze (K-35): wąska treść (Profil, Ustawienia, formularze) zaczyna się
+   * Po zalogowaniu na komputerze (K-35): wąska treść (Profil, Ustawienia, formularze) zaczyna się
    * przy menu bocznym, zamiast wisieć na środku z pustym tłem po obu stronach. Strony szerokie
    * (`content-width-wide`) wypełniają kolumnę do 72 rem, a telefon nie jest zmieniany.
    */

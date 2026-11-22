@@ -7,8 +7,9 @@ import axe from "axe-core";
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
 
-// E12-3 / K-34: "Pokaż najbliższe" sorts the one section "Kolekcje do odkrycia" on the home page. The position is read only after a click (even when the
-// permission is already granted), is counted in the browser and never leaves it: no request
+// E12-3 / K-34: "Pokaż najbliższe" sorts the one section "Kolekcje do odkrycia" on the home page.
+// The position is read only after a click (even when the permission is already granted), is
+// counted in the browser and never leaves it: no request
 // (RSC included), no console line. The tests write nothing to the database, but they rely on the
 // seeded demo collection, so they run only against the disposable E2E database
 // (parseE2eAdminDatabaseUrl) and are skipped without it.
@@ -157,8 +158,9 @@ test.describe("'Pokaż najbliższe' in 'Kolekcje do odkrycia' on the home page",
 
     await expect(button).toBeVisible();
     await expect(section(page).getByText("Położenie zostaje w tej przeglądarce.")).toBeVisible();
-    // K-34: one list. Before a click the card is there in the order of the server, with no distance.
-    // A plain string matches a substring of the accessible name, so no regular expression is needed.
+    // K-34: one list. Before a click the card is there in the order of the server, with no
+    // distance. A plain string matches a substring of the accessible name, so no regular
+    // expression is needed.
     await expect(section(page).getByRole("link", { name: DEMO_TITLE })).toBeVisible();
     await expect(section(page).getByText(/^\d+ km · /)).toHaveCount(0);
     expect(await geoCalls(page)).toEqual([]);
