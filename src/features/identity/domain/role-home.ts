@@ -6,16 +6,6 @@ export const roleLabels: Record<Role, string> = {
   admin: "Administrator",
 };
 
-// Where a role lands after signing in without returnTo.
-const roleHomes: Record<Role, string> = {
-  user: "/my",
-  admin: "/my",
-};
-
-export function roleHome(role: Role): string {
-  return roleHomes[role];
-}
-
 // Where a signed-in account lands right after signing in. A returnTo that already
 // passed return-to.ts wins; otherwise a curator (an account with an approved
 // organization) goes to the panel and everyone else to the account view. The panel

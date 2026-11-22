@@ -160,6 +160,33 @@ test.describe("with seeded demo accounts", () => {
     expect((await request.get("/api/admin")).status()).toBe(401);
   });
 
+  test("a curator without returnTo lands in the panel, with returnTo on that page", async ({
+    page,
+    browser,
+  }) => {
+    await page.goto("/login");
+    await logIn(page, "curator-a@demo.krajozbior.local", password ?? "");
+
+    await expect(page).toHaveURL(/\/curator$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Twoje kolekcje" })).toBeVisible();
+
+    // The screen "Konto" of a signed-in curator points to the panel.
+    await page.goto("/login");
+    await expect(page.getByRole("link", { name: "Przejdź do panelu kuratora" })).toHaveAttribute(
+      "href",
+      "/curator",
+    );
+
+    const other = await browser.newContext();
+    const withReturn = await other.newPage();
+
+    await withReturn.goto("/login?returnTo=%2Fsearch");
+    await logIn(withReturn, "curator-b@demo.krajozbior.local", password ?? "");
+
+    await expect(withReturn).toHaveURL(/\/search$/);
+    await other.close();
+  });
+
   test("an admin can use the admin route", async ({ page }) => {
     await page.goto("/login");
     await logIn(page, "admin@demo.krajozbior.local", password ?? "");
