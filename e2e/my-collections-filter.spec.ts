@@ -3,21 +3,20 @@ import axe from "axe-core";
 import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
+import { expectScrollKept } from "./scroll-support";
 
-// E12-S4: "Moje kolekcje": the filter by the state of progress (?stan=) and the mark "Nowa w
-// okolicy" (read from the position only after a click, counted in the browser). Needs a migrated,
-// seeded database like the other specs that sign in; without it the spec is skipped. The saved
-// collection and the visits are written straight in the disposable E2E database, and the cleanup
-// removes those of the demo explorer before and after each test.
+// E12-S4: "Moje kolekcje": the filter by the state of progress (?stan=), state buttons that are
+// links (one click, no script needed, no jump to the top). The block "Pokaż nowe w okolicy" was
+// removed from this screen (D-49). Needs a migrated, seeded database like the other specs that
+// sign in; without it the spec is skipped. The saved collection and the visits are written
+// straight in the disposable E2E database, and the cleanup removes those of the demo explorer
+// before and after each test.
 const password = process.env.DEMO_ACCOUNT_PASSWORD;
 
 const EXPLORER = "user@demo.krajozbior.local";
 const DEMO_SLUG = "demo-mosty-i-zamki-nad-wisla";
 const DEMO_TITLE = "Mosty i zamki nad Wisłą (demo)";
 const THEME_COOKIE = "krajozbior-theme";
-// About 2 km from the centre of the demo places; a distant point for the negative case.
-const NEAR = { latitude: 54.00123, longitude: 18.90456, accuracy: 25 };
-const FAR = { latitude: 50.04132, longitude: 21.99901, accuracy: 25 };
 
 async function adminQuery<T>(sql: string, params: unknown[] = []): Promise<T[]> {
   const client = new Client({
@@ -61,15 +60,9 @@ const visitFirstPlace = () =>
     [EXPLORER, DEMO_SLUG],
   );
 
-async function signedInPage(
-  browser: Browser,
-  options: { position?: typeof NEAR; width?: number } = {},
-): Promise<Page> {
+async function signedInPage(browser: Browser, options: { width?: number } = {}): Promise<Page> {
   const context = await browser.newContext({
     viewport: { width: options.width ?? 390, height: 800 },
-    ...(options.position === undefined
-      ? {}
-      : { geolocation: options.position, permissions: ["geolocation"] }),
   });
   const page = await context.newPage();
 
@@ -120,7 +113,7 @@ async function inBothThemes(page: Page, check: () => Promise<void>) {
 
 const list = (page: Page) => page.getByRole("region", { name: /^Zapisane kolekcje/ });
 
-test.describe("Moje kolekcje: filtr postępu i „Nowa w okolicy”", () => {
+test.describe("Moje kolekcje: filtr postępu", () => {
   test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
 
   test.beforeEach(cleanUp);
@@ -132,27 +125,48 @@ test.describe("Moje kolekcje: filtr postępu i „Nowa w okolicy”", () => {
     await saveDemoCollection();
 
     const page = await signedInPage(browser);
+    const states = page.getByRole("navigation", { name: "Stan postępu" });
+    // One click on a state button (a link with the state in the address), no second "Pokaż" click.
     const choose = async (label: string) => {
-      await page.getByLabel("Stan postępu").selectOption({ label });
-      await page.getByRole("button", { name: "Pokaż", exact: true }).click();
+      await states.getByRole("link", { name: new RegExp(`^${label} \\(\\d+\\)$`) }).click();
     };
+    const current = (label: string) =>
+      states.getByRole("link", { name: new RegExp(`^${label} \\(\\d+\\)$`) });
     // A plain string matches a substring of the name (a regular expression would read "(demo)" as a group).
     const card = () => list(page).getByRole("link", { name: DEMO_TITLE });
 
     await page.goto("/my/collections");
     await expect(card()).toBeVisible();
-    await expect(page.getByLabel("Stan postępu")).toHaveValue("wszystkie");
+    await expect(current("Wszystkie")).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("button", { name: "Pokaż", exact: true })).toHaveCount(0);
+
+    // The filter does not jump to the top. A low window keeps the page longer than the screen even
+    // when the filtered list is empty, so the browser cannot clamp scrollY to 0 by itself.
+    await page.setViewportSize({ width: 390, height: 360 });
+    await states.scrollIntoViewIfNeeded();
+    await page.evaluate(() => window.scrollBy(0, 60));
+
+    const scrollBefore = await page.evaluate(() => Math.round(window.scrollY));
+
+    expect(scrollBefore).toBeGreaterThan(0);
 
     // Nothing visited yet: "Nierozpoczęte" only.
     await choose("W trakcie");
     await expect(page).toHaveURL(/\/my\/collections\?stan=w-trakcie$/);
-    await expect(page.getByText("Żadna zapisana kolekcja nie ma stanu „W trakcie”.")).toBeVisible();
+    await expect(
+      page.getByText("Żadna zapisana kolekcja nie jest w stanie „W trakcie”."),
+    ).toBeVisible();
     await expect(page.getByRole("heading", { name: "Zapisane kolekcje (0 z 1)" })).toBeVisible();
-    await expect(page.getByLabel("Stan postępu")).toHaveValue("w-trakcie");
+    await expect(current("W trakcie")).toHaveAttribute("aria-current", "page");
+    // A shorter list may clamp scrollY to the new maximum, but never to the top.
+    await page.waitForTimeout(300);
+    await expectScrollKept(page, states, scrollBefore);
     await inBothThemes(page, () => expectNoAccessibilityViolations(page));
 
     await choose("Ukończone");
-    await expect(page.getByText("Żadna zapisana kolekcja nie ma stanu „Ukończone”.")).toBeVisible();
+    await expect(
+      page.getByText("Żadna zapisana kolekcja nie jest w stanie „Ukończone”."),
+    ).toBeVisible();
 
     await choose("Nierozpoczęte");
     await expect(card()).toBeVisible();
@@ -162,7 +176,7 @@ test.describe("Moje kolekcje: filtr postępu i „Nowa w okolicy”", () => {
     await visitFirstPlace();
     await page.goto("/my/collections?stan=nierozpoczete");
     await expect(
-      page.getByText("Żadna zapisana kolekcja nie ma stanu „Nierozpoczęte”."),
+      page.getByText("Żadna zapisana kolekcja nie jest w stanie „Nierozpoczęte”."),
     ).toBeVisible();
     await page.getByRole("link", { name: "Pokaż wszystkie" }).click();
     await expect(page).toHaveURL(/\/my\/collections$/);
@@ -174,39 +188,21 @@ test.describe("Moje kolekcje: filtr postępu i „Nowa w okolicy”", () => {
 
     await page.goto("/my/collections?stan=cokolwiek");
     await expect(card()).toBeVisible();
-    await expect(page.getByLabel("Stan postępu")).toHaveValue("wszystkie");
+    await expect(current("Wszystkie")).toHaveAttribute("aria-current", "page");
 
     await page.context().close();
   });
 
-  test("the mark 'Nowa w okolicy' appears only after a click and only near the collection", async ({
-    browser,
-  }) => {
+  test("the block 'Pokaż nowe w okolicy' is gone from the screen", async ({ browser }) => {
     await saveDemoCollection();
 
-    const page = await signedInPage(browser, { position: NEAR });
+    const page = await signedInPage(browser);
 
     await page.goto("/my/collections");
-
-    const card = list(page).getByRole("link", { name: DEMO_TITLE });
-
-    await expect(card).toBeVisible();
-    await expect(list(page).getByText("Nowa w okolicy", { exact: true })).toHaveCount(0);
-
-    await list(page).getByRole("button", { name: "Pokaż nowe w okolicy" }).click();
-    await expect(list(page).getByText("Nowa w okolicy", { exact: true })).toBeVisible();
-    await expect(
-      list(page).getByRole("status").filter({ hasText: "Jedna z Twoich kolekcji" }),
-    ).toBeVisible();
-    await inBothThemes(page, () => expectNoAccessibilityViolations(page));
-
-    // The position stays in the browser: not in the address, not in the storage.
-    expect(page.url()).not.toMatch(/54\.|18\.9/);
-    // (The app itself keeps the e-mail of the sign-in form in the session storage, so the check
-    // is for the coordinates, not for an empty storage.)
-    const storage = await page.evaluate(() => JSON.stringify([localStorage, sessionStorage]));
-
-    expect(storage).not.toMatch(/54\.0|18\.9|latitude|longitude/);
+    await expect(list(page).getByRole("link", { name: DEMO_TITLE })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Pokaż nowe w okolicy" })).toHaveCount(0);
+    await expect(page.getByText("Nowa w okolicy", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Zapisane kolekcje i Twój postęp w nich.")).toBeVisible();
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -214,21 +210,5 @@ test.describe("Moje kolekcje: filtr postępu i „Nowa w okolicy”", () => {
     ).toBeLessThanOrEqual(0);
 
     await page.context().close();
-
-    // Far away (a new browser, because the position may be reused for ten minutes) the same
-    // collection is not new in the neighbourhood.
-    const far = await signedInPage(browser, { position: FAR });
-
-    await far.goto("/my/collections");
-    await expect(list(far).getByRole("link", { name: DEMO_TITLE })).toBeVisible();
-    await list(far).getByRole("button", { name: "Pokaż nowe w okolicy" }).click();
-    await expect(
-      list(far)
-        .getByRole("status")
-        .filter({ hasText: "Żadna z Twoich kolekcji nie jest nowa w okolicy." }),
-    ).toBeVisible();
-    await expect(list(far).getByText("Nowa w okolicy", { exact: true })).toHaveCount(0);
-
-    await far.context().close();
   });
 });
