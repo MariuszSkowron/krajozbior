@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  rmSync,
   statSync,
   utimesSync,
   writeFileSync,
@@ -1117,7 +1118,13 @@ describe("media archive of the photo volume (E4-0b2)", () => {
     '  *" sh incr "*) touch "$STUB_STATE/snar"',
     '    [ "${TAR_FAIL:-0}" = 1 ] && { echo boom >&2; exit 1; }',
     "    head -c 1000 /dev/zero | tr '\\0' x; exit 0 ;;",
-    '  *" sh count "*) echo "${VOLUME_FILES:-3}"; exit 0 ;;',
+    '  *" sh count "*)',
+    '    if [ -n "${COUNT_SEQ:-}" ]; then',
+    '      f="$STUB_STATE/countseq"; [ -f "$f" ] || echo "$COUNT_SEQ" >"$f"',
+    '      set -- $(cat "$f"); echo "$1"; shift; echo "$*" >"$f"; exit 0',
+    "    fi",
+    '    echo "${VOLUME_FILES:-3}"; exit 0 ;;',
+    '  *" sh size "*) echo "${VOLUME_BYTES:-1000}"; exit 0 ;;',
     '  *" sh stream "*) tar -cf - -C "$(cygpath -u "$FIXTURE" 2>/dev/null || echo "$FIXTURE")" . ; exit 0 ;;',
     "esac",
     "exit 9",
@@ -1383,6 +1390,130 @@ describe("media archive of the photo volume (E4-0b2)", () => {
 
     expect(different.status).toBe(1);
     expect(readdirSync(box.backups)).toEqual([]);
+  });
+
+  bashIt(
+    "restore test accepts a count between two measurements when the volume changes (S4)",
+    () => {
+      const box = mediaBox();
+      const result = runLib(`${WITH_STUBS} kz_media_restore_check recipient identity`, {
+        ...box.env,
+        COUNT_SEQ: "2 3",
+      });
+
+      expect(result.status, result.stdout).toBe(0);
+      expect(result.stdout).toContain("zmienil sie w trakcie testu");
+
+      const outside = runLib(`${WITH_STUBS} kz_media_restore_check recipient identity`, {
+        ...box.env,
+        COUNT_SEQ: "4 5",
+      });
+
+      expect(outside.status).toBe(1);
+    },
+  );
+
+  bashIt("without a chain-head marker the next archive is full, not incremental (S1)", () => {
+    const box = mediaBox();
+
+    expect(runLib(`${WITH_STUBS} kz_media_archive weekly`, box.env).status).toBe(0);
+    expect(readFileSync(join(box.state, "media-chain-head"), "utf8").trim()).toBe(
+      list(box.backups)[0],
+    );
+    rmSync(join(box.state, "media-chain-head"));
+    expect(runLib(`${WITH_STUBS} sleep 1; kz_media_archive daily`, box.env).status).toBe(0);
+    expect(list(box.backups).filter((n) => n.endsWith("-full.tar.age"))).toHaveLength(2);
+    expect(list(box.backups).filter((n) => n.endsWith("-incr.tar.age"))).toHaveLength(0);
+  });
+
+  bashIt("a marker naming another archive forces a full archive (S1)", () => {
+    const box = mediaBox();
+
+    expect(runLib(`${WITH_STUBS} kz_media_archive weekly`, box.env).status).toBe(0);
+    writeFileSync(
+      join(box.state, "media-chain-head"),
+      "krajozbior-media-20200101-000000-full.tar.age\n",
+    );
+    expect(runLib(`${WITH_STUBS} sleep 1; kz_media_archive daily`, box.env).status).toBe(0);
+    expect(list(box.backups).filter((n) => n.endsWith("-full.tar.age"))).toHaveLength(2);
+  });
+
+  bashIt("a vanished chain with the state file still present gives a full archive (S1)", () => {
+    const box = mediaBox();
+
+    expect(runLib(`${WITH_STUBS} kz_media_archive weekly`, box.env).status).toBe(0);
+    for (const name of list(box.backups)) rmSync(join(box.backups, name));
+    expect(existsSync(join(box.env.STUB_STATE, "snar"))).toBe(true);
+    expect(runLib(`${WITH_STUBS} sleep 1; kz_media_archive daily`, box.env).status).toBe(0);
+    expect(list(box.backups)).toEqual([expect.stringMatching(/-full\.tar\.age$/)]);
+  });
+
+  bashIt("a failure removes the chain-head marker (S1)", () => {
+    const box = mediaBox();
+
+    expect(runLib(`${WITH_STUBS} kz_media_archive weekly`, box.env).status).toBe(0);
+    expect(existsSync(join(box.state, "media-chain-head"))).toBe(true);
+    runLib(`${WITH_STUBS} sleep 1; kz_media_archive daily`, { ...box.env, TAR_FAIL: "1" });
+    expect(existsSync(join(box.state, "media-chain-head"))).toBe(false);
+  });
+
+  bashIt(
+    "rotation runs first, so a chain older than 30 days goes even when the archive fails (S2)",
+    () => {
+      const box = mediaBox();
+
+      writeFileSync(join(box.backups, archiveName(40, "full")), "x");
+      writeFileSync(join(box.backups, archiveName(39, "incr")), "x");
+      const result = runLib(`${WITH_STUBS} kz_media_archive daily`, { ...box.env, TAR_FAIL: "1" });
+
+      expect(result.status).toBe(1);
+      expect(list(box.backups)).toEqual([]);
+    },
+  );
+
+  bashIt("rotation also runs when the volume is missing (S2)", () => {
+    const box = mediaBox();
+
+    writeFileSync(join(box.backups, archiveName(40, "full")), "x");
+    const result = runLib(`${WITH_STUBS} kz_media_archive daily`, { ...box.env, HAS_VOLUME: "0" });
+
+    expect(result.status).toBe(0);
+    expect(list(box.backups)).toEqual([]);
+  });
+
+  bashIt("a full archive is skipped with an alarm when there is not enough free space (S3)", () => {
+    const box = mediaBox();
+    const result = runLib(`${WITH_STUBS} kz_free_bytes() { echo 1100; }; kz_media_archive weekly`, {
+      ...box.env,
+      VOLUME_BYTES: "1000",
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("ALARM: za malo miejsca");
+    expect(result.stdout).toContain("wolne=1100");
+    expect(list(box.backups)).toEqual([]);
+    expect(readFileSync(box.env.DOCKER_LOG, "utf8")).not.toContain(" sh full ");
+
+    const enough = runLib(`${WITH_STUBS} kz_free_bytes() { echo 1200; }; kz_media_archive weekly`, {
+      ...box.env,
+      VOLUME_BYTES: "1000",
+    });
+
+    expect(enough.status, enough.stdout).toBe(0);
+    expect(list(box.backups)).toHaveLength(1);
+  });
+
+  bashIt("the free-space check does not apply to incremental archives (S3)", () => {
+    const box = mediaBox();
+
+    expect(runLib(`${WITH_STUBS} kz_media_archive weekly`, box.env).status).toBe(0);
+    const result = runLib(
+      `${WITH_STUBS} kz_free_bytes() { echo 1; }; sleep 1; kz_media_archive daily`,
+      box.env,
+    );
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(list(box.backups).filter((n) => n.endsWith("-incr.tar.age"))).toHaveLength(1);
   });
 
   bashIt("restore test is skipped without the volume", () => {

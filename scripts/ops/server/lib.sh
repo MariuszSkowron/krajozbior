@@ -375,6 +375,7 @@ kz_media_mark() {
 #   incr    writes an incremental tar to stdout
 #   stream  plain tar of the whole volume to stdout (restore test, no state)
 #   count   number of files in the volume
+#   size    size of the volume in bytes
 kz_media_sh() {
   local image
   image="${KZ_IMAGE_REPOS%% *}:$(kz_state_get current-tag)"
@@ -388,6 +389,7 @@ kz_media_sh() {
         incr) exec tar --no-check-device --listed-incremental="$2" -C "$3" -cf - . ;;
         stream) exec tar -C "$3" -cf - . ;;
         count) find "$3" -type f | wc -l ;;
+        size) du -sb "$3" | cut -f1 ;;
         *) exit 2 ;;
       esac' sh "$1" "$KZ_MEDIA_SNAR" "$KZ_MEDIA_DIR" </dev/null
 }
@@ -447,12 +449,27 @@ kz_media_rotate() {
   return 0
 }
 
+# Any archive failure: the incremental state and the chain marker go, so the next night starts a
+# new chain. The marker is on the host and does not depend on Docker.
+kz_media_fail() {
+  rm -f "$KZ_STATE/media-chain-head"
+  kz_media_sh reset || true
+}
+
+# Free bytes on the file system of a directory (overridable in tests); empty when unknown.
+kz_free_bytes() {
+  df -B1 --output=avail "$1" 2>/dev/null | tail -n 1 | tr -dc '0-9'
+}
+
 # Archive of the media volume after a good database dump. kind = daily | weekly: weekly asks for
-# a full archive (Sunday); a full one is also made when there is no state file or no full archive
-# on disk. No volume = skipped (status 0). Any failure removes the state file, so the next night
+# a full archive (Sunday); a full one is also made when there is no state file, no full archive
+# on disk or no matching media-chain-head marker; before a full one the free space is checked. No volume = skipped (status 0). Any failure removes the state file, so the next night
 # starts a new chain (no gap in a chain), and returns 1 (backup.sh signals it; the dump stays).
 kz_media_archive() {
-  local kind="${1:-daily}" mode=incr file stamp
+  local kind="${1:-daily}" mode=incr file stamp head first size free need
+  # Rotation first, also when the archive below fails or is skipped night after night: nothing
+  # may outlive 30 days (privacy policy pt 9).
+  kz_media_rotate || true
   kz_media_volume_exists || { kz_step "brak wolumenu zdjec; archiwum zdjec pominiete"; return 0; }
   kz_media_mark
   if [ ! -s "$KZ_ROOT/backup.pub" ]; then
@@ -465,28 +482,47 @@ kz_media_archive() {
   fi
   mkdir -p "$KZ_BACKUPS" || return 1
   [ "$kind" = "weekly" ] && mode=full
-  [ -n "$(kz_media_latest_chain)" ] || mode=full
+  # The state file is tied to the newest full archive by the host marker media-chain-head: no
+  # marker, or one that names another file, means the state does not belong to the chain on disk.
+  first="$(kz_media_latest_chain | head -n 1)"
+  head="$(kz_state_get media-chain-head)"
+  [ -n "$first" ] || mode=full
+  [ -n "$head" ] && [ "$head" = "$(basename "${first:-none}")" ] || mode=full
   kz_media_sh state || mode=full
+  if [ "$mode" = "full" ]; then
+    size="$(kz_media_sh size | tr -dc '0-9')"
+    if [ -z "$size" ]; then
+      kz_step "archiwum zdjec nieudane (nie da sie odczytac rozmiaru wolumenu)"
+      return 1
+    fi
+    free="$(kz_free_bytes "$KZ_BACKUPS")"
+    need=$((size + size / 5))
+    if [ -z "$free" ] || [ "$free" -lt "$need" ]; then
+      kz_step "ALARM: za malo miejsca na pelne archiwum zdjec (wolne=${free:-?} B, potrzeba=$need B); archiwum pominiete, kopia bazy bez zmian"
+      return 1
+    fi
+  fi
   stamp="$(date -u +%Y%m%d-%H%M%S)"
   file="$KZ_BACKUPS/krajozbior-media-$stamp-$mode.tar.age"
   rm -f "$file.part"
   if ! (set -o pipefail && umask 077 && kz_media_sh "$mode" | age -R "$KZ_ROOT/backup.pub" -o "$file.part"); then
     rm -f "$file.part"
-    kz_media_sh reset || true
+    kz_media_fail
     kz_step "archiwum zdjec nieudane (nastepne bedzie pelne)"
     return 1
   fi
   if [ "$(wc -c <"$file.part" | tr -dc '0-9')" -lt "$KZ_MIN_MEDIA_BYTES" ]; then
     rm -f "$file.part"
-    kz_media_sh reset || true
+    kz_media_fail
     kz_step "archiwum zdjec podejrzanie male; nie zapisano (nastepne bedzie pelne)"
     return 1
   fi
   if ! mv "$file.part" "$file"; then
     rm -f "$file.part"
-    kz_media_sh reset || true
+    kz_media_fail
     return 1
   fi
+  [ "$mode" != "full" ] || kz_state_set media-chain-head "$(basename "$file")"
   kz_media_rotate || return 1
   kz_step "archiwum zdjec zapisane: $(basename "$file") ($(du -h "$file" | cut -f1))"
 }
@@ -501,13 +537,23 @@ kz_tar_file_count() {
 # back, files counted in the volume and in the archive. Prints only the numbers; returns 1 on a
 # difference or any error. No volume = skipped. No file on disk.
 kz_media_restore_check() {
-  local recipient="$1" identity="$2" expected found
+  local recipient="$1" identity="$2" expected after found low high
   kz_media_volume_exists || { kz_step "brak wolumenu zdjec; test archiwum zdjec pominiety"; return 0; }
   [ -n "$(kz_state_get current-tag)" ] || { kz_step "brak zapisanej wersji obrazu; test archiwum zdjec nieudany"; return 1; }
+  # The volume is counted before and after the stream: a write in between (an upload) moves the
+  # count, so the archive may hold any number between the two, not only an exact match.
   expected="$(kz_media_sh count | tr -dc '0-9')" || return 1
   found="$(set -o pipefail && kz_media_sh stream | age -R "$recipient" | age -d -i "$identity" | kz_tar_file_count)" || return 1
-  kz_step "test archiwum zdjec: plikow w wolumenie=${expected:-?}, w archiwum=${found:-?}"
-  [ -n "$expected" ] && [ "$expected" = "$found" ] || return 1
+  after="$(kz_media_sh count | tr -dc '0-9')" || return 1
+  if [ "$expected" = "$after" ]; then
+    kz_step "test archiwum zdjec: plikow w wolumenie=${expected:-?}, w archiwum=${found:-?}"
+  else
+    kz_step "test archiwum zdjec: wolumen zmienil sie w trakcie testu (przed=${expected:-?}, po=${after:-?}), w archiwum=${found:-?}"
+  fi
+  [ -n "$expected" ] && [ -n "$after" ] && [ -n "$found" ] || return 1
+  low="$expected"; high="$after"
+  if [ "$low" -gt "$high" ]; then low="$after"; high="$expected"; fi
+  [ "$found" -ge "$low" ] && [ "$found" -le "$high" ] || return 1
 }
 
 # -OdtworzKopie: decrypts the newest chain with the owner's key and prints the file count of
