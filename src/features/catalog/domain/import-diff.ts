@@ -25,6 +25,7 @@ function samePlaceContent(a: PlaceInput, b: PlaceInput): boolean {
     a.description === b.description &&
     a.address === b.address &&
     a.accessInfo === b.accessInfo &&
+    a.accessRestriction === b.accessRestriction &&
     Number(a.latitude) === Number(b.latitude) &&
     Number(a.longitude) === Number(b.longitude) &&
     Number(a.visitRadiusM) === Number(b.visitRadiusM)
