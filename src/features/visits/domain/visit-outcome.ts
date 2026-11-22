@@ -58,13 +58,25 @@ export function toVisitOutcome(
   }
 }
 
-/** The message under the "Potwierdź wizytę" button for every outcome. */
-export function visitOutcomeMessage(outcome: VisitOutcome): string {
+/** The sentence after a saved visit (it needs no distance). */
+export const VISIT_RECORDED_MESSAGE = "To miejsce jest w Twoim albumie.";
+
+/**
+ * The message under the "Potwierdzam wizytę" button for every outcome. The radius
+ * of the place (public data) tells how close the person has to come; without it
+ * the message only gives the distance.
+ */
+export function visitOutcomeMessage(outcome: VisitOutcome, radiusM?: number): string {
   switch (outcome.result) {
     case "recorded":
-      return "Wizyta potwierdzona.";
-    case "out_of_range":
-      return `Jesteś ${formatDistance(outcome.distanceM)} od miejsca.`;
+      return VISIT_RECORDED_MESSAGE;
+    case "out_of_range": {
+      const distance = `Jesteś ${formatDistance(outcome.distanceM)} od miejsca.`;
+
+      return radiusM === undefined
+        ? distance
+        : `${distance} Wizytę potwierdzisz w promieniu ${formatDistance(radiusM)} od niego.`;
+    }
     case "inaccurate":
       return `Lokalizacja jest zbyt niedokładna (±${outcome.accuracyM} m). Spróbuj na zewnątrz albo zaznacz wizytę z przeszłości.`;
     case "not_found":

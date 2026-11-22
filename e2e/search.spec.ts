@@ -124,6 +124,8 @@ async function signedInPage(browser: Browser, name: string): Promise<Page> {
 
   await page.goto("/login");
 
+  await page.getByText("Logowanie hasłem").click();
+
   const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
   await form.getByLabel("E-mail").fill(`${name}@demo.krajozbior.local`);

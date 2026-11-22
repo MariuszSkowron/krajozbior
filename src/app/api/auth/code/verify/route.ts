@@ -5,6 +5,8 @@ import { requestedReturnTo } from "@/features/identity/domain/return-to";
 import { getCodeVerifyThrottle, getIdentityProvider } from "@/features/identity/infrastructure";
 import { logFailure } from "@/lib/log-failure";
 
+import { loginEmailClearCookieHeader } from "@/app/login/login-email-cookie";
+
 import {
   accountThemeCookies,
   failure,
@@ -76,7 +78,11 @@ export async function POST(request: Request) {
     await throttle.clearAccount(attempt.subject);
     await provider.signOut(request.headers);
 
-    return signedIn(request, result, returnTo, await accountThemeCookies(result.actor));
+    // The address kept between the two steps (login-email-cookie.ts) is no longer needed.
+    return signedIn(request, result, returnTo, [
+      ...(await accountThemeCookies(result.actor)),
+      loginEmailClearCookieHeader(),
+    ]);
   } catch (error) {
     logFailure("Sign-in with code", error);
     return failure(request, returnTo, 503, "code_unavailable");
