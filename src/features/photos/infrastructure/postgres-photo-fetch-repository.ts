@@ -33,8 +33,11 @@ export function createPostgresPhotoFetchRepository(client: Client): PhotoFetchRe
         commons_file: string;
         source_width: number | null;
         fetch_attempts: number;
+        retrieved_at: Date | null;
+        license_code: string;
       }>(
-        `select ph.id, ph.commons_file, ph.source_width, ph.fetch_attempts
+        `select ph.id, ph.commons_file, ph.source_width, ph.fetch_attempts, ph.retrieved_at,
+                ph.license_code
            from public.place_photos ph
           where ph.source_kind = 'commons_import'
             and ph.file_state = any($1::text[])
@@ -50,6 +53,8 @@ export function createPostgresPhotoFetchRepository(client: Client): PhotoFetchRe
         commonsFile: row.commons_file,
         sourceWidth: row.source_width,
         fetchAttempts: row.fetch_attempts,
+        retrievedAt: row.retrieved_at,
+        licenseCode: row.license_code,
       }));
     },
 

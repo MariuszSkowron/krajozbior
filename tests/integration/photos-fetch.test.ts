@@ -16,6 +16,11 @@ import {
   type PhotoFetchDeps,
 } from "@/features/photos/application/fetch-photos";
 import { runPhotosFetch } from "@/features/photos/application/photos-fetch-command";
+import { commonsFileName } from "@/features/photos/domain/commons-url";
+import type {
+  CommonsVersionInfo,
+  CommonsVersionLookup,
+} from "@/features/photos/domain/commons-version";
 import type { CommonsFetchResult } from "@/features/photos/infrastructure/commons-http";
 import {
   createPostgresPhotoFetchRepository,
@@ -42,6 +47,7 @@ let ops: Client;
 let big: Buffer;
 let small: Buffer;
 let counter = 0;
+const sourceWidths = new Map<string, number | null>();
 
 type Scope = { organizationId: string; placeId: string; slug: string };
 
@@ -68,21 +74,41 @@ const pending = async (
   commonsFile: string,
   sourceWidth: number | null,
   kind = "commons_import",
-) =>
-  (
+) => {
+  sourceWidths.set(commonsFile, sourceWidth);
+
+  return (
     await admin$<{ id: string }>(
       `insert into public.place_photos
          (organization_id, place_id, position, file_state, alt_text, source_kind, author_text,
           source_url, license_code, license_url, license_label, rights_statement, commons_file,
-          source_width)
+          source_width, retrieved_at)
        values ($1, $2, $3, 'pending_fetch', 'Opis', $4, 'Autor',
                'https://commons.wikimedia.org/wiki/File:X.jpg', 'cc-by-sa-4.0',
                'https://creativecommons.org/licenses/by-sa/4.0/', 'CC BY-SA 4.0',
-               'commons-import/1', $5, $6)
+               'commons-import/1', $5, $6, '2026-11-20T00:00:00Z')
        returning id`,
       [where.organizationId, where.placeId, (counter += 1), kind, commonsFile, sourceWidth],
     )
   )[0]!.id;
+};
+
+// Stand-in for the API of Commons (no network): the current version is older than the day of the
+// selection, with the same name, source width and licence as the row, unless a test says otherwise.
+const currentVersion = (
+  commonsFile: string,
+  overrides: Partial<CommonsVersionInfo> = {},
+): CommonsVersionLookup => ({
+  ok: true,
+  info: {
+    timestamp: Date.parse("2026-01-02T03:04:05Z"),
+    width: sourceWidths.get(commonsFile) ?? 0,
+    licenseShort: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+    fileName: commonsFileName(commonsFile),
+    ...overrides,
+  },
+});
 
 type Row = {
   id: string;
@@ -123,6 +149,7 @@ function deps(
 
       return Buffer.isBuffer(found) ? { ok: true, bytes: new Uint8Array(found) } : found;
     },
+    lookupVersion: async (commonsFile) => currentVersion(commonsFile),
     process: (bytes) =>
       processImageBytes(bytes, { tmpDirectory: storage.tmpDirectory, minShortSide: 0 }),
     storage,
@@ -234,6 +261,82 @@ describe("photos:fetch", () => {
 
     expect(report.reasons).toEqual({ unsupported_type: 1 });
     expect(await row(id)).toMatchObject({ file_state: "pending_fetch", fetch_attempts: 1 });
+  });
+
+  it("reads the day of the selection and the licence of the row as ops, and rejects a newer version without a file", async () => {
+    const where = await scope();
+    const newer = await pending(where, "Nowsza wersja.jpg", 3000);
+    const other = await pending(where, "Inna licencja.jpg", 3000);
+    const gone = await pending(where, "Zniknął z Commons.jpg", 3000);
+    const same = await pending(where, "Ta sama wersja.jpg", 3000);
+    const lookups: string[] = [];
+    const report = await fetchCommonsPhotos(
+      deps(
+        {
+          "Nowsza_wersja.jpg": big,
+          "Inna_licencja.jpg": big,
+          "Zniknął_z_Commons.jpg": big,
+          "Ta_sama_wersja.jpg": big,
+        },
+        {
+          lookupVersion: async (commonsFile) => {
+            lookups.push(commonsFile);
+
+            if (commonsFile.startsWith("Nowsza")) {
+              // One second after the midnight of the day the selection was prepared.
+              return currentVersion(commonsFile, { timestamp: Date.parse("2026-11-20T00:00:01Z") });
+            }
+
+            if (commonsFile.startsWith("Inna")) {
+              return currentVersion(commonsFile, {
+                licenseShort: "CC BY 4.0",
+                licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+              });
+            }
+
+            if (commonsFile.startsWith("Zniknął")) {
+              return { ok: false, reason: "file_gone" };
+            }
+
+            return currentVersion(commonsFile);
+          },
+        },
+      ),
+      { organizationSlug: where.slug },
+    );
+
+    // Four rows read through the real column grant (retrieved_at, license_code) and checked.
+    expect(lookups).toHaveLength(4);
+    expect(report).toMatchObject({
+      fetched: 1,
+      failed: 3,
+      reasons: { file_changed: 1, license_changed: 1, file_gone: 1 },
+    });
+    // Only the row with the same version got a thumbnail; the rest ended for good, with no file.
+    expect(urls.filter((url) => /Nowsza_wersja|Inna_licencja|_z_Commons/.test(url))).toEqual([]);
+    expect(urls.filter((url) => url.includes("Ta_sama_wersja"))).toHaveLength(1);
+    expect(await row(newer)).toMatchObject({
+      file_state: "fetch_failed",
+      fetch_attempts: 1,
+      storage_key: null,
+    });
+    expect(await row(other)).toMatchObject({ file_state: "fetch_failed", storage_key: null });
+    expect(await row(gone)).toMatchObject({ file_state: "fetch_failed", storage_key: null });
+    expect(await row(same)).toMatchObject({ file_state: "ready" });
+  });
+
+  it("blocks a row whose day of the selection is unknown", async () => {
+    const where = await scope();
+    const id = await pending(where, "Bez daty doboru.jpg", 3000);
+
+    await admin$(`update public.place_photos set retrieved_at = null where id = $1`, [id]);
+
+    const report = await fetchCommonsPhotos(deps({ "Bez_daty_doboru.jpg": big }), {
+      organizationSlug: where.slug,
+    });
+
+    expect(report.reasons).toEqual({ file_changed: 1 });
+    expect(await row(id)).toMatchObject({ file_state: "fetch_failed", storage_key: null });
   });
 
   it("does not touch rows that are not from a file", async () => {
