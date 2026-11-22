@@ -114,7 +114,12 @@ export function warsawWallTimeToInstant(wall: WarsawWallTime): WarsawTimeResult 
 /** Local midnight (00:00 in Warsaw) of the calendar day the given Warsaw date falls on. */
 export function warsawMidnightOf(year: number, month: number, day: number): Date {
   // Poland never changes the clock at midnight, so 00:00 always exists exactly once.
-  return instantsFor({ year, month, day, hour: 0, minute: 0 })[0];
+  const result = warsawWallTimeToInstant({ year, month, day, hour: 0, minute: 0 });
+  if (!result.ok) {
+    throw new RangeError(`Not a valid Warsaw date: ${year}-${month}-${day}`);
+  }
+
+  return result.instant;
 }
 
 /** Start of the Polish day that contains the instant (the daily card limit counts from here, D-E6-6). */

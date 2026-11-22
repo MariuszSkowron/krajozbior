@@ -69,6 +69,32 @@ describe("validateEventWindow", () => {
     expect(validateEventWindow(late, now)).toEqual(["too_far_ahead"]);
   });
 
+  it("counts the year on the Polish wall clock and clamps 29 February", () => {
+    expect(latestEventStart(at("2028-02-29T12:00:00Z"))).toEqual(at("2029-02-28T12:00:00Z"));
+    // 1 March 00:30 in Poland is still 29 February in UTC: the Polish date counts.
+    expect(latestEventStart(at("2028-02-29T23:30:00Z"))).toEqual(at("2029-02-28T23:30:00Z"));
+    expect(latestEventStart(at("2027-12-31T22:30:00Z"))).toEqual(at("2028-12-31T22:30:00Z"));
+    expect(latestEventStart(at("2027-12-31T23:30:00Z"))).toEqual(at("2028-12-31T23:30:00Z"));
+    // seconds and milliseconds are kept
+    expect(latestEventStart(at("2027-01-10T12:00:05.250Z"))).toEqual(
+      at("2028-01-10T12:00:05.250Z"),
+    );
+  });
+
+  it("handles the clock change next year (skipped and doubled hour)", () => {
+    // 26 March 2027 02:30 exists; 26 March 2028 02:30 does not -> 03:30 (01:30Z).
+    expect(latestEventStart(at("2027-03-26T01:30:00Z"))).toEqual(at("2028-03-26T01:30:00Z"));
+    // 29 October 2028 02:30 happens twice -> first occurrence (00:30Z).
+    expect(latestEventStart(at("2027-10-29T00:30:00Z"))).toEqual(at("2028-10-29T00:30:00Z"));
+    // summer to winter offset: 15 July 12:00 CEST -> same wall time next year
+    expect(latestEventStart(at("2027-07-15T10:00:00Z"))).toEqual(at("2028-07-15T10:00:00Z"));
+    expect(latestEventStart(at("2027-01-15T11:00:00Z"))).toEqual(at("2028-01-15T11:00:00Z"));
+  });
+
+  it("returns an invalid date for an invalid input", () => {
+    expect(Number.isNaN(latestEventStart(new Date(NaN)).getTime())).toBe(true);
+  });
+
   it("reports several violations together and invalid dates alone", () => {
     const far = at("2029-01-01T00:00:00Z");
     expect(validateEventWindow({ startsAt: far, endsAt: far }, now)).toEqual([
@@ -120,6 +146,15 @@ describe("coversNight (22:00-06:00 Polish time) and coversDaytime", () => {
     expect(coversDaytime(w)).toBe(true);
   });
 
+  it("is right across New Year's Eve (22:00 = 21:00Z in winter)", () => {
+    const early = win("2027-12-31T20:00:00Z", "2027-12-31T21:00:00Z"); // 21:00-22:00
+    expect(coversNight(early)).toBe(false);
+    expect(coversDaytime(early)).toBe(true);
+    const across = win("2027-12-31T21:00:00Z", "2028-01-01T01:00:00Z"); // 22:00-02:00
+    expect(coversNight(across)).toBe(true);
+    expect(coversDaytime(across)).toBe(false);
+  });
+
   it("is right on days with a clock change", () => {
     // 28 March 2027: 22:00 Polish = 20:00Z (summer time already), 06:00 = 04:00Z.
     expect(coversNight(win("2027-03-28T10:00:00Z", "2027-03-28T20:00:00Z"))).toBe(false);
@@ -142,6 +177,11 @@ describe("status changes", () => {
     expect(canChangeStatus("announced", "cancelled", "running")).toBe(true);
   });
 
+  it("refuses announcing a draft after its start", () => {
+    expect(canChangeStatus("draft", "announced", "running")).toBe(false);
+    expect(canChangeStatus("draft", "announced", "ended")).toBe(false);
+  });
+
   it("refuses cancelling after the end and every other change", () => {
     expect(canChangeStatus("announced", "cancelled", "ended")).toBe(false);
     for (const from of EVENT_STATUSES) {
@@ -156,7 +196,9 @@ describe("status changes", () => {
 
 describe("edits, extending and deleting", () => {
   it("decides the edit rule by status and phase", () => {
-    expect(eventEditRule("draft", "ended")).toBe("free");
+    expect(eventEditRule("draft", "upcoming")).toBe("free");
+    expect(eventEditRule("draft", "running")).toBe("extend_end_only");
+    expect(eventEditRule("draft", "ended")).toBe("read_only");
     expect(eventEditRule("announced", "upcoming")).toBe("free");
     expect(eventEditRule("announced", "running")).toBe("extend_end_only");
     expect(eventEditRule("announced", "ended")).toBe("read_only");

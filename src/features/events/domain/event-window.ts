@@ -5,7 +5,7 @@ import {
   EVENT_NIGHT_END_HOUR,
   EVENT_NIGHT_START_HOUR,
 } from "./limits";
-import { toWarsawWallTime, warsawMidnightOf } from "./polish-time";
+import { toWarsawWallTime, warsawMidnightOf, warsawWallTimeToInstant } from "./polish-time";
 
 // The time rules of an event (E6-Q6, E6-Q7, E6-Q16). Instants are absolute; the window
 // is half-open: `startsAt <= now < endsAt`, no tolerance after the end.
@@ -33,12 +33,36 @@ export function eventPhase(window: EventWindow, now: Date): EventPhase {
   return now.getTime() < window.endsAt.getTime() ? "running" : "ended";
 }
 
-/** The latest start a new event may have: one year after `now` (UTC calendar year). */
+/**
+ * The latest start a new event may have: one year after `now` on the Polish wall clock
+ * (same date and time next year). A day that does not exist next year (29 Feb) becomes the
+ * last day of the month (28 Feb). A wall time skipped by the March clock change moves one
+ * hour forward (02:30 -> 03:30); a wall time that happens twice in October means its first
+ * occurrence, like everywhere in this module. SQL equivalent (E6-1a):
+ * `((t at time zone 'Europe/Warsaw') + interval '1 year') at time zone 'Europe/Warsaw'`.
+ */
 export function latestEventStart(now: Date): Date {
-  const latest = new Date(now.getTime());
-  latest.setUTCFullYear(latest.getUTCFullYear() + EVENT_MAX_YEARS_AHEAD);
+  if (Number.isNaN(now.getTime())) {
+    return new Date(NaN);
+  }
+  const wall = toWarsawWallTime(now);
+  const year = wall.year + EVENT_MAX_YEARS_AHEAD;
+  const lastDay = new Date(Date.UTC(year, wall.month, 0)).getUTCDate();
+  const day = Math.min(wall.day, lastDay);
+  const subMinuteMs = wall.second * 1000 + (((now.getTime() % 1000) + 1000) % 1000);
 
-  return latest;
+  let result = warsawWallTimeToInstant({ ...wall, year, day });
+  if (!result.ok && result.reason === "nonexistent") {
+    // Skipped hour: continue one hour later (the wall time cannot cross midnight here).
+    result = warsawWallTimeToInstant({ ...wall, year, day, hour: wall.hour + 1 });
+  }
+  // Unreachable: the date is real (day clamped) and one skipped hour never repeats.
+  /* v8 ignore next 3 */
+  if (!result.ok) {
+    return new Date(NaN);
+  }
+
+  return new Date(result.instant.getTime() + subMinuteMs);
 }
 
 /** Length from 1 hour to 14 days (both inclusive) and a start at most one year ahead. */
@@ -86,8 +110,8 @@ function touchesDailyRange(
       from.getUTCDate(),
     );
     const rangeEnd = warsawMidnightOf(to.getUTCFullYear(), to.getUTCMonth() + 1, to.getUTCDate());
-    // Hours are added to local midnight in wall-clock terms, so shift by the hour difference
-    // only on days without a clock change; the clock changes at 02:00-03:00, outside 06:00-22:00.
+    // Hours are wall-clock hours: on clock-change days add the 1 h difference (dstShift) so
+    // 06:00 and 22:00 stay local; on ordinary days the shift is 0.
     const start = rangeStart.getTime() + fromHour * 3600_000 + dstShift(rangeStart, fromHour);
     const end = rangeEnd.getTime() + toHour * 3600_000 + dstShift(rangeEnd, toHour);
     if (window.startsAt.getTime() < end && window.endsAt.getTime() > start) {
@@ -117,8 +141,9 @@ export function coversDaytime(window: EventWindow): boolean {
 
 /** Allowed status changes: a draft is announced, an announced event is cancelled; nothing else. */
 export function canChangeStatus(from: EventStatus, to: EventStatus, phase: EventPhase): boolean {
+  // A draft is announced only before it starts (D-E6-4: no changes after the start).
   if (from === "draft" && to === "announced") {
-    return true;
+    return phase === "upcoming";
   }
 
   // An event that already ended is read-only, so it cannot be cancelled either.
@@ -127,9 +152,9 @@ export function canChangeStatus(from: EventStatus, to: EventStatus, phase: Event
 
 export type EventEditRule = "free" | "extend_end_only" | "read_only";
 
-/** What may change in the times of an event (E6-Q6): drafts freely, others by phase. */
-export function eventEditRule(status: EventStatus, phase: EventPhase): EventEditRule {
-  if (status === "draft" || phase === "upcoming") {
+/** What may change in the times of an event (E6-Q6, D-E6-4): by phase, drafts included. */
+export function eventEditRule(_status: EventStatus, phase: EventPhase): EventEditRule {
+  if (phase === "upcoming") {
     return "free";
   }
 

@@ -111,4 +111,20 @@ describe("startOfWarsawDay", () => {
     );
     expect(warsawMidnightOf(2027, 11, 1)).toEqual(new Date("2027-10-31T23:00:00Z"));
   });
+
+  it("throws for a date that does not exist", () => {
+    expect(() => warsawMidnightOf(2027, 2, 31)).toThrow(RangeError);
+    expect(() => warsawMidnightOf(1960, 1, 1)).toThrow(RangeError);
+  });
+});
+
+describe("New Year's Eve", () => {
+  it("converts 1 January 00:00 Polish time to 31 December 23:00Z", () => {
+    const result = warsawWallTimeToInstant({ year: 2028, month: 1, day: 1, hour: 0, minute: 0 });
+    expect(result).toEqual({
+      ok: true,
+      instant: new Date("2027-12-31T23:00:00Z"),
+      ambiguous: false,
+    });
+  });
 });
