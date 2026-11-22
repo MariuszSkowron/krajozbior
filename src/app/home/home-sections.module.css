@@ -24,6 +24,32 @@
   margin: 0;
 }
 
+/* Odnośnik przy tytule sekcji: akcent z theme.css, cel dotyku 44 px (K-36). */
+.sectionLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-min);
+  font-weight: var(--font-weight-strong);
+}
+
+/* „Pokaż najbliższe”: przycisk z zapewnieniem o położeniu obok, na wąskim ekranie pod spodem. */
+.sortBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-md);
+}
+
+.sortHint {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Komunikat pod przyciskiem, w całym wierszu; pusty nie ma wysokości (region zostaje w drzewie). */
+.sortStatus {
+  flex-basis: 100%;
+}
+
 /* Trzy liczby albumu: karta z definicjami, na telefonie w jednym rzędzie. */
 .summary {
   display: grid;

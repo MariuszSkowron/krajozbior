@@ -69,7 +69,7 @@ describe("CollectionCard with a cover (E4-3)", () => {
       const html = renderToStaticMarkup(createElement(CollectionCard, { ...props, cover }));
 
       expect(html).not.toContain("<img");
-      expect(html).toMatch(/class="_cover_\w+" aria-hidden="true"/);
+      expect(html).toMatch(/class="_cover_\w+ _coverEmpty_\w+" aria-hidden="true"/);
     }
   });
 });

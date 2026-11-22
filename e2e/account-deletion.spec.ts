@@ -197,7 +197,7 @@ test.describe("deleting the account", () => {
 
     await confirmDeletion(page, "USUŃ");
     await expect(page).toHaveURL(/\/\?konto=usuniete$/);
-    // Filtered by text: the "W okolicy" section has its own, usually empty, role="status".
+    // Filtered by text: the "Kolekcje do odkrycia" section has its own, usually empty, role="status".
     await expect(
       page
         .getByRole("main")

@@ -471,6 +471,15 @@
     grid-row: 2;
   }
 
+  /*
+   * Po zalogowaniu na komputerze (K-35): wąska treść (Profil, Ustawienia, formularze) zaczyna się
+   * przy menu bocznym, zamiast wisieć na środku z pustym tłem po obu stronach. Strony szerokie
+   * (`content-width-wide`) wypełniają kolumnę do 72 rem, a telefon nie jest zmieniany.
+   */
+  .withNav .main > :global(.content-width) {
+    margin-inline: 0 auto;
+  }
+
   /* Górny odstęp treści 32 px (spec 5.6): strony mają własne 24 px (`space.lg`), tu dochodzi 8. */
   .withNav .main {
     padding-block-start: var(--space-sm);
