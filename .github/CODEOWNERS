@@ -94,6 +94,12 @@
 /tests/features/media/             @MariuszSkowron
 /e2e/commons-photos.spec.ts        @MariuszSkowron
 
+# Okładka kolekcji (E4-3): wybór ze zdjęć miejsc w edytorze kuratora (/src/app/curator/ i trasa w
+# /src/app/api/ mają już właściciela), wyzwalacze i RLS w migracji (/src/lib/db/), przypadek użycia
+# w /src/features/catalog/, test dostępu w /tests/integration/. Test przeglądarki i test widoku:
+/e2e/collection-cover.spec.ts      @MariuszSkowron
+/tests/app/collection-cover.test.ts @MariuszSkowron
+
 # Album odkrywcy: zapisane kolekcje, wizyty (dane PRIV; wizytę na miejscu tworzy funkcja bazy)
 /src/features/album/               @MariuszSkowron
 /tests/features/album/             @MariuszSkowron

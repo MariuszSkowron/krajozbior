@@ -7,6 +7,7 @@ import { COLLECTION_STATUS_LABELS, REGION_LABELS } from "@/features/catalog/doma
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 
 import { CollectionForm } from "../../collection-form";
+import { CoverPicker } from "../../cover-picker";
 import styles from "../../curator.module.css";
 import { pageValue, requireCurator } from "../../curator-session";
 import { PlaceList } from "../../place-list";
@@ -26,7 +27,7 @@ export default async function CollectionEditorPage({
   const { collectionId } = await params;
   const path = `/curator/collections/${collectionId}`;
   const { actor } = await requireCurator(path);
-  const { collection, places, otherPlaces } = pageValue(
+  const { collection, places, otherPlaces, coverPlacePhotoId, coverCandidates } = pageValue(
     await getCuratorCollection(actor, collectionId, getCatalogDeps()),
     path,
   );
@@ -74,6 +75,12 @@ export default async function CollectionEditorPage({
         collectionId={collection.id}
         places={places.map(({ id, name, address }) => ({ id, name, address }))}
         otherPlaces={otherPlaces}
+      />
+
+      <CoverPicker
+        collectionId={collection.id}
+        currentPhotoId={coverPlacePhotoId}
+        choices={coverCandidates}
       />
 
       <PublicationControls

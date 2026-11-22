@@ -43,8 +43,13 @@ function setup(
       store: vi.fn(),
       remove: vi.fn(),
       exists: vi.fn(async () => false),
+      read: vi.fn(async (_kind: string, _key: string, variant: string) =>
+        variant === "main" ? new Uint8Array([1]) : null,
+      ),
+      storeOg: vi.fn(async () => undefined),
       diskSpace: vi.fn(),
     },
+    makeOg: vi.fn(async () => new Uint8Array([9])),
     checkSpace: vi.fn(async () => ({ ok: true as const, freePercent: 50 })),
     sleep: vi.fn(),
   } as unknown as PhotoFetchDeps;
@@ -78,6 +83,7 @@ describe("parsePhotosFetchArgs", () => {
         limit: 50,
         retryFailed: true,
         refetchMissing: true,
+        backfillOg: false,
         organizationSlug: "gmina-a",
       },
     });
@@ -86,7 +92,14 @@ describe("parsePhotosFetchArgs", () => {
   it("uses the default limit and no switches", () => {
     expect(parsePhotosFetchArgs(REQUIRED)).toMatchObject({
       ok: true,
-      args: { limit: 300, retryFailed: false, refetchMissing: false },
+      args: { limit: 300, retryFailed: false, refetchMissing: false, backfillOg: false },
+    });
+  });
+
+  it("reads the --backfill-og switch", () => {
+    expect(parsePhotosFetchArgs([...REQUIRED, "--backfill-og"])).toMatchObject({
+      ok: true,
+      args: { backfillOg: true },
     });
   });
 
@@ -133,6 +146,61 @@ describe("runPhotosFetch", () => {
     expect(output.stderr.join(" ")).toContain("Poprzednie pobieranie jeszcze trwa");
     expect(entries).toHaveLength(0);
     expect(session.close).toHaveBeenCalled();
+  });
+
+  it("fills in the og files only with --backfill-og and reports the numbers", async () => {
+    const without = setup();
+
+    await runPhotosFetch(REQUIRED, { openSession: without.openSession });
+
+    expect(without.fetch.storage.storeOg).not.toHaveBeenCalled();
+    expect(without.entries[0]?.details).not.toHaveProperty("og_created");
+
+    const { openSession, entries, fetch } = setup();
+    const output = await runPhotosFetch([...REQUIRED, "--backfill-og"], { openSession });
+
+    expect(output.exitCode).toBe(0);
+    expect(fetch.makeOg).toHaveBeenCalledTimes(1);
+    expect(fetch.storage.storeOg).toHaveBeenCalledWith("place", "k", new Uint8Array([9]));
+    expect(JSON.parse(output.stdout[0]!)).toMatchObject({ ogCreated: 1, ogFailed: 0 });
+    expect(entries[0]?.details).toMatchObject({ og_created: 1, og_failed: 0 });
+  });
+
+  it("honours --limit in --backfill-og and reports stoppedBy like a normal run", async () => {
+    const limited = setup();
+
+    (limited.fetch.repository.listReady as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: "a", storageKey: "ka" },
+      { id: "b", storageKey: "kb" },
+      { id: "c", storageKey: "kc" },
+    ]);
+
+    const output = await runPhotosFetch([...REQUIRED, "--backfill-og", "--limit", "2"], {
+      openSession: limited.openSession,
+    });
+
+    expect(output.exitCode).toBe(0);
+    expect(limited.fetch.makeOg).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(output.stdout[0]!)).toMatchObject({ ogCreated: 2, ogFailed: 0 });
+
+    const paused = setup();
+
+    (paused.fetch.checkSpace as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      reason: "uploads_paused",
+      freePercent: 1,
+    });
+
+    const stopped = await runPhotosFetch([...REQUIRED, "--backfill-og"], {
+      openSession: paused.openSession,
+    });
+
+    expect(stopped.exitCode).toBe(0);
+    expect(JSON.parse(stopped.stdout[0]!)).toMatchObject({
+      stoppedBy: "uploads_paused",
+      ogCreated: 0,
+    });
+    expect(paused.entries[0]?.details).toMatchObject({ stopped_by: "uploads_paused" });
   });
 
   it("runs, writes one audit entry with numbers only and prints the summary", async () => {

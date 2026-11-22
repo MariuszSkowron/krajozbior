@@ -94,6 +94,12 @@ export function describeFailure(status: number, body: Body, subject: Subject): F
       switch (body.reason) {
         case "no_places":
           return failure("Dodaj do kolekcji co najmniej jedno miejsce, zanim ją opublikujesz.");
+        case "cover_not_allowed":
+          return failure(
+            "To zdjęcie nie może być okładką tej kolekcji (nie jest już gotowe albo jego miejsce wyszło z kolekcji). Odśwież stronę.",
+            [],
+            true,
+          );
         default:
           return failure("Stan kolekcji już się zmienił. Odśwież stronę.", [], true);
       }
