@@ -37,9 +37,10 @@ const dateParts = new Intl.DateTimeFormat("en-CA", {
 type DayParts = { day: string; month: string; year: string };
 
 function partsOf(date: Date): DayParts {
-  const parts = Object.fromEntries(dateParts.formatToParts(date).map((p) => [p.type, p.value]));
-
-  return { day: parts.day ?? "", month: parts.month ?? "", year: parts.year ?? "" };
+  // The pattern always yields day, month and year, so the three keys are always present.
+  return Object.fromEntries(
+    dateParts.formatToParts(date).map((p) => [p.type, p.value]),
+  ) as DayParts;
 }
 
 function numeric({ day, month, year }: DayParts): string {
