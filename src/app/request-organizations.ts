@@ -2,6 +2,7 @@ import { cache } from "react";
 
 import { getRequestActor } from "@/app/request-actor";
 import {
+  approvedOrganizations,
   listMyOrganizations,
   type MyOrganization,
 } from "@/features/organizations/application/list-my-organizations";
@@ -15,7 +16,5 @@ export const getApprovedOrganizations = cache(async (): Promise<readonly MyOrgan
   const actor = await getRequestActor();
   const result = await listMyOrganizations(actor, listMyOrganizationsDeps);
 
-  return result.status === "ok"
-    ? result.organizations.filter((organization) => organization.status === "approved")
-    : [];
+  return result.status === "ok" ? approvedOrganizations(result.organizations) : [];
 });
