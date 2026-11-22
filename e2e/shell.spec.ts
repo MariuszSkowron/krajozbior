@@ -358,6 +358,10 @@ test.describe("nagłówek konta", () => {
 
   test("profil kuratora opisuje rolę i prowadzi do panelu", async ({ browser }) => {
     const page = await signedInPage(browser, "curator-a", DESKTOP);
+
+    // Po zalogowaniu kurator ląduje w panelu; profil otwiera się z menu panelu.
+    await page.goto("/my");
+
     const main = page.getByRole("main");
 
     await expect(main).toContainText("Kurator ·");
