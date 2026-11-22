@@ -511,6 +511,46 @@ describe("POST /api/auth/login", () => {
   });
 });
 
+describe("request body limit of the sign-in and sign-out routes", () => {
+  const big = "x".repeat(9000);
+
+  it("answers 413 to an oversized JSON or form body and does nothing else", async () => {
+    for (const route of [login, requestCode, verifyCode]) {
+      const json = await route(
+        jsonPost("/api/auth/login", { email: "a@b.test", password: big, code: big }),
+      );
+      const form = await route(formLogin({ email: "a@b.test", password: big }));
+
+      expect(json.status).toBe(413);
+      expect(form.status).toBe(413);
+      expect(await json.json()).toEqual({ error: "payload_too_large" });
+    }
+    expect(throttle.reserve).not.toHaveBeenCalled();
+    expect(provider.signIn).not.toHaveBeenCalled();
+  });
+
+  it("counts the bytes while reading, whatever Content-Length says", async () => {
+    const response = await login(
+      formLogin({ email: "a@b.test", password: big }, { "content-length": "10" }),
+    );
+
+    expect(response.status).toBe(413);
+  });
+
+  it("answers 413 to an oversized logout form and keeps the session", async () => {
+    const response = await logout(
+      new Request("http://localhost/api/auth/logout", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ returnTo: `/${big}` }),
+      }),
+    );
+
+    expect(response.status).toBe(413);
+    expect(provider.signOut).not.toHaveBeenCalled();
+  });
+});
+
 describe("POST /api/auth/logout", () => {
   it("clears the cookies and returns 204 for API clients", async () => {
     provider.signOut.mockResolvedValue(["krajozbior.session_token=; Max-Age=0"]);

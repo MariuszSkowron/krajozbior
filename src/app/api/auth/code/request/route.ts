@@ -11,6 +11,7 @@ import { logFailure } from "@/lib/log-failure";
 
 import {
   failure,
+  invalidInputResponse,
   isFormPost,
   isRefusedDemoAccount,
   NO_STORE,
@@ -40,8 +41,8 @@ export async function POST(request: Request) {
 
   try {
     input = await readInput(request);
-  } catch {
-    return Response.json({ error: "invalid_request" }, { status: 400, headers: NO_STORE });
+  } catch (error) {
+    return invalidInputResponse(error);
   }
 
   const returnTo = requestedReturnTo(input.returnTo);
