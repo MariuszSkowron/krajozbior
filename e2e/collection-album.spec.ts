@@ -258,19 +258,34 @@ test.describe("the collection as an album", () => {
 
     const before = await page.evaluate(() => window.scrollY);
 
+    // A shorter list lets the browser clamp scrollY to the new maximum, so the check is: the page did
+    // not jump to the top, and scrollY equals the old value or the largest value the page still allows.
+    async function expectScrollKept(previous: number) {
+      const { y, max } = await page.evaluate(() => ({
+        y: window.scrollY,
+        max: document.documentElement.scrollHeight - window.innerHeight,
+      }));
+
+      expect(y).toBeGreaterThan(0);
+      expect(y).toBeLessThanOrEqual(previous + 2);
+      // A small margin for the sticky header and layout settling after the shorter list renders.
+      expect(y).toBeGreaterThanOrEqual(Math.min(previous, max) - 24);
+      await expect(nav).toBeInViewport();
+    }
+
     expect(before).toBeGreaterThan(0);
     await nav.getByRole("link", { name: "Odwiedzone (1)" }).click();
     await expect(page).toHaveURL(/\?stan=odwiedzone$/);
     await expect(card(page, /./)).toHaveCount(1);
     // Let a possible scroll to the top happen before the check.
     await page.waitForTimeout(300);
-    expect(await page.evaluate(() => window.scrollY)).toBe(before);
+    await expectScrollKept(before);
 
     await nav.getByRole("link", { name: "Do odwiedzenia (2)" }).click();
     await expect(page).toHaveURL(/\?stan=do-odwiedzenia$/);
     await expect(card(page, /./)).toHaveCount(2);
     await page.waitForTimeout(300);
-    expect(await page.evaluate(() => window.scrollY)).toBe(before);
+    await expectScrollKept(before);
     await page.context().close();
   });
 
