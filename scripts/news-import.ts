@@ -56,7 +56,8 @@ async function main() {
   const argv = process.argv.slice(2);
   const output = await runNewsImport(argv, {
     confirmedHost: confirmedHost(argv),
-    readFile: (path) => readFile(path, "utf8"),
+    // Raw bytes: the command decodes them strictly (UTF-8 without BOM).
+    readFile: (path) => readFile(path),
     connect: async () => {
       const [{ connectNewsImport }, { getOpsEnv }] = await Promise.all([
         import("../src/features/news/infrastructure/postgres-news-import-runner"),

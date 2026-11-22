@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  decodeNewsImportFile,
   MAX_NEWS_IMPORT_FILE_BYTES,
   parseNewsImportFile,
 } from "@/features/news/application/news-import-file";
@@ -83,17 +84,36 @@ describe("parseNewsImportFile", () => {
     expect(errors[1]!.message).not.toContain("<");
   });
 
-  it("refuses collection_slug with a value (the command reads no catalog) but not null", () => {
-    expect(errorsOf(line({ collection_slug: "latarnie" }))[0]).toMatchObject({
-      field: "collection_slug",
-    });
-    expect(parseNewsImportFile(line({ collection_slug: undefined })).ok).toBe(true);
+  it("takes collection_slug as an address and leaves the identifier to the runner", () => {
+    const result = parseNewsImportFile(line({ collection_slug: "latarnie-morskie" }));
+
+    expect(result.ok && result.entries[0]!.collectionSlug).toBe("latarnie-morskie");
+    expect(result.ok && result.entries[0]!.input.collectionId).toBeNull();
+
+    for (const value of [null, undefined]) {
+      const none = parseNewsImportFile(line({ collection_slug: value }));
+
+      expect(none.ok && none.entries[0]!.collectionSlug).toBeNull();
+    }
   });
 
-  it("takes collection_id and place_id as identifiers", () => {
-    const result = parseNewsImportFile(line({ collection_id: ID_2, place_id: ID_2 }));
+  it("refuses a collection_slug that is not an address", () => {
+    for (const value of ["Latarnie", "latarnie morskie", "-a", "żółw", "a".repeat(81), 5]) {
+      expect(errorsOf(line({ collection_slug: value }))[0]).toMatchObject({
+        field: "collection_slug",
+      });
+    }
+  });
 
-    expect(result.ok && result.entries[0]!.input.collectionId).toBe(ID_2);
+  it("refuses collection_id, alone and together with collection_slug", () => {
+    expect(errorsOf(line({ collection_id: ID_2 }))[0]).toMatchObject({ field: "collection_id" });
+    expect(errorsOf(line({ collection_id: ID_2, collection_slug: "a" }))[0]).toMatchObject({
+      field: "collection_id",
+      message: expect.stringContaining("Podaj tylko collection_slug"),
+    });
+  });
+
+  it("takes place_id as an identifier", () => {
     expect(errorsOf(line({ place_id: "nie-uuid" }))[0]).toMatchObject({ field: "placeId" });
   });
 
@@ -108,6 +128,37 @@ describe("parseNewsImportFile", () => {
     const content = Array.from({ length: 201 }, (_, n) => line({ id: uuid(n) })).join("\n");
 
     expect(errorsOf(content)[0]!.message).toContain("200");
+  });
+});
+
+describe("decodeNewsImportFile (S1)", () => {
+  const bytes = (text: string) => new TextEncoder().encode(text);
+
+  it("decodes UTF-8 with Polish letters", () => {
+    const result = decodeNewsImportFile(bytes("Zażółć gęślą jaźń"));
+
+    expect(result).toEqual({ ok: true, content: "Zażółć gęślą jaźń" });
+  });
+
+  it("refuses a BOM", () => {
+    const result = decodeNewsImportFile(new Uint8Array([0xef, 0xbb, 0xbf, ...bytes(line())]));
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.errors[0]).toMatchObject({ line: 0, field: "file" });
+    expect(!result.ok && result.errors[0]!.message).toContain("BOM");
+  });
+
+  it("refuses bytes that are not UTF-8 (Windows-1250 ł is 0xB3)", () => {
+    const result = decodeNewsImportFile(new Uint8Array([...bytes("Za"), 0xb3, ...bytes("oga")]));
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.errors[0]!.message).toContain("UTF-8");
+  });
+
+  it("checks the size before decoding", () => {
+    const result = decodeNewsImportFile(new Uint8Array(MAX_NEWS_IMPORT_FILE_BYTES + 1));
+
+    expect(!result.ok && result.errors[0]!.message).toContain("2 MiB");
   });
 });
 
