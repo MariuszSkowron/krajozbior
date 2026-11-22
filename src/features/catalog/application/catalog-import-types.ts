@@ -1,9 +1,13 @@
 import type { TransactionContext } from "@/lib/db/user-context";
 
+import type { PhotoContent, PhotoResult, StoredPhoto } from "../domain/import-photo";
 import type { DescriptionMethod } from "../domain/place-sources";
 import type { CatalogDeps } from "./catalog-types";
 
-export type ImportEntityKind = "collection" | "place";
+export type ImportEntityKind = "collection" | "place" | "photo";
+
+/** A photo row of a place loaded from a file (`commons_import`), as the curator may read it. */
+export type PlacePhotoRow = Readonly<{ id: string; position: number } & StoredPhoto>;
 
 /** A row of `catalog_import_keys` as the loader reads it. */
 export type ImportKeyRow = Readonly<{
@@ -95,7 +99,29 @@ export interface CatalogImportRepository {
   countOrphanedKeys(
     tx: TransactionContext,
     organizationId: string,
-  ): Promise<Readonly<Record<ImportEntityKind, number>>>;
+  ): Promise<Readonly<Record<"collection" | "place", number>>>;
+  /** Photos of a place that came from a file (`commons_import`), by position. */
+  readPlacePhotos(tx: TransactionContext, placeId: string): Promise<readonly PlacePhotoRow[]>;
+  /**
+   * Inserts a row `commons_import` / `pending_fetch` without a file, at the end of the list of the
+   * place. `null` when the place already has that Commons file (the unique key), so nothing is added.
+   */
+  insertPlacePhoto(
+    tx: TransactionContext,
+    organizationId: string,
+    placeId: string,
+    content: PhotoContent,
+    retrievedAt: string,
+  ): Promise<Readonly<{ id: string; version: number }> | null>;
+  /** Updates the signature columns; returns the new version (throws when no row changed). */
+  updatePlacePhoto(
+    tx: TransactionContext,
+    photoId: string,
+    content: PhotoContent,
+    version: number,
+  ): Promise<number>;
+  /** Deletes a photo row (the file is removed later by the cleaning command); throws when no row went. */
+  deletePlacePhoto(tx: TransactionContext, photoId: string): Promise<void>;
 }
 
 export type CatalogImportDeps = Readonly<{
@@ -142,7 +168,12 @@ export type RemovalReport = Readonly<{
   result: RemovalResult;
 }>;
 
-export type PlaceReport = Readonly<{ importKey: string; result: PlaceResult }>;
+export type PlaceReport = Readonly<{
+  importKey: string;
+  result: PlaceResult;
+  /** Results for the photo block of the place (empty or absent when there is nothing to report). */
+  photos?: readonly PhotoResult[];
+}>;
 
 export type CollectionReport = Readonly<{
   importKey: string;
@@ -162,7 +193,9 @@ export type PublishableCollection = Readonly<{ line: number; importKey: string; 
 export type ImportPreview = Readonly<{
   collections: Readonly<Record<string, number>>;
   places: Readonly<Record<string, number>>;
-  orphanedKeys: Readonly<Record<ImportEntityKind, number>>;
+  /** Results for photo blocks (`created`, `noop`, ...), counted like the places. */
+  photos?: Readonly<Record<string, number>>;
+  orphanedKeys: Readonly<Record<"collection" | "place", number>>;
   /** True when the new collections would not fit in the limit of the organization. */
   collectionLimitExceeded: boolean;
   /** With `--publish`: collections marked `publish: true` that a load would publish now. */

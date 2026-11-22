@@ -457,6 +457,38 @@ describe("the audit entries of the loader", () => {
     });
   });
 
+  it("counts the photo results as numbers only (E4-2a)", () => {
+    const result = resultOfOutcome(batch, "e1", {
+      kind: "done",
+      batchId: "batch-1",
+      collections: [
+        {
+          importKey: "col:a",
+          line: 2,
+          result: "created",
+          composition: "synced",
+          places: [
+            { importKey: "ext:1", result: "created", photos: ["created"] },
+            { importKey: "ext:2", result: "noop", photos: ["removed", "updated"] },
+            { importKey: "ext:3", result: "noop", photos: ["kept_manual_edit"] },
+            { importKey: "ext:4", result: "noop", photos: ["kept_manual_delete"] },
+            { importKey: "ext:5", result: "created", photos: ["skipped_unknown_license"] },
+            { importKey: "ext:6", result: "noop" },
+          ],
+        },
+      ],
+    });
+
+    expect(result.details).toMatchObject({
+      photos_created: 1,
+      photos_updated: 1,
+      photos_removed: 1,
+      photos_kept_manual: 2,
+      photos_skipped_unknown_license: 1,
+    });
+    expect(JSON.stringify(result.details)).not.toContain("ext:");
+  });
+
   it("counts the results of a removal by kind", () => {
     const result = resultOfOutcome(batch, "e1", {
       kind: "removed",
