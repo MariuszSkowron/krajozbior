@@ -21,7 +21,7 @@ import { shellRole } from "./shell/shell-role";
 export const metadata: Metadata = {
   title: "Krajozbiór",
   description:
-    "Kolekcje miejsc do odkrycia w Polsce. Potwierdzaj wizyty na miejscu i zbieraj je w swoim albumie.",
+    "Kolekcje miejsc do odkrycia w Polsce. Potwierdzaj wizyty na miejscu i zbieraj odwiedzone miejsca w albumie.",
 };
 
 // The bar colour of the browser follows the theme cookie, so the viewport is dynamic.

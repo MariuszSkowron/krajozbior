@@ -54,7 +54,7 @@ describe("describeFailure", () => {
   });
 
   it.each([
-    [401, "Zaloguj się ponownie, żeby zapisać zmianę"],
+    [401, "Zaloguj się ponownie"],
     [403, "Nie masz uprawnień"],
     [404, "Nie znaleziono"],
     [413, "zbyt duże"],

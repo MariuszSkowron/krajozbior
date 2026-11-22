@@ -50,7 +50,7 @@ export function describeFailure(status: number, body: Body, subject: Subject): F
     case 400:
       return failure("Popraw zaznaczone pola i zapisz jeszcze raz.", fieldNames(body));
     case 401:
-      return failure("Zaloguj się ponownie, żeby zapisać zmianę.");
+      return failure("Zaloguj się ponownie.");
     case 403:
       return failure("Nie masz uprawnień do tej zmiany.");
     case 404:

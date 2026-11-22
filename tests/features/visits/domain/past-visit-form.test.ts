@@ -62,7 +62,7 @@ describe("toPastVisitDateBody", () => {
 describe("messages", () => {
   it("names the failure by status, for one place and for many", () => {
     expect(pastVisitFailureMessage(400, false)).toContain("Sprawdź datę");
-    expect(pastVisitFailureMessage(401, true)).toContain("Zaloguj się ponownie");
+    expect(pastVisitFailureMessage(401, true)).toContain("Zaloguj się, żeby");
     expect(pastVisitFailureMessage(404, false)).toBe("To miejsce nie jest już dostępne.");
     expect(pastVisitFailureMessage(404, true)).toContain("Któreś z zaznaczonych miejsc");
     expect(pastVisitFailureMessage(429, false)).toContain("Za dużo prób");

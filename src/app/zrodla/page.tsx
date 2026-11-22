@@ -59,7 +59,7 @@ export default function SourcesPage() {
       <h1>Źródła danych</h1>
       <p>
         Miejsca w Krajozbiorze pochodzą z otwartych danych publicznych. Pod opisem każdego takiego
-        miejsca widać też podpis jego źródeł.
+        miejsca widać podpis jego źródeł.
       </p>
       <p>Dane pobrano: {DATA_RETRIEVED}.</p>
 

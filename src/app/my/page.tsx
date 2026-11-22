@@ -84,7 +84,7 @@ export default async function MyPage() {
         <h2 id="stats-title">Twoje liczby</h2>
         {statsValue === null ? (
           <p className={styles.statsError} data-testid="profile-stats-error">
-            Nie udało się teraz wczytać podsumowania.
+            Nie udało się wczytać Twoich liczb. Odśwież stronę za chwilę.
           </p>
         ) : (
           /* One definition list: a reader says "Odkryte miejsca, 12", the tiles only look like cards. */

@@ -55,7 +55,7 @@ export function toPastVisitDateBody(form: PastVisitDateForm): PastVisitDateBody 
 
 const FAILURES: Record<number, (many: boolean) => string> = {
   400: () => "Sprawdź datę: nie może być z przyszłości ani sprzed roku 1900.",
-  401: () => "Zaloguj się ponownie, żeby zapisać wizytę.",
+  401: () => "Zaloguj się, żeby zapisać wizytę.",
   404: (many) =>
     many
       ? "Któreś z zaznaczonych miejsc nie jest już dostępne. Odśwież stronę."
@@ -73,7 +73,7 @@ export function pastVisitFailureMessage(status: number, many: boolean): string {
 /** The message for a refused removal of a visit from the past. */
 export function pastVisitRemovalFailureMessage(status: number): string {
   if (status === 401) {
-    return "Zaloguj się ponownie, żeby usunąć wizytę.";
+    return "Zaloguj się, żeby usunąć wizytę.";
   }
 
   return status === 429

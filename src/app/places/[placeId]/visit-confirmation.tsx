@@ -36,7 +36,7 @@ type State =
 
 const FAILURES: Record<number, string> = {
   400: "Nie udało się odczytać lokalizacji. Spróbuj ponownie.",
-  401: "Zaloguj się ponownie, żeby potwierdzić wizytę.",
+  401: "Zaloguj się, żeby potwierdzić wizytę.",
   404: "To miejsce nie jest już dostępne.",
   429: "Za dużo prób. Spróbuj za chwilę.",
 };
