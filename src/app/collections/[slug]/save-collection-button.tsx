@@ -54,17 +54,17 @@ export function SaveCollectionButton({ collectionId, initialSaved }: Props) {
         type="button"
         className={saved ? "button button--outline" : "button button--primary"}
         disabled={pending}
+        aria-busy={pending}
         onClick={() => void toggle()}
       >
-        {saved ? "Usuń z zapisanych" : "Zapisz kolekcję"}
+        {saved ? "Usuń z zapisanych" : "Zapisuję kolekcję"}
+        {pending ? <span className={styles.spinner} aria-hidden="true" /> : null}
       </button>
       <p className={styles.feedback} role="status">
-        {error ??
-          (saved
-            ? "Ta kolekcja jest w Twoich zapisanych."
-            : removed
-              ? "Usunięto z zapisanych."
-              : "")}
+        {pending
+          ? "Zapisuję…"
+          : (error ??
+            (saved ? "Kolekcja jest zapisana." : removed ? "Usunięto z zapisanych." : ""))}
       </p>
     </div>
   );
