@@ -108,11 +108,16 @@ export const postgresAlbumRepository: AlbumRepository = {
            join public.organizations o on o.id = c.organization_id
           where c.id = ? and ${publishedCollection}
        ), held as (
-         select count(*)::int as total
-           from public.saved_collections sc
-           join public.collections c on c.id = sc.collection_id
-           join public.organizations o on o.id = c.organization_id
-          where sc.user_id = app_current_user_id() and ${publishedCollection}
+         -- "Moje kolekcje" shows the own collections (E8-1a) and the saved ones together, so the
+         -- limit of 200 counts both ([P-E8-A3]); the own ones are created under the same lock.
+         select (select count(*)::int
+                   from public.saved_collections sc
+                   join public.collections c on c.id = sc.collection_id
+                   join public.organizations o on o.id = c.organization_id
+                  where sc.user_id = app_current_user_id() and ${publishedCollection})
+                + (select count(*)::int
+                     from public.user_collections uc
+                    where uc.owner_user_id = app_current_user_id()) as total
        ), allowed as (
          select exists (
                   select from public.saved_collections
