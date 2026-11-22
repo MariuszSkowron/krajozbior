@@ -318,7 +318,7 @@ function Get-MissingConfigLines([string]$configText, [hashtable]$wanted) {
 # --- Target "showcase": rehearsal on the local showcase (spec 5.4, D-E11-8) -------------------
 
 # Modes the rehearsal can run locally; the other modes need the server (Caddy, systemd, root).
-$ShowcaseModes = @('initial', 'commit')
+$ShowcaseModes = @('initial', 'commit', 'aktualnosci')
 
 # Checks the arguments of deploy.ps1 for the chosen target. The server needs the secrets folder
 # and the public repository address; the showcase refuses both, so it can never read the folder
@@ -383,6 +383,102 @@ function Get-ShowcaseEnvironment([string]$project, [int]$port, [string]$dataDir,
     KZ_IMAGE_REPOS      = "$project-app $project-ops"
     KZ_DUMP_SUFFIX      = 'dump'
   }
+}
+
+# --- Mode aktualnosci: a news file to the server (spec E7-R, 14.4, E7-R2b) ----------------------
+# Reuses the helpers of mode import below (Test-WinDrivePath, Test-WinPathInside, Get-WinPathLeaf,
+# Get-ImportFileDiskProblem, Get-Sha256Hex, Invoke-ImportFlow); they are looked up when called.
+
+# A news file is small text (at most 200 posts per organisation): 2 MiB is far above any real file.
+$NewsMaxBytes = 2 * 1024 * 1024
+
+# Only files named like the files of the editorial team in the documentation repository.
+function Test-NewsFileName([string]$name) {
+  return ($name -cmatch '^aktualnosci-[A-Za-z0-9][A-Za-z0-9._-]{0,80}\.ndjson$')
+}
+
+# Checks of the path alone (text only, so the same on Linux CI): a full path with a drive letter
+# and the fixed name pattern. Used by the server mode (together with ImportDir) and by the
+# showcase (no ImportDir there). Returns a Polish message, or ''.
+function Get-NewsFileNameProblem([string]$path) {
+  if (-not $path) { return 'Brak pliku: podaj -Aktualnosci <pelna sciezka pliku>.' }
+  if (-not (Test-WinDrivePath $path)) {
+    return 'Podaj pelna sciezke pliku z litera dysku (np. C:\...\aktualnosci-nazwa.ndjson).'
+  }
+  if (-not (Test-NewsFileName (Get-WinPathLeaf $path))) {
+    return 'Zla nazwa pliku: oczekiwane aktualnosci-<nazwa>.ndjson (litery, cyfry, kropka, _ i -).'
+  }
+  return ''
+}
+
+# Server mode: the name checks plus the place. The file lies in ImportDir from serwer.conf (the
+# same folder as the collection files) and never in the secrets folder, so a command line handed
+# to the owner cannot send a key or the vault. Returns a Polish message, or ''.
+function Get-NewsFileProblem([string]$path, [string]$importDir, [string]$secretsDir) {
+  $problem = Get-NewsFileNameProblem $path
+  if ($problem) { return $problem }
+  if (-not $importDir) {
+    return 'serwer.conf nie ma ImportDir (folder z plikami). Dopisze go new-deploy-secrets.ps1 -OdswiezWdroz -ImportDir <folder>.'
+  }
+  if ($secretsDir -and (Test-WinPathInside $path $secretsDir)) {
+    return 'Plik lezy w folderze sekretow; takiego pliku skrypt nie wysyla.'
+  }
+  if (-not (Test-WinPathInside $path $importDir)) {
+    return "Plik musi lezec w folderze ImportDir z serwer.conf ($importDir)."
+  }
+  return ''
+}
+
+# Content check on the bytes about to be sent: a news file is NDJSON in UTF-8, so the first byte is
+# `{` (a key, the vault or a BOM start otherwise), the size is 1 B - 2 MiB, and the bytes are valid
+# UTF-8 (a file saved by an editor in the Windows-1250 code page would turn the Polish letters of
+# the titles into rubbish on the public page). Returns a Polish message, or ''.
+function Get-NewsContentProblem([byte[]]$bytes) {
+  if ($null -eq $bytes -or $bytes.Length -lt 1) { return 'Plik jest pusty.' }
+  if ($bytes.Length -gt $NewsMaxBytes) { return 'Plik jest wiekszy niz 2 MiB.' }
+  if ($bytes[0] -ne 0x7B) { return 'Plik nie wyglada na aktualnosci (pierwszy znak to nie {). Nic nie wyslano.' }
+  try { $null = (New-Object Text.UTF8Encoding($false, $true)).GetString($bytes) }
+  catch { return 'Plik nie jest zapisany w UTF-8 (polskie litery by sie zepsuly). Zapisz go jako UTF-8 bez BOM. Nic nie wyslano.' }
+  return ''
+}
+
+# Reason stored for ever in the operations audit: the file name only (no e-mail, no quote).
+function New-NewsReason([string]$fileName) {
+  $reason = "Publikacja aktualnosci z pliku $fileName"
+  if (-not (Test-AuditReason $reason)) { throw 'Nazwa pliku nie nadaje sie do powodu w dzienniku.' }
+  return $reason
+}
+
+# Counts of states as Polish words; unknown keys stay as they are.
+function Format-NewsCounts($object) {
+  if ($null -eq $object) { return 'brak' }
+  $labels = @{ created = 'nowe'; new = 'nowe'; updated = 'zmienione'; changed = 'zmienione';
+    unchanged = 'bez zmian'; noop = 'bez zmian'; withdrawn = 'wycofane' }
+  $pairs = @($object.PSObject.Properties | ForEach-Object {
+      $label = if ($labels.ContainsKey($_.Name)) { $labels[$_.Name] } else { $_.Name }
+      "$label=$($_.Value)"
+    })
+  if ($pairs.Count -eq 0) { return 'brak' }
+  return ($pairs -join ', ')
+}
+
+# One Polish line for the summary line of news:import (JSON on standard output), or $null for any
+# other line (the preview lines with the titles pass through unchanged). Counts and codes only.
+# The JSON shape is the proposal of E7-R2b; E7-R2a may rename fields (the fallback prints the
+# outcome word alone).
+function Format-NewsSummary([string]$line) {
+  $text = $line.Trim()
+  if (-not $text.StartsWith('{"outcome"')) { return $null }
+  try { $o = $text | ConvertFrom-Json } catch { return $null }
+  $inFile = "w pliku $(Get-JsonField $o 'lines') aktualnosci"
+  switch ([string](Get-JsonField $o 'outcome')) {
+    'preview' { return "Podglad ($inFile): $(Format-NewsCounts (Get-JsonField $o 'states')). Nic jeszcze nie zapisano." }
+    'applied' { return "Wgrane ($inFile): $(Format-NewsCounts (Get-JsonField $o 'results'))." }
+    'invalid' { return "Plik nie przeszedl kontroli: $(Get-JsonField $o 'errorCount') bledow (numery linii wyzej). Nic sie nie zmienilo." }
+    'refused' { return "Odmowa: $(Get-JsonField $o 'code'). Nic sie nie zmienilo." }
+    'rejected' { return "Odmowa: $(Get-JsonField $o 'code'). Nic sie nie zmienilo (plik jest wgrywany w calosci albo wcale)." }
+  }
+  return $null
 }
 
 # --- Mode import: a collection file to the server (spec 5.6, F-K6) ------------------------------

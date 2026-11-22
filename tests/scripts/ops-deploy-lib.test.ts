@@ -488,6 +488,220 @@ describe("mode import: checks on the owner's computer (F-K6)", () => {
   });
 });
 
+describe("mode aktualnosci: checks on the owner's computer (E7-R2b)", () => {
+  const IMPORT_DIR = "C:\\Projekty\\kolekcje";
+  const SECRETS = "C:\\Users\\a\\.config\\krajozbior-deploy";
+  const problem = (path: string, importDir = IMPORT_DIR, secrets = SECRETS) =>
+    psJson<string>(
+      `Get-NewsFileProblem ${psString(path)} ${psString(importDir)} ${psString(secrets)}`,
+    );
+  const content = (bytes: number[]) =>
+    psJson<string>(`Get-NewsContentProblem ([byte[]]@(${bytes.join(",")}))`);
+
+  psIt(
+    "accepts an aktualnosci-<name>.ndjson file inside ImportDir (any letter case of the folder)",
+    () => {
+      expect(problem(`${IMPORT_DIR}\\aktualnosci-pierwsze.ndjson`)).toBe("");
+      expect(problem("c:\\projekty\\KOLEKCJE\\sub\\aktualnosci-2026-11.v1.ndjson")).toBe("");
+    },
+  );
+
+  for (const [path, message] of [
+    ["", "Brak pliku"],
+    ["aktualnosci-a.ndjson", "pelna sciezke"],
+    ["\\Projekty\\kolekcje\\aktualnosci-a.ndjson", "pelna sciezke"],
+    ["C:aktualnosci-a.ndjson", "pelna sciezke"],
+    ["\\\\serwer\\udzial\\aktualnosci-a.ndjson", "pelna sciezke"],
+    [`${IMPORT_DIR}\\aktualnosci.ndjson`, "Zla nazwa pliku"],
+    [`${IMPORT_DIR}\\aktualnosci-a.json`, "Zla nazwa pliku"],
+    [`${IMPORT_DIR}\\aktualnosci-a.ndjson.pem`, "Zla nazwa pliku"],
+    [`${IMPORT_DIR}\\aktualnosci--a.ndjson`, "Zla nazwa pliku"],
+    [`${IMPORT_DIR}\\Aktualnosci-a.ndjson`, "Zla nazwa pliku"],
+    [`${IMPORT_DIR}\\fala-1-public.ndjson`, "Zla nazwa pliku"],
+    [`${SECRETS}\\ssh\\id_ed25519`, "Zla nazwa pliku"],
+    ["C:\\Projekty\\inne\\aktualnosci-a.ndjson", "folderze ImportDir"],
+    [`${IMPORT_DIR}\\..\\inne\\aktualnosci-a.ndjson`, "folderze ImportDir"],
+    ["C:\\Projekty\\kolekcje-obok\\aktualnosci-a.ndjson", "folderze ImportDir"],
+    [`${SECRETS}\\aktualnosci-a.ndjson`, "folderze sekretow"],
+  ] as const) {
+    psIt(`refuses ${path || "(empty)"}: ${message}`, () => {
+      expect(problem(path)).toContain(message);
+    });
+  }
+
+  psIt("refuses without ImportDir in serwer.conf, and the file name alone needs none", () => {
+    expect(problem(`${IMPORT_DIR}\\aktualnosci-a.ndjson`, "")).toContain("nie ma ImportDir");
+    expect(psJson<string>("Get-NewsFileNameProblem 'C:\\x\\aktualnosci-a.ndjson'")).toBe("");
+    expect(psJson<string>("Get-NewsFileNameProblem 'C:\\x\\notatki.ndjson'")).toContain(
+      "Zla nazwa pliku",
+    );
+  });
+
+  psIt("a collection file and a news file never pass as each other", () => {
+    expect(
+      psJson<boolean[]>(
+        "@((Test-NewsFileName 'aktualnosci-a.ndjson'), (Test-ImportFileName 'aktualnosci-a.ndjson'), (Test-NewsFileName 'fala-1-public.ndjson'), (Test-ImportFileName 'fala-1-public.ndjson'))",
+      ),
+    ).toEqual([true, false, false, true]);
+  });
+
+  psIt("content: a news file starts with { and is valid UTF-8 up to 2 MiB", () => {
+    expect(content([0x7b, 0x22, 0x74])).toBe("");
+    // Every Polish letter, small and capital, as the editors write them (UTF-8).
+    expect(content([...Buffer.from('{"title":"ąćęłńóśźż ĄĆĘŁŃÓŚŹŻ"}\n')])).toBe("");
+    expect(content([0x2d, 0x2d, 0x2d, 0x2d, 0x2d])).toContain("nie wyglada na aktualnosci");
+    expect(content([...Buffer.from("age-encryption.org/v1")])).toContain("nie wyglada");
+    expect(content([0xef, 0xbb, 0xbf, 0x7b])).toContain("nie wyglada");
+    expect(content([])).toContain("pusty");
+  });
+
+  psIt(
+    "content: a file saved in the Windows-1250 code page is refused (it would break the Polish letters)",
+    () => {
+      // 0xB9 is "a with ogonek" in Windows-1250 and an invalid UTF-8 sequence.
+      expect(content([0x7b, 0x22, 0xb9, 0x22, 0x7d])).toContain("nie jest zapisany w UTF-8");
+    },
+  );
+
+  psIt("content: a file above 2 MiB is refused", () => {
+    const result = psJson<string[]>(
+      "$big = New-Object byte[] (2MB + 1); $big[0] = 0x7B; $ok = New-Object byte[] (2MB); $ok[0] = 0x7B; @((Get-NewsContentProblem $big), (Get-NewsContentProblem $ok))",
+    );
+
+    expect(result[0]).toContain("2 MiB");
+    expect(result[1]).toBe("");
+  });
+
+  psIt("the audit reason holds the file name only, without a quote or an e-mail address", () => {
+    expect(psJson<string>("New-NewsReason 'aktualnosci-pierwsze.ndjson'")).toBe(
+      "Publikacja aktualnosci z pliku aktualnosci-pierwsze.ndjson",
+    );
+    expect(ps('New-NewsReason "a\'b@c"').status).not.toBe(0);
+  });
+
+  psIt("summarises the JSON line of news:import in Polish, ignores the preview lines", () => {
+    const preview = JSON.stringify({
+      outcome: "preview",
+      lines: 3,
+      states: { created: 2, unchanged: 1 },
+    });
+
+    expect(psJson<string>(`Format-NewsSummary ${psString(preview)}`)).toBe(
+      "Podglad (w pliku 3 aktualnosci): nowe=2, bez zmian=1. Nic jeszcze nie zapisano.",
+    );
+    expect(
+      psJson<string>(
+        `Format-NewsSummary ${psString(JSON.stringify({ outcome: "applied", lines: 3, results: { updated: 1, withdrawn: 1 } }))}`,
+      ),
+    ).toBe("Wgrane (w pliku 3 aktualnosci): zmienione=1, wycofane=1.");
+    expect(
+      psJson<string>(
+        `Format-NewsSummary ${psString(JSON.stringify({ outcome: "rejected", code: "invalid_transition" }))}`,
+      ),
+    ).toContain("Odmowa: invalid_transition. Nic sie nie zmienilo");
+    expect(
+      psJson<string>(
+        `Format-NewsSummary ${psString(JSON.stringify({ outcome: "invalid", errorCount: 2 }))}`,
+      ),
+    ).toContain("2 bledow");
+    expect(ps("$null -eq (Format-NewsSummary '[krajozbior] GOTOWE')").stdout).toBe("True");
+    expect(ps("$null -eq (Format-NewsSummary 'nowa: Zamki')").stdout).toBe("True");
+  });
+
+  psIt("Get-RemoteUser: the mode runs as deploy, like every mode except bootstrap", () => {
+    expect(psJson<string>("Get-RemoteUser 'aktualnosci'")).toBe("deploy");
+  });
+
+  it("deploy.ps1: the file is checked before the vault and any connection, only the ops password goes", () => {
+    const deploy = withoutComments(readFileSync(join(OPS_DIR, "deploy.ps1"), "utf8"));
+    const check = deploy.indexOf("Get-NewsFileProblem $NewsFile");
+    const start = deploy.indexOf("'aktualnosci' {");
+    const block = deploy.slice(start, deploy.indexOf("'import' {", start));
+
+    expect(check).toBeGreaterThan(0);
+    expect(check).toBeLessThan(deploy.indexOf("Open-Vault"));
+    expect(check).toBeLessThan(deploy.indexOf("Get-Tool 'ssh.exe'"));
+    expect(start).toBeGreaterThan(0);
+    expect(block).toContain("Add-Secret 'KZ_OPS_PW' $vault.Ops");
+    expect(block).not.toContain("KZ_OWNER_PW");
+    expect(block).not.toContain("$vault.Owner");
+    expect(block).toContain("Get-NewsContentProblem $bytes");
+    expect(block).toContain("Get-ImportFileDiskProblem $NewsFile $importDir");
+    expect(deploy).toContain("-NewsFile dziala tylko w trybie aktualnosci.");
+    // No "partial" branch: the whole file is written or nothing (spec E7, S23).
+    expect(deploy).not.toMatch(/aktualnosci[^\n]*czesciowo/i);
+  });
+
+  it("deploy.ps1: the owner is asked tak/nie between the preview and the write", () => {
+    const deploy = withoutComments(readFileSync(join(OPS_DIR, "deploy.ps1"), "utf8"));
+
+    expect(deploy).toContain("$Mode -eq 'import' -or $Mode -eq 'aktualnosci'");
+    expect(deploy).toContain("Read-YesNo 'Wgrac aktualnosci na serwer'");
+    expect(deploy).toContain("Format-NewsSummary $safe");
+  });
+
+  it("wdroz.ps1 passes the file on and counts the mode among the others", () => {
+    const starter = withoutComments(readFileSync(join(OPS_DIR, "wdroz.template.ps1"), "utf8"));
+
+    expect(starter).toContain("[string]$Aktualnosci = ''");
+    expect(starter).toContain("if ($Aktualnosci -ne '') { $modes += 'aktualnosci' }");
+    expect(starter).toContain("'-NewsFile', $Aktualnosci");
+    expect(starter).toContain("-Aktualnosci <plik>");
+  });
+
+  const bothPresent = (() => {
+    try {
+      execFileSync(process.platform === "win32" ? GIT_BASH : "bash", ["-c", "true"], {
+        stdio: "ignore",
+      });
+
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  const bothIt = it.skipIf((powershell === undefined || !bothPresent) && !requirePowerShell);
+
+  bothIt(
+    "S29: the Polish letters of a preview come back through the reading path of deploy.ps1 untouched",
+    () => {
+      const directory = mkdtempSync(join(tmpdir(), "krajozbior-news-"));
+      const newsFile = join(directory, "aktualnosci-test.ndjson");
+      const reportFile = join(directory, "raport.log");
+      const libFile = join(root, "scripts/ops/server/lib.sh");
+      const title = '{"title":"ąćęłńóśźż ĄĆĘŁŃÓŚŹŻ"}';
+      const bash = process.platform === "win32" ? GIT_BASH : "bash";
+
+      writeFileSync(newsFile, `${title}\n`);
+
+      // The same steps as deploy.ps1: payload built in PowerShell, started with Start-PayloadProcess,
+      // standard output read line by line as UTF-8, masked, written to the report as UTF-8.
+      const result = ps(
+        [
+          `$bytes = [IO.File]::ReadAllBytes(${psString(newsFile)})`,
+          `$modeText = 'kz_main() { printf "%s\\n" "$(printf "%s" "$KZ_IMPORT_B64" | base64 -d)"; }'`,
+          `$p = New-RemotePayload ([IO.File]::ReadAllText(${psString(libFile)})) (New-RemotePreamble @{ KZ_IMPORT_B64 = [Convert]::ToBase64String($bytes) } @{}) $modeText`,
+          "$psi = New-Object System.Diagnostics.ProcessStartInfo",
+          `$psi.FileName = ${psString(bash)}`,
+          "$psi.Arguments = '-s'",
+          "$psi.UseShellExecute = $false",
+          "$psi.RedirectStandardInput = $true",
+          "$psi.RedirectStandardOutput = $true",
+          "$psi.StandardOutputEncoding = New-Object Text.UTF8Encoding($false)",
+          "$process = Start-PayloadProcess $psi $p",
+          "while ($null -ne ($line = $process.StandardOutput.ReadLine())) { $safe = Protect-ReportLine $line @() 'serwer.example'; [IO.File]::AppendAllText(" +
+            psString(reportFile) +
+            ', $safe + "`n", (New-Object Text.UTF8Encoding($false))) }',
+          "$process.WaitForExit()",
+        ].join("; "),
+      );
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(readFileSync(reportFile, "utf8")).toBe(`${title}\n`);
+    },
+  );
+});
+
 describe("report masking (Protect-ReportLine)", () => {
   psIt("masks secrets, the server address, e-mail and IP addresses", () => {
     const result = ps(
@@ -652,6 +866,82 @@ describe("target showcase (rehearsal on the local showcase)", () => {
     ).toContain("brak -SecretsDir");
     expect(ps(`Assert-DeployTarget 'showcase' 'commit' '' ''`).status).toBe(0);
     expect(ps(`Assert-DeployTarget 'showcase' 'initial' '' ''`).status).toBe(0);
+    expect(ps(`Assert-DeployTarget 'showcase' 'aktualnosci' '' ''`).status).toBe(0);
+  });
+
+  psIt(
+    "the rehearsal names its modes: initial, commit and aktualnosci; import, zdjecia, admin stay out",
+    () => {
+      expect(psJson<string[]>("$ShowcaseModes")).toEqual(["initial", "commit", "aktualnosci"]);
+      expect(ps(`Assert-DeployTarget 'showcase' 'x' '' ''`).stderr).toContain(
+        "tylko tryby initial, commit, aktualnosci",
+      );
+      for (const mode of ["import", "zdjecia", "admin"]) {
+        expect(ps(`Assert-DeployTarget 'showcase' '${mode}' '' ''`).status, mode).not.toBe(0);
+      }
+    },
+  );
+
+  // Review S21: the file parameter belongs to mode aktualnosci alone; on the showcase the refusal
+  // comes before Docker is touched and before any file is read.
+  function runShowcaseDeploy(mode: string, newsFile: string) {
+    const result = spawnSync(
+      powershell ?? "pwsh",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        join(OPS_DIR, "deploy.ps1"),
+        "-Target",
+        "showcase",
+        "-Mode",
+        mode,
+        "-Sha",
+        "0".repeat(40),
+        "-NewsFile",
+        newsFile,
+      ],
+      { encoding: "utf8" },
+    );
+
+    return { status: result.status, text: `${result.stdout}${result.stderr}` };
+  }
+
+  psIt("a news file in mode commit on the showcase is refused before Docker (S21)", () => {
+    const result = runShowcaseDeploy("commit", "C:\\x\\aktualnosci-a.ndjson");
+
+    expect(result.status).not.toBe(0);
+    expect(result.text).toContain("-NewsFile dziala tylko w trybie aktualnosci");
+    expect(result.text).not.toContain("Docker");
+  });
+
+  psIt("mode aktualnosci on the showcase needs a file with the right name, before Docker", () => {
+    for (const [file, message] of [
+      ["C:\\x\\fala-1-public.ndjson", "Zla nazwa pliku"],
+      ["aktualnosci-a.ndjson", "pelna sciezke"],
+      ["C:\\nie-istnieje\\aktualnosci-a.ndjson", "Nie ma takiego pliku"],
+    ] as const) {
+      const result = runShowcaseDeploy("aktualnosci", file);
+
+      expect(result.status, file).not.toBe(0);
+      expect(result.text, file).toContain(message);
+      expect(result.text, file).not.toContain("Docker");
+    }
+  });
+
+  it("deploy-showcase.ps1 sends the news file like the server, runs the preview before the write", () => {
+    const code = withoutComments(readFileSync(join(OPS_DIR, "deploy-showcase.ps1"), "utf8"));
+    const handOver = withoutComments(readFileSync(join(OPS_DIR, "deploy.ps1"), "utf8"));
+
+    expect(code).toContain("ValidateSet('initial', 'commit', 'aktualnosci')");
+    expect(code).toContain("@('preview', 'apply')");
+    expect(code).toContain("if ($code -ne 0) { break }");
+    expect(code).toContain("Get-NewsContentProblem $newsBytes");
+    expect(code).toContain("KZ_IMPORT_SHA256");
+    expect(code).toContain("KZ_IMPORT_B64");
+    // The check of the file comes before the first call to Docker.
+    expect(code.indexOf("Get-NewsContentProblem")).toBeLessThan(code.indexOf("'docker'"));
+    expect(handOver).toContain("-Port $ShowcasePort -NewsFile $NewsFile");
   });
 
   psIt("refuses the secrets folder, the repository address and server-only modes", () => {

@@ -30,8 +30,15 @@ const OPERATOR_VARIABLES = {
 // confirm comes from BETTER_AUTH_URL. It reads no sign-in settings (no parseAuthEnv).
 const CATALOG_IMPORT_VARIABLES = ["DATABASE_URL", "DATABASE_OPS_URL", "BETTER_AUTH_URL"] as const;
 
+// `news:import` (E7-R, run by `wdroz.ps1 -Aktualnosci`): the whole file is written through the ops
+// role only (one transaction, audit entries of the same transaction), and in production the host
+// to confirm comes from BETTER_AUTH_URL, as for `catalog:import`. [P] of E7-R2b: E7-R2a, which
+// writes the command, confirms the set (it may add a variable, never drop DATABASE_OPS_URL).
+const NEWS_IMPORT_VARIABLES = ["DATABASE_OPS_URL", "BETTER_AUTH_URL"] as const;
+
 const DOCUMENTED_VARIABLES: Record<string, readonly string[]> = {
   ...OPERATOR_VARIABLES,
+  "news:import": NEWS_IMPORT_VARIABLES,
   "catalog:import": CATALOG_IMPORT_VARIABLES,
 };
 
@@ -93,11 +100,26 @@ describe("operator file variables (NODE_ENV=production)", () => {
     expect(() => parseOpsEnv(withoutOps)).toThrow("DATABASE_OPS_URL");
   });
 
+  it("news:import: the documented set satisfies the operator role settings, with no app role", () => {
+    const env = productionEnv(NEWS_IMPORT_VARIABLES);
+
+    expect(() => parseOpsEnv(env)).not.toThrow();
+    expect(env).not.toHaveProperty("DATABASE_URL");
+    expect(new URL(env.BETTER_AUTH_URL ?? "").hostname).toBe("krajozbior.example.com");
+  });
+
+  it("news:import: dropping the ops database variable makes the command refuse with its name", () => {
+    const without = productionEnv(NEWS_IMPORT_VARIABLES.filter((n) => n !== "DATABASE_OPS_URL"));
+
+    expect(() => parseOpsEnv(without)).toThrow("DATABASE_OPS_URL");
+  });
+
   it("matches the lists in docs/deployment.md and in lib.sh", () => {
     const doc = readFileSync(resolve(process.cwd(), "docs/deployment.md"), "utf8");
     const lib = readFileSync(resolve(process.cwd(), "scripts/ops/server/lib.sh"), "utf8");
 
     expect(lib).toContain(`catalog:import) echo "${CATALOG_IMPORT_VARIABLES.join(" ")}" ;;`);
+    expect(lib).toContain(`news:import) echo "${NEWS_IMPORT_VARIABLES.join(" ")}" ;;`);
 
     for (const [command, names] of Object.entries(DOCUMENTED_VARIABLES)) {
       const line = doc.split("\n").find((row) => row.trimStart().startsWith(`- \`${command}\`:`));

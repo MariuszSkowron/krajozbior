@@ -148,6 +148,7 @@ const OPS_ENV: Record<string, string[]> = {
     "BETTER_AUTH_URL",
     "AUTH_CLIENT_IP_HEADER",
   ],
+  "news:import": ["DATABASE_OPS_URL", "BETTER_AUTH_URL"],
   "catalog:import": ["DATABASE_URL", "DATABASE_OPS_URL", "BETTER_AUTH_URL"],
   "legal:final": [],
 };
@@ -679,6 +680,238 @@ describe("mode import: collection file to the server (remote.sh, F-K6)", () => {
     );
     expect(result.stdout).toContain("ops.env: DATABASE_URL DATABASE_OPS_URL BETTER_AUTH_URL ");
     expect(result.leftovers).toEqual([]);
+  });
+});
+
+describe("mode aktualnosci: news file to the server (remote.sh, E7-R2b)", () => {
+  // Every Polish letter, small and capital: the preview must bring them back unchanged (S29), and
+  // the code of remote.sh itself stays ASCII (S19; the test of all scripts above checks that).
+  const TITLE = "ąćęłńóśźż ĄĆĘŁŃÓŚŹŻ";
+  const CONTENT = `{"id":"1","kind":"guide","title":"${TITLE}","status":"published"}\n{"id":"2","status":"withdrawn"}\n`;
+  const NAME = "aktualnosci-pierwsze.ndjson";
+  const NEWS_ENV = {
+    KZ_IMPORT_NAME: NAME,
+    KZ_IMPORT_SHA256: createHash("sha256").update(CONTENT).digest("hex"),
+    KZ_IMPORT_B64: Buffer.from(CONTENT).toString("base64"),
+    KZ_REASON: `Publikacja aktualnosci z pliku ${NAME}`,
+    KZ_SITE_HOST: "krajozbior.example",
+    ...PAYLOAD_SECRETS,
+  };
+  // A running version with the command on the server, and the EXIT trap of kz_main.
+  const READY = [
+    'kz_state_set initialized x; kz_state_set current-tag "aaaaaaaaaaaa"',
+    'mkdir -p "$KZ_SRC"; echo \'{"scripts":{"news:import":"tsx x"}}\' >"$KZ_SRC/package.json"',
+    "trap kz_cleanup EXIT",
+  ].join("\n");
+  // Stub of the operator command: its arguments, the files it sees in the mounted folder and the
+  // content of the file (so the file really existed, byte for byte, during the command).
+  const opsStub = (status: number) =>
+    `kz_ops() { echo "ops $*"; local dir="\${3%:/imports:ro}"; echo "mounted: $(ls "$dir")"; cat "$dir/$KZ_IMPORT_NAME"; return ${status}; }`;
+
+  function runNews(env: Record<string, string>, prepare: string, call = "kz_mode_aktualnosci") {
+    const box = sandbox(ENV_PRODUCTION);
+    const remote = join(SERVER_DIR, "remote.sh").replaceAll("\\", "/");
+    const result = runLib(`. "${remote}"\n${prepare}\n${call}`, {
+      KZ_ROOT: box.root,
+      KZ_RUN: box.run,
+      ...NEWS_ENV,
+      ...env,
+    });
+    const importsDir = join(box.root, "imports");
+    const leftovers = existsSync(importsDir) ? readdirSync(importsDir) : [];
+
+    return { ...result, leftovers };
+  }
+
+  bashIt("preview: dry run with the confirmed host, read-only mount, file removed after", () => {
+    const result = runNews({ KZ_IMPORT_PHASE: "preview" }, `${READY}\n${opsStub(0)}`);
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toMatch(
+      new RegExp(
+        `ops news:import -v \\S*/imports/run-[0-9-]+:/imports:ro -- --file /imports/${NAME} --target server --confirm-host krajozbior\\.example --dry-run\\n`,
+      ),
+    );
+    expect(result.stdout).not.toContain("--operator");
+    expect(result.stdout).not.toContain("--org-slug");
+    expect(result.stdout).toContain(`mounted: ${NAME}`);
+    expect(result.stdout).toContain("GOTOWE: podglad (nic nie zapisano)");
+    expect(result.leftovers).toEqual([]);
+  });
+
+  bashIt("S29: the preview brings the Polish letters of a title back unchanged", () => {
+    const result = runNews({ KZ_IMPORT_PHASE: "preview" }, `${READY}\n${opsStub(0)}`);
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain(`"title":"${TITLE}"`);
+  });
+
+  bashIt("apply: writes with the operator label and the reason, without --dry-run", () => {
+    const result = runNews({ KZ_IMPORT_PHASE: "apply" }, `${READY}\n${opsStub(0)}`);
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain(
+      `--confirm-host krajozbior.example --operator wlasciciel --reason Publikacja aktualnosci z pliku ${NAME}\n`,
+    );
+    expect(result.stdout).not.toContain("--dry-run");
+    expect(result.stdout).toContain("GOTOWE: aktualnosci wgrane");
+    expect(result.leftovers).toEqual([]);
+  });
+
+  for (const [code, exitCode, message] of [
+    [2, 2, "plik odrzucony (kod 2)"],
+    [3, 3, "odmowa (kod 3)"],
+    [1, 1, "wgrywanie aktualnosci nieudane (kod 1)"],
+    [7, 1, "wgrywanie aktualnosci nieudane (kod 7)"],
+  ] as const) {
+    bashIt(
+      `the command's code ${code} ends the mode with ${exitCode}, says what happened and still removes the file`,
+      () => {
+        const result = runNews({ KZ_IMPORT_PHASE: "apply" }, `${READY}\n${opsStub(code)}`);
+
+        expect(result.status).toBe(exitCode);
+        expect(result.stdout).toContain(message);
+        expect(result.stdout).toContain("plik usuniety z serwera");
+        expect(result.leftovers).toEqual([]);
+      },
+    );
+  }
+
+  bashIt(
+    "codes 2 and 3 say that nothing changed (all or nothing), code 1 that the file can be repeated",
+    () => {
+      const two = runNews({ KZ_IMPORT_PHASE: "apply" }, `${READY}\n${opsStub(2)}`);
+      const three = runNews({ KZ_IMPORT_PHASE: "apply" }, `${READY}\n${opsStub(3)}`);
+      const one = runNews({ KZ_IMPORT_PHASE: "apply" }, `${READY}\n${opsStub(1)}`);
+
+      expect(two.stdout).toContain("nic sie nie zmienilo");
+      expect(three.stdout).toContain("nic sie nie zmienilo");
+      expect(one.stdout).toContain("w calosci albo wcale");
+      expect(one.stdout).toContain("mozna powtorzyc");
+      // No "partial" result as in the collection import (spec E7, S23).
+      expect(`${two.stdout}${three.stdout}${one.stdout}`).not.toMatch(/czesciow/);
+    },
+  );
+
+  bashIt("an exit inside the operator command removes the file through the EXIT trap", () => {
+    const result = runNews(
+      { KZ_IMPORT_PHASE: "apply" },
+      `${READY}\nkz_ops() { kz_fail "brak wartosci DATABASE_OPS_URL dla news:import"; }`,
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.leftovers).toEqual([]);
+  });
+
+  bashIt("refuses a file whose SHA-256 differs, before any command, and removes it", () => {
+    const result = runNews(
+      { KZ_IMPORT_PHASE: "apply", KZ_IMPORT_SHA256: "0".repeat(64) },
+      `${READY}\n${opsStub(0)}`,
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("rozni sie od pliku z komputera");
+    expect(result.stdout).not.toContain("ops news:import");
+    expect(result.leftovers).toEqual([]);
+  });
+
+  for (const name of [
+    "../aktualnosci-a.ndjson",
+    "id_ed25519",
+    "aktualnosci.ndjson",
+    "aktualnosci-a.json",
+    "fala-1-public.ndjson",
+    "aktualnosci--a.ndjson",
+  ]) {
+    bashIt(`refuses the file name ${name} before writing anything`, () => {
+      const result = runNews(
+        { KZ_IMPORT_PHASE: "apply", KZ_IMPORT_NAME: name },
+        `${READY}\n${opsStub(0)}`,
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("zla nazwa pliku");
+      expect(result.stdout).not.toContain("ops news:import");
+      expect(result.leftovers).toEqual([]);
+    });
+  }
+
+  bashIt("refuses an unknown phase, a missing reason and a bad or missing host name", () => {
+    for (const [env, message] of [
+      [{ KZ_IMPORT_PHASE: "publish" }, "nieznana faza wgrywania"],
+      [{ KZ_IMPORT_PHASE: "apply", KZ_REASON: "" }, "brak powodu"],
+      [{ KZ_IMPORT_PHASE: "apply", KZ_SITE_HOST: "" }, "brak nazwy hosta"],
+      [{ KZ_IMPORT_PHASE: "apply", KZ_SITE_HOST: "host; rm -rf x" }, "brak nazwy hosta"],
+      [{ KZ_IMPORT_PHASE: "apply", KZ_IMPORT_B64: "" }, "brak tresci pliku"],
+    ] as const) {
+      const result = runNews(env, `${READY}\n${opsStub(0)}`);
+
+      expect(result.status, message).toBe(1);
+      expect(result.stdout, message).toContain(message);
+      expect(result.stdout, message).not.toContain("ops news:import");
+      expect(result.leftovers, message).toEqual([]);
+    }
+  });
+
+  bashIt(
+    "refuses when the running version has no news:import, so the mode can be merged first",
+    () => {
+      const result = runNews(
+        { KZ_IMPORT_PHASE: "preview" },
+        `${READY}\necho '{"scripts":{"catalog:import":"tsx x"}}' >"$KZ_SRC/package.json"\n${opsStub(0)}`,
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("nie ma polecenia news:import");
+      expect(result.stdout).not.toContain("ops news:import");
+      expect(result.leftovers).toEqual([]);
+    },
+  );
+
+  bashIt("refuses before the first deployment", () => {
+    const result = runNews({ KZ_IMPORT_PHASE: "preview" }, opsStub(0));
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("pierwsze wdrozenie jeszcze sie nie odbylo");
+  });
+
+  bashIt("kz_main runs the mode for KZ_MODE=aktualnosci and leaves nothing behind", () => {
+    const result = runNews(
+      { KZ_IMPORT_PHASE: "preview", KZ_MODE: "aktualnosci" },
+      `kz_require_deploy() { :; }\nkz_state_set initialized x; kz_state_set current-tag "aaaaaaaaaaaa"\nmkdir -p "$KZ_SRC"; echo '"news:import"' >"$KZ_SRC/package.json"\n${opsStub(0)}`,
+      "kz_main",
+    );
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain("GOTOWE: podglad");
+    expect(result.leftovers).toEqual([]);
+  });
+
+  bashIt(
+    "the real kz_ops writes ops.env with the ops variables only, never the owner password",
+    () => {
+      const result = runNews(
+        // The payload of this mode carries no owner password; one in the environment must not leak in.
+        { KZ_IMPORT_PHASE: "preview", KZ_OWNER_PW: "owner-pw-0123456789abcdef" },
+        `${READY}\nkz_compose() { echo "compose $*"; echo "ops.env: $(cut -d= -f1 "$KZ_OPS_ENV" | tr '\\n' ' ')"; echo "owner in ops.env: $(grep -c owner-pw "$KZ_OPS_ENV" || true)"; }`,
+      );
+
+      expect(result.status, result.stdout).toBe(0);
+      expect(result.stdout).toMatch(
+        /compose --profile ops run --rm -T -v \S*\/imports\/run-[0-9-]+:\/imports:ro ops npm run --silent news:import -- --file \/imports\/aktualnosci-pierwsze\.ndjson --target server /,
+      );
+      expect(result.stdout).toContain("ops.env: DATABASE_OPS_URL BETTER_AUTH_URL \n");
+      expect(result.stdout).toContain("owner in ops.env: 0");
+      expect(result.leftovers).toEqual([]);
+    },
+  );
+
+  bashIt("the messages of remote.sh and the code of the mode are ASCII (S19)", () => {
+    const text = readFileSync(join(SERVER_DIR, "remote.sh"), "utf8");
+    const start = text.indexOf("# --- aktualnosci");
+
+    expect(start).toBeGreaterThan(0);
+    expect(text.slice(start, text.indexOf("kz_main() {", start))).toMatch(/^[\t\n\x20-\x7e]*$/);
   });
 });
 
@@ -1273,6 +1506,67 @@ describe("target showcase: the same remote.sh with showcase.sh (rehearsal, D-E11
     expect(result.log).toContain("image rm krajozbior-rehearsal-ops:cccccccccccc");
     expect(result.log).not.toMatch(/image rm \S+:(aaaaaaaaaaaa|bbbbbbbbbbbb|local)$/m);
   });
+
+  // E7-R2b: mode aktualnosci runs unchanged on the showcase; only the target arguments differ and
+  // the mount reaches Docker untouched by the path conversion of Git Bash.
+  const NEWS_FILE = '{"id":"1","title":"Zamki"}\n';
+  const NEWS_NAME = "aktualnosci-proba.ndjson";
+  const newsEnv = (phase: string) => ({
+    KZ_IMPORT_PHASE: phase,
+    KZ_IMPORT_NAME: NEWS_NAME,
+    KZ_IMPORT_SHA256: createHash("sha256").update(NEWS_FILE).digest("hex"),
+    KZ_IMPORT_B64: Buffer.from(NEWS_FILE).toString("base64"),
+    KZ_REASON: `Publikacja aktualnosci z pliku ${NEWS_NAME}`,
+  });
+  const NEWS_DOCKER = [
+    'printf \'conv=%s\\n\' "${MSYS2_ARG_CONV_EXCL:-}" >>"$DOCKER_LOG"',
+    'printf \'%s\\n\' "$*" >>"$DOCKER_LOG"',
+    'case "$*" in *" run "*) echo "ops-output" ;; esac',
+  ].join("\n");
+  const NEWS_READY = [
+    'kz_state_set initialized x; kz_state_set current-tag "aaaaaaaaaaaa"',
+    'mkdir -p "$KZ_SRC"; echo \'"news:import"\' >"$KZ_SRC/package.json"',
+    "trap kz_cleanup EXIT",
+  ].join("\n");
+
+  for (const [phase, flags] of [
+    ["preview", "--dry-run"],
+    ["apply", `--operator wlasciciel --reason Publikacja aktualnosci z pliku ${NEWS_NAME}`],
+  ] as const) {
+    bashIt(`aktualnosci (${phase}): the command gets the file and no server arguments`, () => {
+      const result = runShowcase(`${NEWS_READY}\nkz_mode_aktualnosci`, {
+        ...newsEnv(phase),
+        STUB_BIN: stubBin({ docker: NEWS_DOCKER, age: AGE_MUST_NOT_RUN }),
+      });
+
+      expect(result.status, result.stdout).toBe(0);
+      expect(result.stdout).toContain("ops-output");
+      expect(result.log).toMatch(
+        new RegExp(
+          `run --rm -T -v \\S*/imports/run-[0-9-]+:/imports:ro ops npm run --silent news:import -- --file /imports/${NEWS_NAME} ${flags}$`,
+          "m",
+        ),
+      );
+      expect(result.log).not.toContain("--target");
+      expect(result.log).not.toContain("--confirm-host");
+      // Git Bash must leave `-v C:/folder:/imports:ro` as it is.
+      expect(result.log).toMatch(/^conv=\*$/m);
+      expect(result.stdout).toContain("plik usuniety z serwera");
+    });
+  }
+
+  bashIt(
+    "aktualnosci: the target arguments of the showcase are empty, the server's are not",
+    () => {
+      const showcase = runShowcase('printf "[%s]" "$(kz_news_target_args)"');
+      const server = runLib(`. "${REMOTE}"; kz_news_target_args`, {
+        KZ_SITE_HOST: "krajozbior.example",
+      });
+
+      expect(showcase.stdout).toBe("[]");
+      expect(server.stdout.trim()).toBe("--target server --confirm-host krajozbior.example");
+    },
+  );
 
   bashIt("reuses an existing showcase volume and never removes it", () => {
     const result = runShowcase("kz_initial_database");

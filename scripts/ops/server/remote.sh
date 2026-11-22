@@ -9,6 +9,9 @@
 #   diagnoza  read-only state for the agent (no secrets, IP and e-mail addresses masked)
 #   otworz    removes the password gate, only after `npm run legal:final` passes
 #   odtworz   restores the newest real backup with the owner's key into a throw-away container
+#   aktualnosci  news file of the editorial team (spec E7-R, E7-R2b): KZ_IMPORT_PHASE=preview
+#             runs news:import --dry-run, apply writes the whole file (all or nothing); the
+#             file comes in the payload like an import file (same helpers, one-time folder)
 #   import    collection file (spec 5.6, F-K6): KZ_IMPORT_PHASE=preview runs catalog:import
 #             --dry-run, apply loads drafts; the file comes in the payload and lives in a
 #             one-time folder under imports/ only for that one command
@@ -402,10 +405,89 @@ kz_mode_import() {
   esac
 }
 
+# --- aktualnosci (spec E7-R, 14.4, E7-R2b) -----------------------------------------------------
+# Same transport as import (kz_import_prepare: base64 + SHA-256 in the payload, one-time folder
+# under imports/ mounted read-only into `ops`, removed by kz_import_clear and the EXIT trap).
+# Differences: no organisation or curator (the command takes only the editorial organisations),
+# only the ops role password, one transaction for the whole file, so exit code 2 and 3 mean
+# "nothing changed" and are passed on as they are (wdroz.ps1 shows them in yellow).
+
+# The running version must have the command (it is the code of the running version, no checkout
+# here), so an older deployment refuses before anything runs and this mode can be merged before
+# the command itself exists.
+kz_require_news_support() {
+  grep -q '"news:import"' "$KZ_SRC/package.json" 2>/dev/null ||
+    kz_fail "dzialajaca wersja nie ma polecenia news:import. Najpierw wdroz commit z poleceniem news:import (-Commit <sha>); nic nie wgrano"
+}
+
+# Arguments that name the target of news:import. On the server the command needs the explicit
+# server mode with the confirmed host; prints nothing and fails when the host name is not valid.
+# showcase.sh replaces this function (the showcase database is local, the container is not
+# production, so the command runs without them).
+kz_news_target_args() {
+  local host_re='^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$'
+  [[ "${KZ_SITE_HOST:-}" =~ $host_re ]] || return 1
+  printf '%s\n' "--target server --confirm-host $KZ_SITE_HOST"
+}
+
+kz_news_check_inputs() {
+  local name_re='^aktualnosci-[A-Za-z0-9][A-Za-z0-9._-]{0,80}\.ndjson$'
+  case "${KZ_IMPORT_PHASE:-}" in preview | apply) ;; *) kz_fail "nieznana faza wgrywania" ;; esac
+  [[ "${KZ_IMPORT_NAME:-}" =~ $name_re ]] || kz_fail "zla nazwa pliku (oczekiwane aktualnosci-<nazwa>.ndjson); nic nie wgrano"
+  [[ "${KZ_IMPORT_SHA256:-}" =~ ^[0-9a-f]{64}$ ]] || kz_fail "brak skrotu SHA-256 pliku; nic nie wgrano"
+  [ -n "${KZ_IMPORT_B64:-}" ] || kz_fail "brak tresci pliku; nic nie wgrano"
+  [ -n "${KZ_REASON:-}" ] || kz_fail "brak powodu do dziennika operacji; nic nie wgrano"
+  kz_news_target_args >/dev/null || kz_fail "brak nazwy hosta serwisu; nic nie wgrano"
+}
+
+kz_news_run() {
+  local target
+  local -a target_args=() args=()
+  target="$(kz_news_target_args)"
+  read -r -a target_args <<<"$target"
+  args=(--file "/imports/$KZ_IMPORT_NAME" ${target_args[@]+"${target_args[@]}"})
+  if [ "$KZ_IMPORT_PHASE" = "preview" ]; then
+    args+=(--dry-run)
+  else
+    args+=(--operator wlasciciel --reason "$KZ_REASON")
+  fi
+  kz_ops news:import -v "$KZ_IMPORT_DIR:/imports:ro" -- "${args[@]}"
+}
+
+kz_mode_aktualnosci() {
+  kz_require_initialized
+  kz_require_news_support
+  kz_news_check_inputs
+  kz_import_prepare
+  if [ "$KZ_IMPORT_PHASE" = "preview" ]; then
+    kz_step "podglad aktualnosci z $KZ_IMPORT_NAME (nic nie zapisuje)"
+  else
+    kz_step "wgranie aktualnosci z $KZ_IMPORT_NAME (caly plik albo nic; wpisy w dzienniku operacji)"
+  fi
+  local status=0
+  kz_news_run || status=$?
+  kz_import_clear
+  kz_step "plik usuniety z serwera"
+  case "$status" in
+    0)
+      if [ "$KZ_IMPORT_PHASE" = "preview" ]; then kz_step "GOTOWE: podglad (nic nie zapisano)"; else kz_step "GOTOWE: aktualnosci wgrane"; fi ;;
+    # Not failures of the script: their own exit statuses (the EXIT trap still cleans up), so
+    # wdroz.ps1 says what happened and that nothing changed.
+    2)
+      kz_step "plik odrzucony (kod 2): bledy w pliku; nic sie nie zmienilo"
+      exit 2 ;;
+    3)
+      kz_step "odmowa (kod 3): niedozwolona zmiana stanu, zle powiazanie albo za duzo aktualnosci; nic sie nie zmienilo"
+      exit 3 ;;
+    *) kz_fail "wgrywanie aktualnosci nieudane (kod $status); plik jest zapisywany w calosci albo wcale, to samo wgranie mozna powtorzyc" ;;
+  esac
+}
+
 kz_main() {
   trap kz_cleanup EXIT
   kz_require_deploy
   case "$KZ_MODE" in
+    aktualnosci) kz_mode_aktualnosci ;;
     initial) kz_mode_initial ;;
     commit) kz_mode_commit ;;
     admin) kz_mode_admin ;;

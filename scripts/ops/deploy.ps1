@@ -12,6 +12,11 @@
 #   -Mode diagnoza    read-only report for the agent
 #   -Mode otworz      removes the Caddy password gate (only after npm run legal:final passes)
 #   -Mode odtworz     restores the newest backup with the owner's backup key (exercise, K-8)
+#   -Mode aktualnosci news file of the editorial team (spec E7-R, 14.4, E7-R2b): -NewsFile <full
+#                     path of aktualnosci-<name>.ndjson in ImportDir of serwer.conf>. Same flow as
+#                     import (preview = news:import --dry-run, the owner answers tak/nie, then the
+#                     load) but all or nothing for the whole file and only the `ops` role password
+#                     in the payload. Refuses on a running version without news:import.
 #   -Mode import      collection file to the server (spec 5.6, F-K6): -ImportFile <full path in
 #                     ImportDir of serwer.conf>, optional -OrgSlug. Two connections: preview
 #                     (catalog:import --dry-run), the owner answers tak/nie, then the load of
@@ -19,7 +24,7 @@
 #                     server only for one command and is mounted read-only into `ops`.
 #
 # -Target showcase (default: server) is the agent's rehearsal on the local showcase: modes
-# initial and commit only, without -SecretsDir and -RepoUrl. It hands over to
+# initial, commit and aktualnosci only, without -SecretsDir and -RepoUrl. It hands over to
 # deploy-showcase.ps1 before anything below runs, so it never reads the secrets folder and never
 # starts the remote-shell client (docs/deployment.md, "Proba generalna na pokazie").
 #
@@ -31,13 +36,14 @@
 param(
   [string]$SecretsDir = '',
   [Parameter(Mandatory = $true)]
-  [ValidateSet('bootstrap', 'initial', 'commit', 'admin', 'diagnoza', 'otworz', 'odtworz', 'import')]
+  [ValidateSet('bootstrap', 'initial', 'commit', 'admin', 'diagnoza', 'otworz', 'odtworz', 'import', 'aktualnosci')]
   [string]$Mode,
   [Parameter(Mandatory = $true)][string]$Sha,
   [string]$RepoUrl = '',
   [ValidateSet('server', 'showcase')][string]$Target = 'server',
   [string]$ShowcaseProject = 'krajozbior-showcase',
   [int]$ShowcasePort = 3300,
+  [string]$NewsFile = '',
   [string]$ImportFile = '',
   [string]$OrgSlug = ''
 )
@@ -48,7 +54,7 @@ $ErrorActionPreference = 'Stop'
 
 Assert-DeployTarget $Target $Mode $SecretsDir $RepoUrl
 if ($Target -eq 'showcase') {
-  & (Join-Path $PSScriptRoot 'deploy-showcase.ps1') -Mode $Mode -Sha $Sha -Project $ShowcaseProject -Port $ShowcasePort
+  & (Join-Path $PSScriptRoot 'deploy-showcase.ps1') -Mode $Mode -Sha $Sha -Project $ShowcaseProject -Port $ShowcasePort -NewsFile $NewsFile
   exit $LASTEXITCODE
 }
 
@@ -77,6 +83,11 @@ if ($Mode -eq 'import' -and -not $ImportFile) {
     'odswiez ja (new-deploy-secrets.ps1 -OdswiezWdroz, docs/deployment.md "Wgrywanie kolekcji"). Nic nie zrobiono.')
 }
 if ($Mode -ne 'import' -and ($ImportFile -or $OrgSlug)) { throw '-ImportFile i -OrgSlug dzialaja tylko w trybie import.' }
+if ($Mode -eq 'aktualnosci' -and -not $NewsFile) {
+  throw ('Brak pliku z aktualnosciami. Jesli wpisales wdroz.ps1 -Aktualnosci <plik>, Twoja kopia wdroz.ps1 jest starsza niz ten tryb: ' +
+    'odswiez ja (new-deploy-secrets.ps1 -OdswiezWdroz, docs/deployment.md "Publikowanie aktualnosci"). Nic nie zrobiono.')
+}
+if ($Mode -ne 'aktualnosci' -and $NewsFile) { throw '-NewsFile dziala tylko w trybie aktualnosci.' }
 if (-not (Test-CommitSha $Sha)) { throw 'Nieprawidlowy commit (oczekiwane 40 znakow 0-9a-f).' }
 if ($RepoUrl -notmatch '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?(\.git)?$') {
   throw 'Adres repozytorium musi byc publicznym adresem https://github.com/...'
@@ -105,6 +116,20 @@ if ($Mode -eq 'import') {
   if (-not $problem) { $problem = Get-ImportFileDiskProblem $ImportFile $importDir }
   if ($problem) { throw "$problem Nic nie zrobiono." }
   if ($OrgSlug -and -not (Test-OrgSlug $OrgSlug)) { throw 'Nieprawidlowy slug organizacji (male litery, cyfry i -). Nic nie zrobiono.' }
+}
+
+# Mode aktualnosci: the same order as import, the file is checked before any question, password
+# or connection (name, place, plain file without shortcuts).
+if ($Mode -eq 'aktualnosci') {
+  $importDir = if ($config.ContainsKey('ImportDir')) { $config.ImportDir } else { '' }
+  $problem = Get-NewsFileProblem $NewsFile $importDir $SecretsDir
+  if (-not $problem) {
+    # From here on only the resolved path is used (checks, Get-Item, ReadAllBytes).
+    $NewsFile = Resolve-WinPath $NewsFile
+    $problem = Get-NewsFileProblem $NewsFile $importDir $SecretsDir
+  }
+  if (-not $problem) { $problem = Get-ImportFileDiskProblem $NewsFile $importDir }
+  if ($problem) { throw "$problem Nic nie zrobiono." }
 }
 
 function Write-Report([string]$line) {
@@ -193,6 +218,27 @@ switch ($Mode) {
     Write-Say '  5. agent sprawdzil logi po probnych wizytach (K-4).'
     if (-not (Read-YesNo 'Wszystkie piec warunkow spelnione')) { throw 'Serwis zostaje za haslem. Nic nie zrobiono.' }
   }
+  'aktualnosci' {
+    # Checked again right before reading: time passed since the first check, enough to swap the
+    # file or its folder for a shortcut (same as import, review S2).
+    $problem = Get-ImportFileDiskProblem $NewsFile $importDir
+    if ($problem) { throw "$problem Nic nie zrobiono." }
+    $bytes = [IO.File]::ReadAllBytes($NewsFile)
+    $problem = Get-NewsContentProblem $bytes
+    if ($problem) { throw "$problem Nic nie zrobiono." }
+    $newsName = Get-WinPathLeaf $NewsFile
+    # The file travels like a collection file (the server side reuses the import helpers).
+    $plain.KZ_IMPORT_NAME = $newsName
+    $plain.KZ_IMPORT_SHA256 = Get-Sha256Hex $bytes
+    # Public editorial text, not a secret; base64 has no quote or new line, as the preamble
+    # requires, and carries the Polish letters of the titles untouched.
+    $plain.KZ_IMPORT_B64 = [Convert]::ToBase64String($bytes)
+    $plain.KZ_REASON = New-NewsReason $newsName
+    $bytes = $null
+    # The ops password only (news:import writes as krajozbior_ops): no owner password.
+    $vault = Open-Vault
+    Add-Secret 'KZ_OPS_PW' $vault.Ops
+  }
   'import' {
     $slug = $OrgSlug
     if (-not $slug) {
@@ -267,6 +313,10 @@ function Invoke-RemoteConnection {
       Write-Say '  Zapisz je teraz w menedzerze hasel ("Krajozbior - haslo strony testowej"). Nie trafia do raportu.'
       Read-Host 'Gdy zapiszesz, nacisnij Enter (serwer czeka)' | Out-Null
     }
+    if ($Mode -eq 'aktualnosci') {
+      $summary = Format-NewsSummary $safe
+      if ($summary) { Write-Say (Write-Report "podsumowanie: $summary") 'Cyan' }
+    }
     if ($Mode -eq 'import') {
       $summary = Format-ImportSummary $safe
       if ($summary) {
@@ -281,16 +331,22 @@ function Invoke-RemoteConnection {
 
 $importResult = ''
 $importPartial = $false
-if ($Mode -eq 'import') {
+if ($Mode -eq 'import' -or $Mode -eq 'aktualnosci') {
   $flow = Invoke-ImportFlow {
     param($phase)
     $plain.KZ_IMPORT_PHASE = $phase
     Invoke-RemoteConnection
   } {
     Write-Say ''
-    Write-Say 'Powyzej podglad: co wgranie zrobiloby z kolekcjami i miejscami. Na serwerze nic sie jeszcze nie zmienilo.' 'Yellow'
-    Write-Say 'Odpowiedz tak, zeby wgrac szkice (publikujesz pozniej sam w panelu), albo nie, zeby zakonczyc bez zmian.'
-    Read-YesNo 'Wgrac szkice na serwer'
+    if ($Mode -eq 'aktualnosci') {
+      Write-Say 'Powyzej podglad: co zrobi wgranie pliku z aktualnosciami (nowa, zmieniona, bez zmian, wycofana). Na serwerze nic sie jeszcze nie zmienilo.' 'Yellow'
+      Write-Say 'Odpowiedz tak, zeby wgrac plik (aktualnosci staja sie publiczne od razu), albo nie, zeby zakonczyc bez zmian.'
+      Read-YesNo 'Wgrac aktualnosci na serwer'
+    } else {
+      Write-Say 'Powyzej podglad: co wgranie zrobiloby z kolekcjami i miejscami. Na serwerze nic sie jeszcze nie zmienilo.' 'Yellow'
+      Write-Say 'Odpowiedz tak, zeby wgrac szkice (publikujesz pozniej sam w panelu), albo nie, zeby zakonczyc bez zmian.'
+      Read-YesNo 'Wgrac szkice na serwer'
+    }
   }
   $code = $flow.Code
   $importResult = $flow.Result
@@ -318,9 +374,20 @@ if ($code -eq 0 -and $importResult -eq 'declined') {
   if ($Mode -eq 'import') {
     Write-Say 'Szkice sa na serwerze. Obejrzyj je w panelu kuratora; publikujesz je sam, gdy beda gotowe.'
   }
+  if ($Mode -eq 'aktualnosci') {
+    Write-Say 'Aktualnosci z pliku sa na serwerze (wycofane z pliku znikaja ze strony). Sprawdz je na stronie Aktualnosci.'
+  }
 } else {
   Write-Say ''
-  if ($importPartial) {
+  if ($Mode -eq 'aktualnosci' -and $code -eq 2) {
+    Write-Report 'wynik: PLIK ODRZUCONY (kod 2): nic sie nie zmienilo' | Out-Null
+    Write-Say 'PLIK ODRZUCONY (kod 2): w pliku sa bledy (numery linii sa wyzej). Na serwerze nic sie nie zmienilo.' 'Yellow'
+    Write-Say 'To nie awaria. Napisz agentowi: kod 2 (z raportem); po poprawce pliku powtorz to samo polecenie.' 'Yellow'
+  } elseif ($Mode -eq 'aktualnosci' -and $code -eq 3) {
+    Write-Report 'wynik: ODMOWA (kod 3): nic sie nie zmienilo' | Out-Null
+    Write-Say 'ODMOWA (kod 3): serwer nie przyjal pliku (np. niedozwolona zmiana stanu aktualnosci, zle powiazanie z kolekcja albo miejscem, za duzo aktualnosci). Na serwerze nic sie nie zmienilo.' 'Yellow'
+    Write-Say 'To nie awaria: plik jest wgrywany w calosci albo wcale. Napisz agentowi: kod 3 (z raportem); po poprawce pliku powtorz to samo polecenie.' 'Yellow'
+  } elseif ($importPartial) {
     Write-Report 'wynik: CZESCIOWO (kod 3): czesc szkicow jest na serwerze' | Out-Null
     Write-Say 'CZESCIOWO WGRANE (kod 3): czesc szkicow jest juz na serwerze, czesc kolekcji zostala odrzucona.' 'Yellow'
     Write-Say 'To nie jest awaria. Napisz agentowi: czesciowo (z raportem); po ustaleniu przyczyny to samo wgranie mozna powtorzyc.' 'Yellow'
