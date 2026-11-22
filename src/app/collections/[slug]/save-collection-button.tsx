@@ -9,7 +9,7 @@ import { MAX_COLLECTIONS_PER_LIST } from "@/features/catalog/domain/limits";
 type Props = { collectionId: string; initialSaved: boolean };
 
 const MESSAGES: Record<number, string> = {
-  401: "Sesja wygasła. Zaloguj się ponownie.",
+  401: "Zaloguj się, żeby zapisać kolekcję.",
   404: "Ta kolekcja nie jest już dostępna.",
   409: `Masz już ${MAX_COLLECTIONS_PER_LIST} zapisanych kolekcji, to najwięcej. Usuń którąś, by zapisać nową.`,
   429: "Za dużo prób. Spróbuj za chwilę.",

@@ -8,7 +8,7 @@ import styles from "./terms-gate.module.css";
 
 // Komunikaty po odesłaniu z formularza akceptacji (parametr `zgoda` w adresie).
 const PROBLEMS: Readonly<Record<string, string>> = {
-  wymagana: "Zaznacz pole „Akceptuję Regulamin”, żeby przejść dalej.",
+  wymagana: "Zaznacz pole „Akceptuję Regulamin”.",
   niedostepny: "Nie udało się zapisać akceptacji. Spróbuj ponownie za chwilę.",
 };
 
@@ -33,8 +33,8 @@ export function TermsGate({
       <meta name="robots" content="noindex" />
       <h1>Zanim zaczniesz</h1>
       <p>
-        Żeby korzystać z konta, zapoznaj się z zasadami serwisu i zaakceptuj regulamin. Oto
-        najważniejsze z nich:
+        Żeby korzystać z konta, zapoznaj się z zasadami serwisu i zaakceptuj regulamin.
+        Najważniejsze z nich:
       </p>
       <ul className={styles.summary}>
         <li>Krajozbiór jest bezpłatny i nie ma w nim reklam.</li>
@@ -67,8 +67,8 @@ export function TermsGate({
         <label className={styles.check}>
           <input type="checkbox" name="accepted" required />
           <span>
-            Akceptuję Regulamin (wersja robocza z dnia {TERMS_DRAFT_DATE}) i zapoznałem się /
-            zapoznałam się z Polityką prywatności.
+            Akceptuję Regulamin (wersja robocza z dnia {TERMS_DRAFT_DATE}) i potwierdzam zapoznanie
+            się z Polityką prywatności.
           </span>
         </label>
         <button type="submit" className={`button button--primary ${styles.submit}`}>

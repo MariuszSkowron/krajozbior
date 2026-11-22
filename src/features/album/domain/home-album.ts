@@ -35,7 +35,7 @@ export type VisitLine = Readonly<{
   id: string;
   kindLabel: string;
   dateText: string;
-  /** `null`: "Miejsce niedostępne w katalogu" - no name, no address, no link. */
+  /** `null`: "Miejsce nie jest już dostępne" - no name, no address, no link. */
   place: Readonly<{ href: string; name: string; address: string }> | null;
 }>;
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { StatusBadge } from "@/design-system/components/status-badge";
 import { listCuratorCollections } from "@/features/catalog/application/curator-queries";
 import { COLLECTION_STATUS_LABELS, REGION_LABELS } from "@/features/catalog/domain/collection";
+import { formatCollectionCount } from "@/features/catalog/domain/search";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 
 import styles from "./curator.module.css";
@@ -36,8 +37,7 @@ export default async function CuratorHome({
           <p className="eyebrow">Panel kuratora</p>
           <h1>Twoje kolekcje</h1>
           <p className={styles.muted}>
-            {organization.name}: {collections.length}{" "}
-            {collections.length === 1 ? "kolekcja" : "kolekcji"}
+            {organization.name}: {formatCollectionCount(collections.length)}
           </p>
         </div>
         <Link
@@ -61,7 +61,7 @@ export default async function CuratorHome({
             </select>
           </div>
           <button type="submit" className="button button--outline">
-            Pokaż
+            Pokaż organizację
           </button>
         </form>
       ) : null}
