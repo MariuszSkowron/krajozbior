@@ -286,6 +286,7 @@ async function signedInPage(
   const page = await context.newPage();
 
   await page.goto("/login");
+  await page.getByText("Logowanie hasłem").click();
 
   const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
