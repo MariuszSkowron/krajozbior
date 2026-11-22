@@ -1332,6 +1332,22 @@ describe("media archive of the photo volume (E4-0b2)", () => {
     expect(list(box.backups)).toEqual([]);
   });
 
+  bashIt("backup.sh rotates media archives even when the database dump fails (N4)", () => {
+    const box = mediaBox();
+    const old = archiveName(45, "full");
+
+    writeFileSync(join(box.backups, old), "x");
+    const curl = stubBin({ docker: DOCKER_STUB, age: AGE_STUB, curl: "true\n" });
+    const script = join(SERVER_DIR, "backup.sh").replaceAll("\\", "/");
+    const result = runLib(
+      `PATH="$(cygpath -u "${curl}" 2>/dev/null || echo "${curl}"):$PATH"; bash "${script}"`,
+      { ...box.env, CURL_LOG: join(box.root, "curl.log") },
+    );
+
+    expect(result.status).toBe(1);
+    expect(list(box.backups)).not.toContain(old);
+  });
+
   bashIt("-OdtworzKopie without any archive is an information, not an error", () => {
     const box = mediaBox();
     const result = runLib(`${WITH_STUBS} kz_media_chain_report "$KZ_RUN/none.key"`, box.env);

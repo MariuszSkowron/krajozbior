@@ -16,6 +16,7 @@ kind=daily
 if kz_backup "$kind" && kz_media_archive "$kind"; then
   kz_ping HC_BACKUP_URL
 else
+  kz_media_rotate || true # a failed dump must not stop the 30-day rotation of photo archives
   kz_ping HC_BACKUP_URL fail
   exit 1
 fi
