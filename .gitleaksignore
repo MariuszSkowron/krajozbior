@@ -15,6 +15,10 @@ b5c8ccaa5e6793866b5df723c0bf9cd6ba1b0c88:tests/lib/db/user-context.test.ts:gener
 138409a763e369c10fdcd8123ce6b82ae16be7fe:tests/features/media/domain.test.ts:generic-api-key:88
 2ca3960c47bfd59d1133fa16aaa8b578750b3ff0:tests/features/media/disk-media-storage-rollback.test.ts:generic-api-key:29
 138409a763e369c10fdcd8123ce6b82ae16be7fe:tests/features/media/disk-media-storage.test.ts:generic-api-key:10
+# Te same stałe w starym commicie gałęzi E7-R2b (niescalone commity E4-2z przed squashem).
+c0c3860ae50d1e6105918940e77980ab8af8350c:tests/features/media/disk-media-storage-rollback.test.ts:generic-api-key:29
+c0c3860ae50d1e6105918940e77980ab8af8350c:tests/features/media/disk-media-storage.test.ts:generic-api-key:10
+c0c3860ae50d1e6105918940e77980ab8af8350c:tests/features/media/domain.test.ts:generic-api-key:92
 #
 # Fikcyjny klucz pliku zdjęcia (UUID) w stałych key/OG_KEY testu czytnika zdjęć z dysku
 # (okładka kolekcji, E4-3); to nazwa folderu na dysku, nie sekret.
