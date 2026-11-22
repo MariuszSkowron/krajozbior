@@ -76,7 +76,7 @@ describe("WantToSeeButton", () => {
 
     const html = render(false);
 
-    expect(html).toContain("Sesja wygasła.");
+    expect(html).toContain("Zaloguj się, żeby zmienić listę.");
     expect(html).toContain(`href="/login?returnTo=${encodeURIComponent(`/places/${PLACE}`)}"`);
     expect(html).toContain("Zaloguj się ponownie");
   });

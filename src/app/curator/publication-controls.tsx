@@ -132,8 +132,8 @@ export function PublicationControls({ collection }: PublicationControlsProps) {
         <dialog ref={dialogRef} className={styles.dialog} aria-labelledby="delete-heading">
           <h2 id="delete-heading">Usunąć ten szkic?</h2>
           <p>
-            Szkic „{collection.title}” zniknie razem z listą jego miejsc. Tej operacji nie można
-            cofnąć. Same miejsca zostają w organizacji.
+            Szkic „{collection.title}” zniknie razem z listą jego miejsc. Tego nie da się cofnąć.
+            Same miejsca zostają w organizacji.
           </p>
           <div className={styles.actions}>
             <button
