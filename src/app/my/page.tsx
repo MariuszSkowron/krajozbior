@@ -8,14 +8,11 @@ import { LogoutForm } from "@/app/shell/logout-form";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
 import { CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
 import { logFailure } from "@/lib/log-failure";
-import { getMyProfile } from "@/features/profile/application/profile";
+import { getRequestProfile } from "@/app/request-profile";
 import { avatarLetter, formatDisplayName } from "@/features/profile/domain/display-name";
 import { getMyStats } from "@/features/profile/application/stats";
 import { formatKm } from "@/features/profile/domain/stats";
-import {
-  getProfileDeps,
-  getProfileStatsDeps,
-} from "@/features/profile/infrastructure/profile-deps";
+import { getProfileStatsDeps } from "@/features/profile/infrastructure/profile-deps";
 
 import styles from "./profile.module.css";
 
@@ -36,7 +33,7 @@ export default async function MyPage() {
     redirect(loginHref("/my"));
   }
 
-  const loaded = await getMyProfile(actor, getProfileDeps());
+  const loaded = await getRequestProfile();
 
   if (loaded.status !== "ok") {
     throw new Error("Profile could not be read");

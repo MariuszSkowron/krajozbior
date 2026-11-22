@@ -254,6 +254,8 @@
 .profileLink {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: var(--size-touch-min);
   min-height: var(--size-touch-min);
   padding-inline: var(--space-sm);
   color: var(--color-text-primary);

@@ -1,10 +1,9 @@
 import { unstable_rethrow } from "next/navigation";
 
-import { getRequestActor, logReadFailure } from "@/app/request-actor";
+import { logReadFailure } from "@/app/request-actor";
 import { getApprovedOrganizations } from "@/app/request-organizations";
+import { getRequestProfile } from "@/app/request-profile";
 import type { Role } from "@/features/identity/domain/actor";
-import { getMyProfile } from "@/features/profile/application/profile";
-import { getProfileDeps } from "@/features/profile/infrastructure/profile-deps";
 
 import { shellRole } from "./shell-role";
 
@@ -33,7 +32,7 @@ export async function shellAccount(): Promise<ShellAccount> {
   let displayName: string | null = null;
 
   try {
-    const loaded = await getMyProfile(await getRequestActor(), getProfileDeps());
+    const loaded = await getRequestProfile();
 
     displayName = loaded.status === "ok" ? loaded.value.firstName : null;
   } catch (error) {
