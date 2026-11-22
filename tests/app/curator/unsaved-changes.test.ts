@@ -10,6 +10,16 @@ describe("differsFromSaved", () => {
     expect(differsFromSaved({ ...saved, summary: "Linia 1\r\nLinia 2" }, saved)).toBe(false);
   });
 
+  it("ignores spaces at the ends of the text, as the server trims them", () => {
+    expect(
+      differsFromSaved(
+        { title: " Zamki ", summary: "Linia 1\nLinia 2\n", region: "pomorskie" },
+        saved,
+      ),
+    ).toBe(false);
+    expect(differsFromSaved({ ...saved, title: "Zam ki" }, saved)).toBe(true);
+  });
+
   it("is true when any field changed", () => {
     expect(differsFromSaved({ ...saved, title: "Zamki!" }, saved)).toBe(true);
     expect(differsFromSaved({ ...saved, summary: "inny" }, saved)).toBe(true);

@@ -32,11 +32,14 @@ const lines = (text: string) => text.replace(/\r\n?/g, "\n");
 
 type Fields = Readonly<{ title: string; summary: string; region: string }>;
 
-/** True when the fields differ from the saved values (line breaks compared as `\n`). */
+/**
+ * True when the fields differ from the saved values. Line breaks are compared as
+ * `\n` and the text without spaces at the ends, as the server trims it.
+ */
 export function differsFromSaved(fields: Fields, saved: Fields): boolean {
   return (
-    fields.title !== saved.title ||
-    lines(fields.summary) !== lines(saved.summary) ||
+    fields.title.trim() !== saved.title.trim() ||
+    lines(fields.summary).trim() !== lines(saved.summary).trim() ||
     fields.region !== saved.region
   );
 }

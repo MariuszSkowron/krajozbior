@@ -98,6 +98,24 @@ describe("PublicationControls with unsaved text in the form", () => {
     });
   });
 
+  it("drops the notice once the text is saved and shows it again on the next click", async () => {
+    store.dirty = true;
+    await clickPublish();
+    expect(render().feedback?.props.feedback).not.toBeNull();
+    expect(render().feedback?.props.announceKey).toBe(1);
+
+    store.dirty = false;
+    expect(render().feedback?.props.feedback).toBeNull();
+
+    store.dirty = true;
+    await clickPublish();
+    expect(render().feedback?.props.feedback).toEqual({
+      kind: "info",
+      message: "Najpierw zapisz zmiany w danych kolekcji.",
+    });
+    expect(render().feedback?.props.announceKey).toBe(2);
+  });
+
   it("publishes when everything is saved", async () => {
     await clickPublish();
 

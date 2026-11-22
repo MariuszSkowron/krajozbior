@@ -27,8 +27,17 @@ export function PublicationControls({ collection }: PublicationControlsProps) {
   const router = useRouter();
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [pending, setPending] = useState(false);
+  // Clicks on publish while the form has unsaved text. The "save first" notice
+  // lasts only as long as the text is unsaved, so it is derived, not stored.
+  const [unsavedClicks, setUnsavedClicks] = useState(0);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const { dirty } = useUnsavedChanges();
+  const shown: Feedback | null =
+    unsavedClicks > 0
+      ? dirty
+        ? { kind: "info", message: UNSAVED_FIRST_MESSAGE }
+        : null
+      : feedback;
   const canDelete = collection.status === "draft" && !collection.wasPublished;
 
   async function change(path: "publish" | "unpublish", doneMessage: string) {
@@ -39,11 +48,12 @@ export function PublicationControls({ collection }: PublicationControlsProps) {
     // Publishing sends only the version and reloads the page: the form would
     // start over and drop the text. Save first (and the saved text is published).
     if (dirty) {
-      setFeedback({ kind: "info", message: UNSAVED_FIRST_MESSAGE });
+      setUnsavedClicks(unsavedClicks + 1);
 
       return;
     }
 
+    setUnsavedClicks(0);
     setPending(true);
 
     const result = await callApi(
@@ -102,12 +112,14 @@ export function PublicationControls({ collection }: PublicationControlsProps) {
         </p>
       )}
       <FeedbackRegion
-        feedback={feedback}
+        feedback={shown}
+        announceKey={unsavedClicks}
         onReload={() => {
           if (!confirmDiscard(dirty)) {
             return;
           }
 
+          setUnsavedClicks(0);
           setFeedback({ kind: "info", message: "Wczytano aktualny stan kolekcji." });
           router.refresh();
         }}
