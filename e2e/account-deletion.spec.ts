@@ -149,6 +149,10 @@ test.describe("deleting the account", () => {
   test("from Profile to Settings to the deletion screen, a wrong word first, then the account is gone and the audit says so", async ({
     browser,
   }) => {
+    // One long flow: three sign-ins by code (each takes 6-9 s on a loaded machine, the first
+    // one right after the cold start of the app), two accessibility checks in two themes and
+    // the deletion itself. It needs about 25-30 s, so the default 30 s ended it at random.
+    test.setTimeout(120_000);
     const email = newAddress("flow");
     const { context, page } = await newSignedInPage(browser, email);
 
