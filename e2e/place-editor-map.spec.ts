@@ -194,7 +194,7 @@ test.describe("place editor with a map", () => {
     const collectionId = await newCollection(page);
 
     await openNewPlace(page, collectionId, "Miejsce z liczb");
-    await page.getByText(SETTINGS).click();
+    await page.getByText(SETTINGS, { exact: true }).click();
     await page.getByLabel("Szerokość geograficzna").fill("54,0928");
     await page.getByLabel("Długość geograficzna").fill("18,7919");
     await page.getByLabel("Długość geograficzna").blur();
@@ -207,18 +207,28 @@ test.describe("place editor with a map", () => {
     // number does not move the pin.
     await page.getByRole("link", { name: "Miejsce z liczb" }).click();
     await waitForHydration(page);
-    await page.getByText(SETTINGS).click();
+    await page.getByText(SETTINGS, { exact: true }).click();
     await expect(page.getByLabel("Szerokość geograficzna")).toHaveValue("54,0928");
     await expect(pinStatus(page)).toHaveText("Pinezka: 54,0928, 18,7919");
+    const pinNote = page.getByTestId("pin-note");
+
     await page.getByLabel("Szerokość geograficzna").fill("95");
     await page.getByLabel("Szerokość geograficzna").blur();
     await expect(pinStatus(page)).toHaveText("Pinezka: 54,0928, 18,7919");
+    await expect(pinNote).toContainText("pinezka bez zmian");
     await page.getByLabel("Szerokość geograficzna").fill("abc");
     await page.getByLabel("Szerokość geograficzna").blur();
     await expect(pinStatus(page)).toHaveText("Pinezka: 54,0928, 18,7919");
+    await expect(pinNote).toContainText("pinezka bez zmian");
     await page.getByLabel("Szerokość geograficzna").fill("54,5");
     await page.getByLabel("Szerokość geograficzna").blur();
     await expect(pinStatus(page)).toHaveText("Pinezka: 54,5, 18,7919");
+    await expect(pinNote).toHaveText("");
+    // One field empty: the old pin stays and the note says so.
+    await page.getByLabel("Długość geograficzna").fill("");
+    await page.getByLabel("Długość geograficzna").blur();
+    await expect(pinStatus(page)).toHaveText("Pinezka: 54,5, 18,7919");
+    await expect(pinNote).toContainText("pinezka bez zmian");
     // Clearing both fields takes the pin back: the line says the position is not set.
     await page.getByLabel("Szerokość geograficzna").fill("");
     await page.getByLabel("Długość geograficzna").fill("");
@@ -250,7 +260,7 @@ test.describe("place editor with a map", () => {
 
     // A new place: the folded part open, then the map shown.
     await inBothThemes(page, `/curator/collections/${collectionId}/places/new`, async () => {
-      await page.getByText(SETTINGS).click();
+      await page.getByText(SETTINGS, { exact: true }).click();
       await expect(page.getByLabel("Promień potwierdzania wizyty (m)")).toBeVisible();
       await expectNoAccessibilityViolations(page);
       await page.getByRole("button", { name: "Pokaż mapę" }).click();
@@ -260,7 +270,7 @@ test.describe("place editor with a map", () => {
 
     // An existing place: the same, with the position already set.
     await inBothThemes(page, `/curator/collections/${collectionId}/places/${placeId}`, async () => {
-      await page.getByText(SETTINGS).click();
+      await page.getByText(SETTINGS, { exact: true }).click();
       await expect(page.getByLabel("Promień potwierdzania wizyty (m)")).toBeVisible();
       await expectNoAccessibilityViolations(page);
       await page.getByRole("button", { name: "Pokaż mapę" }).click();
@@ -318,14 +328,18 @@ test.describe("place editor with a map", () => {
 
     await openNewPlace(page, collectionId, "Miejsce z błędem");
     await page.getByRole("button", { name: "Dodaj miejsce do kolekcji" }).click();
-    await expect(page.getByRole("alert")).toContainText("Ustaw położenie pinezką na mapie");
+    // No role="alert": the focus moves to the notice, so a reader says it once.
+    const missing = page.getByText("Ustaw położenie pinezką na mapie");
 
-    await page.getByText(SETTINGS).click();
+    await expect(missing).toBeVisible();
+    await expect(missing).toBeFocused();
+
+    await page.getByText(SETTINGS, { exact: true }).click();
     await page.getByLabel("Szerokość geograficzna").fill("54,0928");
     await page.getByLabel("Długość geograficzna").fill("18,7919");
     await page.getByLabel("Promień potwierdzania wizyty (m)").fill("20");
     // Fold the part again: the refusal of the server must open it.
-    await page.getByText(SETTINGS).click();
+    await page.getByText(SETTINGS, { exact: true }).click();
     await expect(page.getByLabel("Promień potwierdzania wizyty (m)")).toBeHidden();
     await page.getByRole("button", { name: "Dodaj miejsce do kolekcji" }).click();
     await expect(page.getByLabel("Promień potwierdzania wizyty (m)")).toBeVisible();

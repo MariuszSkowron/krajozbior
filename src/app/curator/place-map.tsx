@@ -116,7 +116,14 @@ export default function PlaceMap({
 
     map.current = instance;
     // The focus follows what appeared (WCAG 2.4.3): the keyboard user lands on the map.
-    element.focus();
+    // Only when the focus is still inside the map holder or on the page body: a user who has
+    // moved on elsewhere meanwhile is not pulled back.
+    const active = document.activeElement;
+
+    // The holder (the form's focusable wrapper) is an ancestor of the map element.
+    if (active === null || active === document.body || active.contains(element)) {
+      element.focus();
+    }
 
     return () => {
       instance.remove();

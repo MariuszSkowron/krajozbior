@@ -224,6 +224,15 @@
   font-weight: var(--font-weight-strong);
 }
 
+/* Informacja o wpisanym położeniu, które nie przesuwa pinezki; pusta, gdy nie ma czego mówić. */
+.pinNote {
+  margin-block: 0;
+}
+
+.pinNote:empty {
+  display: none;
+}
+
 .fieldset > * + * {
   margin-block-start: var(--space-md);
 }

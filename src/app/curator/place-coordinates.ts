@@ -27,6 +27,22 @@ export function readPosition(latitudeText: string, longitudeText: string): PinPo
   return latitude === null || longitude === null ? null : { latitude, longitude };
 }
 
+/**
+ * A note for typed texts that cannot move the pin (one field empty, not a number, out of range);
+ * `null` when the pin follows them or both fields are empty (the status line says "not set").
+ */
+export function typedPinNote(latitudeText: string, longitudeText: string): string | null {
+  if (readPosition(latitudeText, longitudeText) !== null) {
+    return null;
+  }
+
+  if (latitudeText.trim() === "" && longitudeText.trim() === "") {
+    return null;
+  }
+
+  return "Położenie poza zakresem lub niepełne — pinezka bez zmian";
+}
+
 /** The radius for a typed text; `null` unless it is a positive whole number. */
 export function readRadius(text: string): number | null {
   const parsed = parseNumberField(text);

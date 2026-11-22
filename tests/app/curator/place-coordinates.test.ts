@@ -5,6 +5,7 @@ import {
   formatCoordinate,
   readPosition,
   readRadius,
+  typedPinNote,
 } from "@/app/curator/place-coordinates";
 import { placeNotice } from "@/app/curator/place-notice";
 
@@ -43,6 +44,22 @@ describe("readRadius", () => {
     expect(readRadius("20,5")).toBeNull();
     expect(readRadius("0")).toBeNull();
     expect(readRadius("x")).toBeNull();
+  });
+});
+
+describe("typedPinNote", () => {
+  it("is silent when the pin follows the texts or both are empty", () => {
+    expect(typedPinNote("54,1", "18,7")).toBeNull();
+    expect(typedPinNote("", "")).toBeNull();
+    expect(typedPinNote("  ", "")).toBeNull();
+  });
+
+  it("explains an empty field, a non-number and an out-of-range value", () => {
+    expect(typedPinNote("54,1", "")).toMatch(/pinezka bez zmian/);
+    expect(typedPinNote("", "18,7")).toMatch(/pinezka bez zmian/);
+    expect(typedPinNote("abc", "18,7")).toMatch(/pinezka bez zmian/);
+    expect(typedPinNote("95", "18,7")).toMatch(/pinezka bez zmian/);
+    expect(typedPinNote("54,1", "181")).toMatch(/pinezka bez zmian/);
   });
 });
 

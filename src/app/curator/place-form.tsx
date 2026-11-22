@@ -24,6 +24,7 @@ import {
   describePin,
   formatCoordinate,
   readPosition,
+  typedPinNote,
   readRadius,
   type PinPosition,
 } from "./place-coordinates";
@@ -108,6 +109,7 @@ function PlaceFields({
   const [openedFor, setOpenedFor] = useState<Feedback | null>(null);
   const [tilesFailed, setTilesFailed] = useState(false);
   const [positionMissing, setPositionMissing] = useState(false);
+  const [typedNote, setTypedNote] = useState<string | null>(null);
   const showMapButton = useRef<HTMLButtonElement>(null);
   const missingNotice = useRef<HTMLParagraphElement>(null);
   const mapHolder = useRef<HTMLDivElement>(null);
@@ -140,10 +142,13 @@ function PlaceFields({
     setLatitudeText(formatCoordinate(next.latitude));
     setLongitudeText(formatCoordinate(next.longitude));
     setPositionMissing(false);
+    setTypedNote(null);
   }
 
   function commitTyped(latitude: string, longitude: string) {
     const typed = readPosition(latitude, longitude);
+
+    setTypedNote(typedPinNote(latitude, longitude));
 
     if (typed !== null) {
       setPosition(typed);
@@ -318,8 +323,11 @@ function PlaceFields({
         <p className={styles.pinStatus} aria-live="polite" data-testid="pin-status">
           {describePin(position)}
         </p>
+        <p className={styles.pinNote} aria-live="polite" data-testid="pin-note">
+          {typedNote}
+        </p>
         {positionMissing ? (
-          <p ref={missingNotice} tabIndex={-1} role="alert" className={styles.fieldError}>
+          <p ref={missingNotice} tabIndex={-1} className={styles.fieldError}>
             <span className={styles.errorPrefix}>Błąd: </span>
             Ustaw położenie pinezką na mapie albo wpisz współrzędne w części „Ustawienia
             potwierdzania wizyt”.
