@@ -141,6 +141,8 @@ export type VersionExpectation = Readonly<{
   licenseCode: string;
   /** Dzień przebiegu doboru (`retrieved_at`); `null` = nie wiemy, więc blokujemy. */
   retrievedAt: Date | null;
+  /** Bieżąca chwila (ms); domyślnie `Date.now()`. `retrieved_at` z przyszłości jest odrzucane. */
+  now?: number;
 }>;
 
 /** Decyzja: pobierać (`ok`) albo odrzucić z powodem. Kolejność powodów jest stała. */
@@ -159,7 +161,12 @@ export function decideVersion(
     return { ok: false, reason: "file_gone" };
   }
 
-  if (expected.retrievedAt === null || info.timestamp > expected.retrievedAt.getTime()) {
+  // Dzień doboru z przyszłości (błędne `--as-of`) otwierałby okno podmiany bez ograniczeń.
+  if (
+    expected.retrievedAt === null ||
+    expected.retrievedAt.getTime() > (expected.now ?? Date.now()) ||
+    info.timestamp > expected.retrievedAt.getTime()
+  ) {
     return { ok: false, reason: "file_changed" };
   }
 

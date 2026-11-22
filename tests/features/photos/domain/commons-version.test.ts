@@ -158,6 +158,37 @@ describe("decideVersion", () => {
     });
   });
 
+  it("rejects a day of the selection that lies in the future", () => {
+    const now = RETRIEVED.getTime() - 1000;
+
+    expect(decideVersion(found(), expected({ now }))).toEqual({
+      ok: false,
+      reason: "file_changed",
+    });
+    expect(decideVersion(found(), expected({ now: RETRIEVED.getTime() }))).toEqual({ ok: true });
+  });
+
+  it("reads the real API shape: original address with utm parameters, licence without slash", () => {
+    const result = parseCommonsVersionResponse(
+      page({
+        imageinfo: [
+          {
+            timestamp: "2026-01-02T03:04:05Z",
+            url: "https://upload.wikimedia.org/wikipedia/commons/a/a9/Example.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+            width: 3000,
+            extmetadata: {
+              LicenseShortName: { value: "CC BY-SA 3.0" },
+              LicenseUrl: { value: "https://creativecommons.org/licenses/by-sa/3.0" },
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(result).toMatchObject({ ok: true, info: { fileName: "Example.jpg" } });
+    expect(decideVersion(result, expected({ licenseCode: "cc-by-sa-3.0" }))).toEqual({ ok: true });
+  });
+
   it("rejects when the day of the selection or the source width is unknown or different", () => {
     expect(decideVersion(found(), expected({ retrievedAt: null }))).toEqual({
       ok: false,
