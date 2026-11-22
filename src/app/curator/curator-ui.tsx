@@ -25,6 +25,8 @@ type FeedbackRegionProps = Readonly<{
   onReload?: () => void;
   /** A new value re-inserts the message, so a screen reader reads it again. */
   announceKey?: number;
+  /** A button after an info message, e.g. a way to the place where the message points. */
+  action?: Readonly<{ label: string; onClick: () => void }>;
 }>;
 
 export function FeedbackRegion({
@@ -32,6 +34,7 @@ export function FeedbackRegion({
   fields = {},
   onReload,
   announceKey,
+  action,
 }: FeedbackRegionProps) {
   const alertRef = useRef<HTMLDivElement>(null);
   const isError = feedback?.kind === "error";
@@ -51,6 +54,11 @@ export function FeedbackRegion({
           </p>
         ) : null}
       </div>
+      {feedback !== null && feedback.kind !== "error" && action !== undefined ? (
+        <button type="button" className="button button--outline" onClick={action.onClick}>
+          {action.label}
+        </button>
+      ) : null}
       {feedback !== null && feedback.kind === "error" ? (
         <div ref={alertRef} role="alert" tabIndex={-1} className={styles.errorSummary}>
           <p className={styles.errorLine}>

@@ -6,7 +6,13 @@ import { useRef, useState } from "react";
 import { callApi } from "./curator-api";
 import { failed, FeedbackRegion, type Feedback } from "./curator-ui";
 import styles from "./curator.module.css";
-import { confirmDiscard, UNSAVED_FIRST_MESSAGE, useUnsavedChanges } from "./unsaved-changes";
+import {
+  confirmDiscard,
+  focusSaveButton,
+  GO_TO_SAVE_LABEL,
+  UNSAVED_FIRST_MESSAGE,
+  useUnsavedChanges,
+} from "./unsaved-changes";
 
 type PublicationControlsProps = Readonly<{
   collection: Readonly<{
@@ -114,6 +120,11 @@ export function PublicationControls({ collection }: PublicationControlsProps) {
       <FeedbackRegion
         feedback={shown}
         announceKey={unsavedClicks}
+        action={
+          unsavedClicks > 0 && dirty
+            ? { label: GO_TO_SAVE_LABEL, onClick: focusSaveButton }
+            : undefined
+        }
         onReload={() => {
           if (!confirmDiscard(dirty)) {
             return;

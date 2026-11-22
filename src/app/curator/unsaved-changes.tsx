@@ -25,8 +25,19 @@ export const useUnsavedChanges = () => useContext(UnsavedChangesContext);
 
 export const UNSAVED_FIRST_MESSAGE = "Najpierw zapisz zmiany w danych kolekcji.";
 
+export const GO_TO_SAVE_LABEL = "Przejdź do zapisu";
+export const UNSAVED_BADGE = "Masz niezapisane zmiany";
+
+/** Id of the "Zapisz zmiany" button of the collection data form. */
+export const SAVE_BUTTON_ID = "collection-save";
+
+/** Moves the focus to the save button of the form (the browser scrolls it into view). */
+export function focusSaveButton() {
+  document.getElementById(SAVE_BUTTON_ID)?.focus();
+}
+
 const UNSAVED_RELOAD_QUESTION =
-  "Wpisany tekst nie jest zapisany i przepadnie po wczytaniu aktualnej wersji. Wczytać mimo to?";
+  "Niezapisany tekst zniknie po wczytaniu aktualnej wersji. Wczytać mimo to?";
 
 const lines = (text: string) => text.replace(/\r\n?/g, "\n");
 

@@ -415,6 +415,9 @@ test.describe("collection cover", () => {
     await curator.getByRole("button", { name: "Publikuj" }).click();
 
     await expect(curator.getByText("Najpierw zapisz zmiany w danych kolekcji.")).toBeVisible();
+    await expect(curator.getByText("Masz niezapisane zmiany")).toBeVisible();
+    await curator.getByRole("button", { name: "Przejdź do zapisu" }).click();
+    await expect(curator.getByRole("button", { name: "Zapisz zmiany" })).toBeFocused();
     await expect(summary).toHaveValue("Tekst, którego jeszcze nie zapisano.");
     // Still a draft: nothing was published.
     await expect(curator.getByRole("button", { name: "Publikuj" })).toBeVisible();

@@ -15,7 +15,13 @@ import { callApi } from "./curator-api";
 import { failed, Field, FeedbackRegion, type Feedback } from "./curator-ui";
 import styles from "./curator.module.css";
 import { fieldHints } from "./failure-message";
-import { confirmDiscard, differsFromSaved, useUnsavedChanges } from "./unsaved-changes";
+import {
+  confirmDiscard,
+  differsFromSaved,
+  SAVE_BUTTON_ID,
+  UNSAVED_BADGE,
+  useUnsavedChanges,
+} from "./unsaved-changes";
 
 type CollectionValues = Readonly<{ title: string; summary: string; region: Region }>;
 
@@ -72,7 +78,7 @@ function CollectionFields({
     props.mode === "edit" ? props.collection : { title: "", summary: "", region: "pomorskie" };
   const [summaryLength, setSummaryLength] = useState(initial.summary.length);
   const [pending, setPending] = useState(false);
-  const { setDirty } = useUnsavedChanges();
+  const { dirty, setDirty } = useUnsavedChanges();
 
   // The fields are remounted on a new version (after a save or a reload): then
   // nothing typed is left, so nothing is unsaved.
@@ -206,6 +212,7 @@ function CollectionFields({
       </Field>
       <div className={styles.actions}>
         <button
+          id={props.mode === "edit" ? SAVE_BUTTON_ID : undefined}
           type="submit"
           className={`button button--primary ${styles.pending}`}
           aria-disabled={pending}
@@ -223,6 +230,11 @@ function CollectionFields({
               ? "Zapisywanie…"
               : "Zapisz zmiany"}
         </button>
+        {props.mode === "edit" && dirty ? (
+          <p role="status" className={styles.notice}>
+            {UNSAVED_BADGE}
+          </p>
+        ) : null}
       </div>
     </form>
   );

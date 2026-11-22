@@ -116,6 +116,26 @@ describe("PublicationControls with unsaved text in the form", () => {
     expect(render().feedback?.props.announceKey).toBe(2);
   });
 
+  it("offers a way to the save button, and that moves the focus there", async () => {
+    store.dirty = true;
+    await clickPublish();
+
+    const action = render().feedback?.props.action as
+      { label: string; onClick: () => void } | undefined;
+
+    expect(action?.label).toBe("Przejdź do zapisu");
+
+    const focus = vi.fn();
+    const getElementById = vi.fn().mockReturnValue({ focus });
+
+    vi.stubGlobal("document", { getElementById });
+    action?.onClick();
+    vi.unstubAllGlobals();
+
+    expect(getElementById).toHaveBeenCalledWith("collection-save");
+    expect(focus).toHaveBeenCalledTimes(1);
+  });
+
   it("publishes when everything is saved", async () => {
     await clickPublish();
 

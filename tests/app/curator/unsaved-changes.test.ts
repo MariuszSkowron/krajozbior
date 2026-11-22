@@ -44,6 +44,6 @@ describe("confirmDiscard", () => {
 
     expect(confirmDiscard(true)).toBe(false);
     expect(confirmDiscard(true)).toBe(true);
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("przepadnie"));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("zniknie"));
   });
 });
