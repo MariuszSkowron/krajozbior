@@ -89,11 +89,13 @@ Wobec Wielkiej Brytanii Komisja Europejska stwierdziła odpowiedni stopień ochr
 
 Jeśli nie chcesz przekazywać tych danych, nie wybieraj widoku „Mapa”; lista miejsc zawiera te same informacje.
 
+To samo dzieje się w edytorze miejsca w panelu kuratora, gdy kurator wybierze „Pokaż mapę” (widok „Mapa” na stronie kolekcji i „Pokaż mapę” w edytorze to ta sama mapa OpenStreetMap). Kurator, który nie chce przekazywać tych danych, nie wybiera „Pokaż mapę” i ustawia położenie miejsca, wpisując współrzędne w polach formularza.
+
 ## 8. Przekazywanie danych poza Europejski Obszar Gospodarczy
 
 Nasz serwer i kopie zapasowe znajdują się w Niemczech. Poza Europejski Obszar Gospodarczy dane mogą trafić w dwóch sytuacjach:
 
-- gdy wybierzesz widok „Mapa” (punkt 7);
+- gdy wybierzesz widok „Mapa” albo, jako kurator, „Pokaż mapę” w edytorze miejsca (punkt 7);
 - przy wysyłce e-maili: Brevo korzysta z podwykonawców, z których część ma siedzibę lub serwery w Stanach Zjednoczonych (np. Cloudflare — ochrona i przyspieszanie ruchu sieciowego, Zendesk — obsługa zgłoszeń). Podstawą przekazania jest decyzja Komisji Europejskiej o odpowiednim stopniu ochrony danych w ramach EU-US Data Privacy Framework (wobec firm, które do niego przystąpiły) oraz standardowe klauzule umowne zatwierdzone przez Komisję Europejską. Aktualną listę podwykonawców Brevo podaje w swojej umowie powierzenia (załącznik do regulaminu Brevo): <https://www.brevo.com/legal/termsofuse/>.
 
 ## 9. Jak długo przechowujemy dane
