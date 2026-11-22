@@ -111,19 +111,20 @@ export function LegendaryCard({
       data-playing={playing ? "true" : undefined}
     >
       <span className={styles.frame} aria-hidden="true">
-        <span className={styles.sheen} />
         {category === "trail_community" ? <span className={styles.edge} data-layer="edge" /> : null}
         {category === "national_holiday" ? (
           <span className={styles.glow} data-layer="glow" />
         ) : null}
       </span>
       <div className={styles.face}>
-        <span className={styles.effects} aria-hidden="true">
-          <Effect category={category} />
-        </span>
         <p className={styles.label}>LEGENDARNA</p>
         <Heading className={styles.eventName}>{eventName}</Heading>
         <p className={styles.collection}>{collectionTitle}</p>
+        <div className={styles.medallion} data-layer="medallion" aria-hidden="true">
+          <span className={styles.sheen} />
+          <Effect category={category} />
+          <Icon className={styles.medallionSymbol} />
+        </div>
         <p className={styles.meta}>
           <span>{placeName}</span>
           <span>{dateLabel}</span>

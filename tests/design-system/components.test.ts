@@ -337,19 +337,81 @@ describe("karta legendarna: tekst nie jest przycinany (CSS)", () => {
   });
 
   it("przycinane są tylko kontenery warstw ozdobnych", () => {
-    const decorative = /(?:^|\n)\.frame,\s*\.effects\s*\{([^}]*)\}/.exec(css);
-    expect(decorative?.[1]).toMatch(/overflow:\s*clip/);
+    expect(block(".frame")).toMatch(/overflow:\s*clip/);
+    expect(block(".medallion")).toMatch(/overflow:\s*clip/);
     const clipped = [...css.matchAll(/(?:^|\n)([^{}\n]+)\{[^}]*overflow:\s*(?:hidden|clip)/g)];
     for (const [, selector] of clipped) {
-      expect(selector, selector).toMatch(/\.frame|\.effects|\.medallion/);
+      expect(selector, selector).toMatch(/\.frame|\.medallion/);
     }
   });
 
-  it("tekst jest w twarzy, a warstwy ozdobne w kontenerach aria-hidden", () => {
+  it("warstwy ozdobne są w kontenerach aria-hidden", () => {
     const html = render(createElement(LegendaryCard, sampleCard));
 
     expect(html).toMatch(/<span class="[^"]*frame[^"]*" aria-hidden="true">/);
-    expect(html).toMatch(/<span class="[^"]*effects[^"]*" aria-hidden="true">/);
+    expect(html).toMatch(/<div class="[^"]*medallion[^"]*"[^>]* aria-hidden="true">/);
+  });
+});
+
+// Przegląd UX A1–A2: medalion kategorii w pustym środku, widoczny połysk, ramka 3 px z poświatą.
+describe("karta legendarna: medalion i ramka", () => {
+  const dir = new URL("../../src/design-system/components/", import.meta.url);
+  const css = readFileSync(new URL("legendary-card.module.css", dir), "utf8").replace(
+    /\/\*[\s\S]*?\*\//g,
+    "",
+  );
+
+  it.each(legendaryCategories)(
+    "%s: medalion z dużym symbolem i połyskiem między tytułem a miejscem",
+    (c) => {
+      const html = render(createElement(LegendaryCard, { ...sampleCard, category: c }));
+      const medallion = /<div class="[^"]*medallion[^"]*"[^>]*>(.*?)<\/div>/.exec(html);
+
+      expect(medallion).not.toBeNull();
+      expect(medallion![1]).toMatch(/<span class="[^"]*sheen[^"]*">/);
+      const svg = /<svg [^>]*>/.exec(medallion![1])?.[0] ?? "";
+      expect(svg).toContain('aria-hidden="true"');
+      expect(svg).toMatch(/class="[^"]*medallionSymbol/);
+      expect(html.indexOf("Wieże ciśnień Pomorza")).toBeLessThan(html.indexOf("medallion"));
+      expect(html.indexOf("medallion")).toBeLessThan(html.indexOf("Wieża ciśnień w Tczewie"));
+    },
+  );
+
+  it("połysk leży w medalionie, nie w ramce pod twarzą", () => {
+    const html = render(createElement(LegendaryCard, sampleCard));
+    const frame = /<span class="[^"]*frame[^"]*" aria-hidden="true">(.*?)<\/span><div/.exec(html);
+
+    expect(frame?.[1] ?? "").not.toContain("sheen");
+  });
+
+  it("ramka ma 3 px i stałą poświatę z tokenów kategorii, bez animacji", () => {
+    const card = /(?:^|\n)\.card\s*\{([^}]*)\}/.exec(css)![1];
+
+    expect(card).toMatch(/padding:\s*3px/);
+    expect(card).toMatch(/box-shadow:[^;]*var\(--legendary-accent\)/);
+    expect(card).not.toMatch(/animation/);
+  });
+
+  it("medalion: poświata i symbol z tokenów kategorii, w trybie wysokiego kontrastu bez tła", () => {
+    expect(css).toMatch(/\.medallion\s*\{[^}]*radial-gradient\([^}]*var\(--legendary-accent\)/);
+    expect(css).toMatch(/\.medallionSymbol\s*\{[^}]*color:\s*var\(--legendary-accent\)/);
+    const forced = css.slice(css.indexOf("@media (forced-colors: active)"));
+    expect(forced).toMatch(/\.medallion\s*\{[^}]*background:\s*none/);
+    expect(forced).toMatch(/\.medallionSymbol[^}]*color:\s*CanvasText/);
+  });
+
+  it("każda kategoria ustawia --legendary-accent z własnego tokenu", () => {
+    const accents = [
+      ...css.matchAll(/--legendary-accent:\s*var\(--color-legendary-([a-z-]+)-(?:start|end)\)/g),
+    ];
+    expect(accents.map((m) => m[1]).sort()).toEqual([
+      "culture-night",
+      "heritage",
+      "krajozbior",
+      "national-holiday",
+      "nature-sky",
+      "trail-community",
+    ]);
   });
 });
 
@@ -365,6 +427,22 @@ describe("scena odsłonięcia: gest i czas", () => {
   it("zasłona nie blokuje pionowego przewijania strony (touch-action: pan-y)", () => {
     expect(css).toMatch(/touch-action:\s*pan-y/);
     expect(css).not.toMatch(/touch-action:\s*none/);
+  });
+
+  it("zasłona przy odlocie nie wychodzi poza scenę (overflow: clip na scenie i na polu karty)", () => {
+    const clipped = (selector: string) =>
+      new RegExp(`(?:^|\\n)\\${selector}\\s*\\{[^}]*overflow:\\s*clip`).test(css);
+
+    expect(clipped(".scene")).toBe(true);
+    expect(clipped(".stage")).toBe(true);
+  });
+
+  it("przyciski w historii „Odsłonięta” używają klas przycisków systemu", () => {
+    const stories = readFileSync(new URL("legendary-card-reveal.stories.tsx", dir), "utf8");
+
+    expect(stories).toContain("button button--primary");
+    expect(stories).toContain("button button--quiet");
+    expect(stories).not.toMatch(/<button type="button">/);
   });
 
   it("gest przechwytuje wskaźnik", () => {

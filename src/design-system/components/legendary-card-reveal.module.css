@@ -13,6 +13,7 @@
   box-sizing: border-box;
   min-block-size: 100%;
   padding: var(--space-lg) var(--space-md);
+  overflow: clip;
   color: var(--color-text-primary);
   text-align: center;
   background: var(--color-surface-canvas);
@@ -39,10 +40,16 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * Scena karty: zasłona odlatuje w górę i znika w granicach sceny, bez nachodzenia na nagłówek
+ * i opis. Margines przycięcia zostawia miejsce na poświatę i obrys fokusu karty.
+ */
 .stage {
   position: relative;
   inline-size: 100%;
   max-inline-size: 18rem;
+  overflow: clip;
+  overflow-clip-margin: 1.5rem;
 }
 
 .cardSlot {

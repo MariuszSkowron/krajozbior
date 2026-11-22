@@ -39,8 +39,12 @@ const sample = legendarySamples.culture_night;
 // Przykładowe przyciski bez działania: ekran skrytki (E6-4) złoży własne.
 const actions = (
   <>
-    <button type="button">Zobacz w kolekcji</button>
-    <button type="button">Wróć do ekranu głównego</button>
+    <button type="button" className="button button--primary">
+      Zobacz w kolekcji
+    </button>
+    <button type="button" className="button button--quiet">
+      Wróć do ekranu głównego
+    </button>
   </>
 );
 

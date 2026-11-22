@@ -17,11 +17,12 @@
     var(--color-legendary-krajozbior-end)
   );
   --legendary-glow: color-mix(in srgb, var(--color-legendary-krajozbior-end) 55%, transparent);
+  --legendary-accent: var(--color-legendary-krajozbior-end);
 
   /*
    * Bez overflow: hidden na karcie i twarzy: aspect-ratio daje tylko minimum 5:7, a przy
    * długich nazwach i powiększonym tekście (WCAG 1.4.4) karta rośnie. Przycinane są wyłącznie
-   * warstwy ozdobne, w osobnych kontenerach (.frame, .effects).
+   * warstwy ozdobne, w osobnych kontenerach (.frame, .medallion).
    */
   position: relative;
   isolation: isolate;
@@ -31,11 +32,13 @@
   inline-size: 100%;
   max-inline-size: 18rem;
   aspect-ratio: 5 / 7;
-  padding: 2px;
+  padding: 3px;
   color: var(--color-text-primary);
   text-align: start;
   background: var(--legendary-gradient);
   border-radius: var(--radius-lg);
+  /* Stała, nieruchoma poświata kategorii wokół ramki (bez animacji). */
+  box-shadow: 0 0 1.25rem color-mix(in srgb, var(--legendary-accent) 35%, transparent);
   overflow-wrap: anywhere;
 }
 
@@ -51,6 +54,7 @@
     var(--color-legendary-culture-night-end)
   );
   --legendary-glow: color-mix(in srgb, var(--color-legendary-culture-night-end) 55%, transparent);
+  --legendary-accent: var(--color-legendary-culture-night-end);
 }
 
 .heritage {
@@ -61,6 +65,7 @@
     var(--color-legendary-heritage-end)
   );
   --legendary-glow: color-mix(in srgb, var(--color-legendary-heritage-end) 55%, transparent);
+  --legendary-accent: var(--color-legendary-heritage-end);
 }
 
 .nationalHoliday {
@@ -79,6 +84,7 @@
     var(--color-legendary-national-holiday-start) 60%,
     transparent
   );
+  --legendary-accent: var(--color-legendary-national-holiday-start);
 }
 
 .natureSky {
@@ -93,6 +99,7 @@
     var(--color-legendary-nature-sky-end)
   );
   --legendary-glow: color-mix(in srgb, var(--color-legendary-nature-sky-end) 45%, transparent);
+  --legendary-accent: var(--color-legendary-nature-sky-end);
 }
 
 .trailCommunity {
@@ -107,6 +114,7 @@
     var(--color-legendary-trail-community-end)
   );
   --legendary-glow: color-mix(in srgb, var(--color-legendary-trail-community-end) 70%, transparent);
+  --legendary-accent: var(--color-legendary-trail-community-end);
 }
 
 .krajozbior {
@@ -115,8 +123,7 @@
 }
 
 /* Kontenery warstw ozdobnych: jedyne miejsca z przycinaniem (karta sama może rosnąć). */
-.frame,
-.effects {
+.frame {
   position: absolute;
   inset: 0;
   overflow: clip;
@@ -124,11 +131,40 @@
   pointer-events: none;
 }
 
-/* Połysk ramki: wąski jasny pas pod wnętrzem, widoczny tylko na obramowaniu. */
+/*
+ * Medalion kategorii: pusty środek karty (bez tekstu). Poświata z tokenu kategorii, duży symbol
+ * i połysk leżą wyłącznie tutaj, na stałym tle karty; tekst nigdy nie stoi na opalizacji.
+ * Efekty odsłonięcia (iskry, połysk, zorza, pierścień) grają w tej samej strefie.
+ */
+.medallion {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: 1 1 auto;
+  place-items: center;
+  min-block-size: 7rem;
+  overflow: clip;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--legendary-accent) 24%, transparent),
+    transparent 70%
+  );
+  border-radius: var(--radius-md);
+  pointer-events: none;
+}
+
+.medallionSymbol {
+  position: relative;
+  z-index: 1;
+  inline-size: 5.5rem;
+  block-size: 5.5rem;
+  color: var(--legendary-accent);
+}
+
+/* Połysk: ukośny pas nad poświatą medalionu, nieruchomy. */
 .sheen {
   position: absolute;
   inset: 0;
-  z-index: 0;
   background: linear-gradient(115deg, transparent 35%, var(--legendary-glow) 50%, transparent 65%);
   pointer-events: none;
 }
@@ -165,7 +201,7 @@
   flex: 1;
   padding: var(--space-md);
   background: var(--color-surface-card);
-  border-radius: calc(var(--radius-lg) - 2px);
+  border-radius: calc(var(--radius-lg) - 3px);
 }
 
 .face > :not([aria-hidden="true"]) {
@@ -235,8 +271,8 @@
 /* Noc kultury: gwiazdy zapalone na stałe; podczas odsłaniania zapalają się po kolei. */
 .sparks {
   position: absolute;
-  inset-block-start: var(--space-md);
-  inset-inline-end: var(--space-md);
+  inset-block-start: var(--space-sm);
+  inset-inline-end: var(--space-sm);
   inline-size: 3rem;
   block-size: 2rem;
   pointer-events: none;
@@ -458,10 +494,10 @@
     background: none;
     border: 2px solid CanvasText;
     padding: 0;
+    box-shadow: none;
   }
 
   .frame,
-  .effects,
   .sheen,
   .edge,
   .glow,
@@ -490,7 +526,12 @@
     border-block-start-color: CanvasText;
   }
 
-  .symbol {
+  .medallion {
+    background: none;
+  }
+
+  .symbol,
+  .medallionSymbol {
     color: CanvasText;
   }
 }
