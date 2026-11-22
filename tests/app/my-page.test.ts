@@ -121,6 +121,20 @@ describe("profile page", () => {
     expect(html).not.toContain("Profil widoczny");
   });
 
+  it("does not call a nameless curator or administrator Odkrywca above their role", async () => {
+    mocks.getApprovedOrganizations.mockResolvedValue([{ id: "o1", name: "Gmina Wilcza" }]);
+    const curator = renderToStaticMarkup(await MyPage());
+
+    mocks.getApprovedOrganizations.mockResolvedValue([]);
+    mocks.getActor.mockResolvedValue({ id, role: "admin" });
+    const admin = renderToStaticMarkup(await MyPage());
+
+    for (const html of [curator, admin]) {
+      expect(html).not.toContain("Odkrywca");
+      expect(html).toMatch(/data-testid="profile-name"[^>]*>Bez imienia</);
+    }
+  });
+
   it('shows "Anna K.", the region and a visible profile', async () => {
     mocks.getMyProfile.mockResolvedValue({
       status: "ok",

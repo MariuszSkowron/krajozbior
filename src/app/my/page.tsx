@@ -62,6 +62,12 @@ export default async function MyPage() {
     logFailure("Profile organizations", error);
   }
 
+  // A curator or administrator without a name must not read "Odkrywca" right above their role
+  // (the header says the neutral "Profil" in the same case); an explorer keeps "Odkrywca".
+  const nameless = profile.firstName === null;
+  const hasRole = actor.role === "admin" || organizations.length > 0;
+  const showNeutralName = nameless && hasRole;
+
   const statsValue = stats !== null && stats.status === "ok" ? stats.value : null;
 
   return (
@@ -71,11 +77,13 @@ export default async function MyPage() {
         <div className={styles.identity}>
           {/* The circle stands in for a photo until E4; the name beside it says the same. */}
           <span className={styles.avatar} aria-hidden="true">
-            {avatarLetter(profile.firstName)}
+            {showNeutralName ? "–" : avatarLetter(profile.firstName)}
           </span>
           <div className={styles.identityText}>
             <p className={styles.name} data-testid="profile-name">
-              {formatDisplayName(profile.firstName, profile.familyInitial)}
+              {showNeutralName
+                ? "Bez imienia"
+                : formatDisplayName(profile.firstName, profile.familyInitial)}
             </p>
             {profile.region === null ? null : (
               <p className={styles.role}>{REGION_LABELS[profile.region]}</p>

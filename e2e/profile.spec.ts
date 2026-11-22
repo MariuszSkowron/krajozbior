@@ -95,6 +95,20 @@ test.describe("profile and logout", () => {
       expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(44);
     }
 
+    // Na telefonie liczby i odnośniki zajmują pełną szerokość treści (390 px minus marginesy).
+    const phoneWidth = (await main.getByTestId("profile-stats").boundingBox())?.width ?? 0;
+    expect(phoneWidth).toBeGreaterThanOrEqual(330);
+    // Trzy liczby stoją w jednym rzędzie (ta sama współrzędna top), bez pustej połowy ekranu.
+    const tops = await main
+      .getByTestId("profile-stats")
+      .locator("dd")
+      .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().top));
+    expect(tops).toHaveLength(3);
+    expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(2);
+    expect(
+      (await main.getByRole("link", { name: "Ustawienia" }).boundingBox())?.width ?? 0,
+    ).toBeGreaterThanOrEqual(330);
+
     await expectNoAccessibilityViolations(page);
 
     await page
