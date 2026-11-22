@@ -135,7 +135,7 @@ test.describe("the want-to-see list", () => {
     await expect(page.getByRole("link", { name: /Zaloguj się, aby/ })).toHaveCount(1);
     await page
       .getByRole("link", {
-        name: "Zaloguj się, aby potwierdzić wizytę lub zapisać na Chcę zobaczyć",
+        name: "Zaloguj się, aby potwierdzić wizytę lub zapisać na „Chcę zobaczyć”",
       })
       .click();
     await expect(page).toHaveURL(new RegExp(`/login\\?returnTo=${encodeURIComponent(placePath)}$`));
@@ -175,7 +175,7 @@ test.describe("the want-to-see list", () => {
     await expectNoAccessibilityViolations(a);
     await wantButton(a).click();
     await expect(a.getByText("To miejsce jest na Twojej liście „Chcę zobaczyć”.")).toBeVisible();
-    await expect(a.getByRole("button", { name: "Usuń z Chcę zobaczyć" })).toBeVisible();
+    await expect(a.getByRole("button", { name: "Usuń z „Chcę zobaczyć”" })).toBeVisible();
 
     await a.goto("/my/want-to-see");
     await expect(a.getByRole("heading", { level: 1, name: "Chcę zobaczyć" })).toBeVisible();
@@ -193,7 +193,7 @@ test.describe("the want-to-see list", () => {
     // Removing from the place page empties the list again.
     await item.click();
     await waitForHydration(a);
-    await a.getByRole("button", { name: "Usuń z Chcę zobaczyć" }).click();
+    await a.getByRole("button", { name: "Usuń z „Chcę zobaczyć”" }).click();
     await expect(a.getByText("Usunięto z listy „Chcę zobaczyć”.")).toBeVisible();
     await a.goto("/my/want-to-see");
     await expect(a.getByRole("heading", { level: 1, name: "Chcę zobaczyć" })).toBeVisible();
@@ -216,17 +216,17 @@ test.describe("the want-to-see list", () => {
       (candidate) => candidate.method() === "POST" && candidate.url().includes("/visits"),
     );
 
-    await page.getByRole("button", { name: "Potwierdź wizytę" }).click();
+    await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
     createdVisitIds.push(
       ((await request).postDataJSON() as { clientVisitId: string }).clientVisitId,
     );
-    await expect(page.getByText("Wizyta potwierdzona.")).toBeVisible();
+    await expect(page.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
 
     // The page of the visited place still offers the removal.
     await page.reload();
     await waitForHydration(page);
-    await expect(page.getByText("Masz już zapisaną wizytę w tym miejscu.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Potwierdź wizytę" })).toHaveCount(0);
+    await expect(page.getByText("Odwiedzone", { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Potwierdzam wizytę" })).toHaveCount(0);
     await expectNoAccessibilityViolations(page);
 
     // The list marks the visited place.
@@ -235,7 +235,7 @@ test.describe("the want-to-see list", () => {
 
     await page.getByRole("link", { name: /Most Tczewski/ }).click();
     await waitForHydration(page);
-    await page.getByRole("button", { name: "Usuń z Chcę zobaczyć" }).click();
+    await page.getByRole("button", { name: "Usuń z „Chcę zobaczyć”" }).click();
     await expect(page.getByText("Usunięto z listy „Chcę zobaczyć”.")).toBeVisible();
     await page.goto("/my/want-to-see");
     await expect(page.getByRole("link", { name: /Most Tczewski/ })).toHaveCount(0);
@@ -248,7 +248,7 @@ test.describe("the want-to-see list", () => {
     const page = await signedInPage(browser, EXPLORER_A, FAR);
 
     await openBridge(page);
-    await page.getByRole("button", { name: "Potwierdź wizytę" }).click();
+    await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
 
     const message = page.getByRole("status").filter({ hasText: /Jesteś .* km od miejsca\./ });
 
@@ -265,7 +265,7 @@ test.describe("the want-to-see list", () => {
     await page.setViewportSize({ width: 320, height: 640 });
     await openBridge(page);
     await wantButton(page).click();
-    await expect(page.getByRole("button", { name: "Usuń z Chcę zobaczyć" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Usuń z „Chcę zobaczyć”" })).toBeVisible();
     await page.goto("/my/want-to-see");
     await expect(page.getByRole("link", { name: /Most Tczewski/ })).toBeVisible();
 

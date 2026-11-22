@@ -17,7 +17,13 @@ import { WantToSeeButton } from "./want-to-see-button";
 
 // initialWanted is null when the list could not be read: only its button is hidden.
 // past is the text of the explorer's visit from the past ("Z przeszłości · marzec 2019"), or null.
-type Props = { placeId: string; initialWanted: boolean | null; past?: string | null };
+// radiusM is the public radius of the place: the message "za daleko" says how close to come.
+type Props = {
+  placeId: string;
+  initialWanted: boolean | null;
+  past?: string | null;
+  radiusM?: number;
+};
 
 type Reading = { latitude: number; longitude: number; accuracy: number };
 type Attempt = { clientVisitId: string; reading: Reading };
@@ -68,14 +74,14 @@ function focusOnMount(element: HTMLElement | null): void {
   element?.focus();
 }
 
-function feedbackText(state: State): string {
+function feedbackText(state: State, radiusM: number | undefined): string {
   switch (state.kind) {
     case "locating":
       return "Ustalam Twoje położenie…";
     case "sending":
       return "Sprawdzam odległość od miejsca…";
     case "out_of_range":
-      return visitOutcomeMessage({ result: "out_of_range", distanceM: state.distanceM });
+      return visitOutcomeMessage({ result: "out_of_range", distanceM: state.distanceM }, radiusM);
     case "inaccurate":
       return visitOutcomeMessage({ result: "inaccurate", accuracyM: state.accuracyM });
     case "problem":
@@ -87,14 +93,14 @@ function feedbackText(state: State): string {
   }
 }
 
-// "Potwierdź wizytę" of an explorer (E2-S2, E2-S3). The browser gives the
+// "Potwierdzam wizytę" of an explorer (E2-S2, E2-S3). The browser gives the
 // reading; the server (the database) alone decides about distance and accuracy.
 // The reading lives only in memory of this component for the one request: it is
 // never stored, logged or shown. A retry after a lost answer (network error,
 // server error) sends the same client visit id and the same body, so the
 // server records one visit at most; a fresh check ("Sprawdź ponownie") reads
 // the position again and uses a new id.
-export function VisitConfirmation({ placeId, initialWanted, past = null }: Props) {
+export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM }: Props) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const attempt = useRef<Attempt | null>(null);
 
@@ -184,7 +190,7 @@ export function VisitConfirmation({ placeId, initialWanted, past = null }: Props
     return (
       <div className={styles.box}>
         <p className={styles.success} role="status" tabIndex={-1} ref={focusOnMount}>
-          Wizyta potwierdzona.
+          {visitOutcomeMessage({ result: "recorded", distanceM: 0 })}
         </p>
         {state.collections.length === 0 ? null : (
           <ul className={styles.progress} aria-label="Twój postęp po tej wizycie">
@@ -211,41 +217,52 @@ export function VisitConfirmation({ placeId, initialWanted, past = null }: Props
     ? "Spróbuj ponownie"
     : state.kind === "out_of_range" || state.kind === "inaccurate" || state.kind === "problem"
       ? "Sprawdź ponownie"
-      : "Potwierdź wizytę";
+      : past === null
+        ? "Potwierdzam wizytę"
+        : "Potwierdzam wizytę na miejscu";
 
   return (
     <div className={styles.box}>
+      {/* Stan na górze sekcji: wizyta z przeszłości jest już zapisana (jej data jest niżej, przy „Usuń”). */}
+      {past === null ? null : (
+        <p className={styles.pastState}>
+          <StatusBadge tone="info">Wizyta z przeszłości zapisana</StatusBadge>
+        </p>
+      )}
+      {/* W przypiętym pasku (telefon) jest tylko przycisk; komunikaty o lokalizacji stoją pod nim
+          w treści sekcji, więc nic ich nie zasłania. Po wizycie z przeszłości przycisk jest
+          drugorzędny. Stan w trakcie zapisu pokazuje wskaźnik na przycisku, nie napis. */}
       <PinnedAction>
         <button
           type="button"
-          className={`button button--primary ${styles.action}`}
+          className={`button ${past === null ? "button--primary" : "button--outline"} ${styles.action}`}
           disabled={busy}
           aria-busy={busy}
           onClick={() => void (lost ? retry() : check())}
         >
           {label}
         </button>
-        <p
-          className={`${styles.feedback} ${
-            state.kind === "failed" || state.kind === "problem"
-              ? styles.feedbackDanger
-              : state.kind === "out_of_range" || state.kind === "inaccurate"
-                ? styles.feedbackWarning
-                : ""
-          }`}
-          role={state.kind === "failed" || state.kind === "problem" ? "alert" : "status"}
-        >
-          {feedbackText(state)}
-        </p>
       </PinnedAction>
+      <p
+        className={`${styles.feedback} ${
+          state.kind === "failed" || state.kind === "problem"
+            ? styles.feedbackDanger
+            : state.kind === "out_of_range" || state.kind === "inaccurate"
+              ? styles.feedbackWarning
+              : ""
+        }`}
+        role={state.kind === "failed" || state.kind === "problem" ? "alert" : "status"}
+      >
+        {feedbackText(state, radiusM)}
+      </p>
       {state.kind === "idle" ? (
         <p className={styles.hint}>
           {past === null
-            ? "Przeglądarka zapyta o zgodę na lokalizację. Nie zapisujemy, gdzie jesteś: tylko to, że byłeś w tym miejscu."
+            ? "Przeglądarka zapyta o zgodę na lokalizację. Nie zapisujemy, gdzie jesteś, tylko to, że miejsce trafiło do Twojego albumu."
             : "Potwierdź na miejscu, gdy tu będziesz. Przeglądarka zapyta o zgodę na lokalizację; nie zapisujemy, gdzie jesteś."}
         </p>
       ) : null}
-      {/* Drugorzędne akcje zostają w treści, nie w przypiętym pasku: „Byłem tu wcześniej”
+      {/* Drugorzędne akcje zostają w treści, nie w przypiętym pasku: „Zaznaczam wcześniejszą wizytę”
           (wizyta z przeszłości, decyzja P5) i „Chcę zobaczyć”. */}
       <PastVisit placeId={placeId} existing={past} />
       {initialWanted === null ? (

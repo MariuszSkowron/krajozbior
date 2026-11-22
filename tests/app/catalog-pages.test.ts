@@ -362,7 +362,7 @@ describe("public catalog pages", () => {
       const html = await render();
 
       expect(html.match(/Zaloguj się, aby/g)).toHaveLength(1);
-      expect(html).toContain("Zaloguj się, aby potwierdzić wizytę lub zapisać na Chcę zobaczyć");
+      expect(html).toContain("Zaloguj się, aby potwierdzić wizytę lub zapisać na „Chcę zobaczyć”");
       expect(html).toContain("Po zalogowaniu wrócisz na tę stronę.");
     });
 
@@ -372,9 +372,10 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Masz już zapisaną wizytę w tym miejscu.");
-      expect(html).toContain("Usuń z Chcę zobaczyć");
-      expect(html).not.toContain("Potwierdź wizytę");
+      expect(html).toContain("Odwiedzone");
+      expect(html).not.toContain("Masz już zapisaną wizytę");
+      expect(html).toContain("Usuń z „Chcę zobaczyć”");
+      expect(html).not.toContain("Potwierdzam wizytę");
     });
 
     it("shows nothing about the list for a visited place that is not on it", async () => {
@@ -383,7 +384,8 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Masz już zapisaną wizytę w tym miejscu.");
+      expect(html).toContain("Odwiedzone");
+      expect(html).not.toContain("Masz już zapisaną wizytę");
       expect(html).not.toContain("Chcę zobaczyć");
     });
 
@@ -393,7 +395,7 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Potwierdź wizytę");
+      expect(html).toContain("Potwierdzam wizytę");
       expect(html).toContain("Lista „Chcę zobaczyć” jest chwilowo niedostępna.");
       expect(html).not.toContain(">Chcę zobaczyć<");
     });
@@ -404,17 +406,17 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Potwierdź wizytę");
+      expect(html).toContain("Potwierdzam wizytę");
       expect(html).toContain("chwilowo niedostępna");
     });
 
-    it("offers 'Byłem tu wcześniej' to an explorer without a visit, outside the pinned button", async () => {
+    it("offers 'Zaznaczam wcześniejszą wizytę' to an explorer without a visit, outside the pinned button", async () => {
       mocks.visited.mockResolvedValue({ status: "ok", value: none });
       mocks.wanted.mockResolvedValue({ status: "ok", value: { wanted: false } });
 
       const html = await render();
 
-      expect(html).toContain("Byłem tu wcześniej");
+      expect(html).toContain("Zaznaczam wcześniejszą wizytę");
       expect(html).not.toContain("Usuń wizytę z przeszłości");
     });
 
@@ -428,10 +430,11 @@ describe("public catalog pages", () => {
       const html = await render();
 
       expect(html).toContain("Z przeszłości · marzec 2019");
-      expect(html).toContain("Potwierdź wizytę");
+      expect(html).toContain("Wizyta z przeszłości zapisana");
+      expect(html).toContain("Potwierdzam wizytę na miejscu");
       expect(html).toContain("Potwierdź na miejscu, gdy tu będziesz.");
       expect(html).toContain("Usuń wizytę z przeszłości");
-      expect(html).not.toContain("Byłem tu wcześniej");
+      expect(html).not.toContain("Zaznaczam wcześniejszą wizytę");
       expect(html).not.toContain("Masz już zapisaną wizytę");
     });
 
@@ -444,7 +447,8 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Masz już zapisaną wizytę w tym miejscu.");
+      expect(html).toContain("Odwiedzone");
+      expect(html).not.toContain("Masz już zapisaną wizytę");
       expect(html).not.toContain("Z przeszłości");
       expect(html).not.toContain("Usuń wizytę z przeszłości");
     });

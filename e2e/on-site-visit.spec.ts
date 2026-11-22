@@ -5,7 +5,7 @@ import { Client } from "pg";
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
 
-// E2-S2 / E2-S3, PR7: "Potwierdź wizytę" on the place page, with the position
+// E2-S2 / E2-S3, PR7: "Potwierdzam wizytę" on the place page, with the position
 // of the device set by Playwright (setGeolocation). Most Tczewski of the demo
 // collection is at 54.0928, 18.7919 with the default radius of 200 m. Needs a
 // migrated, seeded database like the other specs that sign in; without it the
@@ -137,22 +137,24 @@ test.describe("confirming a visit on site", () => {
     await openBridge(a);
     await expectNoAccessibilityViolations(a);
 
-    await a.getByRole("button", { name: "Potwierdź wizytę" }).click();
-    await expect(a.getByText("Wizyta potwierdzona.")).toBeVisible();
+    await a.getByRole("button", { name: "Potwierdzam wizytę" }).click();
+    await expect(a.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
     // The focus is on the success message (a status region), not lost with the button.
-    await expect(a.getByRole("status").filter({ hasText: "Wizyta potwierdzona." })).toBeFocused();
+    await expect(
+      a.getByRole("status").filter({ hasText: "To miejsce jest w Twoim albumie." }),
+    ).toBeFocused();
     await expect(a.getByRole("list", { name: "Twój postęp po tej wizycie" })).toContainText("1/3");
     await expectNoAccessibilityViolations(a);
     expect(await visitCount(EXPLORER_A)).toBe(1);
 
     // The place is now visited: the page says so instead of offering the button.
     await a.reload();
-    await expect(a.getByText("Masz już zapisaną wizytę w tym miejscu.")).toBeVisible();
-    await expect(a.getByRole("button", { name: "Potwierdź wizytę" })).toHaveCount(0);
+    await expect(a.getByText("Odwiedzone", { exact: true }).first()).toBeVisible();
+    await expect(a.getByRole("button", { name: "Potwierdzam wizytę" })).toHaveCount(0);
 
     // Explorer B has no visit and still sees the button.
     await b.goto(a.url());
-    await expect(b.getByRole("button", { name: "Potwierdź wizytę" })).toBeVisible();
+    await expect(b.getByRole("button", { name: "Potwierdzam wizytę" })).toBeVisible();
     expect(await visitCount(EXPLORER_B)).toBe(0);
 
     await a.context().close();
@@ -166,7 +168,7 @@ test.describe("confirming a visit on site", () => {
 
     await page.context().setGeolocation({ ...FAR, accuracy: 20 });
     await openBridge(page);
-    await page.getByRole("button", { name: "Potwierdź wizytę" }).click();
+    await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
     await expect(
       page.getByRole("status").filter({ hasText: /Jesteś .* km od miejsca\./ }),
     ).toBeVisible();
@@ -176,7 +178,7 @@ test.describe("confirming a visit on site", () => {
     // Walking to the bridge and checking again records the visit.
     await page.context().setGeolocation({ ...BRIDGE, accuracy: 20 });
     await page.getByRole("button", { name: "Sprawdź ponownie" }).click();
-    await expect(page.getByText("Wizyta potwierdzona.")).toBeVisible();
+    await expect(page.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
     expect(await visitCount(EXPLORER_A)).toBe(1);
     await page.context().close();
   });
@@ -186,7 +188,7 @@ test.describe("confirming a visit on site", () => {
 
     await page.context().setGeolocation({ ...BRIDGE, accuracy: 500 });
     await openBridge(page);
-    await page.getByRole("button", { name: "Potwierdź wizytę" }).click();
+    await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
     await expect(
       page.getByText(
         "Lokalizacja jest zbyt niedokładna (±500 m). Spróbuj na zewnątrz albo zaznacz wizytę z przeszłości.",
@@ -202,7 +204,7 @@ test.describe("confirming a visit on site", () => {
     const denied = await signedInPage(browser, EXPLORER_A, false);
 
     await openBridge(denied);
-    await denied.getByRole("button", { name: "Potwierdź wizytę" }).click();
+    await denied.getByRole("button", { name: "Potwierdzam wizytę" }).click();
     await expect(
       denied.getByRole("alert").filter({ hasText: "Nie mamy zgody na lokalizację." }),
     ).toBeVisible();
@@ -216,7 +218,7 @@ test.describe("confirming a visit on site", () => {
       delete (Navigator.prototype as unknown as Record<string, unknown>).geolocation;
     });
     await openBridge(unsupported);
-    await unsupported.getByRole("button", { name: "Potwierdź wizytę" }).click();
+    await unsupported.getByRole("button", { name: "Potwierdzam wizytę" }).click();
     await expect(
       unsupported
         .getByRole("alert")
@@ -244,10 +246,10 @@ test.describe("confirming a visit on site", () => {
       }
     });
     await openBridge(page);
-    await page.getByRole("button", { name: "Potwierdź wizytę" }).click();
+    await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Brak połączenia." })).toBeVisible();
     await page.getByRole("button", { name: "Spróbuj ponownie" }).click();
-    await expect(page.getByText("Wizyta potwierdzona.")).toBeVisible();
+    await expect(page.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
 
     expect(bodies).toHaveLength(2);
     expect(bodies[1]).toBe(bodies[0]);
@@ -261,7 +263,7 @@ test.describe("confirming a visit on site", () => {
     await page.setViewportSize({ width: 320, height: 640 });
     await page.context().setGeolocation({ ...FAR, accuracy: 20 });
     await openBridge(page);
-    await page.getByRole("button", { name: "Potwierdź wizytę" }).click();
+    await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
     await expect(page.getByText(/Jesteś .* km od miejsca\./)).toBeVisible();
 
     const overflow = await page.evaluate(
