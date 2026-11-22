@@ -155,6 +155,7 @@ kz_mode_initial() {
   kz_state_set current-tag "$IMAGE_TAG"
   kz_state_set current-commit "$KZ_COMMIT"
   kz_state_set initialized "$(date -u +%FT%TZ)"
+  kz_media_mark
   kz_check_secrets_absent
   kz_step "GOTOWE: pierwsze wdrozenie $IMAGE_TAG"
 }
@@ -219,6 +220,7 @@ kz_mode_commit() {
     kz_state_set previous-commit "$previous_commit"
     kz_state_set current-tag "$IMAGE_TAG"
     kz_state_set current-commit "$KZ_COMMIT"
+    kz_media_mark
     kz_prune_images "$IMAGE_TAG" "$previous"
     kz_step "GOTOWE: wdrozono $IMAGE_TAG (poprzednio $previous)"
     return 0
@@ -306,6 +308,11 @@ kz_mode_odtworz() {
   unset KZ_RESTORE_KEY
   kz_step "odtwarzam $(basename "$dump") do jednorazowego kontenera bez sieci"
   if kz_restore_check "$dump" "$KZ_RUN/restore.key"; then
+    # Photo archives (E4-0b2): file counts only, nothing is unpacked. No archive is not an error.
+    kz_media_chain_report "$KZ_RUN/restore.key" || {
+      rm -f "$KZ_RUN/restore.key"
+      kz_fail "odczyt archiwum zdjec nieudany (zly klucz albo uszkodzone archiwum)"
+    }
     rm -f "$KZ_RUN/restore.key"
     kz_step "GOTOWE: kopia odtworzona kluczem wlasciciela (K-8, K-19)"
   else

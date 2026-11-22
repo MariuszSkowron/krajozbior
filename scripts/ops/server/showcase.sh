@@ -18,6 +18,10 @@
 # KZ_SHOWCASE_OVERLAY, KZ_PGDATA_VOLUME, KZ_IMAGE_REPOS, KZ_DUMP_SUFFIX.
 # Keep this file ASCII-only.
 
+# Volumes of the rehearsal target (deploy/compose.showcase-target.yaml) for the media archive.
+KZ_MEDIA_VOLUME="$KZ_PROJECT-media"
+KZ_MEDIA_STATE_VOLUME="$KZ_PROJECT-media-backup-state"
+
 # Refuses anything that looks like the server: wrong target, server project or server folder.
 kz_require_showcase() {
   [ "${KZ_TARGET:-}" = "showcase" ] || kz_fail "showcase.sh tylko z celem showcase"

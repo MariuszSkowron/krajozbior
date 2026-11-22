@@ -11,7 +11,9 @@ set -euo pipefail
 kind=daily
 [ "$(date -u +%u)" = "7" ] && kind=weekly
 
-if kz_backup "$kind"; then
+# The media archive comes after a good dump (a row without a file is reported later by
+# photos:sweep, a file without a row is removed). Its failure signals `fail`; the dump stays.
+if kz_backup "$kind" && kz_media_archive "$kind"; then
   kz_ping HC_BACKUP_URL
 else
   kz_ping HC_BACKUP_URL fail

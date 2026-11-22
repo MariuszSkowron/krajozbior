@@ -333,3 +333,199 @@ kz_write_healthchecks_env() {
   [ -n "$content" ] || return 0
   (umask 077 && printf '%s' "$content" >"$KZ_ROOT/healthchecks.env")
 }
+
+# --- media archive (E4-0b2, spec 5.11.6) -----------------------------------------------------
+# Nightly archive of the photo volume on the same disk: a chain is one full archive plus the
+# incremental archives after it (tar --listed-incremental, encrypted with age like the dumps).
+# Names: krajozbior-media-<UTC YYYYMMDD-HHMMSS>-full.tar.age and ...-incr.tar.age. The suffix
+# .tar.age does not match the dump patterns, so the dump rotation and the "no backup for 26
+# hours" alarm still count database dumps only.
+# The one-off container of the app image (no network, user node) reads the media volume read-only
+# and keeps the incremental state (media.snar) in its own volume. Volume names can be overridden
+# (the rehearsal target uses its own). Paths inside the container are the ones of the image.
+: "${KZ_MEDIA_VOLUME:=krajozbior-media}"
+: "${KZ_MEDIA_STATE_VOLUME:=krajozbior-media-backup-state}"
+: "${KZ_MEDIA_KEEP_CHAINS:=4}"
+: "${KZ_MEDIA_MAX_DAYS:=30}"
+KZ_MEDIA_DIR="/var/lib/krajozbior/media"
+KZ_MEDIA_STATE_DIR="/var/lib/krajozbior/backup-state"
+KZ_MEDIA_SNAR="$KZ_MEDIA_STATE_DIR/media.snar"
+# Smallest encrypted archive accepted: an age header alone is about 200 bytes, an empty tar
+# archive of a directory is already several hundred bytes more.
+: "${KZ_MIN_MEDIA_BYTES:=300}"
+
+kz_media_volume_exists() {
+  docker volume inspect "$KZ_MEDIA_VOLUME" >/dev/null 2>&1 </dev/null
+}
+
+# First deployment or backup that sees the volume writes the marker; the health report raises
+# the "no archive" alarm only a day later. Never overwritten, never fails.
+kz_media_mark() {
+  if kz_media_volume_exists && [ ! -f "$KZ_STATE/media-volume-since" ]; then
+    kz_state_set media-volume-since "$(date -u +%FT%TZ)" || true
+  fi
+  return 0
+}
+
+# One action in a one-off container of the current app image. MSYS2_ARG_CONV_EXCL keeps Git Bash
+# on Windows from rewriting the container paths (lessons: docker -v and MSYS).
+#   state   exit 0 when the incremental state file exists
+#   reset   removes the state file (next archive is a full one)
+#   full    deletes the state file and writes a full tar to stdout
+#   incr    writes an incremental tar to stdout
+#   stream  plain tar of the whole volume to stdout (restore test, no state)
+#   count   number of files in the volume
+kz_media_sh() {
+  local image
+  image="${KZ_IMAGE_REPOS%% *}:$(kz_state_get current-tag)"
+  MSYS2_ARG_CONV_EXCL='*' docker run --rm --network none -u node \
+    -v "$KZ_MEDIA_VOLUME:$KZ_MEDIA_DIR:ro" -v "$KZ_MEDIA_STATE_VOLUME:$KZ_MEDIA_STATE_DIR" \
+    --entrypoint sh "$image" -c '
+      case "$1" in
+        state) [ -f "$2" ] ;;
+        reset) rm -f "$2" ;;
+        full) rm -f "$2"; exec tar --no-check-device --listed-incremental="$2" -C "$3" -cf - . ;;
+        incr) exec tar --no-check-device --listed-incremental="$2" -C "$3" -cf - . ;;
+        stream) exec tar -C "$3" -cf - . ;;
+        count) find "$3" -type f | wc -l ;;
+        *) exit 2 ;;
+      esac' sh "$1" "$KZ_MEDIA_SNAR" "$KZ_MEDIA_DIR" </dev/null
+}
+
+# Media archives, oldest first (the name carries the UTC time).
+kz_list_media_archives() {
+  [ -d "$KZ_BACKUPS" ] || return 0
+  find "$KZ_BACKUPS" -maxdepth 1 -type f -name 'krajozbior-media-*.tar.age' 2>/dev/null | sort
+}
+
+# Timestamp (YYYYMMDD-HHMMSS) of an archive file name.
+kz_media_stamp() {
+  local name
+  name="$(basename "$1")"
+  name="${name#krajozbior-media-}"
+  printf '%s' "${name:0:15}"
+}
+
+# Newest chain: the newest full archive and the incremental ones after it, oldest first.
+kz_media_latest_chain() {
+  local file chain=""
+  while IFS= read -r file; do
+    case "$file" in
+      *-full.tar.age) chain="$file" ;;
+      *) [ -z "$chain" ] || chain+=$'\n'"$file" ;;
+    esac
+  done < <(kz_list_media_archives)
+  [ -z "$chain" ] || printf '%s\n' "$chain"
+}
+
+# Rotation removes whole chains: at most KZ_MEDIA_KEEP_CHAINS chains, and a chain whose full
+# archive is older than KZ_MEDIA_MAX_DAYS days disappears completely (privacy policy pt 9).
+# Incremental archives without a full archive before them are useless and removed.
+kz_media_rotate() {
+  local file cutoff chain_file chain_count index current=""
+  local -a chains=() fulls=()
+  cutoff="$(date -u -d "-$KZ_MEDIA_MAX_DAYS days" +%Y%m%d-%H%M%S)" || return 1
+  while IFS= read -r file; do
+    case "$file" in
+      *-full.tar.age)
+        if [ -n "$current" ]; then chains+=("$current"); fi
+        current="$file"
+        fulls+=("$(kz_media_stamp "$file")")
+        ;;
+      *)
+        if [ -n "$current" ]; then current+=$'\n'"$file"; else rm -f "$file"; fi
+        ;;
+    esac
+  done < <(kz_list_media_archives)
+  if [ -n "$current" ]; then chains+=("$current"); fi
+  chain_count="${#chains[@]}"
+  for index in "${!chains[@]}"; do
+    if [ "$index" -lt "$((chain_count - KZ_MEDIA_KEEP_CHAINS))" ] || [[ "${fulls[$index]}" < "$cutoff" ]]; then
+      while IFS= read -r chain_file; do rm -f "$chain_file"; done <<<"${chains[$index]}"
+    fi
+  done
+  return 0
+}
+
+# Archive of the media volume after a good database dump. kind = daily | weekly: weekly asks for
+# a full archive (Sunday); a full one is also made when there is no state file or no full archive
+# on disk. No volume = skipped (status 0). Any failure removes the state file, so the next night
+# starts a new chain (no gap in a chain), and returns 1 (backup.sh signals it; the dump stays).
+kz_media_archive() {
+  local kind="${1:-daily}" mode=incr file stamp
+  kz_media_volume_exists || { kz_step "brak wolumenu zdjec; archiwum zdjec pominiete"; return 0; }
+  kz_media_mark
+  if [ ! -s "$KZ_ROOT/backup.pub" ]; then
+    kz_step "brak klucza publicznego kopii; archiwum zdjec nieudane"
+    return 1
+  fi
+  if [ -z "$(kz_state_get current-tag)" ]; then
+    kz_step "brak zapisanej wersji obrazu; archiwum zdjec nieudane"
+    return 1
+  fi
+  mkdir -p "$KZ_BACKUPS" || return 1
+  [ "$kind" = "weekly" ] && mode=full
+  [ -n "$(kz_media_latest_chain)" ] || mode=full
+  kz_media_sh state || mode=full
+  stamp="$(date -u +%Y%m%d-%H%M%S)"
+  file="$KZ_BACKUPS/krajozbior-media-$stamp-$mode.tar.age"
+  rm -f "$file.part"
+  if ! (set -o pipefail && umask 077 && kz_media_sh "$mode" | age -R "$KZ_ROOT/backup.pub" -o "$file.part"); then
+    rm -f "$file.part"
+    kz_media_sh reset || true
+    kz_step "archiwum zdjec nieudane (nastepne bedzie pelne)"
+    return 1
+  fi
+  if [ "$(wc -c <"$file.part" | tr -dc '0-9')" -lt "$KZ_MIN_MEDIA_BYTES" ]; then
+    rm -f "$file.part"
+    kz_media_sh reset || true
+    kz_step "archiwum zdjec podejrzanie male; nie zapisano (nastepne bedzie pelne)"
+    return 1
+  fi
+  if ! mv "$file.part" "$file"; then
+    rm -f "$file.part"
+    kz_media_sh reset || true
+    return 1
+  fi
+  kz_media_rotate || return 1
+  kz_step "archiwum zdjec zapisane: $(basename "$file") ($(du -h "$file" | cut -f1))"
+}
+
+# Number of regular files in a tar stream on standard input (directories end with a slash).
+kz_tar_file_count() {
+  # Under the callers' pipefail a failing tar or age makes the whole pipeline fail.
+  tar -tf - | { grep -v '/$' || true; } | wc -l | tr -dc '0-9'
+}
+
+# Weekly test (restore-test.sh): a fresh stream of the volume through age with the test key and
+# back, files counted in the volume and in the archive. Prints only the numbers; returns 1 on a
+# difference or any error. No volume = skipped. No file on disk.
+kz_media_restore_check() {
+  local recipient="$1" identity="$2" expected found
+  kz_media_volume_exists || { kz_step "brak wolumenu zdjec; test archiwum zdjec pominiety"; return 0; }
+  [ -n "$(kz_state_get current-tag)" ] || { kz_step "brak zapisanej wersji obrazu; test archiwum zdjec nieudany"; return 1; }
+  expected="$(kz_media_sh count | tr -dc '0-9')" || return 1
+  found="$(set -o pipefail && kz_media_sh stream | age -R "$recipient" | age -d -i "$identity" | kz_tar_file_count)" || return 1
+  kz_step "test archiwum zdjec: plikow w wolumenie=${expected:-?}, w archiwum=${found:-?}"
+  [ -n "$expected" ] && [ "$expected" = "$found" ] || return 1
+}
+
+# -OdtworzKopie: decrypts the newest chain with the owner's key and prints the file count of
+# every archive. Nothing is unpacked onto the volume. No archive = an information, not an error.
+kz_media_chain_report() {
+  local identity="$1" chain file count status=0
+  chain="$(kz_media_latest_chain)"
+  if [ -z "$chain" ]; then
+    kz_step "Brak archiwum zdjec: nocna kopia plikow jeszcze sie nie wykonala albo wolumen jest pusty"
+    return 0
+  fi
+  while IFS= read -r file; do
+    if count="$(set -o pipefail && age -d -i "$identity" "$file" | kz_tar_file_count)"; then
+      kz_step "archiwum zdjec $(basename "$file"): plikow=$count"
+    else
+      kz_step "archiwum zdjec $(basename "$file"): nie da sie odczytac"
+      status=1
+    fi
+  done <<<"$chain"
+  return "$status"
+}

@@ -2,10 +2,12 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   statSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -301,6 +303,7 @@ describe("deployment modes with stubbed docker, git and network (remote.sh)", ()
     'kz_assert_no_demo_flags() { echo "flags-ok"; }',
     "kz_write_healthchecks_env() { :; }",
     'kz_backup() { echo "backup $1"; }',
+    "kz_media_mark() { :; }",
     'kz_compose() { echo "compose $* tag=${IMAGE_TAG:-}"; }',
     'kz_ops() { echo "ops $1"; [ "$1" != "legal:final" ] || [ "${LEGAL_OK:-1}" = "1" ]; }',
     // SITE_SEQ: results of consecutive site checks (1 = ok), e.g. "0 1" = swap fails, rollback ok.
@@ -1091,6 +1094,366 @@ describe("hourly resource check: daily pool of sign-in codes (health-report.sh)"
     const output = runReport(`{"event":"account.deleted"}\n`);
 
     expect(output).not.toContain(ALARM_TEXT);
+  });
+});
+
+// E4-0b2 (spec 5.11.6): archive of the photo volume with a real lib.sh. docker is a stub that
+// simulates the one-off container (the incremental state file is a file in STUB_STATE), age is a
+// stub that copies its input (a real age is not needed to check names, chains and decisions).
+describe("media archive of the photo volume (E4-0b2)", () => {
+  const AGE_STUB =
+    'out=""\nmode=enc\nwhile [ $# -gt 0 ]; do [ "$1" = "-o" ] && out="$2"; [ "$1" = "-d" ] && mode=dec; last="$1"; shift; done\n' +
+    'if [ "$mode" = dec ]; then [ "${AGE_FAIL:-0}" = 1 ] && exit 1; if [ -f "$last" ]; then cat "$last"; else cat; fi; exit 0; fi\n' +
+    'if [ -n "$out" ]; then cat >"$out"; else cat; fi\n';
+  const DOCKER_STUB = [
+    'echo "$*" >>"$DOCKER_LOG"',
+    'case "$*" in "volume inspect "*) [ "${HAS_VOLUME:-1}" = 1 ]; exit ;; esac',
+    'case "$*" in',
+    '  *" sh state "*) [ -f "$STUB_STATE/snar" ]; exit ;;',
+    '  *" sh reset "*) rm -f "$STUB_STATE/snar"; exit 0 ;;',
+    '  *" sh full "*) rm -f "$STUB_STATE/snar"; touch "$STUB_STATE/snar"',
+    '    [ "${TAR_FAIL:-0}" = 1 ] && { echo boom >&2; exit 1; }',
+    "    head -c 1000 /dev/zero | tr '\\0' x; exit 0 ;;",
+    '  *" sh incr "*) touch "$STUB_STATE/snar"',
+    '    [ "${TAR_FAIL:-0}" = 1 ] && { echo boom >&2; exit 1; }',
+    "    head -c 1000 /dev/zero | tr '\\0' x; exit 0 ;;",
+    '  *" sh count "*) echo "${VOLUME_FILES:-3}"; exit 0 ;;',
+    '  *" sh stream "*) tar -cf - -C "$(cygpath -u "$FIXTURE" 2>/dev/null || echo "$FIXTURE")" . ; exit 0 ;;',
+    "esac",
+    "exit 9",
+    "",
+  ].join("\n");
+
+  function mediaBox() {
+    const box = sandbox(ENV_PRODUCTION);
+    const stubState = join(box.root, "stub-state");
+    const fixture = join(box.root, "fixture");
+
+    mkdirSync(stubState, { recursive: true });
+    mkdirSync(join(box.root, "state"), { recursive: true });
+    mkdirSync(join(box.root, "backups"), { recursive: true });
+    mkdirSync(fixture, { recursive: true });
+    for (const name of ["a.jpg", "b.jpg", "c.jpg"]) writeFileSync(join(fixture, name), name);
+    writeFileSync(join(box.root, "backup.pub"), `age1${"q".repeat(58)}\n`);
+    writeFileSync(join(box.root, "state", "current-tag"), "abcdef123456\n");
+
+    return {
+      ...box,
+      backups: join(box.root, "backups"),
+      state: join(box.root, "state"),
+      fixture,
+      env: {
+        KZ_ROOT: box.root,
+        KZ_RUN: box.run,
+        STUB_BIN: stubBin({ docker: DOCKER_STUB, age: AGE_STUB }),
+        STUB_STATE: stubState,
+        DOCKER_LOG: join(box.root, "docker.log"),
+        FIXTURE: fixture,
+      },
+    };
+  }
+
+  // One fixed "now" for the whole group: names built twice must be equal.
+  const NOW = Date.now();
+  const stamp = (daysAgo: number, extraSeconds = 0) => {
+    const date = new Date(NOW - daysAgo * 86_400_000 + extraSeconds * 1000);
+
+    return date
+      .toISOString()
+      .replace(/[-:]/g, "")
+      .replace(/\.\d+Z$/, "")
+      .replace("T", "-");
+  };
+  const list = (dir: string, pattern = /\.tar\.age$/) =>
+    readdirSync(dir).filter((n) => pattern.test(n));
+  const archiveName = (days: number, kind: "full" | "incr", extra = 0) =>
+    `krajozbior-media-${stamp(days, extra)}-${kind}.tar.age`;
+
+  bashIt("names: weekly and a missing state give a full archive, daily an incremental one", () => {
+    const box = mediaBox();
+    const first = runLib(`${WITH_STUBS} kz_media_archive daily`, box.env);
+
+    expect(first.status, first.stdout).toBe(0);
+    expect(list(box.backups)).toEqual([
+      expect.stringMatching(/^krajozbior-media-\d{8}-\d{6}-full\.tar\.age$/),
+    ]);
+
+    const second = runLib(`${WITH_STUBS} sleep 1; kz_media_archive daily`, box.env);
+
+    expect(second.status, second.stdout).toBe(0);
+    const names = list(box.backups);
+
+    expect(names).toHaveLength(2);
+    expect(names.filter((n) => n.endsWith("-incr.tar.age"))).toHaveLength(1);
+    expect(runLib(`${WITH_STUBS} sleep 1; kz_media_archive weekly`, box.env).status).toBe(0);
+    expect(list(box.backups).filter((n) => n.endsWith("-full.tar.age"))).toHaveLength(2);
+    // The dump rotation and the 26-hour alarm see no media archive.
+    expect(runLib(`${WITH_STUBS} kz_list_backups`, box.env).stdout.trim()).toBe("");
+  });
+
+  bashIt("the container runs without network, as node, with the media volume read-only", () => {
+    const box = mediaBox();
+
+    runLib(`${WITH_STUBS} kz_media_archive weekly`, box.env);
+    const log = readFileSync(box.env.DOCKER_LOG, "utf8");
+
+    expect(log).toContain("--network none");
+    expect(log).toContain("-u node");
+    expect(log).toContain("krajozbior-media:/var/lib/krajozbior/media:ro");
+    expect(log).toContain("krajozbior-media-backup-state:/var/lib/krajozbior/backup-state");
+    expect(log).toContain("krajozbior-app:abcdef123456");
+  });
+
+  bashIt("rotation keeps 4 chains, drops chains older than 30 days and orphan incrementals", () => {
+    const box = mediaBox();
+    const files = [
+      archiveName(45, "incr"),
+      archiveName(40, "full"),
+      archiveName(39, "incr"),
+      archiveName(25, "full"),
+      archiveName(24, "incr"),
+      archiveName(18, "full"),
+      archiveName(11, "full"),
+      archiveName(10, "incr"),
+      archiveName(4, "full"),
+      archiveName(3, "incr"),
+    ];
+
+    for (const name of files) writeFileSync(join(box.backups, name), "x");
+    const result = runLib(`${WITH_STUBS} kz_media_rotate`, box.env);
+
+    expect(result.status, result.stdout).toBe(0);
+    // 5 chains remain after the age rule (25, 18, 11, 4 days and the 40-day one is gone); the
+    // limit of 4 chains then drops nothing more because only 4 are left.
+    expect(list(box.backups).sort()).toEqual(
+      [
+        archiveName(25, "full"),
+        archiveName(24, "incr"),
+        archiveName(18, "full"),
+        archiveName(11, "full"),
+        archiveName(10, "incr"),
+        archiveName(4, "full"),
+        archiveName(3, "incr"),
+      ].sort(),
+    );
+
+    writeFileSync(join(box.backups, archiveName(1, "full")), "x");
+    runLib(`${WITH_STUBS} kz_media_rotate`, box.env);
+    const left = list(box.backups);
+
+    expect(left).not.toContain(archiveName(25, "full"));
+    expect(left).not.toContain(archiveName(24, "incr"));
+    expect(left.filter((n) => n.endsWith("-full.tar.age"))).toHaveLength(4);
+  });
+
+  bashIt("rotation never touches database dumps", () => {
+    const box = mediaBox();
+    const dump = "krajozbior-20200101-031500-daily.dump.age";
+
+    writeFileSync(join(box.backups, dump), "x");
+    runLib(`${WITH_STUBS} kz_media_rotate`, box.env);
+
+    expect(readdirSync(box.backups)).toContain(dump);
+  });
+
+  bashIt("a failed archive removes the state file, leaves no file and the next one is full", () => {
+    const box = mediaBox();
+
+    expect(runLib(`${WITH_STUBS} kz_media_archive weekly`, box.env).status).toBe(0);
+    expect(existsSync(join(box.env.STUB_STATE, "snar"))).toBe(true);
+    const failed = runLib(`${WITH_STUBS} sleep 1; kz_media_archive daily`, {
+      ...box.env,
+      TAR_FAIL: "1",
+    });
+
+    expect(failed.status).toBe(1);
+    expect(failed.stdout).toContain("archiwum zdjec nieudane");
+    expect(existsSync(join(box.env.STUB_STATE, "snar"))).toBe(false);
+    expect(readdirSync(box.backups).filter((n) => n.endsWith(".part"))).toEqual([]);
+    expect(list(box.backups)).toHaveLength(1);
+
+    expect(runLib(`${WITH_STUBS} sleep 1; kz_media_archive daily`, box.env).status).toBe(0);
+    expect(list(box.backups).filter((n) => n.endsWith("-full.tar.age"))).toHaveLength(2);
+  });
+
+  bashIt("without the media volume the step is skipped and writes nothing", () => {
+    const box = mediaBox();
+    const result = runLib(`${WITH_STUBS} kz_media_archive daily`, { ...box.env, HAS_VOLUME: "0" });
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain("pominiete");
+    expect(list(box.backups)).toEqual([]);
+    expect(existsSync(join(box.state, "media-volume-since"))).toBe(false);
+    expect(readFileSync(box.env.DOCKER_LOG, "utf8")).not.toContain(" run ");
+  });
+
+  bashIt("the first run that sees the volume writes the marker and never overwrites it", () => {
+    const box = mediaBox();
+
+    runLib(`${WITH_STUBS} kz_media_archive weekly`, box.env);
+    const marker = join(box.state, "media-volume-since");
+
+    expect(readFileSync(marker, "utf8")).toMatch(/^\d{4}-\d\d-\d\dT/);
+    writeFileSync(marker, "2026-01-01T00:00:00Z\n");
+    runLib(`${WITH_STUBS} kz_media_mark`, box.env);
+
+    expect(readFileSync(marker, "utf8")).toBe("2026-01-01T00:00:00Z\n");
+  });
+
+  bashIt("backup.sh signals fail when the archive fails, but the dump stays", () => {
+    const box = mediaBox();
+    const dockerAll = `${DOCKER_STUB.replace(
+      'case "$*" in "volume inspect "*)',
+      'case "$*" in *"pg_dump"*) printf PGDMP; head -c 6000 /dev/zero | tr "\\0" x; exit 0 ;; esac\ncase "$*" in "volume inspect "*)',
+    )}`;
+
+    writeFileSync(join(box.root, "healthchecks.env"), "HC_BACKUP_URL=https://hc.example/abc\n");
+    const curl = stubBin({ docker: dockerAll, age: AGE_STUB, curl: 'echo "$*" >>"$CURL_LOG"\n' });
+    const script = join(SERVER_DIR, "backup.sh").replaceAll("\\", "/");
+    const result = runLib(
+      `PATH="$(cygpath -u "${curl}" 2>/dev/null || echo "${curl}"):$PATH"; bash "${script}"`,
+      {
+        ...box.env,
+        TAR_FAIL: "1",
+        CURL_LOG: join(box.root, "curl.log"),
+      },
+    );
+
+    expect(result.status).toBe(1);
+    expect(readFileSync(join(box.root, "curl.log"), "utf8")).toContain("/abc/fail");
+    expect(list(box.backups, /\.dump\.age$/)).toHaveLength(1);
+    expect(list(box.backups)).toEqual([]);
+  });
+
+  bashIt("-OdtworzKopie without any archive is an information, not an error", () => {
+    const box = mediaBox();
+    const result = runLib(`${WITH_STUBS} kz_media_chain_report "$KZ_RUN/none.key"`, box.env);
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain("Brak archiwum zdjec");
+    expect(result.stdout).not.toContain("BLAD");
+  });
+
+  bashIt("-OdtworzKopie counts files of the newest chain only, and fails on a bad archive", () => {
+    const box = mediaBox();
+    const tarPath = join(box.root, "sample.tar");
+
+    execFileSync(bash ?? "bash", [
+      "-c",
+      'tar -cf "$(cygpath -u "$0" 2>/dev/null || echo "$0")" -C "$(cygpath -u "$1" 2>/dev/null || echo "$1")" .',
+      tarPath,
+      box.fixture,
+    ]);
+    const tar = readFileSync(tarPath);
+
+    for (const name of [
+      archiveName(9, "full"),
+      archiveName(8, "incr"),
+      archiveName(2, "full"),
+      archiveName(1, "incr"),
+    ]) {
+      writeFileSync(join(box.backups, name), tar);
+    }
+    const result = runLib(`${WITH_STUBS} kz_media_chain_report "$KZ_RUN/k.key"`, box.env);
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).toContain(`${archiveName(2, "full")}: plikow=3`);
+    expect(result.stdout).toContain(`${archiveName(1, "incr")}: plikow=3`);
+    expect(result.stdout).not.toContain(archiveName(9, "full"));
+
+    const broken = runLib(`${WITH_STUBS} kz_media_chain_report "$KZ_RUN/k.key"`, {
+      ...box.env,
+      AGE_FAIL: "1",
+    });
+
+    expect(broken.status).toBe(1);
+  });
+
+  bashIt("restore test compares the file counts of the volume and the archive", () => {
+    const box = mediaBox();
+    const ok = runLib(`${WITH_STUBS} kz_media_restore_check recipient identity`, box.env);
+
+    expect(ok.status, ok.stdout).toBe(0);
+    expect(ok.stdout).toContain("w wolumenie=3, w archiwum=3");
+
+    const different = runLib(`${WITH_STUBS} kz_media_restore_check recipient identity`, {
+      ...box.env,
+      VOLUME_FILES: "4",
+    });
+
+    expect(different.status).toBe(1);
+    expect(readdirSync(box.backups)).toEqual([]);
+  });
+
+  bashIt("restore test is skipped without the volume", () => {
+    const box = mediaBox();
+    const result = runLib(`${WITH_STUBS} kz_media_restore_check recipient identity`, {
+      ...box.env,
+      HAS_VOLUME: "0",
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("pominiety");
+  });
+});
+
+// health-report.sh: the media archive alarm waits a day after the marker (A-B2 b).
+describe("hourly resource check: media archive (health-report.sh)", () => {
+  const DF = "printf 'Use%%\\n 10%%\\n'\n";
+  const DOCKER = "printf true\n";
+  const ALARM_TEXT = "brak archiwum zdjec";
+
+  function report(options: { markerAgeHours?: number; archiveAgeHours?: number }): string {
+    const box = sandbox(ENV_PRODUCTION.replace("https://krajozbior.example", ""));
+
+    mkdirSync(join(box.root, "state"), { recursive: true });
+    mkdirSync(join(box.root, "backups"), { recursive: true });
+    const setAge = (file: string, hours: number) => {
+      writeFileSync(file, "x");
+      const time = new Date(Date.now() - hours * 3_600_000);
+
+      utimesSync(file, time, time);
+    };
+
+    if (options.markerAgeHours !== undefined) {
+      setAge(join(box.root, "state", "media-volume-since"), options.markerAgeHours);
+    }
+    if (options.archiveAgeHours !== undefined) {
+      setAge(
+        join(box.root, "backups", "krajozbior-media-20260101-031500-full.tar.age"),
+        options.archiveAgeHours,
+      );
+    }
+    const result = spawnSync(bash ?? "bash", ["-c", `${WITH_STUBS} bash "$KZ_REPORT"`], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        KZ_ROOT: box.root,
+        KZ_RUN: box.run,
+        KZ_DOCKER_DIR: join(box.root, "no-docker-dir"),
+        KZ_REPORT: join(SERVER_DIR, "health-report.sh").replaceAll("\\", "/"),
+        STUB_BIN: stubBin({ df: DF, docker: DOCKER, journalctl: "exit 0\n" }),
+      },
+    });
+
+    return `${result.stdout}${result.stderr}`;
+  }
+
+  bashIt("no marker (no volume yet) means no alarm", () => {
+    expect(report({})).not.toContain(ALARM_TEXT);
+  });
+
+  bashIt("no alarm before a day has passed since the marker", () => {
+    expect(report({ markerAgeHours: 20 })).not.toContain(ALARM_TEXT);
+  });
+
+  bashIt("alarm when the marker is older than a day and no archive is fresh", () => {
+    expect(report({ markerAgeHours: 30 })).toContain(ALARM_TEXT);
+    expect(report({ markerAgeHours: 30, archiveAgeHours: 30 })).toContain(ALARM_TEXT);
+  });
+
+  bashIt("no alarm when a media archive from the last 26 hours exists", () => {
+    expect(report({ markerAgeHours: 30, archiveAgeHours: 3 })).not.toContain(ALARM_TEXT);
   });
 });
 

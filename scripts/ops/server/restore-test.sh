@@ -15,7 +15,8 @@ trap 'rm -f "$dump" "$dump.part" "$recipient"' EXIT
 
 if age-keygen -y "$key" >"$recipient" &&
   kz_dump_encrypted "$recipient" "$dump" &&
-  kz_restore_check "$dump" "$key"; then
+  kz_restore_check "$dump" "$key" &&
+  kz_media_restore_check "$recipient" "$key"; then
   kz_step "test odtworzenia: udany"
   kz_ping HC_RESTORE_URL
 else

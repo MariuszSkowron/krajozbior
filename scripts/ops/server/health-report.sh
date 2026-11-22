@@ -41,6 +41,20 @@ if [ -n "$(find "$KZ_STATE/initialized" -mmin +1560 2>/dev/null)" ] &&
   problems+=("brak kopii z ostatnich 26 godzin")
 fi
 
+# No media archive from the last 26 hours, but only a day after the first deployment or backup
+# that saw the photo volume (marker state/media-volume-since, written by kz_media_mark).
+if [ -n "$(find "$KZ_STATE/media-volume-since" -mmin +1440 2>/dev/null)" ] &&
+  [ -z "$(find "$KZ_BACKUPS" -maxdepth 1 -name 'krajozbior-media-*.tar.age' -mmin -1560 2>/dev/null)" ]; then
+  problems+=("brak archiwum zdjec z ostatnich 26 godzin")
+fi
+
+# Docker volumes live in the Docker directory; a second df covers a separate file system.
+: "${KZ_DOCKER_DIR:=/var/lib/docker}"
+if [ -d "$KZ_DOCKER_DIR" ] && [ "$(stat -c %d "$KZ_DOCKER_DIR" 2>/dev/null)" != "$(stat -c %d "$KZ_ROOT" 2>/dev/null)" ]; then
+  used_docker="$(df --output=pcent "$KZ_DOCKER_DIR" | tail -n 1 | tr -dc '0-9')"
+  [ "${used_docker:-100}" -le 80 ] || problems+=("dysk katalogu Dockera zajety w ${used_docker}%")
+fi
+
 rejected="$(journalctl CONTAINER_NAME="$KZ_PROJECT-app-1" --since '-1h' -o cat --no-pager 2>/dev/null |
   grep -c 'email.brevo_rejected' || true)"
 [ "${rejected:-0}" -eq 0 ] || problems+=("Brevo odmowilo $rejected razy w ostatniej godzinie")
