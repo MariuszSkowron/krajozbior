@@ -207,7 +207,7 @@ describe("collection cover", () => {
     expect(await privilege("krajozbior_auth", "update")).toBe(false);
   });
 
-  it("has an empty trigger function list for the app role: nobody can call the guards directly", async () => {
+  it("lets nobody call the trigger functions directly; only the app role may call the hidden check", async () => {
     const callable = await admin$<{ proname: string }>(
       `select p.proname
          from pg_proc p
@@ -218,6 +218,36 @@ describe("collection cover", () => {
     );
 
     expect(callable).toEqual([]);
+
+    const hidden = await admin$<{ app: boolean; ops: boolean; auth: boolean; definer: boolean }>(
+      `select has_function_privilege('krajozbior_app', p.oid, 'execute') as app,
+              has_function_privilege('krajozbior_ops', p.oid, 'execute') as ops,
+              has_function_privilege('krajozbior_auth', p.oid, 'execute') as auth,
+              p.prosecdef as definer
+         from pg_proc p
+        where p.proname = 'collection_cover_photo_hidden'`,
+    );
+
+    expect(hidden).toEqual([{ app: true, ops: false, auth: false, definer: true }]);
+  });
+
+  it("tells whether a photo is hidden only to a curator of its organization", async () => {
+    const place = await newPlace(orgA);
+    const visible = await photo(place, orgA);
+    const hiddenPhoto = await photo(place, orgA);
+
+    await admin$(`update public.place_photos set hidden_at = now() where id = $1`, [hiddenPhoto]);
+
+    const ask = async (actor: { id: string }, photoId: string) =>
+      (await as(actor, `select public.collection_cover_photo_hidden(?) as hidden`, [photoId]))[0]!
+        .hidden;
+
+    expect(await ask(curA, hiddenPhoto)).toBe(true);
+    expect(await ask(curA, visible)).toBe(false);
+    // Another organization, an account without a membership and a missing photo: always false.
+    expect(await ask(curB, hiddenPhoto)).toBe(false);
+    expect(await ask(explorer, hiddenPhoto)).toBe(false);
+    expect(await ask(curA, randomUUID())).toBe(false);
   });
 
   describe("who may set the cover", () => {

@@ -1,10 +1,11 @@
 import { randomInt, randomUUID } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { MikroORM } from "@mikro-orm/postgresql";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
+import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { CatalogDeps } from "@/features/catalog/application/catalog-types";
@@ -22,7 +23,7 @@ import {
   type ScratchDatabase,
 } from "../support/database-harness";
 
-// E4-2b: GET /media/p/{photoId}/{main|w400} through the real route, the real use case, the real
+// E4-2b (and the og size of E4-3): GET /media/p/{photoId}/{main|w400|og} through the real route, the real use case, the real
 // repository, the real disk reader and the real row-level security of `place_photos` (class:
 // public once the place lies in a published collection of an approved organization and the photo
 // is ready and not hidden, otherwise CUR). Only the session comes from the test. The app role
@@ -391,7 +392,116 @@ describe("GET /media/p/{photoId}/{size}", () => {
     expect(state.guestReads).toBe(0);
   });
 
-  it.each(["og", "w800", "MAIN", "main.webp", "..", "%2e%2e", "a".repeat(65), ""])(
+  describe("the og size for the link preview of a collection (E4-3)", () => {
+    // A real image on disk: the og file is made from `main.webp`, which must decode.
+    const realPhoto = async (placeId: string, organizationId: string) => {
+      const made = await photo(placeId, organizationId, { withFiles: false });
+      const directory = join(mediaRoot, "p", made.key.slice(0, 2), made.key);
+
+      mkdirSync(directory, { recursive: true });
+      writeFileSync(
+        join(directory, "main.webp"),
+        await sharp({
+          create: { width: 1600, height: 900, channels: 3, background: { r: 50, g: 80, b: 110 } },
+        })
+          .webp()
+          .toBuffer(),
+      );
+
+      return { ...made, directory };
+    };
+
+    it("serves a JPEG of 1200 px to a guest, public and cross-origin, and keeps it on disk", async () => {
+      const place = await newPlace(orgA);
+
+      await collectionWith(place, orgA, true);
+
+      const made = await realPhoto(place, orgA);
+
+      asGuest();
+
+      const response = await get(made.id, "og");
+      const bytes = Buffer.from(await response.arrayBuffer());
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toBe("image/jpeg");
+      expect(response.headers.get("cache-control")).toBe("public, max-age=86400");
+      expect(response.headers.get("cross-origin-resource-policy")).toBe("cross-origin");
+      expect(response.headers.get("content-security-policy")).toBe("default-src 'none'; sandbox");
+      expect(response.headers.get("content-length")).toBe(String(bytes.length));
+      expect(response.headers.get("etag")).toMatch(/^"[0-9a-f]{16}"$/);
+      expect((await sharp(bytes).metadata()).format).toBe("jpeg");
+      expect((await sharp(bytes).metadata()).width).toBe(1200);
+      expect(existsSync(join(made.directory, "og.jpg"))).toBe(true);
+
+      // The ETag differs from the other sizes and matches on the next request (304).
+      expect(response.headers.get("etag")).not.toBe(
+        (await get(made.id, "main")).headers.get("etag"),
+      );
+      expect(
+        (await get(made.id, "og", "p", { "if-none-match": response.headers.get("etag")! })).status,
+      ).toBe(304);
+    });
+
+    it("refuses the og size of a draft to a guest and gives it privately to the curator of the organization", async () => {
+      const place = await newPlace(orgA);
+
+      await collectionWith(place, orgA, false);
+
+      const made = await realPhoto(place, orgA);
+
+      asGuest();
+      await expectNotFound(await get(made.id, "og"));
+
+      asCuratorA();
+
+      const seen = await get(made.id, "og");
+
+      expect(seen.status).toBe(200);
+      expect(seen.headers.get("content-type")).toBe("image/jpeg");
+      expect(seen.headers.get("cache-control")).toBe("private, no-store");
+      expect(seen.headers.get("cross-origin-resource-policy")).toBe("same-origin");
+
+      asGuest();
+      await expectNotFound(await get(made.id, "og"));
+    });
+
+    it("answers 404 with no-store, never 500, when the main file cannot be turned into an og file", async () => {
+      // The reader logs the class of the failure; the console of a test worker is patched by
+      // `next/experimental/testing/server` and would throw, so the log is muted here.
+      const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+      try {
+        asGuest();
+        // `publicPhoto` has files that are only bytes of a test, not an image.
+        await expectNotFound(await get(publicPhoto.id, "og"));
+        expect(log).toHaveBeenCalledWith("Photo og encode failed:", expect.any(String));
+        // No file at all.
+        const place = await newPlace(orgA);
+
+        await collectionWith(place, orgA, true);
+
+        const lost = await photo(place, orgA, { withFiles: false });
+
+        await expectNotFound(await get(lost.id, "og"));
+      } finally {
+        log.mockRestore();
+      }
+    });
+
+    it("hides a hidden photo from a guest also in the og size", async () => {
+      const place = await newPlace(orgA);
+
+      await collectionWith(place, orgA, true);
+
+      const hidden = await photo(place, orgA, { hidden: true });
+
+      asGuest();
+      await expectNotFound(await get(hidden.id, "og"));
+    });
+  });
+
+  it.each(["OG", "og.jpg", "w800", "MAIN", "main.webp", "..", "%2e%2e", "a".repeat(65), ""])(
     "answers 404 without a database read for the size %j",
     async (size) => {
       asGuest();

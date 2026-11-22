@@ -333,9 +333,11 @@ describe("public read of collections and places (guest context)", () => {
       region: "pomorskie",
       organization: { name: "Gmina B" },
       placeCount: 2,
+      cover: null,
     });
     // The fields are public ones only: no organization id, no version, no status.
     expect(Object.keys(list[0]!).sort()).toEqual([
+      "cover",
       "id",
       "organization",
       "placeCount",
