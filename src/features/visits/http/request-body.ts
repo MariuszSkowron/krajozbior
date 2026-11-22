@@ -32,6 +32,32 @@ export async function readJsonBody(
   }
 }
 
+// A form body (urlencoded or multipart), never more than `maxBytes` of it. A body that
+// cannot be parsed as a form is `null`, not an error.
+export async function readBoundedForm(
+  request: Request,
+  maxBytes: number,
+): Promise<{ tooLarge: true } | { form: FormData | null }> {
+  const read = await readBoundedText(request, maxBytes);
+
+  if ("tooLarge" in read) {
+    return read;
+  }
+
+  try {
+    // The text is parsed again with the original content type (the multipart boundary).
+    const copy = new Request("http://localhost/", {
+      method: "POST",
+      headers: { "content-type": request.headers.get("content-type") ?? "" },
+      body: read.text,
+    });
+
+    return { form: await copy.formData() };
+  } catch {
+    return { form: null };
+  }
+}
+
 // The body as text, never more than `maxBytes` of it (counted while reading, so
 // a missing or false Content-Length does not help).
 export async function readBoundedText(
