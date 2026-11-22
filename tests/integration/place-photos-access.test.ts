@@ -318,7 +318,19 @@ describe("place photos", () => {
       await check(
         "krajozbior_ops",
         table,
-        ["id", "storage_key", "commons_file", "fetch_attempts", "alt_text", "content_sha256"],
+        [
+          "id",
+          "storage_key",
+          "commons_file",
+          "fetch_attempts",
+          "retrieved_at",
+          "license_code",
+          "alt_text",
+          "content_sha256",
+          "rights_statement",
+          "hidden_at",
+          "created_by",
+        ],
         "select",
       ),
     ).toEqual({
@@ -326,8 +338,14 @@ describe("place photos", () => {
       storage_key: true,
       commons_file: true,
       fetch_attempts: true,
+      // The version check of `photos:fetch` reads the day of the selection and the licence code.
+      retrieved_at: true,
+      license_code: true,
       alt_text: false,
       content_sha256: false,
+      rights_statement: false,
+      hidden_at: false,
+      created_by: false,
     });
     expect(
       await check(
@@ -602,6 +620,16 @@ describe("place photos", () => {
       noPermission,
     );
     await expect(ops$(`select alt_text from public.place_photos`)).rejects.toThrow(noPermission);
+    await expect(ops$(`select rights_statement from public.place_photos`)).rejects.toThrow(
+      noPermission,
+    );
+    const version = await ops$(
+      `select retrieved_at, license_code from public.place_photos where id = $1`,
+      [pending],
+    );
+
+    expect(version.rows).toHaveLength(1);
+    expect(version.rows[0]).toHaveProperty("license_code");
     // The rows ops reads are those it needs to fetch.
     const list = await ops$(
       `select id, commons_file, source_width, fetch_attempts from public.place_photos where id = $1`,

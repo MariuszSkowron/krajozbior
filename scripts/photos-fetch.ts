@@ -72,6 +72,7 @@ async function main() {
         fetch: {
           repository: createPostgresPhotoFetchRepository(client),
           download: (address) => commons.download(address),
+          lookupVersion: (commonsFile) => commons.lookupVersion(commonsFile),
           process: (bytes) =>
             processImageBytes(bytes, {
               tmpDirectory: storage.tmpDirectory,
