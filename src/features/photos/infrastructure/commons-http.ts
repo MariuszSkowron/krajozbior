@@ -1,4 +1,11 @@
 import { COMMONS_UPLOAD_HOST } from "../domain/commons-url";
+import {
+  buildCommonsApiUrl,
+  COMMONS_API_HOST,
+  COMMONS_API_PATH,
+  parseCommonsVersionResponse,
+  type CommonsVersionLookup,
+} from "../domain/commons-version";
 
 // Klient HTTP do pobierania miniatur z Wikimedia Commons (E4-2a, spec 5.11.5). Zasady:
 // tylko `https://upload.wikimedia.org`, przekierowania krok po kroku (`redirect: "manual"`, najwyżej
@@ -56,6 +63,21 @@ export function parseRetryAfter(header: string | null, now: number = Date.now())
   }
 
   return Math.min(milliseconds, MAX_RETRY_AFTER_MS);
+}
+
+/** Limit odpowiedzi API o wersję pliku (odpowiedź to kilkaset bajtów). */
+export const MAX_API_BYTES = 1024 * 1024;
+
+/** Adres API dozwolony: https, host i ścieżka stałe, bez danych logowania i portu. */
+export function isAllowedCommonsApiUrl(url: URL): boolean {
+  return (
+    url.protocol === "https:" &&
+    url.hostname === COMMONS_API_HOST &&
+    url.pathname === COMMONS_API_PATH &&
+    url.username === "" &&
+    url.password === "" &&
+    url.port === ""
+  );
 }
 
 /** Adres dozwolony: https, host `upload.wikimedia.org`, bez danych logowania i portu. */
@@ -125,6 +147,71 @@ export function createCommonsClient(options: CommonsClientOptions) {
   const maxBytes = options.maxBytes ?? MAX_DOWNLOAD_BYTES;
 
   return {
+    /**
+     * Pyta API Commons o bieżącą wersję pliku (znacznik czasu, szerokość, licencja). Żadnych
+     * przekierowań; 429 i 503 → czekanie według `Retry-After`. Każda awaria to `api_error`
+     * (zwykła nieudana próba), a brak pliku albo strony to `file_gone`.
+     */
+    async lookupVersion(commonsFile: string): Promise<CommonsVersionLookup> {
+      const address = buildCommonsApiUrl(commonsFile);
+
+      if (address === null || !isAllowedCommonsApiUrl(new URL(address))) {
+        return { ok: false, reason: "file_gone" };
+      }
+
+      // Jedno żądanie z własnym limitem czasu; czekanie na `Retry-After` go nie zjada.
+      const attempt = async (): Promise<CommonsVersionLookup | { waitMs: number }> => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+          const response = await fetchImpl(address, {
+            redirect: "manual",
+            signal: controller.signal,
+            headers: { "User-Agent": options.userAgent, Accept: "application/json" },
+          });
+
+          if (response.status === 429 || response.status === 503) {
+            await response.body?.cancel().catch(() => undefined);
+
+            return { waitMs: parseRetryAfter(response.headers.get("retry-after")) };
+          }
+
+          if (response.status !== 200) {
+            await response.body?.cancel().catch(() => undefined);
+
+            return { ok: false, reason: "api_error" };
+          }
+
+          const body = await readLimited(response, MAX_API_BYTES);
+
+          if (body === "too_large") {
+            return { ok: false, reason: "api_error" };
+          }
+
+          return parseCommonsVersionResponse(JSON.parse(new TextDecoder().decode(body)));
+        } catch {
+          return { ok: false, reason: "api_error" };
+        } finally {
+          clearTimeout(timer);
+        }
+      };
+
+      for (let waits = 0; ; waits += 1) {
+        const result = await attempt();
+
+        if (!("waitMs" in result)) {
+          return result;
+        }
+
+        if (waits >= MAX_RATE_LIMIT_WAITS) {
+          return { ok: false, reason: "api_error" };
+        }
+
+        await sleep(result.waitMs);
+      }
+    },
+
     /** Pobiera plik pod adresem; wynik to bajty albo kod błędu. */
     async download(address: string): Promise<CommonsFetchResult> {
       const controller = new AbortController();
