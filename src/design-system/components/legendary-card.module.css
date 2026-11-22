@@ -27,6 +27,7 @@
   aspect-ratio: 5 / 7;
   padding: 2px;
   color: var(--color-text-primary);
+  text-align: start;
   background: var(--legendary-gradient);
   border-radius: var(--radius-lg);
   overflow-wrap: anywhere;
