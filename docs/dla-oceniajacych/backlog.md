@@ -62,6 +62,8 @@ Stan: kryterium 1 (bez okładki) i panel wybranego miejsca w #41, kryterium 2 w 
 
 Kryterium akceptacji **[Z]**: KIEDY w pobliżu pojawi się nowa kolekcja, WTEDY ma oznaczenie „Nowa w okolicy”; filtr „Moich kolekcji” działa po stanie postępu.
 
+Zmiana zakresu (22.11.2026): w „Moich kolekcjach” zostaje tylko filtr postępu; blok „Pokaż nowe w okolicy” usunięto, oznaczenie jest na stronie głównej.
+
 Stan: po konkursie, za zgodą właściciela. Dziś wszystkie kolekcje są nowe, więc oznaczenie niczego by nie mówiło. Specyfikacja opisuje już regułę (pierwsza publikacja najwyżej 30 dni temu i miejsce najwyżej 50 km od odkrywcy).
 
 ## Jak powstał podział na PR-y

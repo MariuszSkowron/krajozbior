@@ -132,7 +132,7 @@ test.describe("saved collections", () => {
     await expect(
       pageA.getByRole("heading", { level: 2, name: "Nie masz jeszcze zapisanych kolekcji" }),
     ).toBeVisible();
-    await expect(pageA.getByRole("link", { name: "Przejdź do katalogu" })).toBeVisible();
+    await expect(pageA.getByRole("link", { name: "Zobacz kolekcje" })).toBeVisible();
     await expectNoAccessibilityViolations(pageA);
 
     await pageA.goto(`/collections/${DEMO_SLUG}`);
