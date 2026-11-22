@@ -3,6 +3,7 @@ import { createHmac } from "node:crypto";
 import { MikroORM } from "@mikro-orm/postgresql";
 import { APIError, betterAuth, type BetterAuthOptions } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
+import { symmetricDecrypt } from "better-auth/crypto";
 import { twoFactor } from "better-auth/plugins";
 import { PostgresDialect } from "kysely";
 import { Client, Pool } from "pg";
@@ -30,6 +31,16 @@ import {
 //     and an `after` hook that records the proof of the second step).
 // The tables the plugin needs are created in `beforeAll` as krajozbior_owner,
 // like a migration would, never in the production migrations.
+//
+// For E10-1: this file does not survive it. The commands that create the plugin
+// tables and the `two_factor_enabled` column collide with the real migration
+// (42701 / 42P07), so E10-1 deletes the file or turns its cases into regression
+// tests on the real migration and the real `maySignInOnPath`.
+// The table `auth.spike_mfa_proofs` is a stand-in: no RLS and none of the columns
+// of DT-E10-9 (`user_id`, `method`). The target shape, with forced RLS, and the
+// upsert and cascade under it are tested in E10-1, not here.
+// Claims that are only a reading of the plugin code (not asserted here) are marked
+// "from the code" in the run log.
 const PASSWORD = "integration-only-password";
 const ADMIN_EMAIL = "admin@demo.krajozbior.local";
 const SECRET = "integration-only-secret-0123456789abcdef";
@@ -288,7 +299,12 @@ function createSpikeHooks(production: DatabaseHooks): DatabaseHooks {
                 : new Date(session.createdAt ?? Date.now());
               const expiresAt = limitSessionExpiry("admin", createdAt, new Date(session.expiresAt));
 
-              return { data: { ...session, expiresAt: expiresAt ?? new Date(0) } };
+              // Like the production hook: an unknown role is refused, not given a session.
+              if (expiresAt === null) {
+                throw new APIError("FORBIDDEN", { message: "unknown_role" });
+              }
+
+              return { data: { ...session, expiresAt } };
             }
           }
 
@@ -503,7 +519,9 @@ describe("E10-S0: two-factor plugin (TOTP) against our session hooks", () => {
       expect(await userFlags()).toMatchObject({ enabled: true, factor: { verified: false } });
 
       // The next password sign-in now ends in a challenge that offers no method,
-      // and the code is refused: the admin is locked out until an operator resets it.
+      // and the code is refused. The old session survives (below), but once it
+      // expires the admin cannot sign in again until an operator resets the account.
+      // So the plugin and the `maySignInOnPath` change must land in one PR.
       const retry = new Jar();
       const step1 = await signIn(real, retry);
 
@@ -687,6 +705,25 @@ describe("E10-S0: two-factor plugin (TOTP) against our session hooks", () => {
       expect(again.response.status).toBe(200);
     });
 
+    it("the TOTP window is one step either way: +-1 is accepted, +-2 is not", async () => {
+      const { setup } = await adminWithTotp(spike);
+
+      for (const [offset, status] of [
+        [-1, 200],
+        [1, 200],
+        [2, 401],
+        [-2, 401],
+      ] as const) {
+        await orm.em.execute(`delete from auth.sessions`);
+        const jar = new Jar();
+
+        await signIn(spike, jar);
+        expect((await verifyTotp(spike, jar, totp(setup.uri, offset))).response.status).toBe(
+          status,
+        );
+      }
+    });
+
     it("backup codes: each works once, the proof is written, and `disableSession` creates nothing", async () => {
       const { setup } = await adminWithTotp(spike);
       const [first, second] = setup.backupCodes;
@@ -716,8 +753,8 @@ describe("E10-S0: two-factor plugin (TOTP) against our session hooks", () => {
       expect(reused.body.code).toBe("INVALID_BACKUP_CODE");
       expect((await verifyBackup(spike, retry, second ?? "")).response.status).toBe(200);
 
-      // With `disableSession` the challenge is not consumed and no session is
-      // created: our route must never pass that flag from the client.
+      // With `disableSession` the code is spent but no session is created: our
+      // route must never pass that flag from the client.
       await orm.em.execute(`delete from auth.sessions`);
       const bare = new Jar();
 
@@ -729,6 +766,15 @@ describe("E10-S0: two-factor plugin (TOTP) against our session hooks", () => {
       });
 
       expect(third.status).toBe(200);
+      expect(await sessions()).toHaveLength(0);
+      expect(await proofSessionIds()).toEqual([]);
+
+      // The attempt record of the challenge is used up as well: the same cookies
+      // cannot finish the sign-in with another code.
+      const fourth = await verifyBackup(spike, bare, setup.backupCodes[3] ?? "");
+
+      expect(fourth.response.status).toBe(401);
+      expect(fourth.body.code).toBe("INVALID_TWO_FACTOR_COOKIE");
       expect(await sessions()).toHaveLength(0);
     });
 
@@ -890,9 +936,21 @@ describe("E10-S0: two-factor plugin (TOTP) against our session hooks", () => {
         `select secret, backup_codes from auth.two_factors`,
       );
 
-      // Stored encrypted: the plain backup codes and the secret are not in the row.
+      // Stored encrypted: neither the plain backup codes nor the secret (as text,
+      // base32 or hex) are in the row, and only the key opens the secret.
+      const base32Secret = new URL(setup.uri).searchParams.get("secret") ?? "";
+      const plainSecret = base32Decode(base32Secret);
+      const storedSecret = stored?.secret ?? "";
+
+      expect(base32Secret).not.toBe("");
       expect(stored?.backup_codes).not.toContain(setup.backupCodes[0]);
-      expect(stored?.secret).not.toBe(new URL(setup.uri).searchParams.get("secret"));
+      expect(storedSecret).not.toContain(base32Secret);
+      expect(storedSecret).not.toContain(plainSecret.toString("utf8"));
+      expect(storedSecret.toLowerCase()).not.toContain(plainSecret.toString("hex"));
+      await expect(symmetricDecrypt({ key: "another-key", data: storedSecret })).rejects.toThrow();
+      expect(await symmetricDecrypt({ key: SECRET, data: storedSecret })).toBe(
+        plainSecret.toString("utf8"),
+      );
       expect(JSON.stringify((await currentSession(spike, jar))?.user)).not.toContain("secret");
     });
   });
