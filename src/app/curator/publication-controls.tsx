@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { callApi } from "./curator-api";
 import { failed, FeedbackRegion, type Feedback } from "./curator-ui";
 import styles from "./curator.module.css";
+import { confirmDiscard, UNSAVED_FIRST_MESSAGE, useUnsavedChanges } from "./unsaved-changes";
 
 type PublicationControlsProps = Readonly<{
   collection: Readonly<{
@@ -27,10 +28,19 @@ export function PublicationControls({ collection }: PublicationControlsProps) {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [pending, setPending] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const { dirty } = useUnsavedChanges();
   const canDelete = collection.status === "draft" && !collection.wasPublished;
 
   async function change(path: "publish" | "unpublish", doneMessage: string) {
     if (pending) {
+      return;
+    }
+
+    // Publishing sends only the version and reloads the page: the form would
+    // start over and drop the text. Save first (and the saved text is published).
+    if (dirty) {
+      setFeedback({ kind: "info", message: UNSAVED_FIRST_MESSAGE });
+
       return;
     }
 
@@ -94,6 +104,10 @@ export function PublicationControls({ collection }: PublicationControlsProps) {
       <FeedbackRegion
         feedback={feedback}
         onReload={() => {
+          if (!confirmDiscard(dirty)) {
+            return;
+          }
+
           setFeedback({ kind: "info", message: "Wczytano aktualny stan kolekcji." });
           router.refresh();
         }}
