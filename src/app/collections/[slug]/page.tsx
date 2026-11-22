@@ -25,6 +25,7 @@ import {
   type VisitKind,
 } from "@/features/catalog/domain/album-view";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
+import { ogCoverDescription, ogImageUrl } from "@/features/catalog/domain/collection-cover";
 import { formatPlaceCount } from "@/features/catalog/domain/place-count";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import type { Actor } from "@/features/identity/domain/actor";
@@ -37,6 +38,7 @@ import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
 import panelStyles from "./album.module.css";
 import mapStyles from "./collection-map.module.css";
+import { CollectionCover } from "./collection-cover";
 import { CollectionMapLoader } from "./collection-map-loader";
 import { CollectionPlaces } from "./collection-places";
 import { PlaceCardLink } from "./place-card-link";
@@ -159,7 +161,35 @@ async function loadWanted(actor: Actor, placeId: string): Promise<boolean | null
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const result = await load((await params).slug);
 
-  return result.status === "ok" ? { title: `${result.value.title} — Krajozbiór` } : {};
+  if (result.status !== "ok") {
+    return {};
+  }
+
+  const title = `${result.value.title} — Krajozbiór`;
+  // Podgląd linku ze zdjęciem (E4-3, Q18): `og:image` z okładki, JPEG 1200 px. Adres bezwzględny
+  // z `BETTER_AUTH_URL`; bez okładki albo bez tego adresu strona zostaje bez obrazu.
+  const image = ogImageUrl(process.env.BETTER_AUTH_URL, result.value.cover);
+
+  const cover = result.value.cover;
+
+  if (image === null || cover === null) {
+    return { title };
+  }
+
+  // Autor i licencja w opisie podglądu (licencje CC wymagają uznania autorstwa); `alt` obrazu to
+  // opis zdjęcia.
+  const description = ogCoverDescription(cover);
+
+  return {
+    title,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      images: [{ url: image, alt: cover.altText }],
+    },
+    twitter: { card: "summary_large_image", title, description, images: [image] },
+  };
 }
 
 export default async function CollectionPage({
@@ -208,6 +238,7 @@ export default async function CollectionPage({
       <header className={styles.header}>
         <p className={styles.itemMetaMono}>Kolekcja · {REGION_LABELS[collection.region]}</p>
         <h1 className={styles.collectionTitle}>{collection.title}</h1>
+        {collection.cover === null ? null : <CollectionCover cover={collection.cover} />}
         {album.kind === "explorer" ? (
           <CollectionProgress
             {...progressCounts(album.progress)}

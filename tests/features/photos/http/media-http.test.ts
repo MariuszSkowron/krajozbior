@@ -15,7 +15,8 @@ describe("handleMediaRequest", () => {
       ["e", ID, "main"],
       ["p", "..", "main"],
       ["p", ID.toUpperCase(), "main"],
-      ["p", ID, "og"],
+      ["p", ID, "og.jpg"],
+      ["p", ID, "OG"],
       // A wrong number of segments (catch-all route): the same 404, never a page.
       [],
       ["p"],
@@ -33,6 +34,40 @@ describe("handleMediaRequest", () => {
     }
 
     expect(getDeps).not.toHaveBeenCalled();
+  });
+
+  it("serves the og size as a JPEG and answers 304 with the headers of the same size (E4-3)", async () => {
+    const KEY = "5a6b7c8d-1111-4222-8333-444455556666";
+    const open = vi.fn(async () => ({
+      body: new Response("jpeg-bytes").body!,
+      length: 10,
+    }));
+
+    getDeps.mockReturnValue({
+      withGuestContext: async (work: (tx: unknown) => Promise<unknown>) => work({}),
+      withUserContext: async () => null,
+      getActor: async () => null,
+      repository: { findReadyPhotoKey: async () => KEY },
+      files: { open },
+    });
+
+    const response = await handleMediaRequest(request(), ["p", ID, "og"]);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/jpeg");
+    expect(response.headers.get("cache-control")).toBe("public, max-age=86400");
+    expect(response.headers.get("cross-origin-resource-policy")).toBe("cross-origin");
+    expect(open).toHaveBeenCalledWith(KEY, "og");
+
+    const etag = response.headers.get("etag")!;
+    const cached = await handleMediaRequest(
+      new Request(`http://localhost/media/p/${ID}/og`, { headers: { "if-none-match": etag } }),
+      ["p", ID, "og"],
+    );
+
+    expect(cached.status).toBe(304);
+    expect(cached.headers.get("content-type")).toBeNull();
+    expect(cached.headers.get("etag")).toBe(etag);
   });
 
   it("answers 503 without details when the database fails", async () => {
