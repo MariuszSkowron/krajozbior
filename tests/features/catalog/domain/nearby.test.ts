@@ -9,7 +9,7 @@ import {
   isNewNearby,
   nearbyCollections,
   nearbyProblemMessage,
-  nearbySummaryMessage,
+  nearbySortedMessage,
   type NearbyCandidate,
 } from "@/features/catalog/domain/nearby";
 
@@ -165,22 +165,21 @@ describe("texts of W okolicy", () => {
 
   it("names every problem in Polish", () => {
     expect(nearbyProblemMessage("denied")).toBe(
-      "Nie mamy dostępu do lokalizacji. Możesz włączyć go w ustawieniach przeglądarki.",
+      "Nie mamy zgody na użycie lokalizacji. Włączysz ją w ustawieniach przeglądarki.",
     );
     expect(nearbyProblemMessage("unavailable")).toContain("Nie udało się ustalić");
     expect(nearbyProblemMessage("timeout")).toContain("zbyt długo");
     expect(nearbyProblemMessage("unsupported")).toBe("Ta przeglądarka nie obsługuje lokalizacji.");
   });
 
-  it("summarises the result, with a note when the reading is coarse", () => {
-    expect(nearbySummaryMessage(0, false)).toBe("W promieniu 50 km nie ma jeszcze kolekcji.");
-    expect(nearbySummaryMessage(1, false)).toBe("Jedna kolekcja w promieniu 50 km.");
-    expect(nearbySummaryMessage(4, false)).toBe("Kolekcje w promieniu 50 km: 4.");
-    expect(nearbySummaryMessage(4, true)).toBe(
-      "Kolekcje w promieniu 50 km: 4. Lokalizacja jest niedokładna, więc odległości są przybliżone.",
+  it("says the list is sorted, with a note when the reading is coarse", () => {
+    expect(nearbySortedMessage(4, false)).toBe("Kolekcje od najbliższej.");
+    expect(nearbySortedMessage(1, true)).toBe(
+      "Kolekcje od najbliższej. Położenie jest niedokładne, więc odległości są przybliżone.",
     );
-    // No result needs no note about accuracy.
-    expect(nearbySummaryMessage(0, true)).toBe("W promieniu 50 km nie ma jeszcze kolekcji.");
+    // Without any known distance there is nothing to sort, and no note about accuracy.
+    expect(nearbySortedMessage(0, false)).toContain("żadna nie ma miejsc na mapie");
+    expect(nearbySortedMessage(0, true)).not.toContain("niedokładna");
   });
 });
 

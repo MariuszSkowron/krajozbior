@@ -171,6 +171,8 @@
   line-height: var(--line-height-body);
   text-align: center;
   text-decoration: none;
+  /* Pięć pozycji na 320 px przy tekście 200%: długie słowo („Aktualności”) łamie się, nie wychodzi poza pasek. */
+  overflow-wrap: anywhere;
 }
 
 .navLink[aria-current="page"] {
@@ -246,6 +248,28 @@
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-pill);
   cursor: pointer;
+}
+
+/*
+ * Odnośnik gościa „Aktualności” w nagłówku (E7-R3): cichy, jak przełącznik motywu, żeby obok
+ * „Zaloguj się” nie powstały dwa równorzędne przyciski. Aktualna strona ma obrys i mocniejszy napis.
+ */
+.headerLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-min);
+  padding-inline: var(--space-sm);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+}
+
+.headerLink:hover,
+.headerLink[aria-current="page"] {
+  border-color: var(--color-border-strong);
 }
 
 .main {
@@ -403,6 +427,15 @@
   .main {
     grid-column: 2;
     grid-row: 2;
+  }
+
+  /*
+   * Po zalogowaniu na komputerze (K-35): wąska treść (Profil, Ustawienia, formularze) zaczyna się
+   * przy menu bocznym, zamiast wisieć na środku z pustym tłem po obu stronach. Strony szerokie
+   * (`content-width-wide`) wypełniają kolumnę do 72 rem, a telefon nie jest zmieniany.
+   */
+  .withNav .main > :global(.content-width) {
+    margin-inline: 0 auto;
   }
 
   /* Górny odstęp treści 32 px (spec 5.6): strony mają własne 24 px (`space.lg`), tu dochodzi 8. */

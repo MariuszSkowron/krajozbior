@@ -2,8 +2,8 @@ import "server-only";
 
 import { Client } from "pg";
 
-import { NEWS_EDITORIAL_ORG_SLUGS } from "../application/news-import-command";
 import { parseNewsImportFile } from "../application/news-import-file";
+import { NEWS_EDITORIAL_ORG_SLUGS } from "../domain/news";
 import { connectNewsImport } from "./postgres-news-import-runner";
 
 // Demo news of the editorial organization for the local environment and the showcase

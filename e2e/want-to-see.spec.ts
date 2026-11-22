@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import axe from "axe-core";
 import { Client } from "pg";
 
@@ -39,6 +39,8 @@ async function expectNoAccessibilityViolations(page: Page) {
   expect(violations).toEqual([]);
 }
 
+const openContexts: BrowserContext[] = [];
+
 async function signedInPage(
   browser: Browser,
   email: string,
@@ -49,6 +51,10 @@ async function signedInPage(
       ? {}
       : { permissions: ["geolocation"], geolocation: { ...position, accuracy: 20 } },
   );
+  // Closed after the test (also when it fails), not inside it: a close at the end of a long test
+  // fell outside the time limit.
+  openContexts.push(context);
+
   const page = await context.newPage();
 
   await page.goto("/login");
@@ -120,7 +126,10 @@ test.describe("the want-to-see list", () => {
   test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
 
   test.beforeEach(cleanUp);
-  test.afterEach(cleanUp);
+  test.afterEach(async () => {
+    await Promise.all(openContexts.splice(0).map((context) => context.close().catch(() => {})));
+    await cleanUp();
+  });
 
   test("a guest is sent to sign in and comes back to the place; the list needs a session", async ({
     page,
@@ -163,8 +172,13 @@ test.describe("the want-to-see list", () => {
   test("an explorer adds and removes a place; the list shows the date; B sees nothing", async ({
     browser,
   }) => {
-    const a = await signedInPage(browser, EXPLORER_A);
-    const b = await signedInPage(browser, EXPLORER_B);
+    // Two sign-ins, five accessibility checks and the list round trip: about 25-30 s on a loaded
+    // machine, so the default 30 s ended it at random. The sign-ins run side by side.
+    test.setTimeout(90_000);
+    const [a, b] = await Promise.all([
+      signedInPage(browser, EXPLORER_A),
+      signedInPage(browser, EXPLORER_B),
+    ]);
 
     // The list opens without the demo place (other specs may keep entries of
     // their own places for the same accounts, so it is not asserted empty).
@@ -200,14 +214,13 @@ test.describe("the want-to-see list", () => {
     await a.goto("/my/want-to-see");
     await expect(a.getByRole("heading", { level: 1, name: "Chcę zobaczyć" })).toBeVisible();
     await expect(a.getByRole("link", { name: /Most Tczewski/ })).toHaveCount(0);
-
-    await a.context().close();
-    await b.context().close();
   });
 
   test("after a visit the place can still be removed from the list, and the list marks it (W1)", async ({
     browser,
   }) => {
+    // Sign-in, a visit, a reload and an accessibility check: it ran 30.5 s on a loaded machine.
+    test.setTimeout(90_000);
     const page = await signedInPage(browser, EXPLORER_A, BRIDGE);
 
     await openBridge(page);
@@ -241,7 +254,6 @@ test.describe("the want-to-see list", () => {
     await expect(page.getByText("Usunięto z listy „Chcę zobaczyć”.")).toBeVisible();
     await page.goto("/my/want-to-see");
     await expect(page.getByRole("link", { name: /Most Tczewski/ })).toHaveCount(0);
-    await page.context().close();
   });
 
   test("under the message 'out of range' the place can be put on the list (R-02)", async ({
@@ -258,7 +270,6 @@ test.describe("the want-to-see list", () => {
     await wantButton(page).click();
     await expect(page.getByText("To miejsce jest na Twojej liście „Chcę zobaczyć”.")).toBeVisible();
     await expectNoAccessibilityViolations(page);
-    await page.context().close();
   });
 
   test("the list fits a phone screen", async ({ browser }) => {
@@ -276,6 +287,5 @@ test.describe("the want-to-see list", () => {
     );
 
     expect(overflow).toBeLessThanOrEqual(0);
-    await page.context().close();
   });
 });
