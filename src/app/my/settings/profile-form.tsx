@@ -45,7 +45,7 @@ const visibilityChoices: Record<Visibility, { label: string; hint: string }> = {
   },
   public: {
     label: "Inni odkrywcy",
-    hint: "Gdy strona profilu dla innych odkrywców będzie gotowa, zobaczą na niej imię, region i liczby, nigdy historię wizyt. Na razie nikt poza Tobą nie widzi profilu.",
+    hint: "Teraz profil widzisz tylko Ty. Gdy go udostępnimy, inni odkrywcy zobaczą imię, region i liczby. Historii wizyt nie zobaczy nikt.",
   },
 };
 
