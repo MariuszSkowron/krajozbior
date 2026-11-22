@@ -148,7 +148,8 @@ Serwis zapisuje w Twojej przeglądarce wyłącznie informacje niezbędne do świ
 | pliki cookies logowania (z przedrostkiem „krajozbior”) | utrzymanie sesji po zalogowaniu | 30 dni od zalogowania |
 | plik cookie wyglądu | zapamiętanie wybranego wyglądu (nocny albo jasny); powstaje także bez konta, gdy zmienisz wygląd | 1 rok |
 | plik cookie szkicu profilu | zapamiętanie niezapisanych zmian w profilu | 2 minuty |
-| pamięć sesji przeglądarki (sessionStorage) | zapamiętanie adresu e-mail między krokami logowania | do zamknięcia karty |
+| plik cookie adresu logowania (z przedrostkiem „krajozbior”) | zapamiętanie adresu e-mail między krokami logowania kodem; przeglądarka wysyła go tylko na stronę logowania | 10 minut; usuwamy go po zalogowaniu, po wylogowaniu i po kliknięciu „Zmień adres” |
+| pamięć sesji przeglądarki (sessionStorage) | zapamiętanie adresu e-mail wpisanego w formularzu logowania hasłem, gdy strona odświeża się po błędnym haśle | do zamknięcia karty |
 | pamięć sesji przeglądarki (sessionStorage) | zapamiętanie, że zamknąłeś lub zamknęłaś pasek „Wersja testowa” | do zamknięcia karty |
 
 Nie używamy narzędzi analitycznych ani reklamowych. Nie prosimy więc o zgodę na pliki cookies; przepisy nie wymagają jej dla zapisów niezbędnych do świadczenia usługi, o którą prosisz (art. 399 ust. 3 ustawy z 12 lipca 2024 r. — Prawo komunikacji elektronicznej).
