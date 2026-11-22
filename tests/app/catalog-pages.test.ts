@@ -227,8 +227,8 @@ describe("public catalog pages", () => {
     );
 
     // getRequestActor is not mocked here, so the personal read throws.
-    expect(html).toContain("Nie udało się wczytać Twojego zapisu tej kolekcji.");
-    expect(html).not.toContain("Zapisz kolekcję");
+    expect(html).toContain("Nie udało się sprawdzić, czy ta kolekcja jest zapisana.");
+    expect(html).not.toContain("Zapisuję kolekcję");
     expect(html).toContain("Miejsca w kolekcji (1)");
   });
 
@@ -652,116 +652,29 @@ describe("public catalog pages", () => {
         expect(html).not.toContain("Zaznacz odwiedzone");
       });
 
-      it("shows the access notice in the panel of a place with a restriction, under an h3", async () => {
-        mocks.place.mockResolvedValue({
-          status: "ok",
-          value: { ...place, id: second.id, accessRestriction: "ruin" },
-        });
-
-        const html = await render({ miejsce: second.id });
-
-        const headingId = /<h3 id="([^"]+)"[^>]*>Wejście na teren<\/h3>/.exec(html)?.[1];
-        expect(headingId).toBeTruthy();
-        expect(html).toContain(`aria-labelledby="${headingId}"`);
-        expect(html).toMatch(/<strong[^>]*>Ruina<\/strong>/);
-      });
-
       it("keeps a card a plain link to the place page (works without JavaScript)", async () => {
         const html = await render({ stan: "do-odwiedzenia" });
 
         expect(html).toContain(`href="/places/${second.id}"`);
       });
 
-      it("shows the panel of the chosen place with the state of the visit and the list button", async () => {
-        const html = await render({ miejsce: second.id });
-
-        expect(html).toContain('aria-labelledby="panel-miejsca"');
-        expect(html).toMatch(/<h2 id="panel-miejsca" aria-live="polite">Most Tczewski<\/h2>/);
-        expect(html).toContain("Do odwiedzenia</span>");
-        expect(html).toContain("Od rynku");
-        expect(html).toContain("Chcę zobaczyć");
-        expect(html).toMatch(new RegExp(`href="/places/${second.id}"[^>]*>Otwórz stronę miejsca`));
-        expect(html.match(/aria-current="true"/g)).toHaveLength(1);
-      });
-
-      it("shows the kind of the visit of the chosen place in the panel", async () => {
-        const html = await render({ miejsce: third.id });
-
-        expect(html).toMatch(
-          /<h2 id="panel-miejsca"[^>]*>Most Tczewski<\/h2><p><span[^>]*>Z przeszłości/,
-        );
-      });
-
-      it("leaves out the list button of a visited place that is not on the list", async () => {
-        const html = await render({ miejsce: placeId });
-
-        expect(html).toContain("Otwórz stronę miejsca");
-        expect(html).not.toContain("Chcę zobaczyć");
-      });
-
-      it("leaves out only the list button when the read of the list fails", async () => {
-        mocks.wanted.mockRejectedValue(new Error("db down"));
-
-        const html = await render({ miejsce: second.id });
-
-        expect(html).toContain("Otwórz stronę miejsca");
-        expect(html).not.toContain("Chcę zobaczyć");
-      });
-
-      it("leaves out the list button of the panel when the read of the visits fails (as the place page)", async () => {
-        mocks.kinds.mockRejectedValue(new Error("db down"));
-        mocks.wanted.mockResolvedValue({ status: "ok", value: { wanted: false } });
-
-        const html = await render({ miejsce: second.id });
-
-        expect(html).toContain("Otwórz stronę miejsca");
-        expect(html).not.toContain("Chcę zobaczyć");
-      });
-
-      it("gives no panel for a place outside the collection, or for a bad value, and no error", async () => {
-        for (const value of [outsider, "nie-uuid", ["x", "y"]]) {
+      it("has no card of the chosen place (D-49), also with a place in the address", async () => {
+        for (const value of [second.id, outsider, "nie-uuid"]) {
           const html = await render({ miejsce: value });
 
-          expect(html).toContain("Wybierz kartę miejsca");
-          expect(html).not.toContain("Otwórz stronę miejsca");
+          expect(html).not.toContain("Wybrane miejsce");
+          expect(html).not.toContain("Wybierz kartę miejsca");
+          expect(html).not.toContain("panel-miejsca");
           expect(html).not.toContain('aria-current="true"');
         }
 
         expect(mocks.place).not.toHaveBeenCalled();
       });
 
-      it("keeps the page and says so in the panel when the read of the place fails", async () => {
-        mocks.place.mockRejectedValue(new Error("db down"));
-
-        const html = await render({ miejsce: second.id });
-
-        expect(html).toContain("Nie udało się wczytać miejsca");
-        expect(html).toContain("Miejsca w kolekcji (3)");
-      });
-
-      it("shows the empty panel when the place is gone from the public catalog", async () => {
-        mocks.place.mockResolvedValue({ status: "not_found" });
-
-        expect(await render({ miejsce: second.id })).toContain("Wybierz kartę miejsca");
-      });
-
       it("keeps the selection of the places of the past visits (checkboxes) in the list", async () => {
         const html = await render();
 
         expect(html).toContain("Zaznacz odwiedzone");
-      });
-
-      it("shortens a long description in the panel", async () => {
-        mocks.place.mockResolvedValue({
-          status: "ok",
-          value: { ...place, id: second.id, description: "słowo ".repeat(200) },
-        });
-
-        const html = await render({ miejsce: second.id });
-
-        expect(html).toContain("…");
-        expect(html.length).toBeLessThan(20000);
-        expect(html).not.toContain("słowo ".repeat(100));
       });
 
       it("has no filter when the read of the kinds fails, and a plain list", async () => {
@@ -786,16 +699,7 @@ describe("public catalog pages", () => {
         expect(html).not.toContain("Filtr miejsc");
         expect(html).toContain(`href="/places/${second.id}"`);
         expect(html).toContain("Brama");
-        expect(html).toContain("Zapisz kolekcję");
-      });
-
-      it("shows the panel with the link to the page of the place and no list button", async () => {
-        const html = await render({ miejsce: second.id });
-
-        expect(html).toContain("Otwórz stronę miejsca");
-        expect(html).not.toContain("Chcę zobaczyć");
-        expect(html).not.toContain("Do odwiedzenia</span>");
-        expect(mocks.wanted).not.toHaveBeenCalled();
+        expect(html).toContain("Zaloguj się, aby zapisać kolekcję");
       });
     });
   });

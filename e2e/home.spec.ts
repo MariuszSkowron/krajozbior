@@ -214,7 +214,7 @@ test.describe("home page with the catalog", () => {
     await a.getByRole("button", { name: "Zapisz wizytę z przeszłości" }).click();
     await expect(a.getByText("Z przeszłości · 2018")).toBeVisible();
     await a.goto(`/collections/${DEMO_SLUG}`);
-    await a.getByRole("button", { name: "Zapisz kolekcję" }).click();
+    await a.getByRole("button", { name: "Zapisuję kolekcję" }).click();
     await expect(a.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
 
     await a.goto("/");

@@ -188,7 +188,7 @@ export default function CollectionMap({
     <div className={styles.wrap}>
       {tilesFailed ? (
         <p className={styles.notice} role="status">
-          Podkład mapy chwilowo się nie wczytuje. Znaczniki i lista miejsc działają dalej.
+          Mapa nie wczytała się w całości. Miejsca są na liście.
         </p>
       ) : null}
       <div
