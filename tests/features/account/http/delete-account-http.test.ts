@@ -101,6 +101,24 @@ describe("POST /api/me/account/deletion", () => {
     expect(deleteAccount).not.toHaveBeenCalled();
   });
 
+  it("refuses a body over the limit before parsing it (413, a form goes back to the screen)", async () => {
+    const big = "x".repeat(5000);
+
+    const json = await handleAccountDeletion(post({ confirmation: big }), deps);
+    const form = await handleAccountDeletion(post(`confirmation=${big}`), deps);
+    // A false Content-Length does not help: the bytes are counted while reading.
+    const chunked = await handleAccountDeletion(
+      post(`confirmation=${big}`, { "content-length": "10" }),
+      deps,
+    );
+
+    expect(json.status).toBe(413);
+    expect(form.status).toBe(303);
+    expect(form.headers.get("Location")).toBe("/my/delete-account?blad=invalid_request");
+    expect(chunked.status).toBe(303);
+    expect(deleteAccount).not.toHaveBeenCalled();
+  });
+
   it("refuses a body with an account id or without the word (400)", async () => {
     for (const body of [{ confirmation: "USUŃ", userId: actor.id }, {}, null]) {
       const response = await handleAccountDeletion(post(body), deps);
