@@ -165,7 +165,7 @@ describe("texts of W okolicy", () => {
 
   it("names every problem in Polish", () => {
     expect(nearbyProblemMessage("denied")).toBe(
-      "Nie mamy dostępu do lokalizacji. Możesz włączyć go w ustawieniach przeglądarki.",
+      "Nie mamy zgody na użycie lokalizacji. Włączysz ją w ustawieniach przeglądarki.",
     );
     expect(nearbyProblemMessage("unavailable")).toContain("Nie udało się ustalić");
     expect(nearbyProblemMessage("timeout")).toContain("zbyt długo");
@@ -175,10 +175,10 @@ describe("texts of W okolicy", () => {
   it("says the list is sorted, with a note when the reading is coarse", () => {
     expect(nearbySortedMessage(4, false)).toBe("Kolekcje od najbliższej.");
     expect(nearbySortedMessage(1, true)).toBe(
-      "Kolekcje od najbliższej. Lokalizacja jest niedokładna, więc odległości są przybliżone.",
+      "Kolekcje od najbliższej. Położenie jest niedokładne, więc odległości są przybliżone.",
     );
     // Without any known distance there is nothing to sort, and no note about accuracy.
-    expect(nearbySortedMessage(0, false)).toContain("nie ma jak ich uporządkować");
+    expect(nearbySortedMessage(0, false)).toContain("żadna nie ma miejsc na mapie");
     expect(nearbySortedMessage(0, true)).not.toContain("niedokładna");
   });
 });

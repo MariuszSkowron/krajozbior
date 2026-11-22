@@ -190,7 +190,7 @@ describe("CollectionsToDiscover", () => {
       timeout: 10_000,
       maximumAge: 600_000,
     });
-    expect(html()).toMatch(/<p role="status"[^>]*>Ustalam Twoje położenie…<\/p>/);
+    expect(html()).toMatch(/<p role="status"[^>]*>Ustalamy Twoje położenie…<\/p>/);
     expect(html()).toContain('aria-disabled="true"');
 
     // A second click while locating does not start another reading.
@@ -258,7 +258,7 @@ describe("CollectionsToDiscover", () => {
   it("says when the reading is coarse, and does not drop a collection that lies far away", () => {
     stubGeolocation((success) => success(reading(54, 18, 8000)));
     click();
-    expect(html()).toContain("Lokalizacja jest niedokładna");
+    expect(html()).toContain("Położenie jest niedokładne");
 
     // From the other end of the world every collection is still on the list, nearest first.
     stubGeolocation((success) => success(reading(-40, 170)));
@@ -268,7 +268,7 @@ describe("CollectionsToDiscover", () => {
   });
 
   it.each([
-    [1, "Nie mamy dostępu do lokalizacji. Możesz włączyć go w ustawieniach przeglądarki."],
+    [1, "Nie mamy zgody na użycie lokalizacji. Włączysz ją w ustawieniach przeglądarki."],
     [2, "Nie udało się ustalić Twojego położenia. Spróbuj ponownie."],
     [3, "Ustalanie położenia trwało zbyt długo. Spróbuj ponownie."],
   ])(
@@ -298,7 +298,7 @@ describe("CollectionsToDiscover", () => {
 
       click();
       vi.advanceTimersByTime(11_999);
-      expect(html()).toContain("Ustalam Twoje położenie…");
+      expect(html()).toContain("Ustalamy Twoje położenie…");
 
       vi.advanceTimersByTime(1);
 

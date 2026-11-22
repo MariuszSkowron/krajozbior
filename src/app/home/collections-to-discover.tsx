@@ -144,7 +144,7 @@ export function CollectionsToDiscover({
       : sortedByDistance(collections, found.bySlug);
   const message =
     state.kind === "locating"
-      ? "Ustalam Twoje położenie…"
+      ? "Ustalamy Twoje położenie…"
       : found !== null
         ? nearbySortedMessage(
             (collections ?? []).filter((collection) => found.bySlug.has(collection.slug)).length,

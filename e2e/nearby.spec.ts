@@ -251,7 +251,7 @@ test.describe("'Pokaż najbliższe' in 'Kolekcje do odkrycia' on the home page",
     await waitForHydration(page);
     await section(page).getByRole("button", { name: "Pokaż najbliższe" }).click();
     await expect(section(page).getByRole("status")).toContainText(
-      "Lokalizacja jest niedokładna, więc odległości są przybliżone.",
+      "Położenie jest niedokładne, więc odległości są przybliżone.",
     );
     await shot(page, "coarse");
     await context.close();
@@ -266,7 +266,7 @@ test.describe("'Pokaż najbliższe' in 'Kolekcje do odkrycia' on the home page",
     await waitForHydration(page);
     await section(page).getByRole("button", { name: "Pokaż najbliższe" }).click();
     await expect(section(page).getByRole("status")).toHaveText(
-      "Nie mamy dostępu do lokalizacji. Możesz włączyć go w ustawieniach przeglądarki.",
+      "Nie mamy zgody na użycie lokalizacji. Włączysz ją w ustawieniach przeglądarki.",
     );
     await expect(
       section(page).getByRole("link", { name: "Wszystkie kolekcje", exact: true }),

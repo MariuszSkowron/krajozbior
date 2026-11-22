@@ -132,7 +132,7 @@ export type NearbyProblem = "denied" | "unavailable" | "timeout" | "unsupported"
 export function nearbyProblemMessage(problem: NearbyProblem): string {
   switch (problem) {
     case "denied":
-      return "Nie mamy dostępu do lokalizacji. Możesz włączyć go w ustawieniach przeglądarki.";
+      return "Nie mamy zgody na użycie lokalizacji. Włączysz ją w ustawieniach przeglądarki.";
     case "unavailable":
       return "Nie udało się ustalić Twojego położenia. Spróbuj ponownie.";
     case "timeout":
@@ -148,12 +148,10 @@ export function nearbyProblemMessage(problem: NearbyProblem): string {
  */
 export function nearbySortedMessage(count: number, coarse: boolean): string {
   if (count === 0) {
-    return "Żadna kolekcja nie ma jeszcze miejsc z położeniem, więc nie ma jak ich uporządkować.";
+    return "Nie możemy jeszcze uporządkować kolekcji według odległości: żadna nie ma miejsc na mapie.";
   }
 
   const sorted = "Kolekcje od najbliższej.";
 
-  return coarse
-    ? `${sorted} Lokalizacja jest niedokładna, więc odległości są przybliżone.`
-    : sorted;
+  return coarse ? `${sorted} Położenie jest niedokładne, więc odległości są przybliżone.` : sorted;
 }
