@@ -18,6 +18,16 @@ import {
   MAX_PLACES_PER_COLLECTION,
 } from "@/features/catalog/domain/limits";
 import { postgresCatalogRepository } from "@/features/catalog/infrastructure/postgres-catalog-repository";
+import {
+  addPlaceToOwnCollection,
+  createOwnCollection,
+} from "@/features/own-collections/application/own-collections";
+import type { OwnCollectionsDeps } from "@/features/own-collections/application/own-collection-types";
+import {
+  MAX_ITEMS_PER_OWN_COLLECTION,
+  MAX_OWN_COLLECTIONS,
+} from "@/features/own-collections/domain/limits";
+import { postgresOwnCollectionsRepository } from "@/features/own-collections/infrastructure/postgres-own-collections-repository";
 import type { WantToSeeDeps } from "@/features/want-to-see/application/want-to-see-types";
 import { addToWantToSee, listWantToSee } from "@/features/want-to-see/application/want-to-see";
 import { MAX_WANT_TO_SEE_LISTED } from "@/features/want-to-see/domain/limits";
@@ -71,6 +81,12 @@ const catalogDeps = (): CatalogDeps => ({
   limiter,
   repository: postgresCatalogRepository,
   random: (max) => randomInt(max),
+});
+const ownInput = { title: "Własna", summary: "", region: "polska" };
+const ownDeps = (): OwnCollectionsDeps => ({
+  withUserContext,
+  limiter,
+  repository: postgresOwnCollectionsRepository,
 });
 const albumDeps = (): AlbumDeps => ({
   withUserContext,
@@ -387,6 +403,106 @@ describe("row limits and idempotent saves", () => {
       value: { saved: true },
     });
     expect(await saveCollection(null, extra!, albumDeps())).toEqual({ status: "unauthenticated" });
+  });
+
+  it("counts own collections with the saved ones: the 200th saved collection is refused beside one own (E8-1a, [P-E8-A3])", async () => {
+    const explorer = newUser("explorer-own-limit");
+
+    await f.insertUsers([explorer]);
+
+    const ids = await bulkCollections(org, MAX_COLLECTIONS_PER_LIST, "published");
+
+    expect((await createOwnCollection(asActor(explorer), ownInput, ownDeps())).status).toBe("ok");
+    await admin$(
+      `insert into public.saved_collections (user_id, collection_id)
+       select $1, unnest($2::uuid[])`,
+      [explorer.id, ids.slice(0, MAX_COLLECTIONS_PER_LIST - 1)],
+    );
+
+    // 1 own + 199 saved = 200 on the list: the 200th saved one does not fit.
+    expect(await saveCollection(asActor(explorer), ids.at(-1)!, albumDeps())).toEqual({
+      status: "conflict",
+      reason: "too_many_saved",
+    });
+    // And neither does another own collection.
+    expect(await createOwnCollection(asActor(explorer), ownInput, ownDeps())).toEqual({
+      status: "conflict",
+      reason: "my_collections_full",
+    });
+    // A collection that is already saved stays saved.
+    expect(await saveCollection(asActor(explorer), ids[0]!, albumDeps())).toEqual({
+      status: "ok",
+      value: { saved: true },
+    });
+  });
+
+  it("refuses the 51st own collection and keeps the limit under simultaneous writes", async () => {
+    const explorer = newUser("explorer-own-50");
+
+    await f.insertUsers([explorer]);
+    await admin$(
+      `insert into public.user_collections (owner_user_id, title, region)
+       select $1, 'Własna ' || g, 'polska' from generate_series(1, $2::int) g`,
+      [explorer.id, MAX_OWN_COLLECTIONS - 1],
+    );
+
+    const wide: OwnCollectionsDeps = { ...ownDeps(), withUserContext: wideUserContext };
+    const results = await Promise.all([
+      createOwnCollection(asActor(explorer), ownInput, wide),
+      createOwnCollection(asActor(explorer), ownInput, wide),
+    ]);
+
+    expect(results.map((result) => result.status).sort()).toEqual(["conflict", "ok"]);
+    expect(results.find((result) => result.status === "conflict")).toEqual({
+      status: "conflict",
+      reason: "too_many_own_collections",
+    });
+    expect(
+      await admin$(`select 1 from public.user_collections where owner_user_id = $1`, [explorer.id]),
+    ).toHaveLength(MAX_OWN_COLLECTIONS);
+  });
+
+  it("refuses the 201st place of an own collection and keeps the limit under simultaneous adds", async () => {
+    const explorer = newUser("explorer-own-items");
+
+    await f.insertUsers([explorer]);
+
+    const [catalogCollection] = await bulkCollections(org, 1, "published");
+    const placeIds = await bulkPlaces(org, catalogCollection!, MAX_ITEMS_PER_OWN_COLLECTION + 2);
+    const created = await createOwnCollection(asActor(explorer), ownInput, ownDeps());
+    const collectionId = created.status === "ok" ? created.value.id : "";
+
+    // The entries are bulk rows made by the superuser (the trigger gives them their names).
+    await admin$(
+      `insert into public.user_collection_items (user_collection_id, position, place_id)
+       select $1, row_number() over (order by p), p from unnest($2::uuid[]) p`,
+      [collectionId, placeIds.slice(0, MAX_ITEMS_PER_OWN_COLLECTION - 1)],
+    );
+
+    const wide: OwnCollectionsDeps = { ...ownDeps(), withUserContext: wideUserContext };
+    const results = await Promise.all(
+      placeIds
+        .slice(MAX_ITEMS_PER_OWN_COLLECTION - 1, MAX_ITEMS_PER_OWN_COLLECTION + 1)
+        .map((placeId) =>
+          addPlaceToOwnCollection(asActor(explorer), collectionId, { placeId }, wide),
+        ),
+    );
+
+    expect(results.map((result) => result.status).sort()).toEqual(["conflict", "ok"]);
+    expect(
+      await admin$(`select 1 from public.user_collection_items where user_collection_id = $1`, [
+        collectionId,
+      ]),
+    ).toHaveLength(MAX_ITEMS_PER_OWN_COLLECTION);
+    // A repeated add of a place that is there stays idempotent even at the limit.
+    expect(
+      await addPlaceToOwnCollection(
+        asActor(explorer),
+        collectionId,
+        { placeId: placeIds[0] },
+        ownDeps(),
+      ),
+    ).toEqual({ status: "ok", value: { added: false } });
   });
 
   it("lets only one of two simultaneous saves take the last place of an explorer", async () => {
