@@ -57,6 +57,7 @@ Poza zakresem tego epiku (należy do innych): zapowiedź skrytki (E6), okładki 
 ### S4. „Nowa w okolicy” i filtr „Moich kolekcji”
 
 - **[Z]** Oznaczenie „Nowa w okolicy” i filtr „Moich kolekcji” według postępu. Termin: po konkursie, za zgodą właściciela.
+- **[Z]** Zmiana zakresu (decyzja właściciela z 22.11.2026): blok „Pokaż nowe w okolicy” zniknął z „Moich kolekcji”. Zostaje filtr według postępu, jako przyciski stanu działające bez JavaScriptu; oznaczenie „Nowa w okolicy” zostaje tylko na stronie głównej.
 
 ## 3. Najważniejsze decyzje techniczne
 
