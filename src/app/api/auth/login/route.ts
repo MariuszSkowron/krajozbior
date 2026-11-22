@@ -3,6 +3,7 @@ import { z } from "zod";
 import { isSameOrigin } from "@/features/identity/domain/origin";
 import { requestedReturnTo } from "@/features/identity/domain/return-to";
 import { getIdentityProvider, getSignInThrottle } from "@/features/identity/infrastructure";
+import { loginEmailClearCookieHeader } from "@/app/login/login-email-cookie";
 import { logFailure } from "@/lib/log-failure";
 
 import {
@@ -68,7 +69,11 @@ export async function POST(request: Request) {
     // only after success, so a failed attempt keeps the current user signed in.
     await provider.signOut(request.headers);
 
-    return signedIn(request, result, returnTo, await accountThemeCookies(result.actor));
+    // The address kept for the code sign-in (login-email-cookie.ts) must not outlive this one.
+    return signedIn(request, result, returnTo, [
+      ...(await accountThemeCookies(result.actor)),
+      loginEmailClearCookieHeader(),
+    ]);
   } catch (error) {
     logFailure("Sign-in", error);
     // Provider or database failure: no session cookie is sent. A session created

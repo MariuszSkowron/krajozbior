@@ -21,7 +21,7 @@ import {
 // marzec 2019"), or null when there is none.
 type Props = { placeId: string; existing: string | null };
 
-// "Byłem tu wcześniej" (E2-S6): the secondary action of the place page, in the
+// "Zaznaczam wcześniejszą wizytę" (E2-S6): the secondary action of the place page, in the
 // content, never in the pinned bar (spec decision P5). One visit from the past
 // per place: while there is one, the box shows it with the button that takes it
 // back (only a visit from the past; a visit confirmed on site is never touched).
@@ -110,7 +110,7 @@ export function PastVisit({ placeId, existing }: Props) {
             disabled={pending}
             onClick={() => setOpen(!open)}
           >
-            Byłem tu wcześniej
+            Zaznaczam wcześniejszą wizytę
           </button>
           {open ? (
             <form
@@ -125,7 +125,7 @@ export function PastVisit({ placeId, existing }: Props) {
               }}
             >
               <PastVisitDateFields
-                legend="Kiedy tu byłeś?"
+                legend="Kiedy to było?"
                 value={form}
                 onChange={setForm}
                 focusFirst

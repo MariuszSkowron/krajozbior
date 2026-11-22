@@ -19,6 +19,7 @@ import {
   DEMO_COLLECTION_TITLE,
   seedDemoCatalog,
 } from "../src/features/catalog/infrastructure/seed-demo-catalog";
+import { seedDemoNews } from "../src/features/news/infrastructure/seed-demo-news";
 import {
   assertDemoOrganizationsSeeded,
   demoOrganizations,
@@ -72,6 +73,11 @@ async function main() {
     );
 
     console.log(`Demo collection "${DEMO_COLLECTION_TITLE}": ${sample}`);
+
+    // The editorial organization and three demo news, through the writer of `news:import`.
+    const news = await seedDemoNews(process.env.DATABASE_OPS_URL as string);
+
+    console.log(`Demo news: ${JSON.stringify(news)}`);
   } finally {
     await closeAuth();
   }

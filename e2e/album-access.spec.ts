@@ -34,6 +34,8 @@ async function expectNoAccessibilityViolations(page: Page) {
 }
 
 async function logIn(page: Page, email: string) {
+  await page.getByText("Logowanie hasłem").click();
+
   const form = page.locator("form", { has: page.getByLabel("Hasło") });
 
   await form.getByLabel("E-mail").fill(email);
