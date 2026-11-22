@@ -131,7 +131,7 @@ async function encodeMainFile(input, longestSide) {
  */
 export async function encodeOgJpeg(main) {
   for (let quality = START_QUALITY; quality >= MIN_QUALITY; quality -= QUALITY_STEP) {
-    const data = await sharp(main)
+    const data = await sharp(main, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "error" })
       .resize({
         width: OG_LONG_SIDE,
         height: OG_LONG_SIDE,
@@ -144,6 +144,30 @@ export async function encodeOgJpeg(main) {
     if (data.length <= MAX_OG_BYTES) return data;
   }
   throw new PipelineError("too_complex");
+}
+
+/**
+ * JPEG do `og:image` z istniejącego pliku `main.webp` (uzupełnienie dla zdjęć pobranych przed E4-3).
+ * Wejście musi być pojedynczym obrazem WebP w budżecie pliku głównego; inne to `processing_failed`.
+ * @param {Buffer} main zawartość `main.webp`
+ */
+export async function ogFromMain(main) {
+  try {
+    if (main.length === 0 || main.length > MAX_MAIN_BYTES) {
+      throw new PipelineError("processing_failed");
+    }
+    const metadata = await sharp(main, {
+      limitInputPixels: MAX_INPUT_PIXELS,
+      failOn: "error",
+    }).metadata();
+    if (metadata.format !== "webp" || (metadata.pages ?? 1) > 1) {
+      throw new PipelineError("processing_failed");
+    }
+    return await encodeOgJpeg(main);
+  } catch (error) {
+    if (error instanceof PipelineError) throw error;
+    throw new PipelineError("processing_failed");
+  }
 }
 
 /**

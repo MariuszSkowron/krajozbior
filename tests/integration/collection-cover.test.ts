@@ -1,6 +1,7 @@
 import { randomInt, randomUUID } from "node:crypto";
 
 import { MikroORM } from "@mikro-orm/postgresql";
+import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { CatalogDeps } from "@/features/catalog/application/catalog-types";
@@ -11,6 +12,7 @@ import {
   listRecentlyPublishedCollections,
 } from "@/features/catalog/application/public-catalog";
 import { postgresCatalogRepository } from "@/features/catalog/infrastructure/postgres-catalog-repository";
+import { createPostgresPhotoFetchRepository } from "@/features/photos/infrastructure/postgres-photo-fetch-repository";
 import { createOrmConfig } from "@/lib/db/config";
 import { runInGuestContext, runInUserContext } from "@/lib/db/user-context";
 import {
@@ -43,8 +45,6 @@ let counter = 0;
 
 const admin$ = <T>(sql: string, params: unknown[] = []) =>
   withClient(db.adminUrl, async (client) => (await client.query(sql, params)).rows as T[]);
-const ops$ = (sql: string, params: unknown[] = []) =>
-  withClient(db.urls.krajozbior_ops, (client) => client.query(sql, params));
 const as = (actor: { id: string }, sql: string, params: unknown[] = []) =>
   runInUserContext(app.em, actor, ({ em }) => em.execute<Record<string, unknown>[]>(sql, params));
 const asGuest = (sql: string, params: unknown[] = []) =>
@@ -510,6 +510,63 @@ describe("collection cover", () => {
       await setCollectionCover(asActor(curA), collection.id, { placePhotoId: photoId }, deps);
       expect((await cardOf())?.cover).toMatchObject({ photoId });
     });
+
+    // E4-3 S2: only hiding clears the cover. A photo that is not ready for a while (the volume
+    // was missing, `photos:fetch --refetch-missing` put it back to `pending_fetch`) is not shown,
+    // but the choice of the curator survives, and the cover is back after the next fetch.
+    it("keeps the choice when the file stops being ready (requeue by photos:fetch), hides the cover meanwhile and shows it again after the fetch", async () => {
+      const place = await newPlace(orgA);
+      const photoId = await photo(place, orgA);
+      const collection = await newCollection(orgA, [place], true);
+
+      await setCollectionCover(asActor(curA), collection.id, { placePhotoId: photoId }, deps);
+
+      const cardOf = async () =>
+        (await listRecentlyPublishedCollections(200, deps)).find(
+          (item) => item.id === collection.id,
+        );
+
+      expect((await cardOf())?.cover).toMatchObject({ photoId });
+
+      // The real repository of `photos:fetch` as the operator role: ready -> pending_fetch.
+      await withClient(db.urls.krajozbior_ops, (client) =>
+        createPostgresPhotoFetchRepository(client).requeue(photoId),
+      );
+
+      expect(await coverOf(collection.id)).toBe(photoId);
+      expect((await cardOf())?.cover).toBeNull();
+
+      const page = await getPublishedCollection(collection.slug, deps);
+
+      expect(page.status === "ok" && page.value.cover).toBeNull();
+
+      // The next fetch makes it ready again: the same cover shows without a new choice.
+      await withClient(db.urls.krajozbior_ops, (client) =>
+        createPostgresPhotoFetchRepository(client).markReady(photoId, {
+          storageKey: randomUUID(),
+          width: 1280,
+          height: 853,
+          contentSha256: new Uint8Array(32).fill(7),
+        }),
+      );
+
+      expect(await coverOf(collection.id)).toBe(photoId);
+      expect((await cardOf())?.cover).toMatchObject({ photoId });
+    });
+
+    it("clears the cover when an administrator hides a photo that is not ready, even though it was the cover", async () => {
+      const place = await newPlace(orgA);
+      const photoId = await photo(place, orgA);
+      const collection = await newCollection(orgA, [place], true);
+
+      await setCollectionCover(asActor(curA), collection.id, { placePhotoId: photoId }, deps);
+      await withClient(db.urls.krajozbior_ops, (client) =>
+        createPostgresPhotoFetchRepository(client).requeue(photoId),
+      );
+      await admin$(`update public.place_photos set hidden_at = now() where id = $1`, [photoId]);
+
+      expect(await coverOf(collection.id)).toBeNull();
+    });
   });
 
   describe("the cover disappears when its photo stops qualifying", () => {
@@ -534,16 +591,6 @@ describe("collection cover", () => {
 
       expect(await coverOf(collection.id)).toBeNull();
       expect(await coverOf(other.id)).toBe(otherPhoto);
-    });
-
-    it("when the file is no longer ready (written by the operator role)", async () => {
-      const { photoId, collection } = await withCover();
-
-      await ops$(`update public.place_photos set file_state = 'fetch_failed' where id = $1`, [
-        photoId,
-      ]);
-
-      expect(await coverOf(collection.id)).toBeNull();
     });
 
     it("when the place leaves the collection (a curator removes the link)", async () => {
@@ -580,6 +627,53 @@ describe("collection cover", () => {
 
       expect(await coverOf(collection.id)).toBe(photoId);
     });
+  });
+
+  it("makes the removal of the place from the collection wait for a cover that is being set (E4-3 S5)", async () => {
+    // Two real connections of the app role. Setting the cover locks the link `for key share`
+    // until commit, so a parallel removal of the place cannot slip past the cleaning trigger.
+    const place = await newPlace(orgA);
+    const photoId = await photo(place, orgA);
+    const collection = await newCollection(orgA, [place], false);
+    const setter = new Client({ connectionString: db.urls.krajozbior_app });
+    const remover = new Client({ connectionString: db.urls.krajozbior_app });
+    const begin = async (client: Client) => {
+      await client.query("begin");
+      await client.query("select set_config('app.user_id', $1, true)", [curA.id]);
+    };
+
+    await setter.connect();
+    await remover.connect();
+
+    try {
+      await begin(setter);
+      await setter.query(`update public.collections set cover_place_photo_id = $1 where id = $2`, [
+        photoId,
+        collection.id,
+      ]);
+      await begin(remover);
+      await remover.query("set local lock_timeout = '300ms'");
+      await expect(
+        remover.query(
+          `delete from public.collection_places where collection_id = $1 and place_id = $2`,
+          [collection.id, place],
+        ),
+      ).rejects.toMatchObject({ code: "55P03" });
+      await remover.query("rollback");
+
+      // After the commit the removal goes through and the cleaning trigger sees the new cover.
+      await setter.query("commit");
+      await begin(remover);
+      await remover.query(
+        `delete from public.collection_places where collection_id = $1 and place_id = $2`,
+        [collection.id, place],
+      );
+      await remover.query("commit");
+      expect(await coverOf(collection.id)).toBeNull();
+    } finally {
+      await setter.end();
+      await remover.end();
+    }
   });
 
   it("does not leak the context: the next statement on the same connection has no actor", async () => {

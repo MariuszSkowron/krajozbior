@@ -37,6 +37,26 @@ export function cardCoverImage(cover: CardCoverInput | null): CardCoverImage | n
   };
 }
 
+export type CoverCreditInput = Readonly<{
+  authorText: string;
+  licenseLabel: string;
+  sourceKind: "own" | "third_party" | "commons_import";
+}>;
+
+const OG_DESCRIPTION_MAX = 200;
+
+/**
+ * Krótki podpis okładki do `og:description` i `twitter:description`: większość serwisów pokazuje
+ * opis w podglądzie linku, więc autor i licencja są widoczne bez kliknięcia (CC BY wymaga uznania
+ * autorstwa). `alt` obrazu zostaje opisem zdjęcia. Pełny podpis jest pod okładką na stronie.
+ */
+export function ogCoverDescription(cover: CoverCreditInput): string {
+  const source = cover.sourceKind === "commons_import" ? ", Wikimedia Commons" : "";
+  const text = `Okładka: fot. ${cover.authorText.trim()}, ${cover.licenseLabel.trim()}${source}`;
+
+  return text.length <= OG_DESCRIPTION_MAX ? text : `${text.slice(0, OG_DESCRIPTION_MAX - 1)}…`;
+}
+
 /**
  * Adres obrazu do `og:image` (JPEG 1200 px) pod adresem serwisu albo `null`, gdy kolekcja nie ma
  * okładki albo serwis nie zna swojego adresu (`BETTER_AUTH_URL`): podgląd linku wymaga adresu

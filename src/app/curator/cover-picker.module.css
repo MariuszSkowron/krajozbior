@@ -41,8 +41,21 @@
   border-radius: var(--radius-md);
 }
 
+/*
+ * Zaznaczenie: mocna ramka w kolorze tekstu i tło tinta, bez koloru fokusu. Fokus klawiatury to
+ * osobny pierścień w kolorze fokusu wokół całej opcji (z odstępem), więc zaznaczenie i fokus
+ * różnią się kolorem, grubością i położeniem; zaznaczenie widać także bez koloru (grubsza ramka
+ * i tło), nie tylko po barwie.
+ */
 .option:has(input:checked) {
-  border-color: var(--color-border-focus);
+  border-color: var(--color-text-strong);
+  background: var(--color-surface-tint);
+  box-shadow: inset 0 0 0 1px var(--color-text-strong);
+}
+
+.option:has(input:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--color-border-focus);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .option img {

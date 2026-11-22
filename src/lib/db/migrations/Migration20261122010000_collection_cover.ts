@@ -10,20 +10,26 @@ import { Migration } from "@mikro-orm/migrations";
 //   już wymaga `full_edit`). `INSERT` bez tej kolumny: nowa kolekcja nie ma okładki. Odczyt jest
 //   szerszy niż kolumna, bo `select` na całej tabeli obejmuje nową kolumnę: sam identyfikator
 //   zdjęcia nic nie zdradza, a plik i podpis oddaje `place_photos` według własnych polityk RLS.
-// - Zdjęcie gotowe i nieukryte pilnuje klucz obcy, nie wyzwalacz: `place_photos.cover_eligible`
-//   (kolumna generowana: `file_state = 'ready' and hidden_at is null`) jest częścią klucza
+// - Ukrycie zdjęcia pilnuje klucz obcy, nie wyzwalacz: `place_photos.cover_eligible` (kolumna
+//   generowana: `hidden_at is null`, celowo BEZ `file_state`) jest częścią klucza
 //   `(id, cover_eligible)`, a `collections.cover_eligible` (ustawia ją strażnik) jest równe `true`
-//   przy okładce. Okładka ukrytego albo niegotowego zdjęcia kończy się `23503`, a gdy zdjęcie
-//   stanie się ukryte albo niegotowe (rola operatora, `photos:fetch`, polecenie ukrycia),
-//   `on update set null` zeruje okładkę sam (działanie klucza obcego omija RLS i uprawnienia, więc
-//   operator nie potrzebuje
-//   praw do `collections`, a właściciel nie dostaje żadnych polityk). Usunięcie zdjęcia też zeruje
-//   okładkę (`on delete set null`). Powrót zdjęcia do stanu gotowego i widocznego okładki nie
-//   przywraca: kurator wybiera ją od nowa (spec: „kolekcja zostaje bez okładki”).
+//   przy okładce. Okładka ukrytego zdjęcia kończy się `23503`, a gdy zdjęcie stanie się ukryte
+//   (rola operatora, polecenie ukrycia), `on update set null` zeruje okładkę sam (działanie
+//   klucza obcego omija RLS i uprawnienia, więc operator nie potrzebuje praw do `collections`, a
+//   właściciel nie dostaje żadnych polityk). Usunięcie zdjęcia też zeruje okładkę (`on delete
+//   set null`). Powrót ukrytego zdjęcia do widoczności okładki nie przywraca: kurator wybiera ją
+//   od nowa (spec: „kolekcja zostaje bez okładki”).
+//   Stan pliku nie zeruje okładki: gdy `photos:fetch --refetch-missing` przestawi zdjęcie na
+//   `pending_fetch` (np. po złym zamontowaniu wolumenu), wybór kuratora zostaje, a okładka nie jest
+//   pokazywana (zapytania karty i nagłówka oraz polityka `place_photos` wymagają `ready`) do
+//   czasu ponownego pobrania. Gotowość sprawdza strażnik przy wyborze (poniżej).
 //   Aplikacja nie ma uprawnienia do `place_photos.cover_eligible`, więc kolumna nie zdradza
 //   ukrycia zdjęcia.
 // - Wyzwalacz `collections_cover_guard` (z uprawnieniami piszącego, jak `collections_publication`):
 //   okładką jest tylko zdjęcie gotowe z miejsca, które jest w tej kolekcji i organizacji (`23514`).
+//   Powiązanie miejsca z kolekcją jest blokowane `for key share` do końca transakcji, więc
+//   równoległe usunięcie miejsca z kolekcji czeka na zatwierdzenie okładki i po nim wyzwalacz
+//   czyszczący widzi już nową okładkę (nie zostaje okładka miejsca spoza kolekcji).
 //   Kurator widzi własne wiersze `collection_places` i `place_photos` (polityki); zdjęcie obcej
 //   organizacji jest dla niego niewidoczne, więc kończy się tak samo jak nieistniejące.
 // - Wyzwalacz `collection_places_clear_cover` (po usunięciu miejsca z kolekcji, z uprawnieniami
@@ -39,7 +45,7 @@ export class Migration20261122010000_collection_cover extends Migration {
     this.addSql(`
       alter table place_photos
         add column cover_eligible boolean
-          generated always as (file_state = 'ready' and hidden_at is null) stored;
+          generated always as (hidden_at is null) stored;
     `);
     this.addSql(`
       alter table place_photos
@@ -92,16 +98,19 @@ export class Migration20261122010000_collection_cover extends Migration {
 
         new.cover_eligible := true;
 
-        if not exists (
-          select
-            from public.place_photos ph
-            join public.collection_places cp on cp.place_id = ph.place_id
-           where ph.id = new.cover_place_photo_id
-             and cp.collection_id = new.id
-             and ph.organization_id = new.organization_id
-             and ph.file_state = 'ready'
-             and ph.storage_key is not null
-        ) then
+        -- for key share of cp blokuje usuniecie powiazania do konca transakcji (wyscig z
+        -- collection_places_clear_cover); kuratorowi wystarcza grant kolumnowy update (position).
+        perform 1
+           from public.place_photos ph
+           join public.collection_places cp on cp.place_id = ph.place_id
+          where ph.id = new.cover_place_photo_id
+            and cp.collection_id = new.id
+            and ph.organization_id = new.organization_id
+            and ph.file_state = 'ready'
+            and ph.storage_key is not null
+            for key share of cp;
+
+        if not found then
           raise exception 'collection cover photo is not a ready photo of a place in the collection'
             using errcode = '23514', constraint = 'collections_cover_guard';
         end if;

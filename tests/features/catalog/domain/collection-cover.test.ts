@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { cardCoverImage, ogImageUrl } from "@/features/catalog/domain/collection-cover";
+import {
+  cardCoverImage,
+  ogCoverDescription,
+  ogImageUrl,
+} from "@/features/catalog/domain/collection-cover";
 
 const ID = "0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b";
 
@@ -49,5 +53,34 @@ describe("ogImageUrl (E4-3)", () => {
     expect(ogImageUrl(undefined, { photoId: ID })).toBeNull();
     expect(ogImageUrl("  ", { photoId: ID })).toBeNull();
     expect(ogImageUrl("nie adres", { photoId: ID })).toBeNull();
+  });
+});
+
+describe("ogCoverDescription (E4-3, uznanie autorstwa w podglądzie linku)", () => {
+  it("names the author, the licence and Wikimedia Commons for a Commons import", () => {
+    expect(
+      ogCoverDescription({
+        authorText: " Fikcyjny Autor ",
+        licenseLabel: "CC BY-SA 3.0 PL",
+        sourceKind: "commons_import",
+      }),
+    ).toBe("Okładka: fot. Fikcyjny Autor, CC BY-SA 3.0 PL, Wikimedia Commons");
+  });
+
+  it("leaves Commons out for a photo from another source", () => {
+    expect(
+      ogCoverDescription({ authorText: "Ala", licenseLabel: "CC BY 4.0", sourceKind: "own" }),
+    ).toBe("Okładka: fot. Ala, CC BY 4.0");
+  });
+
+  it("cuts a very long author to 200 characters", () => {
+    const text = ogCoverDescription({
+      authorText: "x".repeat(500),
+      licenseLabel: "CC BY 4.0",
+      sourceKind: "third_party",
+    });
+
+    expect(text).toHaveLength(200);
+    expect(text.endsWith("…")).toBe(true);
   });
 });

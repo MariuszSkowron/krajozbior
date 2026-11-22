@@ -25,7 +25,7 @@ import {
   type VisitKind,
 } from "@/features/catalog/domain/album-view";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
-import { ogImageUrl } from "@/features/catalog/domain/collection-cover";
+import { ogCoverDescription, ogImageUrl } from "@/features/catalog/domain/collection-cover";
 import { formatPlaceCount } from "@/features/catalog/domain/place-count";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import type { Actor } from "@/features/identity/domain/actor";
@@ -170,18 +170,25 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   // z `BETTER_AUTH_URL`; bez okładki albo bez tego adresu strona zostaje bez obrazu.
   const image = ogImageUrl(process.env.BETTER_AUTH_URL, result.value.cover);
 
-  if (image === null) {
+  const cover = result.value.cover;
+
+  if (image === null || cover === null) {
     return { title };
   }
+
+  // Autor i licencja w opisie podglądu (licencje CC wymagają uznania autorstwa); `alt` obrazu to
+  // opis zdjęcia.
+  const description = ogCoverDescription(cover);
 
   return {
     title,
     openGraph: {
       title,
+      description,
       type: "website",
-      images: [{ url: image, alt: result.value.cover?.altText }],
+      images: [{ url: image, alt: cover.altText }],
     },
-    twitter: { card: "summary_large_image", title, images: [image] },
+    twitter: { card: "summary_large_image", title, description, images: [image] },
   };
 }
 

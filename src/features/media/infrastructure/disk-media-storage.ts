@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, open, rename, rm, stat, statfs, unlink } from "node:fs/promises";
+import { mkdir, open, readFile, rename, rm, stat, statfs, unlink } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 
 import type { MediaFiles, MediaStorage } from "../application/media-storage";
@@ -67,6 +67,33 @@ export class DiskMediaStorage implements MediaStorage {
     await Promise.all(
       staged.map(({ backup }) => (backup ? unlink(backup).catch(() => undefined) : undefined)),
     );
+  }
+
+  async read(kind: MediaKind, key: string, variant: MediaVariant): Promise<Uint8Array | null> {
+    try {
+      const path = this.inside(mediaFilePath(kind, key, variant));
+      const info = await stat(path);
+      if (!info.isFile() || info.size === 0) return null;
+      return await readFile(path);
+    } catch {
+      return null;
+    }
+  }
+
+  async storeOg(kind: MediaKind, key: string, og: Uint8Array): Promise<void> {
+    await mkdir(this.tmpDirectory, { recursive: true, mode: DIRECTORY_MODE });
+    const target = this.inside(mediaFilePath(kind, key, "og"));
+    const existing = await stat(target).catch(() => undefined);
+    if (existing && !existing.isFile()) throw new Error("Cel zapisu nie jest plikiem.");
+    const tmp = join(this.tmpDirectory, `${randomUUID()}.tmp`);
+    try {
+      await writeSynced(tmp, og);
+      await rename(tmp, target);
+    } catch (error) {
+      await unlink(tmp).catch(() => undefined);
+      throw error;
+    }
+    await syncDirectory(dirname(target));
   }
 
   async remove(kind: MediaKind, key: string): Promise<void> {

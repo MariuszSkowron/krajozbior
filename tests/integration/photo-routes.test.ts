@@ -393,25 +393,29 @@ describe("GET /media/p/{photoId}/{size}", () => {
   });
 
   describe("the og size for the link preview of a collection (E4-3)", () => {
-    // A real image on disk: the og file is made from `main.webp`, which must decode.
-    const realPhoto = async (placeId: string, organizationId: string) => {
+    // The og file is made by `photos:fetch` (not by the web server): the route only serves it.
+    // A real image on disk, with `og.jpg` unless `withOg` is false.
+    const realPhoto = async (placeId: string, organizationId: string, withOg = true) => {
       const made = await photo(placeId, organizationId, { withFiles: false });
       const directory = join(mediaRoot, "p", made.key.slice(0, 2), made.key);
+      const image = sharp({
+        create: { width: 1600, height: 900, channels: 3, background: { r: 50, g: 80, b: 110 } },
+      });
 
       mkdirSync(directory, { recursive: true });
-      writeFileSync(
-        join(directory, "main.webp"),
-        await sharp({
-          create: { width: 1600, height: 900, channels: 3, background: { r: 50, g: 80, b: 110 } },
-        })
-          .webp()
-          .toBuffer(),
-      );
+      writeFileSync(join(directory, "main.webp"), await image.clone().webp().toBuffer());
+
+      if (withOg) {
+        writeFileSync(
+          join(directory, "og.jpg"),
+          await image.clone().resize({ width: 1200 }).jpeg().toBuffer(),
+        );
+      }
 
       return { ...made, directory };
     };
 
-    it("serves a JPEG of 1200 px to a guest, public and cross-origin, and keeps it on disk", async () => {
+    it("serves a JPEG of 1200 px to a guest, public and cross-origin", async () => {
       const place = await newPlace(orgA);
 
       await collectionWith(place, orgA, true);
@@ -432,7 +436,6 @@ describe("GET /media/p/{photoId}/{size}", () => {
       expect(response.headers.get("etag")).toMatch(/^"[0-9a-f]{16}"$/);
       expect((await sharp(bytes).metadata()).format).toBe("jpeg");
       expect((await sharp(bytes).metadata()).width).toBe(1200);
-      expect(existsSync(join(made.directory, "og.jpg"))).toBe(true);
 
       // The ETag differs from the other sizes and matches on the next request (304).
       expect(response.headers.get("etag")).not.toBe(
@@ -466,27 +469,33 @@ describe("GET /media/p/{photoId}/{size}", () => {
       await expectNotFound(await get(made.id, "og"));
     });
 
-    it("answers 404 with no-store, never 500, when the main file cannot be turned into an og file", async () => {
-      // The reader logs the class of the failure; the console of a test worker is patched by
-      // `next/experimental/testing/server` and would throw, so the log is muted here.
-      const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    it("answers 404 with no-store, never 500, when the og file is missing, and does not make it itself (E4-3 S1)", async () => {
+      asGuest();
 
-      try {
-        asGuest();
-        // `publicPhoto` has files that are only bytes of a test, not an image.
-        await expectNotFound(await get(publicPhoto.id, "og"));
-        expect(log).toHaveBeenCalledWith("Photo og encode failed:", expect.any(String));
-        // No file at all.
-        const place = await newPlace(orgA);
+      // `publicPhoto` has main and w400 but no og file: the web server never encodes one.
+      await expectNotFound(await get(publicPhoto.id, "og"));
+      expect(
+        existsSync(join(mediaRoot, "p", publicPhoto.key.slice(0, 2), publicPhoto.key, "og.jpg")),
+      ).toBe(false);
 
-        await collectionWith(place, orgA, true);
+      // A photo with a decodable main file and no og file behaves the same, and stays without one.
+      const place = await newPlace(orgA);
 
-        const lost = await photo(place, orgA, { withFiles: false });
+      await collectionWith(place, orgA, true);
 
-        await expectNotFound(await get(lost.id, "og"));
-      } finally {
-        log.mockRestore();
-      }
+      const withoutOg = await realPhoto(place, orgA, false);
+
+      await expectNotFound(await get(withoutOg.id, "og"));
+      expect(existsSync(join(withoutOg.directory, "og.jpg"))).toBe(false);
+
+      // An og file of zero length (an interrupted write) is not served as an empty JPEG.
+      writeFileSync(join(withoutOg.directory, "og.jpg"), "");
+      await expectNotFound(await get(withoutOg.id, "og"));
+
+      // No file at all.
+      const lost = await photo(place, orgA, { withFiles: false });
+
+      await expectNotFound(await get(lost.id, "og"));
     });
 
     it("hides a hidden photo from a guest also in the og size", async () => {

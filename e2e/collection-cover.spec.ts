@@ -11,8 +11,8 @@ import { waitForHydration } from "../tests/support/e2e-hydration";
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 
 // E4-3: the cover of a collection. A guest sees it in the header of a published collection (with
-// the credit) and on its card, and the page offers it as `og:image` (JPEG, made on the first
-// request). A collection without a cover keeps the placeholder and has no `og:image`. A curator
+// the credit) and on its card, and the page offers it as `og:image` (JPEG made by
+// `photos:fetch`). A collection without a cover keeps the placeholder and has no `og:image`. A curator
 // chooses the cover in the editor. The photo of a draft stays unseen. The photo files are
 // generated here (no network) into the folder the server reads as MEDIA_ROOT
 // (playwright.config.ts, scripts/test-env/). Needs a migrated, seeded database like the other
@@ -73,6 +73,15 @@ async function writeFiles(key: string) {
   await mkdir(directory, { recursive: true });
   await writeFile(join(directory, "main.webp"), await canvas(1280, 853));
   await writeFile(join(directory, "w400.webp"), await canvas(400, 267));
+  // The og file is made by `photos:fetch`, not by the web server: the route only serves it.
+  await writeFile(
+    join(directory, "og.jpg"),
+    await sharp({
+      create: { width: 1200, height: 800, channels: 3, background: { r: 60, g: 90, b: 120 } },
+    })
+      .jpeg()
+      .toBuffer(),
+  );
   createdKeys.push(key);
 }
 
@@ -289,6 +298,22 @@ test.describe("collection cover", () => {
     await expect(page.locator('head meta[name="twitter:card"]')).toHaveAttribute(
       "content",
       "summary_large_image",
+    );
+    // The credit is in the description of the preview, so the author shows without a click.
+    const credit = `Okładka: fot. ${AUTHOR}, CC BY-SA 3.0 PL, Wikimedia Commons`;
+
+    await expect(page.locator('head meta[property="og:description"]')).toHaveAttribute(
+      "content",
+      credit,
+    );
+    await expect(page.locator('head meta[name="twitter:description"]')).toHaveAttribute(
+      "content",
+      credit,
+    );
+    // The alt of the image stays the description of the photo.
+    await expect(page.locator('head meta[property="og:image:alt"]')).toHaveAttribute(
+      "content",
+      ALT,
     );
 
     const og = await request.get(`/media/p/${photoId}/og`);

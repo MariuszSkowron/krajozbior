@@ -122,12 +122,13 @@ Wgranie: dla kolekcji `created`, `updated`, `noop`, `kept_manual_edit`, `kept_ma
 **Pobieranie: `npm run photos:fetch`.** Polecenie operatora (rola `krajozbior_ops`, `DATABASE_OPS_URL`; wymaga `MEDIA_ROOT`):
 
 ```
-npm run photos:fetch -- --operator "<etykieta>" --reason "<powód>" [--limit <n>] [--org-slug <slug>] [--retry-failed] [--refetch-missing]
+npm run photos:fetch -- --operator "<etykieta>" --reason "<powód>" [--limit <n>] [--org-slug <slug>] [--retry-failed] [--refetch-missing] [--backfill-og]
 ```
 
 - Adres miniatury buduje samo z nazwy pliku w Commons: `https://upload.wikimedia.org/wikipedia/commons/thumb/{a}/{ab}/{nazwa}/{szerokość}px-{nazwa}`; szerokość to największy standardowy krok (20, 40, 60, 120, 250, 330, 500, 960, 1280, 1920) nie większy niż `min(1920, szerokość oryginału)`. Oryginału nie pobiera.
 - Tylko `https` i host `upload.wikimedia.org`; przekierowań nie śledzi automatycznie, każdy krok (najwyżej 3) musi leżeć na tym samym hoście. Limit 20 MB i 30 s na plik, najwyżej 1 żądanie na sekundę, `429` i `503` czekają według `Retry-After` (najwyżej 5 minut). `User-Agent` zawiera ogólną nazwę klienta i adres strony „Źródła danych”.
-- Typ po zawartości (JPEG, PNG); obróbka biblioteką zdjęć w procesie potomnym (budżet 300 KB, bez progu krótszego boku dla Commons, bez powiększania). Na dysku zostaje tylko przetworzona kopia (`main` i `w400`).
+- Typ po zawartości (JPEG, PNG); obróbka biblioteką zdjęć w procesie potomnym (budżet 300 KB, bez progu krótszego boku dla Commons, bez powiększania). Na dysku zostaje tylko przetworzona kopia (`main`, `w400` i `og.jpg`, czyli JPEG 1200 px do podglądu linku z okładki kolekcji; powstaje w tym samym procesie potomnym, zapis atomowy z `fsync`).
+- `--backfill-og` (jednorazowo po wdrożeniu E4-3): dla zdjęć `ready` pobranych wcześniej, które nie mają `og.jpg` (albo mają plik pusty), robi `og.jpg` z istniejącego `main.webp` w procesie potomnym, jedno zdjęcie naraz, z tym samym strażnikiem wolnego miejsca. Zdjęcia z gotowym `og.jpg` pomija, więc polecenie można powtarzać. Wynik: `ogCreated` i `ogFailed` w wierszu JSON oraz `og_created` i `og_failed` w dzienniku operacji. Serwer WWW sam `og.jpg` nie tworzy: trasa `/media` serwuje gotowy plik, a gdy go brak, odpowiada 404 (`no-store`), więc podgląd linku bez `og.jpg` po prostu nie ma obrazu.
 - Jedna próba na wiersz w jednym przebiegu; trzecia nieudana próba daje `fetch_failed` (zdjęcie niewidoczne). `--retry-failed` bierze też takie wiersze, `--refetch-missing` przestawia wiersze `ready` bez pliku na dysku z powrotem na `pending_fetch`.
 - Wspólna blokada doradcza w bazie: drugie uruchomienie w czasie pierwszego kończy się kodem 3 („Poprzednie pobieranie jeszcze trwa”). Strażnik wolnego miejsca (`MEDIA_MIN_FREE_PERCENT`) wstrzymuje przebieg.
 - Na końcu jeden wiersz JSON (`fetched`, `failed`, `skipped`, `remaining`, `reasons`) i wpis `photos_fetch` w dzienniku operacji (same liczby i kody powodów). Kody wyjścia: 0 gotowe, 1 awaria, 2 błąd argumentów, 3 poprzednie pobieranie trwa.

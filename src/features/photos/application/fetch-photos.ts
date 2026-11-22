@@ -75,10 +75,63 @@ export async function requeueMissingFiles(
   return requeued;
 }
 
+export type OgBackfillReport = Readonly<{
+  /** Zdjęcia, które dostały nowy `og.jpg`. */
+  created: number;
+  /** Zdjęcia bez `main.webp` albo takie, z których nie udało się zrobić JPEG. */
+  failed: number;
+  /** Przebieg przerwany: `space_unreadable` albo `uploads_paused`. */
+  stoppedBy?: string;
+}>;
+
+/**
+ * `--backfill-og`: jednorazowe uzupełnienie `og.jpg` dla zdjęć `ready` pobranych przed E4-3.
+ * Jedno zdjęcie naraz (jeden proces potomny), każdy zapis atomowy z `fsync`; zdjęcia, które już
+ * mają `og.jpg`, są pomijane, więc polecenie można powtarzać.
+ */
+export async function backfillOgFiles(
+  deps: Pick<PhotoFetchDeps, "repository" | "storage" | "makeOg" | "checkSpace">,
+): Promise<OgBackfillReport> {
+  let created = 0;
+  let failed = 0;
+
+  for (const row of await deps.repository.listReady()) {
+    // `read` daje `null` także dla pliku o zerowej długości (przerwany zapis), który trzeba zastąpić.
+    if ((await deps.storage.read("place", row.storageKey, "og")) !== null) {
+      continue;
+    }
+
+    const space = await deps.checkSpace();
+
+    if (!space.ok) {
+      return { created, failed, stoppedBy: space.reason };
+    }
+
+    const main = await deps.storage.read("place", row.storageKey, "main");
+
+    if (main === null) {
+      failed += 1;
+      continue;
+    }
+
+    try {
+      await deps.storage.storeOg("place", row.storageKey, await deps.makeOg(main));
+      created += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+
+  return { created, failed };
+}
+
 export type PhotoFetchDeps = Readonly<{
   repository: PhotoFetchRepository;
   download: (address: string) => Promise<CommonsFetchResult>;
+  /** Obróbka pobranego pliku (proces potomny); dla zdjęć oficjalnych z `ogJpeg: true`. */
   process: (bytes: Uint8Array) => Promise<ProcessedImage>;
+  /** JPEG do `og:image` z istniejącego `main.webp` (proces potomny); tylko dla `--backfill-og`. */
+  makeOg: (main: Uint8Array) => Promise<Uint8Array>;
   storage: MediaStorage;
   checkSpace: () => Promise<FreeSpaceVerdict>;
   sleep: (milliseconds: number) => Promise<void>;
@@ -138,7 +191,13 @@ async function fetchOne(deps: PhotoFetchDeps, photo: PendingPhoto): Promise<Outc
   const sha = createHash("sha256").update(processed.main).digest();
 
   try {
-    await deps.storage.store("place", key, { main: processed.main, w400: processed.thumb });
+    // JPEG do podglądu linku (`og`) powstaje tu, w procesie potomnym obróbki, i trafia na dysk
+    // razem z resztą (trasa `/media` tylko go serwuje).
+    await deps.storage.store("place", key, {
+      main: processed.main,
+      w400: processed.thumb,
+      ...(processed.og === undefined ? {} : { og: processed.og }),
+    });
   } catch {
     return { ok: false, reason: "storage_failed" };
   }
