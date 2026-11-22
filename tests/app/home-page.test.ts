@@ -175,8 +175,10 @@ describe("home page of a guest", () => {
 
     expect(html).not.toContain("W okolicy");
     expect(html.match(/<h2[^>]*>Kolekcje do odkrycia<\/h2>/g)).toHaveLength(1);
-    expect(html).toMatch(/<button [^>]*>Pokaż najbliższe<\/button>/);
-    expect(html).toContain("Położenie zostaje w tej przeglądarce.");
+    // The button appears only once the component is ready in the browser (paczka S): the
+    // server render has no button yet, only the empty status region.
+    expect(html).not.toContain("Pokaż najbliższe");
+    expect(html).not.toContain("Położenie zostaje w tej przeglądarce.");
     expect(html).toMatch(/<p role="status"[^>]*><\/p>/);
     expect(html.match(/href="\/collections\/mosty-i-zamki"/g)).toHaveLength(1);
     // A wider layout on a computer (K-35) and a link with a class of its own (K-36).
