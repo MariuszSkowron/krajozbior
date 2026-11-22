@@ -95,6 +95,27 @@ describe("validateEventWindow", () => {
     expect(Number.isNaN(latestEventStart(new Date(NaN)).getTime())).toBe(true);
   });
 
+  it("returns an invalid date when `now` is before 1970 on the Polish clock", () => {
+    expect(Number.isNaN(latestEventStart(at("1968-06-01T10:00:00Z")).getTime())).toBe(true);
+  });
+
+  it("rejects a window when the one-year limit cannot be computed", () => {
+    const now = at("1968-06-01T10:00:00Z");
+
+    expect(
+      validateEventWindow(
+        { startsAt: at("1990-01-01T10:00:00Z"), endsAt: at("1990-01-01T12:00:00Z") },
+        now,
+      ),
+    ).toEqual(["invalid_time"]);
+    expect(
+      validateEventWindow(
+        { startsAt: at("1968-06-02T10:00:00Z"), endsAt: at("1968-06-02T12:00:00Z") },
+        now,
+      ),
+    ).toEqual(["invalid_time"]);
+  });
+
   it("reports several violations together and invalid dates alone", () => {
     const far = at("2029-01-01T00:00:00Z");
     expect(validateEventWindow({ startsAt: far, endsAt: far }, now)).toEqual([

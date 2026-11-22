@@ -56,8 +56,7 @@ export function latestEventStart(now: Date): Date {
     // Skipped hour: continue one hour later (the wall time cannot cross midnight here).
     result = warsawWallTimeToInstant({ ...wall, year, day, hour: wall.hour + 1 });
   }
-  // Unreachable: the date is real (day clamped) and one skipped hour never repeats.
-  /* v8 ignore next 3 */
+  // Year before 1970 on the Polish clock (or out of the Date range): no valid limit.
   if (!result.ok) {
     return new Date(NaN);
   }
@@ -73,6 +72,12 @@ export function validateEventWindow(window: EventWindow, now: Date): EventWindow
     return ["invalid_time"];
   }
 
+  const latestStart = latestEventStart(now).getTime();
+  if (Number.isNaN(latestStart)) {
+    // The one-year limit cannot be computed: refuse instead of letting every start pass.
+    return ["invalid_time"];
+  }
+
   const violations: EventWindowViolation[] = [];
   const duration = end - start;
   if (duration < EVENT_MIN_DURATION_MS) {
@@ -81,7 +86,7 @@ export function validateEventWindow(window: EventWindow, now: Date): EventWindow
   if (duration > EVENT_MAX_DURATION_MS) {
     violations.push("too_long");
   }
-  if (start > latestEventStart(now).getTime()) {
+  if (start > latestStart) {
     violations.push("too_far_ahead");
   }
 
@@ -152,7 +157,11 @@ export function canChangeStatus(from: EventStatus, to: EventStatus, phase: Event
 
 export type EventEditRule = "free" | "extend_end_only" | "read_only";
 
-/** What may change in the times of an event (E6-Q6, D-E6-4): by phase, drafts included. */
+/**
+ * What may change in the times of an event (E6-Q6, D-E6-4): by phase, drafts included.
+ * `_status` stays in the signature on purpose: the rule is the same for every status
+ * after the review, and callers keep passing it.
+ */
 export function eventEditRule(_status: EventStatus, phase: EventPhase): EventEditRule {
   if (phase === "upcoming") {
     return "free";
