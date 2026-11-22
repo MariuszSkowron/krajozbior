@@ -418,6 +418,9 @@ kz_mode_import() {
 kz_require_news_support() {
   grep -q '"news:import"' "$KZ_SRC/package.json" 2>/dev/null ||
     kz_fail "dzialajaca wersja nie ma polecenia news:import. Najpierw wdroz commit z poleceniem news:import (-Commit <sha>); nic nie wgrano"
+  # The first version of the command may lack the server mode (as -Import checks for catalog-import).
+  grep -q -- '--confirm-host' "$KZ_SRC/scripts/news-import.ts" 2>/dev/null ||
+    kz_fail "polecenie news:import dzialajacej wersji nie obsluguje trybu serwera (--confirm-host). Najpierw wdroz nowszy commit (-Commit <sha>); nic nie wgrano"
 }
 
 # Arguments that name the target of news:import. On the server the command needs the explicit
@@ -477,7 +480,7 @@ kz_mode_aktualnosci() {
       kz_step "plik odrzucony (kod 2): bledy w pliku; nic sie nie zmienilo"
       exit 2 ;;
     3)
-      kz_step "odmowa (kod 3): niedozwolona zmiana stanu, zle powiazanie albo za duzo aktualnosci; nic sie nie zmienilo"
+      kz_step "odmowa (kod 3): niedozwolona zmiana stanu, zle powiazanie, za duzo aktualnosci albo ustawienia serwera (nazwa hosta); nic sie nie zmienilo"
       exit 3 ;;
     *) kz_fail "wgrywanie aktualnosci nieudane (kod $status); plik jest zapisywany w calosci albo wcale, to samo wgranie mozna powtorzyc" ;;
   esac

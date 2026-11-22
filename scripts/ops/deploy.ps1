@@ -288,6 +288,7 @@ $user = Get-RemoteUser $Mode
 # read line by line, masked, shown and written to the report; stderr stays on the console
 # (prompts of the client). Returns the exit code.
 function Invoke-RemoteConnection {
+  $script:newsOutcome = ''
   $payload = New-RemotePayload ([IO.File]::ReadAllText((Join-Path $serverDir 'lib.sh'))) `
     (New-RemotePreamble $plain $secretVars) ([IO.File]::ReadAllText((Join-Path $serverDir $modeScript)))
   $phase = if ($plain.ContainsKey('KZ_IMPORT_PHASE')) { ", faza $($plain.KZ_IMPORT_PHASE), plik $($plain.KZ_IMPORT_NAME)" } else { '' }
@@ -315,7 +316,10 @@ function Invoke-RemoteConnection {
     }
     if ($Mode -eq 'aktualnosci') {
       $summary = Format-NewsSummary $safe
-      if ($summary) { Write-Say (Write-Report "podsumowanie: $summary") 'Cyan' }
+      if ($summary) {
+        $script:newsOutcome = Get-NewsOutcome $safe
+        Write-Say (Write-Report "podsumowanie: $summary") 'Cyan'
+      }
     }
     if ($Mode -eq 'import') {
       $summary = Format-ImportSummary $safe
@@ -379,11 +383,12 @@ if ($code -eq 0 -and $importResult -eq 'declined') {
   }
 } else {
   Write-Say ''
-  if ($Mode -eq 'aktualnosci' -and $code -eq 2) {
+  $newsRefusal = ($Mode -eq 'aktualnosci') -and (Test-NewsRefusalResult $code $script:newsOutcome)
+  if ($newsRefusal -and $code -eq 2) {
     Write-Report 'wynik: PLIK ODRZUCONY (kod 2): nic sie nie zmienilo' | Out-Null
     Write-Say 'PLIK ODRZUCONY (kod 2): w pliku sa bledy (numery linii sa wyzej). Na serwerze nic sie nie zmienilo.' 'Yellow'
     Write-Say 'To nie awaria. Napisz agentowi: kod 2 (z raportem); po poprawce pliku powtorz to samo polecenie.' 'Yellow'
-  } elseif ($Mode -eq 'aktualnosci' -and $code -eq 3) {
+  } elseif ($newsRefusal -and $code -eq 3) {
     Write-Report 'wynik: ODMOWA (kod 3): nic sie nie zmienilo' | Out-Null
     Write-Say 'ODMOWA (kod 3): serwer nie przyjal pliku (np. niedozwolona zmiana stanu aktualnosci, zle powiazanie z kolekcja albo miejscem, za duzo aktualnosci). Na serwerze nic sie nie zmienilo.' 'Yellow'
     Write-Say 'To nie awaria: plik jest wgrywany w calosci albo wcale. Napisz agentowi: kod 3 (z raportem); po poprawce pliku powtorz to samo polecenie.' 'Yellow'

@@ -700,7 +700,8 @@ describe("mode aktualnosci: news file to the server (remote.sh, E7-R2b)", () => 
   // A running version with the command on the server, and the EXIT trap of kz_main.
   const READY = [
     'kz_state_set initialized x; kz_state_set current-tag "aaaaaaaaaaaa"',
-    'mkdir -p "$KZ_SRC"; echo \'{"scripts":{"news:import":"tsx x"}}\' >"$KZ_SRC/package.json"',
+    'mkdir -p "$KZ_SRC/scripts"; echo \'{"scripts":{"news:import":"tsx x"}}\' >"$KZ_SRC/package.json"',
+    'echo "// --confirm-host" >"$KZ_SRC/scripts/news-import.ts"',
     "trap kz_cleanup EXIT",
   ].join("\n");
   // Stub of the operator command: its arguments, the files it sees in the mounted folder and the
@@ -761,6 +762,7 @@ describe("mode aktualnosci: news file to the server (remote.sh, E7-R2b)", () => 
   for (const [code, exitCode, message] of [
     [2, 2, "plik odrzucony (kod 2)"],
     [3, 3, "odmowa (kod 3)"],
+    [3, 3, "ustawienia serwera (nazwa hosta)"],
     [1, 1, "wgrywanie aktualnosci nieudane (kod 1)"],
     [7, 1, "wgrywanie aktualnosci nieudane (kod 7)"],
   ] as const) {
@@ -868,6 +870,21 @@ describe("mode aktualnosci: news file to the server (remote.sh, E7-R2b)", () => 
     },
   );
 
+  bashIt(
+    "refuses when news-import.ts has no server mode (--confirm-host), before anything runs",
+    () => {
+      const result = runNews(
+        { KZ_IMPORT_PHASE: "preview" },
+        `${READY}\necho "// first version" >"$KZ_SRC/scripts/news-import.ts"\n${opsStub(0)}`,
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("nie obsluguje trybu serwera");
+      expect(result.stdout).not.toContain("ops news:import");
+      expect(result.leftovers).toEqual([]);
+    },
+  );
+
   bashIt("refuses before the first deployment", () => {
     const result = runNews({ KZ_IMPORT_PHASE: "preview" }, opsStub(0));
 
@@ -878,7 +895,7 @@ describe("mode aktualnosci: news file to the server (remote.sh, E7-R2b)", () => 
   bashIt("kz_main runs the mode for KZ_MODE=aktualnosci and leaves nothing behind", () => {
     const result = runNews(
       { KZ_IMPORT_PHASE: "preview", KZ_MODE: "aktualnosci" },
-      `kz_require_deploy() { :; }\nkz_state_set initialized x; kz_state_set current-tag "aaaaaaaaaaaa"\nmkdir -p "$KZ_SRC"; echo '"news:import"' >"$KZ_SRC/package.json"\n${opsStub(0)}`,
+      `kz_require_deploy() { :; }\nkz_state_set initialized x; kz_state_set current-tag "aaaaaaaaaaaa"\nmkdir -p "$KZ_SRC/scripts"; echo '"news:import"' >"$KZ_SRC/package.json"\necho "--confirm-host" >"$KZ_SRC/scripts/news-import.ts"\n${opsStub(0)}`,
       "kz_main",
     );
 
@@ -1525,7 +1542,8 @@ describe("target showcase: the same remote.sh with showcase.sh (rehearsal, D-E11
   ].join("\n");
   const NEWS_READY = [
     'kz_state_set initialized x; kz_state_set current-tag "aaaaaaaaaaaa"',
-    'mkdir -p "$KZ_SRC"; echo \'"news:import"\' >"$KZ_SRC/package.json"',
+    'mkdir -p "$KZ_SRC/scripts"; echo \'"news:import"\' >"$KZ_SRC/package.json"',
+    'echo "--confirm-host" >"$KZ_SRC/scripts/news-import.ts"',
     "trap kz_cleanup EXIT",
   ].join("\n");
 

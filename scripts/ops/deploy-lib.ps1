@@ -436,6 +436,9 @@ function Get-NewsFileProblem([string]$path, [string]$importDir, [string]$secrets
 function Get-NewsContentProblem([byte[]]$bytes) {
   if ($null -eq $bytes -or $bytes.Length -lt 1) { return 'Plik jest pusty.' }
   if ($bytes.Length -gt $NewsMaxBytes) { return 'Plik jest wiekszy niz 2 MiB.' }
+  if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+    return 'Plik ma znacznik BOM na poczatku. Zapisz go jako UTF-8 bez BOM. Nic nie wyslano.'
+  }
   if ($bytes[0] -ne 0x7B) { return 'Plik nie wyglada na aktualnosci (pierwszy znak to nie {). Nic nie wyslano.' }
   try { $null = (New-Object Text.UTF8Encoding($false, $true)).GetString($bytes) }
   catch { return 'Plik nie jest zapisany w UTF-8 (polskie litery by sie zepsuly). Zapisz go jako UTF-8 bez BOM. Nic nie wyslano.' }
@@ -460,6 +463,25 @@ function Format-NewsCounts($object) {
     })
   if ($pairs.Count -eq 0) { return 'brak' }
   return ($pairs -join ', ')
+}
+
+# The `outcome` word of the summary line of news:import ('' for any other line, also for a line
+# that only mentions it). Same recognition as Format-NewsSummary: the line starts with {"outcome".
+function Get-NewsOutcome([string]$line) {
+  $text = $line.Trim()
+  if (-not $text.StartsWith('{"outcome"')) { return '' }
+  try { $o = $text | ConvertFrom-Json } catch { return '' }
+  return [string](Get-JsonField $o 'outcome')
+}
+
+# Exit code 2 or 3 of news:import is shown as the yellow "nothing changed" only when the command
+# itself said so with a matching summary line: 2 with outcome invalid (file errors), 3 with
+# rejected or refused. Code 2 or 3 without such a line (a wrong flag, a server setting, a broken
+# payload) is a failure and stays red (review E7-R2b, S1).
+function Test-NewsRefusalResult([int]$code, [string]$outcome) {
+  if ($code -eq 2) { return ($outcome -ceq 'invalid') }
+  if ($code -eq 3) { return ($outcome -ceq 'rejected' -or $outcome -ceq 'refused') }
+  return $false
 }
 
 # One Polish line for the summary line of news:import (JSON on standard output), or $null for any

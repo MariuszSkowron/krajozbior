@@ -145,10 +145,10 @@ Write-Host 'repo\ juz istnieje - bez zmian (z tej kopii dziala ten skrypt).'
 
 Write-Host ''
 if ($OdswiezWdroz) {
-  Write-Host 'Publikowanie aktualnosci redakcji (plik aktualnosci-<nazwa>.ndjson z folderu ImportDir):' -ForegroundColor Green
-  Write-Host "  powershell -ExecutionPolicy Bypass -File `"`$env:USERPROFILE\.config\krajozbior-deploy\wdroz.ps1`" -Aktualnosci <pelna sciezka pliku>"
   Write-Host 'Gotowe. Wgranie kolekcji (plik z folderu ImportDir):' -ForegroundColor Green
   Write-Host "  powershell -ExecutionPolicy Bypass -File `"`$env:USERPROFILE\.config\krajozbior-deploy\wdroz.ps1`" -Import <pelna sciezka pliku>"
+  Write-Host 'Publikowanie aktualnosci redakcji (plik aktualnosci-<nazwa>.ndjson z folderu ImportDir):' -ForegroundColor Green
+  Write-Host "  powershell -ExecutionPolicy Bypass -File `"`$env:USERPROFILE\.config\krajozbior-deploy\wdroz.ps1`" -Aktualnosci <pelna sciezka pliku>"
   exit 0
 }
 Write-Host 'Gotowe. Nastepny krok (sesja wdrozeniowa 1):' -ForegroundColor Green

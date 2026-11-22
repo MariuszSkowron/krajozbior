@@ -551,7 +551,8 @@ describe("mode aktualnosci: checks on the owner's computer (E7-R2b)", () => {
     expect(content([...Buffer.from('{"title":"ąćęłńóśźż ĄĆĘŁŃÓŚŹŻ"}\n')])).toBe("");
     expect(content([0x2d, 0x2d, 0x2d, 0x2d, 0x2d])).toContain("nie wyglada na aktualnosci");
     expect(content([...Buffer.from("age-encryption.org/v1")])).toContain("nie wyglada");
-    expect(content([0xef, 0xbb, 0xbf, 0x7b])).toContain("nie wyglada");
+    expect(content([0xef, 0xbb, 0xbf, 0x7b])).toContain("znacznik BOM");
+    expect(content([0xef, 0xbb, 0xbf, 0x7b])).toContain("UTF-8 bez BOM");
     expect(content([])).toContain("pusty");
   });
 
@@ -606,6 +607,37 @@ describe("mode aktualnosci: checks on the owner's computer (E7-R2b)", () => {
     ).toContain("2 bledow");
     expect(ps("$null -eq (Format-NewsSummary '[krajozbior] GOTOWE')").stdout).toBe("True");
     expect(ps("$null -eq (Format-NewsSummary 'nowa: Zamki')").stdout).toBe("True");
+  });
+
+  psIt("S1: the yellow 'nothing changed' needs a summary line that matches the exit code", () => {
+    const verdict = (code: number, line: string) =>
+      psJson<boolean>(`Test-NewsRefusalResult ${code} (Get-NewsOutcome ${psString(line)})`);
+    const row = (outcome: string) => JSON.stringify({ outcome, code: "x" });
+
+    expect(verdict(2, row("invalid"))).toBe(true);
+    expect(verdict(3, row("rejected"))).toBe(true);
+    expect(verdict(3, row("refused"))).toBe(true);
+    // Code 2 or 3 without a line, with a line of another outcome, or with a line that merely
+    // mentions the word, is a failure (red BLAD).
+    expect(verdict(2, "[krajozbior] plik odrzucony (kod 2)")).toBe(false);
+    expect(verdict(3, "[krajozbior] odmowa (kod 3)")).toBe(false);
+    expect(verdict(2, row("rejected"))).toBe(false);
+    expect(verdict(3, row("invalid"))).toBe(false);
+    expect(verdict(2, row("applied"))).toBe(false);
+    expect(verdict(3, ` x {"outcome":"rejected"}`)).toBe(false);
+    expect(verdict(3, `{ "outcome":"rejected"}`)).toBe(false);
+    expect(verdict(1, row("invalid"))).toBe(false);
+  });
+
+  it("S1: deploy.ps1 remembers the outcome per connection and decides the colour from it", () => {
+    const deploy = withoutComments(readFileSync(join(OPS_DIR, "deploy.ps1"), "utf8"));
+
+    expect(deploy).toContain("$script:newsOutcome = ''");
+    expect(deploy).toContain("$script:newsOutcome = Get-NewsOutcome $safe");
+    expect(deploy).toContain("Test-NewsRefusalResult $code $script:newsOutcome");
+    expect(deploy).toContain("$newsRefusal -and $code -eq 2");
+    expect(deploy).toContain("$newsRefusal -and $code -eq 3");
+    expect(deploy).not.toContain("$Mode -eq 'aktualnosci' -and $code -eq");
   });
 
   psIt("Get-RemoteUser: the mode runs as deploy, like every mode except bootstrap", () => {
