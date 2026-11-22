@@ -19,6 +19,7 @@ import type {
 } from "../domain/identity-provider";
 import { SESSION_LIMIT_MS } from "../domain/session-policy";
 import { createDatabaseHooks, createSendSignInCode } from "./auth-hooks";
+import { authLogger } from "./auth-logger";
 import { deleteAccountRows } from "./delete-account-rows";
 
 // The longest session any role may have; the database hooks cut it per role.
@@ -55,6 +56,8 @@ function createAuth(pool: Pool, secret: string, baseURL?: string) {
     secret,
     baseURL,
     telemetry: { enabled: false },
+    // The library logs whole error objects; ours prints only class and SQLSTATE (D-E11-5).
+    logger: authLogger,
     database: {
       dialect: new PostgresDialect({ pool: verifiedPool(pool) }),
       type: "postgres",
