@@ -8,7 +8,7 @@ import { readFile } from "node:fs/promises";
 import sharp from "sharp";
 
 import { MAX_INPUT_BYTES } from "./budget.mjs";
-import { PipelineError, processImage } from "./pipeline.mjs";
+import { ogFromMain, PipelineError, processImage } from "./pipeline.mjs";
 
 sharp.cache(false);
 sharp.concurrency(1);
@@ -19,6 +19,10 @@ async function handle(message) {
     const { inputPath, options } = /** @type {{ inputPath: string, options?: object }} */ (message);
     const input = await readFile(inputPath);
     if (input.length > MAX_INPUT_BYTES) throw new PipelineError("processing_failed");
+    // Tryb `og`: tylko JPEG do podglądu linku z istniejącego `main.webp` (uzupełnienie zdjęć).
+    if (/** @type {{ mode?: string } | undefined} */ (options)?.mode === "og") {
+      return { ok: true, og: await ogFromMain(input) };
+    }
     return { ok: true, result: await processImage(input, options) };
   } catch (error) {
     const code = error instanceof PipelineError ? error.code : "processing_failed";
