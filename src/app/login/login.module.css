@@ -74,6 +74,7 @@
 .passwordToggle[open] summary {
   margin-block-end: var(--space-md);
 }
+
 .submit[aria-disabled="true"] {
   cursor: progress;
   outline: var(--focus-ring-width) dashed var(--color-border-default);

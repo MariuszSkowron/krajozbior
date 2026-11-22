@@ -72,6 +72,11 @@
 /src/app/global-error.tsx          @MariuszSkowron
 /tests/app/error-pages.test.ts     @MariuszSkowron
 
+# Testy logowania (granice logowania kodem i hasłem, ciasteczko z adresem między krokami)
+/tests/app/api/                    @MariuszSkowron
+/tests/app/login/                  @MariuszSkowron
+/e2e/login.spec.ts                 @MariuszSkowron
+
 # Organizacje i członkostwa kuratorów (dane CUR, polecenie operatora)
 /src/features/organizations/       @MariuszSkowron
 /tests/features/organizations/     @MariuszSkowron

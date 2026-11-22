@@ -8,7 +8,7 @@ const PASSWORD_ERRORS: Readonly<Record<string, string>> = {
 // Messages of the e-mail code forms (routes under /api/auth/code).
 const CODE_ERRORS: Readonly<Record<string, string>> = {
   invalid_email: "Podaj poprawny adres e-mail.",
-  invalid_code: "Kod jest nieprawidłowy albo wygasł. Poproś o nowy kod.",
+  invalid_code: "Kod jest nieprawidłowy albo wygasł. Wyślij kod ponownie.",
   code_unavailable: "Logowanie kodem jest chwilowo niedostępne. Spróbuj ponownie.",
   code_too_many_attempts: "Zbyt wiele prób. Spróbuj ponownie za kilka minut.",
 };

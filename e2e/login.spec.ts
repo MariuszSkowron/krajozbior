@@ -111,6 +111,13 @@ test.describe("sign-in with a code in two steps", () => {
 
     await expect(page.locator("main [role=alert]")).toContainText("Kod jest nieprawidłowy");
     await expect(page.getByText("Wpisz kod wysłany na adres")).toBeVisible();
+    // The error takes the focus and the code field is described by it.
+    await expect(page.locator("#code-error")).toBeFocused();
+    await expect(page.locator("#code-verify-code")).toHaveAttribute("aria-invalid", "true");
+    await expect(page.locator("#code-verify-code")).toHaveAttribute(
+      "aria-describedby",
+      /code-error/,
+    );
 
     await page.getByRole("button", { name: "Zmień adres" }).click();
 

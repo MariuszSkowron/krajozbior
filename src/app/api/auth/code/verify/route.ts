@@ -5,7 +5,7 @@ import { requestedReturnTo } from "@/features/identity/domain/return-to";
 import { getCodeVerifyThrottle, getIdentityProvider } from "@/features/identity/infrastructure";
 import { logFailure } from "@/lib/log-failure";
 
-import { loginEmailClearCookieHeader } from "../../../../login/login-email-cookie";
+import { loginEmailClearCookieHeader } from "@/app/login/login-email-cookie";
 
 import {
   accountThemeCookies,

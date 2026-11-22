@@ -101,6 +101,28 @@ describe("login page, step 2", () => {
     expect(html).not.toContain("kod jest już w drodze");
   });
 
+  it("moves the focus to the error and ties the code field to it after a wrong code", async () => {
+    const html = await render({ error: "invalid_code" });
+
+    expect(html).toMatch(/<p id="code-error"[^>]*tabindex="-1"[^>]*autofocus/);
+    expect(html).toMatch(/<input id="code-verify-code"[^>]*aria-invalid="true"/);
+    expect(html).toMatch(
+      /<input id="code-verify-code"[^>]*aria-describedby="code-error code-hint"/,
+    );
+    expect(html).not.toMatch(/<input id="code-verify-code"[^>]*autofocus/);
+  });
+
+  it("keeps the focus on the code field and does not mark it invalid without an error", async () => {
+    const html = await render({ kod: "wyslany" });
+
+    expect(html).toMatch(/<input id="code-verify-code"[^>]*autofocus/);
+    expect(html).not.toContain("aria-invalid");
+    expect(html).toMatch(
+      /<input id="code-verify-code"[^>]*aria-describedby="code-hint code-status"/,
+    );
+    expect(html).toContain('id="code-status"');
+  });
+
   it("carries the return path through every form", async () => {
     const html = await render({ kod: "wyslany", returnTo: "/my" });
 
@@ -111,6 +133,19 @@ describe("login page, step 2", () => {
     mocks.cookie.mockReturnValue({ value: "not an address" });
 
     expect(await render()).toContain('id="code-request-email"');
+  });
+});
+
+describe("login page after the address cookie expired", () => {
+  it("explains why it is back at step 1 when the code was sent but the cookie is gone", async () => {
+    const html = await render({ kod: "wyslany" });
+
+    expect(html).toContain("Minęło zbyt dużo czasu. Podaj adres jeszcze raz");
+    expect(html).toContain('id="code-request-email"');
+  });
+
+  it("says nothing of the kind on a plain visit", async () => {
+    expect(await render()).not.toContain("Minęło zbyt dużo czasu");
   });
 });
 

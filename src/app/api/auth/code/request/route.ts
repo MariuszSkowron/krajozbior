@@ -9,7 +9,7 @@ import {
 } from "@/features/identity/infrastructure";
 import { logFailure } from "@/lib/log-failure";
 
-import { loginEmailSetCookieHeader } from "../../../../login/login-email-cookie";
+import { loginEmailSetCookieHeader } from "@/app/login/login-email-cookie";
 
 import {
   failure,

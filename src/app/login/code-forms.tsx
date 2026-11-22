@@ -20,9 +20,18 @@ type CodeFormsProps = Readonly<{
 export function CodeForms({ returnTo, email, codeSent, errorMessage }: CodeFormsProps) {
   const returnField =
     returnTo === undefined ? null : <input type="hidden" name="returnTo" value={returnTo} />;
+  // In step 2 an error takes the focus (the field is described by it), so a screen reader
+  // user hears what went wrong; without an error the focus goes to the code field.
+  const errorFocused = email !== null && errorMessage !== undefined;
   const error =
     errorMessage === undefined ? null : (
-      <p id="code-error" className={styles.error} role="alert">
+      <p
+        id="code-error"
+        className={styles.error}
+        role="alert"
+        tabIndex={errorFocused ? -1 : undefined}
+        autoFocus={errorFocused ? true : undefined}
+      >
         <span className={styles.errorPrefix}>
           <ErrorIcon />
           Błąd:{" "}
@@ -35,6 +44,11 @@ export function CodeForms({ returnTo, email, codeSent, errorMessage }: CodeForms
     return (
       <>
         {error}
+        {codeSent && error === null ? (
+          <p className={styles.status}>
+            Minęło zbyt dużo czasu. Podaj adres jeszcze raz, a wyślemy nowy kod.
+          </p>
+        ) : null}
         <form method="post" action="/api/auth/code/request" className={styles.form}>
           {returnField}
           <div className={styles.field}>
@@ -55,6 +69,14 @@ export function CodeForms({ returnTo, email, codeSent, errorMessage }: CodeForms
     );
   }
 
+  const describedBy = [
+    errorFocused ? "code-error" : null,
+    "code-hint",
+    codeSent ? "code-status" : null,
+  ]
+    .filter((id) => id !== null)
+    .join(" ");
+
   return (
     <>
       {error}
@@ -62,7 +84,7 @@ export function CodeForms({ returnTo, email, codeSent, errorMessage }: CodeForms
         Wpisz kod wysłany na adres <strong>{maskEmail(email)}</strong>.
       </p>
       {codeSent ? (
-        <p role="status" className={styles.status}>
+        <p id="code-status" role="status" className={styles.status}>
           Jeśli adres jest poprawny, kod jest już w drodze. Nie ma go po kilku minutach? Sprawdź
           folder spam albo wyślij kod ponownie.
         </p>
@@ -80,8 +102,9 @@ export function CodeForms({ returnTo, email, codeSent, errorMessage }: CodeForms
             pattern="[0-9]{6}"
             maxLength={6}
             required
-            autoFocus
-            aria-describedby="code-hint"
+            autoFocus={errorFocused ? undefined : true}
+            aria-invalid={errorFocused ? true : undefined}
+            aria-describedby={describedBy}
           />
         </div>
         <button type="submit" className={`button button--primary ${styles.submit}`}>

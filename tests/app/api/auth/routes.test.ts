@@ -105,6 +105,9 @@ beforeEach(() => {
   settings.readTheme.mockReset().mockResolvedValue(null);
 });
 
+// The address kept for the code sign-in is dropped by every sign-in and by sign-out (S-3).
+const clearedAddress = expect.stringMatching(/^krajozbior_login_email=; Path=\/login; Max-Age=0;/);
+
 describe("the theme saved on the account after sign-in (E9-4)", () => {
   const session = "krajozbior.session_token=a; HttpOnly";
 
@@ -121,6 +124,7 @@ describe("the theme saved on the account after sign-in (E9-4)", () => {
       expect.stringMatching(
         /^krajozbior-theme=light; Max-Age=31536000; Path=\/; HttpOnly; SameSite=Lax/,
       ),
+      clearedAddress,
     ]);
   });
 
@@ -147,7 +151,7 @@ describe("the theme saved on the account after sign-in (E9-4)", () => {
 
     const response = await login(jsonLogin(JSON.stringify({ email: "a@b.test", password: "pw" })));
 
-    expect(response.headers.getSetCookie()).toEqual([session]);
+    expect(response.headers.getSetCookie()).toEqual([session, clearedAddress]);
   });
 
   it("does not block the sign-in when the theme cannot be read", async () => {
@@ -158,7 +162,7 @@ describe("the theme saved on the account after sign-in (E9-4)", () => {
     const response = await login(jsonLogin(JSON.stringify({ email: "a@b.test", password: "pw" })));
 
     expect(response.status).toBe(200);
-    expect(response.headers.getSetCookie()).toEqual([session]);
+    expect(response.headers.getSetCookie()).toEqual([session, clearedAddress]);
   });
 });
 
@@ -427,7 +431,11 @@ describe("POST /api/auth/login", () => {
 
     expect(response.status).toBe(303);
     expect(response.headers.get("Location")).toBe("/api/admin");
-    expect(response.headers.getSetCookie()).toEqual(["krajozbior.session_token=a; HttpOnly"]);
+    // Also the address kept for the code sign-in is dropped (S-3).
+    expect(response.headers.getSetCookie()).toEqual([
+      "krajozbior.session_token=a; HttpOnly",
+      clearedAddress,
+    ]);
   });
 
   it("never redirects off-site, whatever returnTo says", async () => {
@@ -469,8 +477,12 @@ describe("POST /api/auth/login", () => {
     const response = await login(request);
 
     expect(provider.signOut).toHaveBeenCalledWith(request.headers);
-    // Only the new session cookie goes back; the clearing cookie would drop it.
-    expect(response.headers.getSetCookie()).toEqual(["krajozbior.session_token=new"]);
+    // Only the new session cookie goes back (the clearing cookie of the old session would drop
+    // it), plus the clearing of the address kept for the code sign-in.
+    expect(response.headers.getSetCookie()).toEqual([
+      "krajozbior.session_token=new",
+      clearedAddress,
+    ]);
   });
 
   it("keeps the current session when the login fails", async () => {
@@ -618,6 +630,7 @@ describe("POST /api/auth/logout", () => {
     expect(response.headers.getSetCookie()).toEqual([
       "krajozbior.session_token=; Max-Age=0",
       "profile-draft=; Path=/my/settings; Max-Age=0; HttpOnly; SameSite=Lax",
+      clearedAddress,
     ]);
   });
 
