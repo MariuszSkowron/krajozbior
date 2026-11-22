@@ -10,7 +10,7 @@ export function CatalogError({ retry }: { retry: () => void }) {
     <div className={`content-width ${styles.page}`}>
       <h1>Nie udało się wczytać strony</h1>
       <p role="alert" className={styles.status}>
-        Coś poszło nie tak po naszej stronie. Spróbuj ponownie za chwilę.
+        Spróbuj ponownie za chwilę.
       </p>
       <button
         type="button"

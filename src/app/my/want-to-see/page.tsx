@@ -43,14 +43,14 @@ export default async function WantToSeePage() {
     <div className={`content-width ${catalog.page}`}>
       <header className={catalog.header}>
         <h1>Chcę zobaczyć</h1>
-        <p className={catalog.summary}>Miejsca, które zapisałeś na później, od najnowszych.</p>
+        <p className={catalog.summary}>Miejsca zapisane na później, od najnowszych.</p>
       </header>
       {places.length === 0 ? (
         <section className={styles.empty} aria-labelledby="pusto">
           <h2 id="pusto">Nie masz jeszcze zapisanych miejsc</h2>
           <p>Otwórz miejsce i wybierz „Chcę zobaczyć”, a pojawi się tutaj.</p>
           <Link className="button button--primary" href="/">
-            Przejdź do katalogu
+            Zobacz kolekcje
           </Link>
         </section>
       ) : (
