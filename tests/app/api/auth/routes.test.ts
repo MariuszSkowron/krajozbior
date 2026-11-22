@@ -137,6 +137,7 @@ describe("the theme saved on the account after sign-in (E9-4)", () => {
     expect(response.headers.getSetCookie()).toEqual([
       session,
       expect.stringMatching(/^krajozbior-theme=dark;/),
+      expect.stringMatching(/^krajozbior_login_email=; Path=\/login; Max-Age=0;/),
     ]);
   });
 
@@ -158,6 +159,59 @@ describe("the theme saved on the account after sign-in (E9-4)", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.getSetCookie()).toEqual([session]);
+  });
+});
+
+describe("the address kept between the two steps of the code sign-in (D-49)", () => {
+  function formRequest(email: string) {
+    return new Request("http://localhost/api/auth/code/request", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ email: ` ${email.toUpperCase()} ` }),
+    });
+  }
+
+  it("goes in a short-lived cookie, never in the redirect URL", async () => {
+    const response = await requestCode(formRequest("anna@example.com"));
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/login?kod=wyslany");
+    expect(response.headers.getSetCookie()).toEqual([
+      expect.stringMatching(
+        /^krajozbior_login_email=anna%40example\.com; Path=\/login; Max-Age=600; HttpOnly; SameSite=Lax/,
+      ),
+    ]);
+  });
+
+  it("is set for a demo address on production too, so the answer reveals nothing", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DEMO_ACCOUNTS_TEST_ONLY", "");
+
+    try {
+      const response = await requestCode(formRequest("user@demo.krajozbior.local"));
+
+      expect(response.status).toBe(303);
+      expect(response.headers.getSetCookie()).toHaveLength(1);
+      expect(provider.requestSignInCode).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("is not set when the request is refused by a limit or the address is malformed", async () => {
+    otpLimiter.reserve.mockResolvedValue({ allowed: false, reason: "rate", retryAfterSeconds: 60 });
+
+    expect((await requestCode(formRequest("anna@example.com"))).headers.getSetCookie()).toEqual([]);
+    expect((await requestCode(formRequest("not-an-address"))).headers.getSetCookie()).toEqual([]);
+  });
+
+  it("is not set for a JSON client", async () => {
+    const response = await requestCode(
+      jsonPost("/api/auth/code/request", { email: "anna@example.com" }),
+    );
+
+    expect(response.status).toBe(202);
+    expect(response.headers.getSetCookie()).toEqual([]);
   });
 });
 

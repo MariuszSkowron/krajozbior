@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { getRequestActor } from "@/app/request-actor";
@@ -10,6 +11,7 @@ import { findSeededDemoAccounts } from "@/features/identity/infrastructure/demo-
 import { logFailure } from "@/lib/log-failure";
 
 import { CodeForms } from "./code-forms";
+import { LOGIN_EMAIL_COOKIE, loginEmailFromCookie } from "./login-email-cookie";
 import { ClearStoredEmail, LoginForm } from "./login-form";
 import { codeMessage, isCodeError, marksFieldsInvalid, passwordMessage } from "./login-state";
 import styles from "./login.module.css";
@@ -62,11 +64,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
         <ClearStoredEmail />
         <h1>Konto</h1>
         <p>
-          Twoja rola: <strong>{roleLabels[actor.role]}</strong>.
-        </p>
-        <p>
           <Link href={roleHome(actor.role)} className={styles.link}>
-            Przejdź do swojego konta
+            Przejdź do profilu
           </Link>
         </p>
         <LogoutForm className={`button button--outline ${styles.submit}`}>Wyloguj</LogoutForm>
@@ -74,14 +73,16 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
     );
   }
 
+  const email = loginEmailFromCookie((await cookies()).get(LOGIN_EMAIL_COOKIE)?.value);
   const accounts = await listDemoAccounts();
   const passwordError = passwordMessage(errorCode);
 
   return (
     <div className={`content-width ${styles.page}`}>
       <h1>Logowanie</h1>
-      <p>Zaloguj się, aby kontynuować.</p>
+      {email === null ? <p>Podaj adres e-mail, a wyślemy Ci kod logowania.</p> : null}
       <p>
+        Konto założysz przy pierwszym logowaniu; zaraz potem poprosimy o akceptację regulaminu.
         Zasady serwisu:{" "}
         <Link href="/regulamin" className={styles.textLink}>
           Regulamin
@@ -90,27 +91,30 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
         <Link href="/polityka-prywatnosci" className={styles.textLink}>
           Polityka prywatności
         </Link>
-        . Nowe konto zakłada się pierwszym logowaniem; po nim poprosimy o akceptację regulaminu.
+        .
       </p>
 
-      <section aria-labelledby="code-sign-in" className={styles.section}>
-        <h2 id="code-sign-in">Kod na e-mail</h2>
+      <section aria-label="Logowanie kodem z e-maila" className={styles.section}>
         <CodeForms
           returnTo={returnTo}
+          email={email}
           codeSent={codeSent}
           errorMessage={isCodeError(errorCode) ? codeMessage(errorCode) : undefined}
         />
       </section>
 
-      <section aria-labelledby="password-sign-in" className={styles.section}>
-        <h2 id="password-sign-in">Hasło</h2>
+      <details
+        className={`${styles.section} ${styles.passwordToggle}`}
+        open={passwordError !== undefined && !isCodeError(errorCode) ? true : undefined}
+      >
+        <summary>Logowanie hasłem</summary>
         <p>Dla kont administratorów i kont demonstracyjnych.</p>
         <LoginForm
           returnTo={returnTo}
           errorMessage={isCodeError(errorCode) ? undefined : passwordError}
           fieldsMarked={marksFieldsInvalid(errorCode)}
         />
-      </section>
+      </details>
 
       {accounts.length > 0 ? (
         <section aria-labelledby="demo-accounts" className={styles.section}>

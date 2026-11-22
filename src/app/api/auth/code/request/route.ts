@@ -9,6 +9,8 @@ import {
 } from "@/features/identity/infrastructure";
 import { logFailure } from "@/lib/log-failure";
 
+import { loginEmailSetCookieHeader } from "../../../../login/login-email-cookie";
+
 import {
   failure,
   invalidInputResponse,
@@ -87,10 +89,13 @@ export async function POST(request: Request) {
       query.set("returnTo", returnTo);
     }
 
-    return new Response(null, {
-      status: 303,
-      headers: { Location: `/login?${query}`, ...NO_STORE },
-    });
+    // The address goes to step 2 in a cookie, never in the URL (login-email-cookie.ts). Set for
+    // every well-formed address alike, so the answer still reveals nothing about accounts.
+    const headers = new Headers({ Location: `/login?${query}`, ...NO_STORE });
+
+    headers.append("Set-Cookie", loginEmailSetCookieHeader(parsed.data.email));
+
+    return new Response(null, { status: 303, headers });
   }
 
   return Response.json({ status: "sent" }, { status: 202, headers: NO_STORE });
