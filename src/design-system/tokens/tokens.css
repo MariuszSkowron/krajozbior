@@ -54,6 +54,23 @@
   --color-feedback-info: #a8e2ff;
   --color-feedback-info-bg: rgb(168 226 255 / 10%);
 
+  /*
+   * Opalizacja kart legendarnych (E6-4a, D-52): początek i koniec na kategorię. Środek liczy
+   * color-mix(in oklch) w module komponentu. Tylko ramka i połysk; tekst i symbol nigdy na nich nie stoją.
+   */
+  --color-legendary-culture-night-start: #3b3f9e;
+  --color-legendary-culture-night-end: #c9d1e4;
+  --color-legendary-heritage-start: #b87333;
+  --color-legendary-heritage-end: #4fa58a;
+  --color-legendary-national-holiday-start: #f1ece4;
+  --color-legendary-national-holiday-end: #a8324a;
+  --color-legendary-nature-sky-start: #3fbf6f;
+  --color-legendary-nature-sky-end: #2fc4c4;
+  --color-legendary-trail-community-start: #e0a030;
+  --color-legendary-trail-community-end: #f2cf66;
+  --color-legendary-krajozbior-start: #3a3f4d;
+  --color-legendary-krajozbior-end: #ff6b2c;
+
   /* Cienie: w motywie nocnym głębię daje obrys, nie cień */
   --shadow-card: none;
   --shadow-card-hover: none;
@@ -99,6 +116,20 @@
   --color-feedback-danger-bg: rgb(180 35 58 / 8%);
   --color-feedback-info: #1f5f86;
   --color-feedback-info-bg: rgb(31 95 134 / 8%);
+
+  /* Karty legendarne: te same barwy co w nocnym (scena jest zawsze nocna, ale klasa .theme-light musi je mieć) */
+  --color-legendary-culture-night-start: #3b3f9e;
+  --color-legendary-culture-night-end: #c9d1e4;
+  --color-legendary-heritage-start: #b87333;
+  --color-legendary-heritage-end: #4fa58a;
+  --color-legendary-national-holiday-start: #f1ece4;
+  --color-legendary-national-holiday-end: #a8324a;
+  --color-legendary-nature-sky-start: #3fbf6f;
+  --color-legendary-nature-sky-end: #2fc4c4;
+  --color-legendary-trail-community-start: #e0a030;
+  --color-legendary-trail-community-end: #f2cf66;
+  --color-legendary-krajozbior-start: #3a3f4d;
+  --color-legendary-krajozbior-end: #ff6b2c;
 
   --shadow-card: 0 1px 2px rgb(0 0 0 / 4%), 0 8px 24px rgb(0 0 0 / 6%);
   --shadow-card-hover: 0 1px 2px rgb(0 0 0 / 6%), 0 12px 32px rgb(0 0 0 / 10%);
@@ -170,6 +201,8 @@
   --motion-duration-medium: 350ms;
   /* Wejście sekcji i potwierdzenie wizyty */
   --motion-duration-enter: 800ms;
+  /* Odsłonięcie karty legendarnej (zasłona i efekt kategorii, jeden cykl) */
+  --motion-duration-reveal: 1200ms;
   --motion-easing-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -185,5 +218,6 @@
     --motion-duration-short: 0ms;
     --motion-duration-medium: 0ms;
     --motion-duration-enter: 0ms;
+    --motion-duration-reveal: 0ms;
   }
 }
