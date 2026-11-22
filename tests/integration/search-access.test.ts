@@ -266,6 +266,32 @@ describe("public search (guest context, RLS on)", () => {
     expect(titles(await search("znak_p"))).toEqual(["Znak_podkreślenia"]);
   });
 
+  // The ORM quotes the values itself, so the protection rests on two conditions at once:
+  // only values go into a query, and the library quotes them (docs/engineering.md).
+  it("finds a phrase made of quote, backslash, question mark, colon and dollar characters as plain text", async () => {
+    await collection("Dom o'Brien i ? pytania");
+    await collection("Ścieżka a\\b i :nazwa oraz $1");
+    await collection("Komentarz -- koniec; drop table x");
+
+    for (const [phrase, expected] of [
+      ["o'brien", ["Dom o'Brien i ? pytania"]],
+      ["i ? p", ["Dom o'Brien i ? pytania"]],
+      ["a\\b", ["Ścieżka a\\b i :nazwa oraz $1"]],
+      [":nazwa", ["Ścieżka a\\b i :nazwa oraz $1"]],
+      ["oraz $1", ["Ścieżka a\\b i :nazwa oraz $1"]],
+      ["-- koniec; drop", ["Komentarz -- koniec; drop table x"]],
+      ["'; drop table collections; --", []],
+      ["' or '1'='1", []],
+    ] as const) {
+      expect(titles(await search(phrase)), phrase).toEqual(expected);
+    }
+
+    // The table is still there (the phrases were not executed as SQL).
+    expect(
+      (await admin$<{ n: string }>("select count(*)::text as n from public.collections"))[0]!.n,
+    ).not.toBe("0");
+  });
+
   it("rejects a phrase of 81 characters and of 1 character before the database", async () => {
     const throwing: CatalogDeps = {
       ...deps,
