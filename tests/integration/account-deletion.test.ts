@@ -71,6 +71,18 @@ async function populate(user: { id: string; email: string }) {
     `insert into public.want_to_see_places (user_id, place_id) values (app_current_user_id(), ?)`,
     [placeId],
   );
+  // An own collection with an entry (E8-1a): the deletion removes both (E8-Q6).
+  const [own] = await as(
+    user,
+    `insert into public.user_collections (title, region) values ('Własna', 'polska') returning id`,
+  );
+
+  await as(
+    user,
+    `insert into public.user_collection_items (user_collection_id, position, place_id)
+     values (?, 1, ?)`,
+    [own!.id, placeId],
+  );
   // The profile (E9-2): a name, an initial and a region the deletion must remove.
   await as(
     user,
