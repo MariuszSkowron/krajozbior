@@ -32,10 +32,6 @@ function inlinesOf(blocks: readonly Block[]): Inline[] {
 // the password comes off the service (spec 5.4a, docs/deployment.md).
 const OPEN_LEGAL_MARKERS: readonly Readonly<{ marker: string; owner: string }>[] = [
   {
-    marker: "polityka-prywatnosci: [DO UZUPEŁNIENIA: potwierdzić w panelu Brevo]",
-    owner: "właściciel, z panelu Brevo (D-41 pkt 2)",
-  },
-  {
     marker: "regulamin: [DO UZUPEŁNIENIA: data pierwszego wdrożenia]",
     owner: "w dniu wdrożenia (D-41 pkt 2)",
   },

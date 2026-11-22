@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -29,6 +29,49 @@ beforeAll(() => {
 
 afterAll(() => {
   rmSync(root, { recursive: true, force: true });
+});
+
+describe("createDiskPhotoReader og size (E4-3)", () => {
+  it("serves the og file that photos:fetch made, as it is", async () => {
+    const key = "7c8d9e0f-2222-4333-8444-555566667777";
+    const directory = join(root, "p", "7c", key);
+
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(join(directory, "main.webp"), "main-bytes");
+    writeFileSync(join(directory, "og.jpg"), "og-bytes");
+
+    const file = await createDiskPhotoReader(root).open(key, "og");
+
+    expect(file?.length).toBe(8);
+    expect(await readAll(file!.body)).toBe("og-bytes");
+  });
+
+  it("is null when there is no og file, and never makes one from the main file (S1)", async () => {
+    const key = "9e0f1a2b-4444-4555-8666-777788889999";
+    const directory = join(root, "p", "9e", key);
+
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(join(directory, "main.webp"), "main-bytes");
+
+    const reader = createDiskPhotoReader(root);
+
+    expect(await reader.open(key, "og")).toBeNull();
+    expect(await reader.open(key, "og")).toBeNull();
+    expect(existsSync(join(directory, "og.jpg"))).toBe(false);
+    expect(readdirSync(directory)).toEqual(["main.webp"]);
+  });
+
+  it("is null for an og file of zero length (an interrupted write), and for a missing photo", async () => {
+    const key = "ab0f1a2b-5555-4666-8777-88889999aaaa";
+
+    mkdirSync(join(root, "p", "ab", key), { recursive: true });
+    writeFileSync(join(root, "p", "ab", key, "og.jpg"), "");
+
+    const reader = createDiskPhotoReader(root);
+
+    expect(await reader.open(key, "og")).toBeNull();
+    expect(await reader.open("bc1f2a3b-6666-4777-8888-9999aaaabbbb", "og")).toBeNull();
+  });
 });
 
 describe("createDiskPhotoReader", () => {

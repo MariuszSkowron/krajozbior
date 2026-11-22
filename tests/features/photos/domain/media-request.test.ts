@@ -17,6 +17,10 @@ describe("parseMediaRequest (E4-2b, S5)", () => {
     expect(parseMediaRequest("p", ID, "w400")).toEqual({ photoId: ID, size: "w400" });
   });
 
+  it("accepts the og size for the link preview (E4-3)", () => {
+    expect(parseMediaRequest("p", ID, "og")).toEqual({ photoId: ID, size: "og" });
+  });
+
   it("refuses the explorer kind until E4-4, and every other kind", () => {
     expect(parseMediaRequest("e", ID, "main")).toBeNull();
     expect(parseMediaRequest("P", ID, "main")).toBeNull();
@@ -42,12 +46,20 @@ describe("parseMediaRequest (E4-2b, S5)", () => {
     expect(parseMediaRequest("p", photoId, "main")).toBeNull();
   });
 
-  it.each(["og", "MAIN", "w800", "", "main.webp", "main/", "..", "%2e%2e", "a".repeat(65)])(
-    "refuses the size %j",
-    (size) => {
-      expect(parseMediaRequest("p", ID, size)).toBeNull();
-    },
-  );
+  it.each([
+    "OG",
+    "og.jpg",
+    "MAIN",
+    "w800",
+    "",
+    "main.webp",
+    "main/",
+    "..",
+    "%2e%2e",
+    "a".repeat(65),
+  ])("refuses the size %j", (size) => {
+    expect(parseMediaRequest("p", ID, size)).toBeNull();
+  });
 });
 
 describe("isCanonicalUuid", () => {
@@ -93,6 +105,12 @@ describe("response headers", () => {
     expect(headers["Cache-Control"]).toBe("public, max-age=86400");
     expect(headers["Cross-Origin-Resource-Policy"]).toBe("cross-origin");
     expect(headers.ETag).toBe('"abc"');
+  });
+
+  it("sends the og size as JPEG and the other sizes as WebP (E4-3)", () => {
+    expect(photoHeaders("public", '"abc"', "og")["Content-Type"]).toBe("image/jpeg");
+    expect(photoHeaders("public", '"abc"', "w400")["Content-Type"]).toBe("image/webp");
+    expect(photoHeaders("public", '"abc"', "main")["Content-Type"]).toBe("image/webp");
   });
 
   it("keeps a photo of a draft out of every cache and same-origin", () => {

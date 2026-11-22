@@ -1,8 +1,10 @@
 import { auditOperatorSchema, auditReasonSchema, type AuditEntry } from "@/lib/db/operations-audit";
 
 import {
+  backfillOgFiles,
   DEFAULT_FETCH_LIMIT,
   fetchCommonsPhotos,
+  type OgBackfillReport,
   requeueMissingFiles,
   type PhotoFetchDeps,
   type PhotoFetchReport,
@@ -38,11 +40,12 @@ type ParsedArgs = Readonly<{
   limit: number;
   retryFailed: boolean;
   refetchMissing: boolean;
+  backfillOg: boolean;
   organizationSlug?: string;
 }>;
 
 const FLAGS_WITH_VALUE = new Set(["--operator", "--reason", "--limit", "--org-slug"]);
-const FLAGS_SWITCH = new Set(["--retry-failed", "--refetch-missing"]);
+const FLAGS_SWITCH = new Set(["--retry-failed", "--refetch-missing", "--backfill-og"]);
 
 export function parsePhotosFetchArgs(
   argv: readonly string[],
@@ -105,6 +108,7 @@ export function parsePhotosFetchArgs(
       limit,
       retryFailed: switches.has("--retry-failed"),
       refetchMissing: switches.has("--refetch-missing"),
+      backfillOg: switches.has("--backfill-og"),
       ...(organizationSlug === undefined ? {} : { organizationSlug }),
     },
   };
@@ -114,6 +118,7 @@ function auditDetails(
   report: PhotoFetchReport,
   args: ParsedArgs,
   requeued: number,
+  backfill: OgBackfillReport | null,
 ): Record<string, unknown> {
   // Same liczby i kody powodów; żadnych nazw plików, adresów ani tytułów (dziennik jest tylko do dopisywania).
   return {
@@ -126,6 +131,7 @@ function auditDetails(
     retry_failed: args.retryFailed,
     reasons: report.reasons,
     ...(report.stoppedBy === undefined ? {} : { stopped_by: report.stoppedBy }),
+    ...(backfill === null ? {} : { og_created: backfill.created, og_failed: backfill.failed }),
   };
 }
 
@@ -170,11 +176,18 @@ export async function runPhotosFetch(
         requeued = await requeueMissingFiles(fetch.repository, fetch.storage);
       }
 
-      const report = await fetchCommonsPhotos(fetch, {
+      // Uzupełnienie `og.jpg` dla zdjęć pobranych wcześniej; nowo pobrane dostają `og` w przebiegu.
+      const backfill = args.backfillOg ? await backfillOgFiles(fetch, args.limit) : null;
+
+      const fetched = await fetchCommonsPhotos(fetch, {
         limit: args.limit,
         retryFailed: args.retryFailed,
         ...(args.organizationSlug === undefined ? {} : { organizationSlug: args.organizationSlug }),
       });
+      // Przerwa z uzupełniania (brak miejsca) jest zgłaszana tak samo jak przerwa pobierania.
+      const stoppedBy = fetched.stoppedBy ?? backfill?.stoppedBy;
+      const report: PhotoFetchReport =
+        stoppedBy === undefined ? fetched : { ...fetched, stoppedBy };
 
       await session.writeAudit({
         operation: "photos_fetch",
@@ -186,7 +199,7 @@ export async function runPhotosFetch(
         after: null,
         outcome: "applied",
         code: null,
-        details: auditDetails(report, args, requeued),
+        details: auditDetails(report, args, requeued, backfill),
       });
 
       const stderr: string[] = [];
@@ -203,7 +216,16 @@ export async function runPhotosFetch(
 
       return {
         exitCode: 0,
-        stdout: [JSON.stringify({ outcome: "applied", ...report, requeued })],
+        stdout: [
+          JSON.stringify({
+            outcome: "applied",
+            ...report,
+            requeued,
+            ...(backfill === null
+              ? {}
+              : { ogCreated: backfill.created, ogFailed: backfill.failed }),
+          }),
+        ],
         stderr,
       };
     } catch (error) {

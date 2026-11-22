@@ -7,6 +7,7 @@ import type {
   CommonsVersionLookup,
 } from "@/features/photos/domain/commons-version";
 import {
+  backfillOgFiles,
   fetchCommonsPhotos,
   MAX_FETCH_ATTEMPTS,
   MIN_REQUEST_INTERVAL_MS,
@@ -65,6 +66,8 @@ function setup(
     store: vi.fn(async () => undefined),
     remove: vi.fn(async () => undefined),
     exists: vi.fn(async () => true),
+    read: vi.fn(async () => null),
+    storeOg: vi.fn(async () => undefined),
     diskSpace: vi.fn(async () => ({ freeBytes: 1, totalBytes: 1 })),
   };
   const deps: PhotoFetchDeps = {
@@ -72,6 +75,7 @@ function setup(
     download: vi.fn(async () => ({ ok: true as const, bytes: new Uint8Array([7]) })),
     lookupVersion: vi.fn(async (): Promise<CommonsVersionLookup> => currentVersion()),
     process: vi.fn(async () => processed),
+    makeOg: vi.fn(async () => new Uint8Array([9])),
     storage,
     checkSpace: vi.fn(async () => ({ ok: true as const, freePercent: 50 })),
     sleep: vi.fn(async () => undefined),
@@ -233,6 +237,8 @@ describe("fetchCommonsPhotos", () => {
         }),
         remove: vi.fn(async () => undefined),
         exists: vi.fn(),
+        read: vi.fn(),
+        storeOg: vi.fn(),
         diskSpace: vi.fn(),
       },
     });
@@ -337,5 +343,86 @@ describe("requeueMissingFiles", () => {
     expect(await requeueMissingFiles(repository, { ...storage, exists })).toBe(1);
     expect(repository.requeue).toHaveBeenCalledTimes(1);
     expect(repository.requeue).toHaveBeenCalledWith("b");
+  });
+});
+
+describe("og file from the fetch (E4-3)", () => {
+  it("stores the og file made by the processing together with main and w400", async () => {
+    const og = new Uint8Array([8, 8]);
+    const { deps, storage } = setup([photo()], {
+      process: vi.fn(async () => ({ ...processed, og })),
+    });
+
+    await fetchCommonsPhotos(deps, { limit: 10 });
+
+    expect(storage.store).toHaveBeenCalledWith("place", "11111111-1111-4111-8111-111111111111", {
+      main: processed.main,
+      w400: processed.thumb,
+      og,
+    });
+  });
+});
+
+describe("backfillOgFiles", () => {
+  const ready = [
+    { id: "a", storageKey: "key-a" },
+    { id: "b", storageKey: "key-b" },
+    { id: "c", storageKey: "key-c" },
+    { id: "d", storageKey: "key-d" },
+  ];
+
+  function backfillSetup(overrides: Partial<PhotoFetchDeps> = {}) {
+    const { deps, storage } = setup([], undefined, { listReady: vi.fn(async () => ready) });
+    // a has og, b has none, c has no main file, d is an empty og (read answers null).
+    const read = vi.fn(async (_kind: string, key: string, variant: string) => {
+      if (variant === "og") return key === "key-a" ? new Uint8Array([1]) : null;
+      return key === "key-c" ? null : new Uint8Array([5]);
+    });
+    const storeOg = vi.fn(async () => undefined);
+    const makeOg = vi.fn(async () => new Uint8Array([9]));
+
+    return {
+      deps: { ...deps, storage: { ...storage, read, storeOg }, makeOg, ...overrides },
+      read,
+      storeOg,
+      makeOg,
+    };
+  }
+
+  it("makes og only where it is missing, one photo at a time, and counts the failures", async () => {
+    const { deps, storeOg, makeOg } = backfillSetup();
+
+    expect(await backfillOgFiles(deps)).toEqual({ created: 2, failed: 1 });
+    expect(makeOg).toHaveBeenCalledTimes(2);
+    expect(storeOg).toHaveBeenCalledWith("place", "key-b", new Uint8Array([9]));
+    expect(storeOg).toHaveBeenCalledWith("place", "key-d", new Uint8Array([9]));
+    expect(storeOg).not.toHaveBeenCalledWith("place", "key-a", expect.anything());
+  });
+
+  it("counts a failed encode or a failed write and goes on", async () => {
+    const makeOg = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("processing_failed"))
+      .mockResolvedValue(new Uint8Array([9]));
+    const { deps, storeOg } = backfillSetup({ makeOg });
+
+    expect(await backfillOgFiles(deps)).toEqual({ created: 1, failed: 2 });
+    expect(storeOg).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops when there is not enough free space", async () => {
+    const checkSpace = vi.fn(async () => ({
+      ok: false as const,
+      reason: "uploads_paused" as const,
+      freePercent: 1,
+    }));
+    const { deps, makeOg } = backfillSetup({ checkSpace } as Partial<PhotoFetchDeps>);
+
+    expect(await backfillOgFiles(deps)).toEqual({
+      created: 0,
+      failed: 0,
+      stoppedBy: "uploads_paused",
+    });
+    expect(makeOg).not.toHaveBeenCalled();
   });
 });

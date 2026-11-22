@@ -121,8 +121,27 @@ export function parseWorkerReply(
  * poza jawnie podanymi, ze stderr odciętym od logów, z limitem czasu i `SIGKILL` (D-E4-4, 5.3 krok 5).
  */
 export function runImageWorker(options: RunWorkerOptions): Promise<ProcessedImage> {
+  return runWorker(
+    options,
+    {
+      inputPath: options.inputPath,
+      options: { minShortSide: options.minShortSide, ogJpeg: options.ogJpeg },
+    },
+    parseWorkerReply,
+  );
+}
+
+type WorkerParse<T> = (
+  reply: unknown,
+) => { ok: true; result: T } | { ok: false; code: ProcessingErrorCode };
+
+function runWorker<T>(
+  options: Pick<RunWorkerOptions, "timeoutMs" | "workerPath" | "env" | "onSpawn">,
+  message: object,
+  parse: WorkerParse<T>,
+): Promise<T> {
   const timeoutMs = options.timeoutMs ?? PROCESS_TIMEOUT_MS;
-  return new Promise<ProcessedImage>((resolve, reject) => {
+  return new Promise<T>((resolve, reject) => {
     const child = fork(options.workerPath ?? defaultWorkerPath(), [], {
       env: { ...baseEnvironment(), ...options.env } as NodeJS.ProcessEnv,
       execArgv: [],
@@ -145,7 +164,7 @@ export function runImageWorker(options: RunWorkerOptions): Promise<ProcessedImag
     const timer = setTimeout(() => fail("processing_failed"), timeoutMs);
 
     child.once("message", (reply) => {
-      const parsed = parseWorkerReply(reply);
+      const parsed = parse(reply);
       if (parsed.ok) {
         finish(() => {
           child.kill("SIGKILL");
@@ -157,11 +176,50 @@ export function runImageWorker(options: RunWorkerOptions): Promise<ProcessedImag
     });
     child.once("error", () => fail("processing_failed"));
     child.once("exit", () => fail("processing_failed"));
-    child.send({
-      inputPath: options.inputPath,
-      options: { minShortSide: options.minShortSide, ogJpeg: options.ogJpeg },
-    });
+    child.send(message);
   });
+}
+
+/** Odpowiedź trybu `og`: dokładnie `{ ok: true, og }` z JPEG w budżecie; inaczej `processing_failed`. */
+export function parseOgReply(
+  reply: unknown,
+): { ok: true; result: Uint8Array } | { ok: false; code: ProcessingErrorCode } {
+  const invalid = { ok: false, code: "processing_failed" } as const;
+  if (typeof reply !== "object" || reply === null || Array.isArray(reply)) return invalid;
+  const message = reply as Record<string, unknown>;
+  if (message.ok !== true) {
+    if (!hasOnlyKeys(message, FAIL_KEYS)) return invalid;
+    return {
+      ok: false,
+      code: isProcessingErrorCode(message.code) ? message.code : "processing_failed",
+    };
+  }
+  if (!hasOnlyKeys(message, ["ok", "og"])) return invalid;
+  if (!isBytesWithin(message.og, MAX_OG_BYTES)) return invalid;
+  return { ok: true, result: message.og };
+}
+
+/**
+ * JPEG do `og:image` z zawartości istniejącego `main.webp` (uzupełnienie zdjęć pobranych przed E4-3):
+ * ten sam proces potomny i te same ograniczenia co zwykła obróbka (bez sekretów, limit czasu).
+ */
+export async function ogFromMainBytes(
+  bytes: Uint8Array,
+  options: Pick<RunWorkerOptions, "timeoutMs" | "workerPath" | "env" | "onSpawn"> & {
+    tmpDirectory: string;
+  },
+): Promise<Uint8Array> {
+  if (bytes.length === 0 || bytes.length > MAX_MAIN_BYTES) {
+    throw new MediaProcessingError("processing_failed");
+  }
+  await mkdir(options.tmpDirectory, { recursive: true, mode: 0o700 });
+  const inputPath = join(options.tmpDirectory, `${randomUUID()}.in`);
+  await writeFile(inputPath, bytes, { mode: 0o600, flag: "wx" });
+  try {
+    return await runWorker(options, { inputPath, options: { mode: "og" } }, parseOgReply);
+  } finally {
+    await unlink(inputPath).catch(() => undefined);
+  }
 }
 
 /**

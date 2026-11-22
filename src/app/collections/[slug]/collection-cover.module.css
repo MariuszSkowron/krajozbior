@@ -1,0 +1,20 @@
+/*
+ * Okładka w nagłówku kolekcji: zdjęcie na szerokość treści, z zachowaniem proporcji z atrybutów
+ * width i height (bez skoku układu), z tłem zastępczym do czasu pobrania. Tylko tokeny.
+ */
+.cover {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+}
+
+.cover img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 28rem;
+  /* contain, nie cover: zdjęcia nie przycinamy (podpis mówi, że tylko je zmniejszamy). */
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-tint);
+}

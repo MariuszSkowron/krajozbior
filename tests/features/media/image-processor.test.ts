@@ -9,6 +9,8 @@ import { MAX_INPUT_BYTES } from "@/features/media/domain/limits";
 import { MediaProcessingError } from "@/features/media/domain/processing-error";
 import {
   defaultWorkerPath,
+  ogFromMainBytes,
+  parseOgReply,
   processImageBytes,
   runImageWorker,
 } from "@/features/media/infrastructure/image-processor";
@@ -69,6 +71,60 @@ describe("proces potomny obróbki zdjęć", () => {
     expect(result.og).toBeDefined();
     expect(await readdir(tmpDirectory)).toEqual([]);
   }, 60_000);
+
+  it("robi JPEG do og z istniejącego main.webp w procesie potomnym i sprząta plik wejściowy (E4-3)", async () => {
+    const main = await sharp({
+      create: { width: 1600, height: 900, channels: 3, background: { r: 40, g: 90, b: 140 } },
+    })
+      .webp()
+      .toBuffer();
+    const og = await ogFromMainBytes(main, { tmpDirectory });
+    const meta = await sharp(og).metadata();
+
+    expect(meta.format).toBe("jpeg");
+    expect(meta.width).toBe(1200);
+    expect(og.length).toBeLessThanOrEqual(200 * 1024);
+    expect(await readdir(tmpDirectory)).toEqual([]);
+  }, 60_000);
+
+  it("og z main.webp odrzuca wejście, które nie jest pojedynczym WebP w budżecie (JPEG, śmieci, pusty, za duży)", async () => {
+    const jpeg = await jpegWithMetadata({ width: 400, height: 300 });
+
+    expect(await codeOf(ogFromMainBytes(jpeg, { tmpDirectory }))).toBe("processing_failed");
+    expect(await codeOf(ogFromMainBytes(Buffer.from("to nie obraz"), { tmpDirectory }))).toBe(
+      "processing_failed",
+    );
+    expect(await codeOf(ogFromMainBytes(new Uint8Array(0), { tmpDirectory }))).toBe(
+      "processing_failed",
+    );
+    expect(await codeOf(ogFromMainBytes(Buffer.alloc(400 * 1024), { tmpDirectory }))).toBe(
+      "processing_failed",
+    );
+    expect(await readdir(tmpDirectory)).toEqual([]);
+  }, 60_000);
+
+  it("odpowiedź trybu og: tylko { ok, og } w budżecie, reszta to processing_failed", () => {
+    expect(parseOgReply({ ok: true, og: new Uint8Array([1]) })).toEqual({
+      ok: true,
+      result: new Uint8Array([1]),
+    });
+    expect(parseOgReply({ ok: false, code: "too_complex" })).toEqual({
+      ok: false,
+      code: "too_complex",
+    });
+
+    for (const reply of [
+      null,
+      [],
+      { ok: true },
+      { ok: true, og: new Uint8Array(0) },
+      { ok: true, og: new Uint8Array(201 * 1024) },
+      { ok: true, og: new Uint8Array([1]), extra: 1 },
+      { ok: false, code: "x", extra: 1 },
+    ]) {
+      expect(parseOgReply(reply)).toMatchObject({ ok: false, code: "processing_failed" });
+    }
+  });
 
   it("zwraca kody błędów z procesu potomnego (za małe zdjęcie, próg wyłączony)", async () => {
     const small = await noiseImage(500, 400, 8).jpeg().toBuffer();

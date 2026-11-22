@@ -66,12 +66,17 @@ export async function getCuratorCollection(
       return { status: "not_found" } as const;
     }
 
-    const [places, otherPlaces] = await Promise.all([
+    const [places, otherPlaces, coverPlacePhotoId, coverCandidates] = await Promise.all([
       deps.repository.listCollectionPlaces(tx, collectionId),
       deps.repository.listPlacesOutsideCollection(tx, collection.organizationId, collectionId),
+      deps.repository.findCollectionCoverId(tx, collectionId),
+      deps.repository.listCoverCandidates(tx, collectionId),
     ]);
 
-    return { status: "ok", value: { collection, places, otherPlaces } } as const;
+    return {
+      status: "ok",
+      value: { collection, coverPlacePhotoId, coverCandidates, places, otherPlaces },
+    } as const;
   });
 }
 

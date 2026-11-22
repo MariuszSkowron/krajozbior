@@ -9,7 +9,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const States: Story = {
-  name: "Stany: z postępem, pusta, bez postępu",
+  name: "Stany: z postępem, pusta, bez postępu, z okładką",
   render: () => (
     <main className={styles.page}>
       <h1>CollectionCard</h1>
@@ -33,6 +33,17 @@ export const States: Story = {
           progress={{ visited: 0, total: 0 }}
         />
         <CollectionCard href="/collections/zamki" title="Zamki" regionLabel="Śląskie" />
+        <CollectionCard
+          href="/collections/mosty"
+          title="Mosty nad Wisłą"
+          regionLabel="Pomorskie"
+          cover={{
+            src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='267'%3E%3Crect width='400' height='267' fill='%23607a8c'/%3E%3C/svg%3E",
+            width: 400,
+            height: 267,
+            alt: "Most nad rzeką",
+          }}
+        />
       </div>
     </main>
   ),
