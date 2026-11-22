@@ -15,7 +15,7 @@ Jedna linia to jedna aktualność w stanie docelowym. Kodowanie UTF-8 bez BOM, p
   "title": "…",
   "lead": "…",
   "body": "…",
-  "collection_id": null,
+  "collection_slug": null,
   "place_id": null,
   "event_starts_on": null,
   "event_ends_on": null,
@@ -29,14 +29,17 @@ Jedna linia to jedna aktualność w stanie docelowym. Kodowanie UTF-8 bez BOM, p
 | `kind`                             | `new_place`, `info_change`, `event`, `guide`, `community`                                                                                                 |
 | `title`, `lead`, `body`            | długości i znaki jak w domenie (`src/features/news/domain/`): tytuł 5–120, wstęp 1–280, treść do 5000 znaków, najwyżej 5 linków `https://`, bez skracaczy |
 | `event_starts_on`, `event_ends_on` | tylko dla `event` (data początku obowiązkowa), format `RRRR-MM-DD`                                                                                        |
-| `collection_id`, `place_id`        | opcjonalne UUID kolekcji lub miejsca organizacji redakcji; pole `collection_slug` z wartością jest odrzucane (zob. niżej)                                 |
+| `collection_slug`                  | opcjonalny adres opublikowanej kolekcji redakcji; polecenie zamienia go na identyfikator w tej samej transakcji; pola `collection_id` nie ma w formacie   |
+| `place_id`                         | opcjonalne UUID miejsca (miejsca nie mają adresu)                                                                                                         |
 | `status`                           | `draft`, `published` albo `withdrawn`                                                                                                                     |
 
 Nieznane pole w linii jest błędem (literówka w nazwie nie może zniknąć po cichu). Adres strony (`slug`) powstaje z tytułu przy pierwszej publikacji i potem się nie zmienia, także po poprawce tytułu i po wycofaniu; przy powtórzonym tytule dostaje przyrostek `-2`, `-3`. Aktualności, których w pliku nie ma, polecenie nie rusza.
 
 Dozwolone przejścia: `draft → draft`, `draft → published`, `published → published` (edycja), `published → withdrawn`, `withdrawn → withdrawn`, `withdrawn → published`. Nowa aktualność może zaczynać jako `draft` albo `published`; powrót do `draft` po publikacji jest odmową `invalid_transition`.
 
-**Ograniczenie (luka E7-R1).** Rola `krajozbior_ops` nie czyta tabel `collections` i `places`, więc polecenie nie zamieni adresu kolekcji (`collection_slug`) na jej identyfikator. Powiązanie podaje się przez `collection_id`; nieistniejące albo cudze powiązanie baza odrzuca jako `stale_link`.
+**Powiązanie z kolekcją.** Rola `krajozbior_ops` nie czyta tabeli `collections`; adres zamienia wąska funkcja `ops_resolve_news_collection`. Nieznany adres, szkic i kolekcja innej organizacji dają odmowę `stale_link` (kod 3, nic nie zapisano). Linia z polem `collection_id` (także razem z `collection_slug`) to błąd pliku (kod 2).
+
+**Kodowanie.** Plik musi być UTF-8 bez BOM. Plik z BOM albo z bajtami spoza UTF-8 (np. zapisany w Windows-1250) to błąd pliku (kod 2, linia JSON `invalid` z `line: 0`), a nie ciche podmienienie polskich liter.
 
 ## Polecenia
 
@@ -72,7 +75,7 @@ Zapis wstawia wpis `news_import` jako `krajozbior_ops`, w tej samej transakcji c
 
 - jeden wpis `applied` na każdą aktualność ze skutkiem `created` albo `updated`; aktualność „bez zmian” nie zostawia wpisu;
 - cel w `before_state` i `after_state` (`id`, `slug`, `status`, `organization_id`, `collection_id`, `place_id`), bez tytułu i treści; kolumna `details` pusta;
-- odmowa wycofuje całą transakcję razem z wpisami `applied`, a polecenie dopisuje osobną, krótką transakcją jeden wpis `rejected` z kodem odmowy i `{ "id", "line" }` odrzuconej linii. Dla `slug_taken` kod w dzienniku to `import_refused` (dziennik nie ma osobnego kodu), prawdziwy kod widać w linii JSON;
+- odmowa wycofuje całą transakcję razem z wpisami `applied`, a polecenie dopisuje osobną, krótką transakcją jeden wpis `rejected` z kodem odmowy i `{ "id", "line" }` odrzuconej linii. Kod w dzienniku jest prawdziwy, także dla `slug_taken`;
 - błąd pliku (kod 2) i awaria (kod 1) nie zostawiają wpisu.
 
 ## Dane demo

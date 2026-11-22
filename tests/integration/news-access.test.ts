@@ -257,6 +257,84 @@ describe("news posts of the editorial version (E7-R1)", () => {
       ).rejects.toThrow(noPermission);
     });
 
+    it("gives krajozbior_ops only the lookup of a public collection by its address, no read of the table", async () => {
+      const draftId = await newCollection(orgA);
+      const publicId = await newCollection(orgA);
+      const [{ slug: draftSlug }] = await admin$<{ slug: string }>(
+        `select slug from public.collections where id = $1`,
+        [draftId],
+      );
+      const [{ slug: publicSlug }] = await admin$<{ slug: string }>(
+        `update public.collections set status = 'published' where id = $1 returning slug`,
+        [publicId],
+      );
+      const resolve = async (slugValue: string) =>
+        (await ops$(`select public.ops_resolve_news_collection($1) as id`, [slugValue])).rows[0]
+          .id as string | null;
+
+      expect(await resolve(publicSlug!)).toBe(publicId);
+      // Nothing for a draft or an unknown address: the lookup is no way to list drafts.
+      expect(await resolve(draftSlug!)).toBeNull();
+      expect(await resolve("nie-ma-takiej-kolekcji")).toBeNull();
+
+      // A collection of a suspended organization is not resolved either (explicit
+      // condition in the function, not only the row policy).
+      const [{ status: orgStatus }] = await admin$<{ status: string }>(
+        `select status from public.organizations where id = $1`,
+        [orgA],
+      );
+      await admin$(`update public.organizations set status = 'suspended' where id = $1`, [orgA]);
+      try {
+        expect(await resolve(publicSlug!)).toBeNull();
+      } finally {
+        await admin$(`update public.organizations set status = $2 where id = $1`, [
+          orgA,
+          orgStatus,
+        ]);
+      }
+      expect(await resolve(publicSlug!)).toBe(publicId);
+
+      // No direct read of the catalog, whichever column.
+      for (const column of ["id", "slug", "organization_id", "title"]) {
+        await expect(ops$(`select ${column} from public.collections limit 1`)).rejects.toThrow(
+          noPermission,
+        );
+      }
+      await expect(ops$(`select id from public.places limit 1`)).rejects.toThrow(noPermission);
+
+      const [fn] = await admin$<{ acl: string; app: boolean; auth: boolean; ops: boolean }>(
+        `select p.proacl::text as acl,
+                has_function_privilege('krajozbior_app', p.oid, 'execute') as app,
+                has_function_privilege('krajozbior_auth', p.oid, 'execute') as auth,
+                has_function_privilege('krajozbior_ops', p.oid, 'execute') as ops
+           from pg_proc p where p.proname = 'ops_resolve_news_collection'`,
+      );
+
+      expect(fn).toMatchObject({ app: false, auth: false, ops: true });
+      expect(fn!.acl).not.toMatch(/(^\{|,)=X\//);
+      await expect(
+        as(curA, `select public.ops_resolve_news_collection(?)`, [publicSlug]),
+      ).rejects.toThrow(noPermission);
+      await expect(
+        asGuest(`select public.ops_resolve_news_collection(?)`, [publicSlug]),
+      ).rejects.toThrow(noPermission);
+    });
+
+    it("refuses the owner of the table calling ops_put_news (row security, no row)", async () => {
+      // The owner of the function always holds EXECUTE, so the refusal comes from the
+      // write policies (session_user is not krajozbior_ops), not from a privilege.
+      const item = newPut();
+
+      await expect(
+        as$(
+          "krajozbior_owner",
+          `select * from public.ops_put_news($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          putParams(item),
+        ),
+      ).rejects.toThrow(rejectedByPolicy);
+      expect(await admin$(`select 1 from public.news_posts where id = $1`, [item.id])).toEqual([]);
+    });
+
     it("has exactly the expected policies and one publication trigger", async () => {
       const policies = await admin$<{ name: string; cmd: string; roles: string }>(
         `select polname as name, polcmd as cmd,
@@ -277,6 +355,59 @@ describe("news posts of the editorial version (E7-R1)", () => {
         `select tgname from pg_trigger where tgrelid = 'public.news_posts'::regclass and not tgisinternal`,
       );
       expect(triggers.map((t) => t.tgname)).toEqual(["news_posts_publication"]);
+    });
+
+    it("decides news_posts_is_reference_cleared by what changed (B1)", async () => {
+      const collectionId = randomUUID();
+      const placeId = randomUUID();
+      const other = randomUUID();
+      const base = {
+        id: randomUUID(),
+        organization_id: orgA,
+        slug: "adres-funkcji",
+        kind: "guide",
+        title: "Tytuł funkcji",
+        lead: "Opis",
+        body: "",
+        collection_id: collectionId,
+        place_id: placeId,
+        event_starts_on: null,
+        event_ends_on: null,
+        status: "published",
+        first_published_at: "2026-11-01T10:00:00Z",
+        published_at: "2026-11-01T10:00:00Z",
+        withdrawn_at: null,
+        content_updated_at: null,
+        version: 1,
+        created_at: "2026-11-01T09:00:00Z",
+        updated_at: "2026-11-01T10:00:00Z",
+      };
+      const cases: [string, Record<string, unknown>, boolean][] = [
+        ["clears the collection", { collection_id: null }, true],
+        ["clears the place", { place_id: null }, true],
+        ["clears both", { collection_id: null, place_id: null }, true],
+        ["changes nothing", {}, false],
+        ["changes only updated_at", { updated_at: "2026-11-02T10:00:00Z" }, false],
+        ["replaces the collection", { collection_id: other }, false],
+        ["replaces the place", { place_id: other }, false],
+        ["clears the link and changes version", { collection_id: null, version: 2 }, false],
+        ["clears the link and changes title", { collection_id: null, title: "Inny" }, false],
+        ["clears the link and changes status", { collection_id: null, status: "withdrawn" }, false],
+        ["clears the link and changes slug", { place_id: null, slug: "inny-adres" }, false],
+        ["clears the link and changes body", { place_id: null, body: "Treść" }, false],
+      ];
+
+      for (const [name, change, expected] of cases) {
+        const [row] = await admin$<{ cleared: boolean }>(
+          `select public.news_posts_is_reference_cleared(
+                    (select r from jsonb_populate_record(null::public.news_posts, $1::jsonb) r),
+                    (select r from jsonb_populate_record(null::public.news_posts, $2::jsonb) r)
+                  ) as cleared`,
+          [JSON.stringify(base), JSON.stringify({ ...base, ...change })],
+        );
+
+        expect(row!.cleared, name).toBe(expected);
+      }
     });
 
     it("keeps news_posts_is_reference_cleared in step with the columns of the table", async () => {
@@ -331,6 +462,23 @@ describe("news posts of the editorial version (E7-R1)", () => {
         expect(ids).toContain(published);
         for (const hidden of [draft, withdrawn, ofSuspended]) expect(ids).not.toContain(hidden);
       }
+    });
+
+    it("hides the news of an organization while it is suspended and shows it again when approved (S4)", async () => {
+      const item = newPut({ status: "published", title: "Aktualność zawieszana" });
+
+      await put(item);
+      expect(await visibleIds((sql) => asGuest(sql))).toContain(item.id);
+
+      await admin$(`update public.organizations set status = 'suspended' where id = $1`, [orgA]);
+      try {
+        expect(await visibleIds((sql) => asGuest(sql))).not.toContain(item.id);
+        expect(await visibleIds((sql) => as(explorer, sql))).not.toContain(item.id);
+      } finally {
+        await admin$(`update public.organizations set status = 'approved' where id = $1`, [orgA]);
+      }
+
+      expect(await visibleIds((sql) => asGuest(sql))).toContain(item.id);
     });
 
     it("shows krajozbior_ops every row, for the preview of the import", async () => {
@@ -391,6 +539,31 @@ describe("news posts of the editorial version (E7-R1)", () => {
       await expect(as$("krajozbior_auth", `select 1 from public.news_posts`)).rejects.toThrow(
         noPermission,
       );
+    });
+
+    it("does not leave the write variable on after the function returns (S1; hygiene, the boundary is the grants and policies)", async () => {
+      const item = newPut({ status: "published" });
+
+      await withClient(db.urls.krajozbior_ops, async (client) => {
+        await client.query("begin");
+        try {
+          await putIn(client, item);
+
+          const [{ value }] = (
+            await client.query(`select current_setting('krajozbior.news_write', true) as value`)
+          ).rows as { value: string | null }[];
+
+          expect(value).not.toBe("on");
+          // Not proof of the variable: ops has no UPDATE grant whatever the variable says.
+          await expect(
+            client.query(`update public.news_posts set title = 'Podmieniony tytuł' where id = $1`, [
+              item.id,
+            ]),
+          ).rejects.toThrow(noPermission);
+        } finally {
+          await client.query("rollback");
+        }
+      });
     });
 
     it("refuses a login as the table owner, even with the transaction variable set", async () => {
@@ -551,12 +724,14 @@ describe("news posts of the editorial version (E7-R1)", () => {
         const item = await reach(from as "draft");
 
         await expect(put({ ...item, status: to }), `${from} -> ${to}`).rejects.toMatchObject({
+          code: "P0001",
           message: "invalid_transition",
         });
         expect((await stored(item.id)).status).toBe(from);
       }
       // A new item is created as a draft or as published, never as withdrawn.
       await expect(put(newPut({ status: "withdrawn" }))).rejects.toMatchObject({
+        code: "P0001",
         message: "invalid_transition",
       });
     });
@@ -584,7 +759,10 @@ describe("news posts of the editorial version (E7-R1)", () => {
         { placeId: foreignPlace },
         { placeId: randomUUID() },
       ]) {
-        await expect(put(newPut(link))).rejects.toMatchObject({ message: "stale_link" });
+        await expect(put(newPut(link))).rejects.toMatchObject({
+          code: "P0001",
+          message: "stale_link",
+        });
       }
 
       // The same on an update of an existing item, and an own link works.
@@ -592,6 +770,7 @@ describe("news posts of the editorial version (E7-R1)", () => {
 
       await put(item);
       await expect(put({ ...item, collectionId: foreignCollection })).rejects.toMatchObject({
+        code: "P0001",
         message: "stale_link",
       });
       await expect(put({ ...item, collectionId: ownCollection })).resolves.toMatchObject({
@@ -608,6 +787,7 @@ describe("news posts of the editorial version (E7-R1)", () => {
       );
 
       await expect(put(newPut({ organizationId: orgB }))).rejects.toMatchObject({
+        code: "P0001",
         message: "too_many_news",
       });
 
@@ -735,13 +915,18 @@ describe("news posts of the editorial version (E7-R1)", () => {
           writeAuditEntry(client, { ...base, code: "stale_link", details: { sha256: "x" } }),
         ).rejects.toMatchObject({ code: "23514" });
 
-        for (const code of ["invalid_transition", "stale_link", "too_many_news"] as const) {
+        for (const code of [
+          "invalid_transition",
+          "stale_link",
+          "too_many_news",
+          "slug_taken",
+        ] as const) {
           await expect(writeAuditEntry(client, { ...base, code })).resolves.toBeDefined();
         }
       });
     });
 
-    it("has no entry when the transaction of the function is rolled back", async () => {
+    it("leaves no news item when the transaction of the function is rolled back", async () => {
       const item = newPut();
 
       await withClient(db.urls.krajozbior_ops, async (client) => {
@@ -751,6 +936,30 @@ describe("news posts of the editorial version (E7-R1)", () => {
       });
 
       expect(await admin$(`select 1 from public.news_posts where id = $1`, [item.id])).toEqual([]);
+    });
+
+    it("is not written by ops_put_news itself, only by the caller (S3)", async () => {
+      const item = newPut({ status: "published" });
+      const countEntries = async () =>
+        (await admin$<{ n: number }>(`select count(*)::int as n from public.operations_audit`))[0]!
+          .n;
+      const before = await countEntries();
+
+      await withClient(db.urls.krajozbior_ops, async (client) => {
+        await client.query("begin");
+        await putIn(client, item);
+        await client.query("commit");
+      });
+      await put({ ...item, title: "Zmieniony tytuł aktualności" });
+
+      expect(await countEntries()).toBe(before);
+      expect(
+        await admin$(
+          `select 1 from public.operations_audit
+            where after_state ->> 'id' = $1 or before_state ->> 'id' = $1`,
+          [item.id],
+        ),
+      ).toEqual([]);
     });
 
     it("cannot be written by krajozbior_owner or krajozbior_app", async () => {

@@ -80,6 +80,40 @@ describe("news:import validation without a database", () => {
     expect(json(result.stdout).errors).toHaveLength(100);
   });
 
+  it("answers a BOM and bytes that are not UTF-8 with exit 2 and the JSON line (S1)", async () => {
+    const { connect, deps } = setup();
+    const text = new TextEncoder().encode(file);
+
+    for (const bytes of [
+      new Uint8Array([0xef, 0xbb, 0xbf, ...text]),
+      new Uint8Array([...text, 0xb3]),
+    ]) {
+      const result = await runNewsImport(["--dry-run", "--file", "x"], {
+        ...deps,
+        readFile: async () => bytes,
+      });
+
+      expect(result.exitCode).toBe(2);
+      expect(json(result.stdout)).toMatchObject({
+        outcome: "invalid",
+        errorCount: 1,
+        errors: [{ line: 0, field: "file" }],
+      });
+    }
+
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  it("accepts the same file as bytes", async () => {
+    const { deps } = setup(undefined, { DATABASE_OPS_URL: undefined });
+    const result = await runNewsImport(["--dry-run", "--file", "x"], {
+      ...deps,
+      readFile: async () => new TextEncoder().encode(file),
+    });
+
+    expect(result.exitCode).toBe(0);
+  });
+
   it("answers an unreadable file with exit 1 and no JSON", async () => {
     const { deps } = setup();
     const result = await runNewsImport(["--dry-run", "--file", "x"], {

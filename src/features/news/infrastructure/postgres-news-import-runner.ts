@@ -76,8 +76,7 @@ export async function connectNewsImport(
 
   const rollback = () => client.query("rollback").catch(() => undefined);
 
-  // The audit has no code for a taken address; `import_refused` is the closest of the
-  // existing ones. The JSON line of the command keeps the real code.
+  // The audit knows the codes of the refusals, `slug_taken` included (migration of E7-R1).
   async function recordRejection(
     request: NewsImportRunRequest,
     organizationId: string,
@@ -95,7 +94,7 @@ export async function connectNewsImport(
         before: null,
         after: { id: entry.id, line: entry.line },
         outcome: "rejected",
-        code: code === "slug_taken" ? "import_refused" : code,
+        code,
       });
       await client.query("commit");
     } catch {
@@ -155,6 +154,25 @@ export async function connectNewsImport(
           let put: PutRow;
 
           try {
+            // S2: the address of the collection becomes an identifier in this transaction,
+            // through the narrow lookup of E7-R1 (a published collection of an approved
+            // organization only); an unknown address or a draft is a stale link.
+            let collectionId: string | null = null;
+
+            if (entry.collectionSlug !== null) {
+              collectionId =
+                (
+                  await client.query<{ id: string | null }>(
+                    `select public.ops_resolve_news_collection($1) as id`,
+                    [entry.collectionSlug],
+                  )
+                ).rows[0]?.id ?? null;
+
+              if (collectionId === null) {
+                throw Object.assign(new Error("stale_link"), { code: "P0001" });
+              }
+            }
+
             put = (
               await client.query<PutRow>(putSql, [
                 entry.id,
@@ -164,7 +182,7 @@ export async function connectNewsImport(
                 input.title,
                 input.lead,
                 input.body,
-                input.collectionId,
+                collectionId,
                 input.placeId,
                 input.eventStartsOn,
                 input.eventEndsOn,

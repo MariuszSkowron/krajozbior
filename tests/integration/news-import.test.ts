@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { runNewsImport } from "@/features/news/application/news-import-command";
 import { connectNewsImport } from "@/features/news/infrastructure/postgres-news-import-runner";
+import { seedDemoNews } from "@/features/news/infrastructure/seed-demo-news";
 import {
   createScratchDatabase,
   withClient,
@@ -30,6 +31,8 @@ type Item = Partial<{
   lead: string;
   body: string;
   place_id: string | null;
+  collection_id: string | null;
+  collection_slug: string | null;
   event_starts_on: string | null;
   status: string;
 }>;
@@ -344,7 +347,100 @@ describe("news:import (E7-R2a)", () => {
     const entries = await auditOf([a.id]);
 
     expect(entries).toHaveLength(1);
-    expect(entries[0]).toMatchObject({ outcome: "rejected", error_code: "import_refused" });
+    // S3: the audit keeps the true code, not the `import_refused` of the catalog import.
+    expect(entries[0]).toMatchObject({ outcome: "rejected", error_code: "slug_taken" });
+  });
+
+  it("the demo seed of the news can run twice: the second run changes nothing (S4)", async () => {
+    const first = await seedDemoNews(db.urls.krajozbior_ops);
+    const second = await seedDemoNews(db.urls.krajozbior_ops);
+
+    expect(first).toEqual({ created: 3 });
+    expect(second).toEqual({ unchanged: 3 });
+
+    const [{ n }] = await admin$<{ n: string }>(
+      `select count(*) as n from public.operations_audit
+        where operation = 'news_import' and operator_label = 'seed-demo'`,
+    );
+
+    expect(Number(n)).toBe(3);
+  });
+
+  describe("collection_slug (S2)", () => {
+    const newCollection = async (organizationId: string, status: string) =>
+      (
+        await admin$<{ id: string; slug: string }>(
+          `insert into public.collections (slug, organization_id, title, region, status)
+           values ($1, $2, 'Kolekcja', 'pomorskie', $3) returning id, slug`,
+          [`kolekcja-import-${randomUUID().slice(0, 8)}`, organizationId, status],
+        )
+      )[0]!;
+
+    it("turns the address of a published collection of the editorial team into its identifier", async () => {
+      await admin$(`update public.organizations set status = 'approved' where id = $1`, [
+        editorialId,
+      ]);
+
+      const collection = await newCollection(editorialId, "published");
+      const a = item({ title: "Z kolekcja", collection_slug: collection.slug });
+
+      expect((await preview(file(a))).exitCode).toBe(0);
+      expect((await apply(file(a))).exitCode).toBe(0);
+
+      const [row] = await admin$<{ collection_id: string | null }>(
+        `select collection_id from public.news_posts where id = $1`,
+        [a.id],
+      );
+
+      expect(row!.collection_id).toBe(collection.id);
+    });
+
+    it("refuses an unknown address, a draft and a collection of another organization: stale_link, nothing saved, one rejected entry", async () => {
+      const other = (
+        await admin$<{ id: string }>(
+          `insert into public.organizations (name, slug, kind, status)
+           values ('Inna organizacja', $1, 'other', 'approved') returning id`,
+          [`inna-${randomUUID().slice(0, 8)}`],
+        )
+      )[0]!.id;
+      const draft = await newCollection(editorialId, "draft");
+      const foreign = await newCollection(other, "published");
+      const ok = item({ title: "Dobra linia przed bledna" });
+
+      for (const slug of ["nie-ma-takiej-kolekcji", draft.slug, foreign.slug]) {
+        const bad = item({ title: "Zla kolekcja", collection_slug: slug });
+        const before = await countNews();
+        const result = await apply(file(ok, bad));
+
+        expect(result.exitCode).toBe(3);
+        expect(summary(result.stdout)).toEqual({
+          outcome: "rejected",
+          code: "stale_link",
+          line: 2,
+        });
+        expect((await preview(file(ok, bad))).exitCode).toBe(3);
+        expect(await countNews()).toBe(before);
+        expect(await rowsOf([ok.id, bad.id])).toEqual([]);
+
+        const entries = await auditOf([ok.id, bad.id]);
+
+        expect(entries).toHaveLength(1);
+        expect(entries[0]).toMatchObject({ outcome: "rejected", error_code: "stale_link" });
+        expect(entries[0]!.after_state).toEqual({ id: bad.id, line: 2 });
+      }
+    });
+
+    it("refuses collection_id in the file (exit 2), alone or together with collection_slug", async () => {
+      for (const extra of [
+        { collection_id: randomUUID() },
+        { collection_id: randomUUID(), collection_slug: "jakas-kolekcja" },
+      ]) {
+        const result = await apply(file(item(extra)));
+
+        expect(result.exitCode).toBe(2);
+        expect(summary(result.stdout).errors[0]).toMatchObject({ field: "collection_id" });
+      }
+    });
   });
 
   it("refuses an organization that does not exist in the database", async () => {

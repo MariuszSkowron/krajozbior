@@ -6,6 +6,7 @@ import { isLocalDatabaseUrl } from "@/lib/config/loopback";
 import { auditOperatorSchema, auditReasonSchema } from "@/lib/db/operations-audit";
 
 import {
+  decodeNewsImportFile,
   parseNewsImportFile,
   type NewsImportEntry,
   type NewsImportFileError,
@@ -60,7 +61,8 @@ export type NewsImportRunner = Readonly<{
 }>;
 
 export type NewsImportDeps = Readonly<{
-  readFile: (path: string) => Promise<string>;
+  /** Raw bytes (decoded strictly by the command); a string is accepted for tests only. */
+  readFile: (path: string) => Promise<Uint8Array | string>;
   /** Connects as krajozbior_ops; called only when the database is needed. */
   connect: () => Promise<NewsImportRunner>;
   env: Readonly<{
@@ -287,15 +289,22 @@ export async function runNewsImport(
     return inputError("brak DATABASE_OPS_URL: zapis i tryb serwera wymagają bazy.");
   }
 
-  let content: string;
+  let raw: Uint8Array | string;
 
   try {
-    content = await deps.readFile(path);
+    raw = await deps.readFile(path);
   } catch {
     return inputError("nie można odczytać pliku.");
   }
 
-  const result = parseNewsImportFile(content);
+  const decoded =
+    typeof raw === "string" ? { ok: true as const, content: raw } : decodeNewsImportFile(raw);
+
+  if (!decoded.ok) {
+    return invalidOutput(decoded.errors);
+  }
+
+  const result = parseNewsImportFile(decoded.content);
 
   if (!result.ok) {
     return invalidOutput(result.errors);

@@ -22,6 +22,9 @@ export type NewsImportEntry = Readonly<{
   line: number;
   id: string;
   status: NewsImportStatus;
+  /** Address of the collection (`collection_slug`); the runner turns it into an identifier. */
+  collectionSlug: string | null;
+  /** `collectionId` is always null here: the file names a collection by its address only. */
   input: NewsInput;
 }>;
 
@@ -42,7 +45,6 @@ const FILE_KEYS: readonly string[] = [
   "title",
   "lead",
   "body",
-  "collection_id",
   "collection_slug",
   "place_id",
   "event_starts_on",
@@ -53,10 +55,39 @@ const FILE_KEYS: readonly string[] = [
 /** The limit of the size of the file; the deployment script checks the same number. */
 export const MAX_NEWS_IMPORT_FILE_BYTES = 2 * 1024 * 1024;
 
-const fileError = (message: string): NewsImportParse => ({
+// The same shape as `collections.slug` (catalog migration).
+const COLLECTION_SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const MAX_COLLECTION_SLUG_LENGTH = 80;
+
+type NewsImportFileFailure = Extract<NewsImportParse, { ok: false }>;
+
+const fileError = (message: string): NewsImportFileFailure => ({
   ok: false,
   errors: [{ line: 0, field: "file", message }],
 });
+
+/**
+ * Decodes the bytes of the file strictly (S1): UTF-8 without BOM. A wrong byte (e.g. a file
+ * saved in Windows-1250) is an error, never a silent U+FFFD in a published title. The size is
+ * checked before decoding.
+ */
+export function decodeNewsImportFile(
+  bytes: Uint8Array,
+): Readonly<{ ok: true; content: string }> | NewsImportFileFailure {
+  if (bytes.byteLength > MAX_NEWS_IMPORT_FILE_BYTES) {
+    return fileError("Plik jest większy niż dozwolone 2 MiB.");
+  }
+
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return fileError("Plik ma znacznik BOM na początku; zapisz go jako UTF-8 bez BOM.");
+  }
+
+  try {
+    return { ok: true, content: new TextDecoder("utf-8", { fatal: true }).decode(bytes) };
+  } catch {
+    return fileError("Plik nie jest poprawnym UTF-8; zapisz go jako UTF-8 bez BOM.");
+  }
+}
 
 function parseLine(
   raw: string,
@@ -77,7 +108,7 @@ function parseLine(
 
   const object = value as Record<string, unknown>;
   const errors: NewsImportFileError[] = Object.keys(object)
-    .filter((key) => !FILE_KEYS.includes(key))
+    .filter((key) => !FILE_KEYS.includes(key) && key !== "collection_id")
     .map((key) => ({
       line,
       field: "form",
@@ -102,14 +133,36 @@ function parseLine(
     });
   }
 
-  // A collection is named by its identifier: the command reads no catalog table, so it
-  // cannot turn an address (`collection_slug`) into an identifier.
-  if (object.collection_slug !== undefined && object.collection_slug !== null) {
+  // A collection is named by its address only (spec 14.4); the runner turns it into an
+  // identifier in the transaction. `collection_id` is not part of the format.
+  if (object.collection_id !== undefined) {
     errors.push({
       line,
-      field: "collection_slug",
-      message: "Pole collection_slug nie jest obsługiwane; podaj collection_id (UUID kolekcji).",
+      field: "collection_id",
+      message:
+        object.collection_slug === undefined || object.collection_slug === null
+          ? "Pole collection_id nie jest obsługiwane; podaj collection_slug (adres kolekcji)."
+          : "Podaj tylko collection_slug; pole collection_id nie jest obsługiwane.",
     });
+  }
+
+  const slugValue = object.collection_slug;
+  let collectionSlug: string | null = null;
+
+  if (slugValue !== undefined && slugValue !== null) {
+    if (
+      typeof slugValue !== "string" ||
+      slugValue.length > MAX_COLLECTION_SLUG_LENGTH ||
+      !COLLECTION_SLUG.test(slugValue)
+    ) {
+      errors.push({
+        line,
+        field: "collection_slug",
+        message: "Adres kolekcji: małe litery bez polskich znaków, cyfry i myślniki, do 80 znaków.",
+      });
+    } else {
+      collectionSlug = slugValue;
+    }
   }
 
   const validation = validateNewsInput(
@@ -118,7 +171,7 @@ function parseLine(
       title: object.title,
       lead: object.lead,
       body: object.body,
-      collectionId: object.collection_id,
+      collectionId: null,
       placeId: object.place_id,
       eventStartsOn: object.event_starts_on,
       eventEndsOn: object.event_ends_on,
@@ -141,6 +194,7 @@ function parseLine(
       line,
       id: (object.id as string).toLowerCase(),
       status: status as NewsImportStatus,
+      collectionSlug,
       input: validation.value,
     },
   };

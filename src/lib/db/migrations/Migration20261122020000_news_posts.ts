@@ -51,7 +51,7 @@ const noControlButLineFeed = `'[\\u0001-\\u0009\\u000b-\\u001f\\u007f-\\u009f]'`
 const previousOperations = `'grant_curator', 'revoke_curator', 'set_organization_status', 'set_user_role', 'delete_account', 'catalog_import', 'catalog_remove'`;
 const operations = `${previousOperations}, 'news_import'`;
 const previousErrorCodes = `'user_not_found', 'organization_not_found', 'kind_mismatch', 'person_member_limit', 'organization_details_required', 'import_refused', 'import_failed'`;
-const errorCodes = `${previousErrorCodes}, 'invalid_transition', 'stale_link', 'too_many_news'`;
+const errorCodes = `${previousErrorCodes}, 'invalid_transition', 'stale_link', 'too_many_news', 'slug_taken'`;
 
 const writeAllowed = `session_user = 'krajozbior_ops' and current_setting('krajozbior.news_write', true) = 'on'`;
 const putNewsSignature = `uuid, uuid, text, text, text, text, text, uuid, uuid, date, date, text`;
@@ -281,6 +281,14 @@ export class Migration20261122020000_news_posts extends Migration {
         v_new public.news_posts;
         v_count integer;
       begin
+        -- A function clause \`set krajozbior.news_write\` would restore the value on exit,
+        -- but the migration role may not set a custom parameter in it (not a superuser).
+        -- So the switch is turned off again before every exit; an error rolls the
+        -- transaction (or the savepoint of the caller) back. The switch is NOT a security
+        -- boundary: krajozbior_ops may set this parameter itself. The boundary is: no
+        -- write grants for ops and app, write policies only for the owner with
+        -- session_user = 'krajozbior_ops', and no other owner function reachable by ops
+        -- that writes to news_posts.
         perform set_config('krajozbior.news_write', 'on', true);
 
         v_old := (select n from public.news_posts n where n.id = p_id for update);
@@ -311,6 +319,7 @@ export class Migration20261122020000_news_posts extends Migration {
           put_result := 'created';
           put_before := null;
           put_after := public.news_posts_audit_state(v_new);
+          perform set_config('krajozbior.news_write', 'off', true);
           return;
         end if;
 
@@ -336,6 +345,7 @@ export class Migration20261122020000_news_posts extends Migration {
           put_result := 'unchanged';
           put_before := public.news_posts_audit_state(v_old);
           put_after := put_before;
+          perform set_config('krajozbior.news_write', 'off', true);
           return;
         end if;
 
@@ -355,11 +365,33 @@ export class Migration20261122020000_news_posts extends Migration {
         put_result := 'updated';
         put_before := public.news_posts_audit_state(v_old);
         put_after := public.news_posts_audit_state(v_new);
+        perform set_config('krajozbior.news_write', 'off', true);
       end
       $$;
     `);
     this.addSql(`revoke all on function ops_put_news(${putNewsSignature}) from public;`);
     this.addSql(`grant execute on function ops_put_news(${putNewsSignature}) to krajozbior_ops;`);
+
+    // The import names a collection by its address; krajozbior_ops gets no read of
+    // \`collections\`, only this lookup: one uuid of a published collection of an
+    // approved organization, nothing for a draft or an unknown address. The
+    // condition is explicit in the body; the policy collections_owner_select of the
+    // owner is only the second layer. Places have no
+    // address; the file gives \`place_id\` directly.
+    this.addSql(`
+      create function ops_resolve_news_collection(p_slug text) returns uuid
+      language sql stable security definer
+      set search_path = ''
+      as $$
+        select c.id from public.collections c
+         where c.slug = p_slug
+           and c.status = 'published'
+           and exists (select from public.organizations o
+                        where o.id = c.organization_id and o.status = 'approved')
+      $$;
+    `);
+    this.addSql(`revoke all on function ops_resolve_news_collection(text) from public;`);
+    this.addSql(`grant execute on function ops_resolve_news_collection(text) to krajozbior_ops;`);
 
     // The audit: the operation and the refusal codes (krajozbior_ops already has
     // INSERT on the columns and the policy operations_audit_ops_insert).
@@ -390,6 +422,7 @@ export class Migration20261122020000_news_posts extends Migration {
     `);
 
     this.addSql(`drop trigger news_posts_publication on news_posts;`);
+    this.addSql(`drop function ops_resolve_news_collection(text);`);
     this.addSql(`drop function ops_put_news(${putNewsSignature});`);
     this.addSql(`drop function news_posts_audit_state(public.news_posts);`);
     this.addSql(`drop function news_posts_publication();`);
