@@ -18,6 +18,13 @@ export function entryState(placeId: string | null, publicPlaceId: string | null)
 
 export const UNAVAILABLE_PLACE_LABEL = "Miejsce chwilowo niedostępne";
 
+/** The line of an unavailable entry: with the name taken when the place was added, if there is one. */
+export function unavailablePlaceLabel(nameSnapshot: string | null): string {
+  return nameSnapshot === null || nameSnapshot.trim() === ""
+    ? UNAVAILABLE_PLACE_LABEL
+    : `${UNAVAILABLE_PLACE_LABEL}: ${nameSnapshot}`;
+}
+
 /** The line of a removed entry; the name is the public name taken when the place was added. */
 export function removedPlaceLabel(nameSnapshot: string): string {
   return `Miejsce usunięte przez kuratora: ${nameSnapshot}`;

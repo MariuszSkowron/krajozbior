@@ -4,6 +4,7 @@ import {
   UNAVAILABLE_PLACE_LABEL,
   entryState,
   removedPlaceLabel,
+  unavailablePlaceLabel,
 } from "@/features/own-collections/domain/entry";
 
 const PLACE = "11111111-1111-4111-8111-111111111111";
@@ -28,5 +29,13 @@ describe("labels of entries", () => {
     expect(removedPlaceLabel("Wieża ciśnień")).toBe(
       "Miejsce usunięte przez kuratora: Wieża ciśnień",
     );
+  });
+
+  it("shows the name taken at add time next to the unavailable label, if there is one", () => {
+    expect(unavailablePlaceLabel("Wieża ciśnień")).toBe(
+      "Miejsce chwilowo niedostępne: Wieża ciśnień",
+    );
+    expect(unavailablePlaceLabel(null)).toBe("Miejsce chwilowo niedostępne");
+    expect(unavailablePlaceLabel("  ")).toBe("Miejsce chwilowo niedostępne");
   });
 });

@@ -8,10 +8,7 @@ import { searchPublicCatalog } from "@/features/catalog/application/public-searc
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import { SEARCH_MAX_LENGTH } from "@/features/catalog/domain/search";
 import { getOwnCollection } from "@/features/own-collections/application/own-collections";
-import {
-  UNAVAILABLE_PLACE_LABEL,
-  removedPlaceLabel,
-} from "@/features/own-collections/domain/entry";
+import { unavailablePlaceLabel, removedPlaceLabel } from "@/features/own-collections/domain/entry";
 import { OWN_REGION_LABELS } from "@/features/own-collections/domain/own-collection";
 import { getOwnCollectionsDeps } from "@/features/own-collections/infrastructure/own-collections-deps";
 
@@ -147,7 +144,7 @@ export default async function OwnCollectionPage({ params, searchParams }: Props)
                         <StatusBadge tone="warning">
                           {entry.state === "removed"
                             ? removedPlaceLabel(entry.nameSnapshot)
-                            : UNAVAILABLE_PLACE_LABEL}
+                            : unavailablePlaceLabel(entry.nameSnapshot)}
                         </StatusBadge>
                       </p>
                       <RemoveEntryButton
