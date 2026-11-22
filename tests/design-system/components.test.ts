@@ -12,7 +12,12 @@ import {
   legendaryCategories,
   type LegendaryCardCategory,
 } from "@/design-system/components/legendary-card";
-import { LegendaryCardReveal } from "@/design-system/components/legendary-card-reveal";
+import {
+  isSwipeUp,
+  LegendaryCardReveal,
+  REVEAL_DURATION_MS,
+  SWIPE_UP_PX,
+} from "@/design-system/components/legendary-card-reveal";
 import {
   BookmarkIcon,
   CardsIcon,
@@ -303,6 +308,78 @@ describe("ruch karty legendarnej (pliki CSS)", () => {
     }
     expect(forced).toMatch(/display:\s*none/);
     expect(forced).toContain("CanvasText");
+  });
+});
+
+// WCAG 1.4.4: przy powiększonym tekście i długich nazwach karta rośnie, a nie ucina tekstu.
+describe("karta legendarna: tekst nie jest przycinany (CSS)", () => {
+  const dir = new URL("../../src/design-system/components/", import.meta.url);
+  const css = readFileSync(new URL("legendary-card.module.css", dir), "utf8").replace(
+    /\/\*[\s\S]*?\*\//g,
+    "",
+  );
+  const block = (selector: string) => {
+    const match = new RegExp(`(?:^|\\n)${selector.replace(".", "\\.")}\\s*\\{([^}]*)\\}`).exec(css);
+    if (match === null) throw new Error(`Brak reguły ${selector}`);
+    return match[1];
+  };
+
+  it("karta i twarz nie mają overflow innego niż visible", () => {
+    expect(block(".card")).not.toMatch(/overflow\s*:\s*(hidden|clip|auto|scroll)/);
+    expect(block(".face")).not.toMatch(/overflow\s*:\s*(hidden|clip|auto|scroll)/);
+    expect(block(".face")).not.toMatch(/block-size\s*:\s*100%/);
+  });
+
+  it("karta ma minimalne proporcje 5:7 i rośnie z twarzą", () => {
+    expect(block(".card")).toContain("aspect-ratio: 5 / 7");
+    expect(block(".card")).toMatch(/display:\s*flex/);
+    expect(block(".face")).toMatch(/flex:\s*1/);
+  });
+
+  it("przycinane są tylko kontenery warstw ozdobnych", () => {
+    const decorative = /(?:^|\n)\.frame,\s*\.effects\s*\{([^}]*)\}/.exec(css);
+    expect(decorative?.[1]).toMatch(/overflow:\s*clip/);
+    const clipped = [...css.matchAll(/(?:^|\n)([^{}\n]+)\{[^}]*overflow:\s*(?:hidden|clip)/g)];
+    for (const [, selector] of clipped) {
+      expect(selector, selector).toMatch(/\.frame|\.effects|\.medallion/);
+    }
+  });
+
+  it("tekst jest w twarzy, a warstwy ozdobne w kontenerach aria-hidden", () => {
+    const html = render(createElement(LegendaryCard, sampleCard));
+
+    expect(html).toMatch(/<span class="[^"]*frame[^"]*" aria-hidden="true">/);
+    expect(html).toMatch(/<span class="[^"]*effects[^"]*" aria-hidden="true">/);
+  });
+});
+
+describe("scena odsłonięcia: gest i czas", () => {
+  const dir = new URL("../../src/design-system/components/", import.meta.url);
+  const css = readFileSync(new URL("legendary-card-reveal.module.css", dir), "utf8");
+  const tsx = readFileSync(new URL("legendary-card-reveal.tsx", dir), "utf8");
+  const tokensCss = readFileSync(
+    new URL("../../src/design-system/tokens/tokens.css", import.meta.url),
+    "utf8",
+  );
+
+  it("zasłona nie blokuje pionowego przewijania strony (touch-action: pan-y)", () => {
+    expect(css).toMatch(/touch-action:\s*pan-y/);
+    expect(css).not.toMatch(/touch-action:\s*none/);
+  });
+
+  it("gest przechwytuje wskaźnik", () => {
+    expect(tsx).toContain("setPointerCapture");
+  });
+
+  it("stała czasu odsłonięcia jest równa tokenowi motion.duration.reveal", () => {
+    const token = /--motion-duration-reveal:\s*(\d+)ms;/.exec(tokensCss);
+    expect(REVEAL_DURATION_MS).toBe(Number(token?.[1]));
+  });
+
+  it("próg gestu w górę", () => {
+    expect(isSwipeUp(300, 300 - SWIPE_UP_PX)).toBe(true);
+    expect(isSwipeUp(300, 300 - SWIPE_UP_PX + 1)).toBe(false);
+    expect(isSwipeUp(300, 400)).toBe(false);
   });
 });
 

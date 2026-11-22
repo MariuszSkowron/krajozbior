@@ -110,15 +110,17 @@ export function LegendaryCard({
       data-category={category}
       data-playing={playing ? "true" : undefined}
     >
-      <span className={styles.sheen} aria-hidden="true" />
-      {category === "trail_community" ? (
-        <span className={styles.edge} data-layer="edge" aria-hidden="true" />
-      ) : null}
-      {category === "national_holiday" ? (
-        <span className={styles.glow} data-layer="glow" aria-hidden="true" />
-      ) : null}
+      <span className={styles.frame} aria-hidden="true">
+        <span className={styles.sheen} />
+        {category === "trail_community" ? <span className={styles.edge} data-layer="edge" /> : null}
+        {category === "national_holiday" ? (
+          <span className={styles.glow} data-layer="glow" />
+        ) : null}
+      </span>
       <div className={styles.face}>
-        <Effect category={category} />
+        <span className={styles.effects} aria-hidden="true">
+          <Effect category={category} />
+        </span>
         <p className={styles.label}>LEGENDARNA</p>
         <Heading className={styles.eventName}>{eventName}</Heading>
         <p className={styles.collection}>{collectionTitle}</p>

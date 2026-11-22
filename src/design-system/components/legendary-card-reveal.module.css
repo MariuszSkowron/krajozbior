@@ -67,7 +67,7 @@
   letter-spacing: var(--font-tracking-label);
   text-transform: uppercase;
   cursor: pointer;
-  touch-action: none;
+  touch-action: pan-y;
   background: var(--color-surface-tint);
   border: 1px solid var(--color-border-strong);
   border-block-start: 4px solid var(--color-brand-accent);

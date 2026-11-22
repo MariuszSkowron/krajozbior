@@ -18,9 +18,15 @@
   );
   --legendary-glow: color-mix(in srgb, var(--color-legendary-krajozbior-end) 55%, transparent);
 
+  /*
+   * Bez overflow: hidden na karcie i twarzy: aspect-ratio daje tylko minimum 5:7, a przy
+   * długich nazwach i powiększonym tekście (WCAG 1.4.4) karta rośnie. Przycinane są wyłącznie
+   * warstwy ozdobne, w osobnych kontenerach (.frame, .effects).
+   */
   position: relative;
   isolation: isolate;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   box-sizing: border-box;
   inline-size: 100%;
   max-inline-size: 18rem;
@@ -108,6 +114,16 @@
   --legendary-ring: var(--color-legendary-krajozbior-end);
 }
 
+/* Kontenery warstw ozdobnych: jedyne miejsca z przycinaniem (karta sama może rosnąć). */
+.frame,
+.effects {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
 /* Połysk ramki: wąski jasny pas pod wnętrzem, widoczny tylko na obramowaniu. */
 .sheen {
   position: absolute;
@@ -146,8 +162,7 @@
   flex-direction: column;
   gap: var(--space-sm);
   box-sizing: border-box;
-  block-size: 100%;
-  overflow: hidden;
+  flex: 1;
   padding: var(--space-md);
   background: var(--color-surface-card);
   border-radius: calc(var(--radius-lg) - 2px);
@@ -445,6 +460,8 @@
     padding: 0;
   }
 
+  .frame,
+  .effects,
   .sheen,
   .edge,
   .glow,

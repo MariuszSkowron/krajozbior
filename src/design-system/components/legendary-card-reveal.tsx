@@ -22,9 +22,17 @@ import styles from "./legendary-card-reveal.module.css";
 // wywołuje `onReveal`, przenosi fokus na kartę i wpisuje komunikat do regionu `aria-live`. Nic
 // z tego nie czeka na `animationend`; animacja jest warstwą nad stanem końcowym, a Escape albo
 // ponowne kliknięcie karty w trakcie animacji przechodzi od razu do stanu końcowego.
-const SWIPE_UP_PX = 110;
-// Zapas równy motion.duration.reveal: zdejmuje klasę animacji, gdy `animationend` nie nadejdzie.
-const REVEAL_FALLBACK_MS = 1200;
+export const SWIPE_UP_PX = 110;
+// Wartość tokenu motion.duration.reveal (test pilnuje zgodności z tokens.css).
+export const REVEAL_DURATION_MS = 1200;
+// Zapas dłuższy od animacji: zdejmuje klasę animacji dopiero po `animationend`, a gdy ten nie
+// nadejdzie (np. karta poza ekranem), tuż po czasie animacji.
+const REVEAL_FALLBACK_MS = REVEAL_DURATION_MS + 100;
+
+/** Gest „w górę”: palec lub mysz przesunięte o co najmniej próg ku górze ekranu. */
+export function isSwipeUp(startY: number, endY: number): boolean {
+  return startY - endY >= SWIPE_UP_PX;
+}
 
 export function LegendaryCardReveal({
   card,
@@ -48,6 +56,7 @@ export function LegendaryCardReveal({
   const cardRef = useRef<HTMLDivElement>(null);
   const focusPending = useRef(false);
   const swipeStart = useRef<number | null>(null);
+  const swipeLast = useRef(0);
 
   // Fokus na karcie po odsłonięciu z akcji (nie przy starcie w stanie odsłoniętym).
   useEffect(() => {
@@ -74,12 +83,21 @@ export function LegendaryCardReveal({
 
   function onPointerDown(event: PointerEvent<HTMLButtonElement>) {
     swipeStart.current = event.clientY;
+    swipeLast.current = event.clientY;
+    // Mysz puszczona poza zasłoną dalej kończy gest (dotyk ma niejawne przechwycenie).
+    event.currentTarget.setPointerCapture?.(event.pointerId);
   }
 
-  function onPointerUp(event: PointerEvent<HTMLButtonElement>) {
+  function onPointerMove(event: PointerEvent<HTMLButtonElement>) {
+    if (swipeStart.current !== null) swipeLast.current = event.clientY;
+  }
+
+  // Zasłona ma `touch-action: pan-y`: pionowe przewijanie strony działa, a gdy przeglądarka je
+  // przejmie (pointercancel), ostatnie położenie palca nadal liczy się do progu gestu.
+  function finishSwipe(endY: number) {
     const start = swipeStart.current;
     swipeStart.current = null;
-    if (start !== null && start - event.clientY >= SWIPE_UP_PX) reveal();
+    if (start !== null && isSwipeUp(start, endY)) reveal();
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -128,10 +146,9 @@ export function LegendaryCardReveal({
             disabled={revealed}
             onClick={reveal}
             onPointerDown={onPointerDown}
-            onPointerUp={onPointerUp}
-            onPointerCancel={() => {
-              swipeStart.current = null;
-            }}
+            onPointerMove={onPointerMove}
+            onPointerUp={(event) => finishSwipe(event.clientY)}
+            onPointerCancel={() => finishSwipe(swipeLast.current)}
             onAnimationEnd={(event) => {
               if (event.target === event.currentTarget) setPlaying(false);
             }}
