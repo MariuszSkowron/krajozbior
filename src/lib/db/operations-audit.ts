@@ -46,6 +46,8 @@ export const AUDIT_ERROR_CODES = [
   "invalid_transition",
   "stale_link",
   "too_many_news",
+  // Written by the import itself when the address of a new item is taken (not by the function).
+  "slug_taken",
 ] as const;
 
 export type AuditErrorCode = (typeof AUDIT_ERROR_CODES)[number];
