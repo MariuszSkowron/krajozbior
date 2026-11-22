@@ -205,6 +205,28 @@ describe("collection cover", () => {
     expect(await privilege("krajozbior_app", "insert")).toBe(false);
     expect(await privilege("krajozbior_ops", "update")).toBe(false);
     expect(await privilege("krajozbior_auth", "update")).toBe(false);
+
+    // The flag of the foreign key is set by the guard only: the app role cannot write it, and a
+    // cover without the flag (or the flag without a cover) is refused by the constraint.
+    const flag = async (privilegeName: string) =>
+      (
+        await admin$<{ allowed: boolean }>(
+          `select has_column_privilege('krajozbior_app', 'public.collections', 'cover_eligible', $1) as allowed`,
+          [privilegeName],
+        )
+      )[0]!.allowed;
+
+    expect(await flag("update")).toBe(false);
+    expect(await flag("insert")).toBe(false);
+    await expect(
+      admin$(`update public.collections set cover_eligible = true where false`),
+    ).resolves.toEqual([]);
+    const place = await newPlace(orgA);
+    const collection = await newCollection(orgA, [place], false);
+
+    await expect(
+      admin$(`update public.collections set cover_eligible = true where id = $1`, [collection.id]),
+    ).rejects.toThrow(/collections_cover_eligible_check/);
   });
 
   it("lets nobody call the trigger functions directly, and no role but the superuser gets a policy for them", async () => {
@@ -249,7 +271,7 @@ describe("collection cover", () => {
     // A generated column: nobody writes it, not even a superuser.
     await expect(
       admin$(`update public.place_photos set cover_eligible = true where false`),
-    ).rejects.toThrow(/generated column/);
+    ).rejects.toThrow(/can only be updated to DEFAULT/);
   });
 
   describe("who may set the cover", () => {

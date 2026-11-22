@@ -12,10 +12,11 @@ import { Migration } from "@mikro-orm/migrations";
 //   zdjęcia nic nie zdradza, a plik i podpis oddaje `place_photos` według własnych polityk RLS.
 // - Zdjęcie gotowe i nieukryte pilnuje klucz obcy, nie wyzwalacz: `place_photos.cover_eligible`
 //   (kolumna generowana: `file_state = 'ready' and hidden_at is null`) jest częścią klucza
-//   `(id, cover_eligible)`, a `collections.cover_eligible` jest równe `true` przy okładce. Okładka
-//   ukrytego albo niegotowego zdjęcia kończy się `23503`, a gdy zdjęcie stanie się ukryte albo
-//   niegotowe (rola operatora, `photos:fetch`, polecenie ukrycia), `on update set null` zeruje
-//   okładkę sam (działanie klucza obcego omija RLS i uprawnienia, więc operator nie potrzebuje
+//   `(id, cover_eligible)`, a `collections.cover_eligible` (ustawia ją strażnik) jest równe `true`
+//   przy okładce. Okładka ukrytego albo niegotowego zdjęcia kończy się `23503`, a gdy zdjęcie
+//   stanie się ukryte albo niegotowe (rola operatora, `photos:fetch`, polecenie ukrycia),
+//   `on update set null` zeruje okładkę sam (działanie klucza obcego omija RLS i uprawnienia, więc
+//   operator nie potrzebuje
 //   praw do `collections`, a właściciel nie dostaje żadnych polityk). Usunięcie zdjęcia też zeruje
 //   okładkę (`on delete set null`). Powrót zdjęcia do stanu gotowego i widocznego okładki nie
 //   przywraca: kurator wybiera ją od nowa (spec: „kolekcja zostaje bez okładki”).
@@ -45,22 +46,29 @@ export class Migration20261122010000_collection_cover extends Migration {
         add constraint place_photos_id_cover_eligible_key unique (id, cover_eligible);
     `);
 
+    // `cover_eligible` kolekcji nie jest kolumną generowaną: `on update set null` klucza obcego
+    // musi móc ją wyzerować razem ze wskaźnikiem (dla kolumny generowanej PostgreSQL odmawia).
+    // Ustawia ją strażnik (poniżej): `true` przy okładce, `null` bez niej; ograniczenie pilnuje
+    // zgodności, a aplikacja nie ma uprawnienia do jej zapisu.
     this.addSql(`alter table collections add column cover_place_photo_id uuid null;`);
+    this.addSql(`alter table collections add column cover_eligible boolean null;`);
     this.addSql(`
       alter table collections
-        add column cover_eligible boolean
-          generated always as (case when cover_place_photo_id is null then null else true end)
-          stored;
+        add constraint collections_cover_eligible_check
+          check (
+            (cover_place_photo_id is null and cover_eligible is null)
+            or (cover_place_photo_id is not null and cover_eligible is true)
+          );
     `);
-    // MATCH SIMPLE: bez okładki (`null`) klucz nie sprawdza niczego. Lista kolumn w `set null`
-    // zeruje tylko wskaźnik; `cover_eligible` kolekcji przelicza się sam.
+    // MATCH SIMPLE: bez okładki (`null`) klucz nie sprawdza niczego. Oba działania zerują obie
+    // kolumny (lista kolumn w `set null` działa tylko przy `on delete`).
     this.addSql(`
       alter table collections
         add constraint collections_cover_place_photo_fkey
           foreign key (cover_place_photo_id, cover_eligible)
           references place_photos (id, cover_eligible)
-          on delete set null (cover_place_photo_id)
-          on update set null (cover_place_photo_id);
+          on delete set null
+          on update set null;
     `);
     // Działania klucza obcego (`set null`) szukają wierszy po tej kolumnie.
     this.addSql(`
@@ -77,8 +85,12 @@ export class Migration20261122010000_collection_cover extends Migration {
       as $$
       begin
         if new.cover_place_photo_id is null then
+          new.cover_eligible := null;
+
           return new;
         end if;
+
+        new.cover_eligible := true;
 
         if not exists (
           select
