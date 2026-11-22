@@ -2,6 +2,9 @@ import { NEWS_DELETE_AFTER_WITHDRAWAL_DAYS, NEWS_UPDATED_NOTE_MINUTES } from "./
 
 export const NEWS_KINDS = ["new_place", "info_change", "event", "guide", "community"] as const;
 
+/** The organizations the news import may write to (D-33) and whose news is marked editorial; the first one is the default. */
+export const NEWS_EDITORIAL_ORG_SLUGS: readonly string[] = ["krajozbior-redakcja"];
+
 export type NewsKind = (typeof NEWS_KINDS)[number];
 
 // Polish names of the kinds, as in the mockup (the interface never shows the key).

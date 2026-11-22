@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Role } from "@/features/identity/domain/actor";
 
 import styles from "../app-shell.module.css";
+import { GuestNewsLink } from "./guest-news-link";
 import { LoginLink } from "./login-link";
 import { LogoutForm } from "./logout-form";
 import { ProfileLink } from "./profile-link";
@@ -24,7 +25,10 @@ export function AccountArea({
   return (
     <div className={styles.account}>
       {role === null ? (
-        <LoginLink />
+        <>
+          <GuestNewsLink />
+          <LoginLink />
+        </>
       ) : (
         <>
           <ProfileLink name={displayName} />

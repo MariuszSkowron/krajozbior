@@ -5,6 +5,8 @@ import { z } from "zod";
 import { isLocalDatabaseUrl } from "@/lib/config/loopback";
 import { auditOperatorSchema, auditReasonSchema } from "@/lib/db/operations-audit";
 
+import { NEWS_EDITORIAL_ORG_SLUGS } from "../domain/news";
+
 import {
   decodeNewsImportFile,
   parseNewsImportFile,
@@ -28,9 +30,6 @@ import {
 //   `rejected` or `refused`), 1 everything else (wrong arguments, a failure) and no JSON.
 //
 // The whole file is written in one transaction or not at all (S23).
-
-/** The organizations the command may write to (D-33); the first one is the default. */
-export const NEWS_EDITORIAL_ORG_SLUGS: readonly string[] = ["krajozbior-redakcja"];
 
 export type NewsImportState = "created" | "updated" | "unchanged" | "withdrawn";
 

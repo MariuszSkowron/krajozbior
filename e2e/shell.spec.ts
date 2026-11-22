@@ -2,7 +2,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 
 import { waitForHydration } from "../tests/support/e2e-hydration";
 
-// E3-2a: powłoka i nawigacja. Dolny pasek zalogowanego odkrywcy na telefonie (4 pozycje,
+// E3-2a: powłoka i nawigacja. Dolny pasek zalogowanego odkrywcy na telefonie (5 pozycji,
 // aria-current, cele dotykowe 44 × 44 px, fokus niezasłonięty przez pasek), menu boczne
 // na komputerze oraz menu i komunikat panelu kuratora. Logowanie kontami demo wymaga
 // zmigrowanej i zasianej bazy jak w innych specach; bez niej te testy są pomijane.
@@ -38,13 +38,16 @@ async function signedInPage(
 }
 
 test.describe("gość", () => {
-  test("nie ma głównej nawigacji, tylko nagłówek z logowaniem", async ({ browser }) => {
+  test("nie ma głównej nawigacji, tylko nagłówek z aktualnościami i logowaniem", async ({
+    browser,
+  }) => {
     const context = await browser.newContext({ viewport: PHONE });
     const page = await context.newPage();
     await page.goto("/");
 
     await expect(page.locator(NAV)).toHaveCount(0);
     await expect(page.getByRole("banner").getByRole("link", { name: "Zaloguj się" })).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: "Aktualności" })).toBeVisible();
     await context.close();
   });
 });
@@ -52,7 +55,7 @@ test.describe("gość", () => {
 test.describe("dolny pasek na telefonie", () => {
   test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
 
-  test("ma 4 pozycje, bieżąca ma aria-current, cele mają co najmniej 44 × 44 px", async ({
+  test("ma 5 pozycji, bieżąca ma aria-current, cele mają co najmniej 44 × 44 px", async ({
     browser,
   }) => {
     const page = await signedInPage(browser, "user", PHONE);
@@ -63,6 +66,7 @@ test.describe("dolny pasek na telefonie", () => {
       "Moje kolekcje",
       "Chcę zobaczyć",
       "Profil",
+      "Aktualności",
     ]);
 
     // Pasek jest przypięty do dolnej krawędzi i ma półprzezroczyste tło z rozmyciem.
@@ -211,14 +215,14 @@ test.describe("dolny pasek na telefonie", () => {
 test.describe("menu boczne na komputerze", () => {
   test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
 
-  test("menu stoi obok treści, ma 4 pozycje po 46 px i bieżącą z aria-current", async ({
+  test("menu stoi obok treści, ma 5 pozycji po 46 px i bieżącą z aria-current", async ({
     browser,
   }) => {
     const page = await signedInPage(browser, "user", DESKTOP);
     await page.goto("/my/collections");
     const nav = page.locator(NAV);
 
-    await expect(nav.getByRole("link")).toHaveCount(4);
+    await expect(nav.getByRole("link")).toHaveCount(5);
     await expect(nav.locator('a[aria-current="page"]')).toHaveText("Moje kolekcje");
 
     const layout = await page.evaluate((navSelector) => {

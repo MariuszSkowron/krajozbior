@@ -66,6 +66,16 @@ export function ProfileIcon(props: IconProps) {
   );
 }
 
+// Aktualności: złożona gazeta.
+export function NewsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6 4h12a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6.5A2.5 2.5 0 0 1 4 17.5V6a2 2 0 0 1 2-2Z" />
+      <path d="M8 8.5h8M8 12h8M8 15.5h5" />
+    </Icon>
+  );
+}
+
 // Miejsce: pinezka.
 export function PinIcon(props: IconProps) {
   return (
