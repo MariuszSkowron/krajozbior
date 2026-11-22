@@ -68,19 +68,34 @@ export function resultOfOutcome(
     case "done": {
       const collections: Record<string, number> = {};
       const places: Record<string, number> = {};
+      const photos: Record<string, number> = {};
 
       for (const collection of outcome.collections) {
         count(collections, collection.result);
 
         for (const place of collection.places) {
           count(places, place.result);
+
+          for (const photo of place.photos ?? []) {
+            count(photos, photo);
+          }
         }
       }
 
       return {
         outcome: "applied",
         code: null,
-        details: { ...base, collection_results: collections, place_results: places },
+        details: {
+          ...base,
+          collection_results: collections,
+          place_results: places,
+          // Counts of the photo block only (E4-2a): no file names, no titles.
+          photos_created: photos.created ?? 0,
+          photos_updated: photos.updated ?? 0,
+          photos_removed: photos.removed ?? 0,
+          photos_kept_manual: (photos.kept_manual_edit ?? 0) + (photos.kept_manual_delete ?? 0),
+          photos_skipped_unknown_license: photos.skipped_unknown_license ?? 0,
+        },
       };
     }
     case "removed": {

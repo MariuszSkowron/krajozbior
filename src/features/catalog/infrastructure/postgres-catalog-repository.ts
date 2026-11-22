@@ -29,7 +29,8 @@ const collectionColumns = `c.id, c.slug, c.organization_id as "organizationId", 
 const returningCollection = `id, slug, organization_id as "organizationId", title,
   summary, region, status, first_published_at as "firstPublishedAt", version`;
 const placeColumns = `id, organization_id as "organizationId", name, description, address,
-  access_info as "accessInfo", latitude, longitude, visit_radius_m as "visitRadiusM", version`;
+  access_info as "accessInfo", access_restriction as "accessRestriction", latitude, longitude,
+  visit_radius_m as "visitRadiusM", version`;
 
 const first = <T>(rows: readonly T[]): T | null => rows[0] ?? null;
 
@@ -220,7 +221,8 @@ export const postgresCatalogRepository: CatalogRepository = {
   async listCollectionPlaces(tx, collectionId) {
     return tx.em.execute<CuratorPlaceItem[]>(
       `select p.id, p.organization_id as "organizationId", p.name, p.description, p.address,
-              p.access_info as "accessInfo", p.latitude, p.longitude,
+              p.access_info as "accessInfo", p.access_restriction as "accessRestriction",
+              p.latitude, p.longitude,
               p.visit_radius_m as "visitRadiusM", p.version, cp.position
          from public.collection_places cp
          join public.places p on p.id = cp.place_id
@@ -269,8 +271,9 @@ export const postgresCatalogRepository: CatalogRepository = {
   async insertPlace(tx, organizationId, values) {
     const rows = await tx.em.execute<PlaceRow[]>(
       `insert into public.places
-         (organization_id, name, description, address, access_info, latitude, longitude, visit_radius_m)
-       values (?, ?, ?, ?, ?, ?, ?, ?)
+         (organization_id, name, description, address, access_info, access_restriction,
+          latitude, longitude, visit_radius_m)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?)
        returning ${placeColumns}`,
       [
         organizationId,
@@ -278,6 +281,7 @@ export const postgresCatalogRepository: CatalogRepository = {
         values.description,
         values.address,
         values.accessInfo,
+        values.accessRestriction,
         values.latitude,
         values.longitude,
         values.visitRadiusM,
@@ -324,7 +328,7 @@ export const postgresCatalogRepository: CatalogRepository = {
       await tx.em.execute<PlaceRow[]>(
         `update public.places
             set name = ?, description = ?, address = ?, access_info = ?,
-                latitude = ?, longitude = ?, visit_radius_m = ?,
+                access_restriction = ?, latitude = ?, longitude = ?, visit_radius_m = ?,
                 version = version + 1, updated_at = now()
           where id = ? and version = ?
           returning ${placeColumns}`,
@@ -333,6 +337,7 @@ export const postgresCatalogRepository: CatalogRepository = {
           values.description,
           values.address,
           values.accessInfo,
+          values.accessRestriction,
           values.latitude,
           values.longitude,
           values.visitRadiusM,
@@ -471,7 +476,7 @@ export const postgresCatalogRepository: CatalogRepository = {
   async findPublishedPlace(tx: TransactionContext, id) {
     const place = first(
       await tx.em.execute<
-        (Omit<PublishedPlace, "organization" | "collections" | "source"> & {
+        (Omit<PublishedPlace, "organization" | "collections" | "source" | "cover"> & {
           organizationName: string;
           organizationSlug: string;
           attribution: string | null;
@@ -480,7 +485,7 @@ export const postgresCatalogRepository: CatalogRepository = {
         })[]
       >(
         `select p.id, p.name, p.description, p.address, p.access_info as "accessInfo",
-                p.latitude, p.longitude, p.visit_radius_m as "visitRadiusM",
+                p.access_restriction as "accessRestriction", p.latitude, p.longitude, p.visit_radius_m as "visitRadiusM",
                 o.name as "organizationName", o.slug as "organizationSlug",
                 s.attribution, s.wikipedia_url as "wikipediaUrl", s.wikidata_qid as "wikidataQid"
            from public.places p
@@ -512,6 +517,22 @@ export const postgresCatalogRepository: CatalogRepository = {
         order by c.title, c.slug`,
       [id],
     );
+    // The cover: the first ready photo by position. This runs in the guest context, so the policy
+    // of `place_photos` leaves only what everyone may see (a hidden photo never comes back); the
+    // application role has no grant on the `hidden_*` columns, so the query does not read them.
+    const cover = first(
+      await tx.em.execute<NonNullable<PublishedPlace["cover"]>[]>(
+        `select id as "photoId", width, height, alt_text as "altText", title,
+                author_text as "authorText", author_url as "authorUrl", source_url as "sourceUrl",
+                source_kind as "sourceKind", license_code as "licenseCode",
+                license_url as "licenseUrl", license_label as "licenseLabel"
+           from public.place_photos
+          where place_id = ? and file_state = 'ready' and storage_key is not null
+          order by position
+          limit 1`,
+        [id],
+      ),
+    );
     const { organizationName, organizationSlug, attribution, wikipediaUrl, wikidataQid, ...rest } =
       place;
 
@@ -520,6 +541,7 @@ export const postgresCatalogRepository: CatalogRepository = {
       organization: { name: organizationName, slug: organizationSlug },
       collections,
       source: attribution === null ? null : { attribution, wikipediaUrl, wikidataQid },
+      cover,
     };
   },
 

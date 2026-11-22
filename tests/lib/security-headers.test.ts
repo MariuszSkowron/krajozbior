@@ -1,14 +1,44 @@
 import { describe, expect, it } from "vitest";
 
 import nextConfig from "../../next.config";
-import { contentSecurityPolicy, securityHeaders } from "@/lib/security-headers";
+import {
+  contentSecurityPolicy,
+  MEDIA_SOURCE,
+  PAGES_SOURCE,
+  securityHeaders,
+} from "@/lib/security-headers";
 
 const valueOf = (key: string, isDev = false) =>
   securityHeaders(isDev)[0].headers.find((header) => header.key === key)?.value;
 
 describe("security headers", () => {
-  it("apply to every path", () => {
-    expect(securityHeaders(false).map(({ source }) => source)).toEqual(["/:path*"]);
+  it("apply to every path: the page rule to all but /media, the media rule to /media", () => {
+    expect(securityHeaders(false).map(({ source }) => source)).toEqual([
+      PAGES_SOURCE,
+      MEDIA_SOURCE,
+    ]);
+  });
+
+  it("leave the Content-Security-Policy of a photo to its route (E4-2b), keeping the other headers", () => {
+    const [pages, media] = securityHeaders(false);
+    const keys = (rule: { headers: { key: string }[] }) => rule.headers.map(({ key }) => key);
+
+    // A header from next.config replaces the same header of the route, so the photo rule must
+    // not carry the page policy: the route sets one `default-src 'none'; sandbox`.
+    expect(keys(media)).not.toContain("Content-Security-Policy");
+    expect(keys(pages).filter((key) => key !== "Content-Security-Policy")).toEqual(keys(media));
+  });
+
+  it("matches /media paths with the media rule only, and every other path with the page rule", () => {
+    const pagesRule = new RegExp(`^${PAGES_SOURCE}$`);
+
+    for (const path of ["/", "/login", "/media-kit", "/mediateka/a", "/places/x", "/api/health"]) {
+      expect(pagesRule.test(path), path).toBe(true);
+    }
+
+    for (const path of ["/media", "/media/p/x/main", "/media/e/x/w400", "/media/a/b/c/d"]) {
+      expect(pagesRule.test(path), path).toBe(false);
+    }
   });
 
   it("set all headers required by #67", () => {
