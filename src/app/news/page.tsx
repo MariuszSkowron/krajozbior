@@ -74,9 +74,7 @@ export default async function NewsPage({ searchParams }: { searchParams: SearchP
           </li>
         </ul>
       </nav>
-      <p className={styles.count} role="status">
-        {countText(cards.length, filter)}
-      </p>
+      <p className={styles.count}>{countText(cards.length, filter)}</p>
       {cards.length === 0 ? (
         <div className={styles.empty}>
           <p>

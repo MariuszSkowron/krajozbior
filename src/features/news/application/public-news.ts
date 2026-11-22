@@ -1,3 +1,4 @@
+import { NEWS_EDITORIAL_ORG_SLUGS } from "../domain/news";
 import { currentEvents } from "../domain/news-event";
 import {
   NEWS_EVENT_FILTER_LIMIT,
@@ -5,7 +6,6 @@ import {
   isNewsSlug,
   type NewsFilter,
 } from "../domain/news-view";
-import { NEWS_EDITORIAL_ORG_SLUGS } from "./news-import-command";
 import type { NewsReadDeps, PublicNewsCard, PublicNewsItem } from "./news-read-types";
 
 // The public reading of news (E7-R3). Always the guest context (D-T4): a signed-in

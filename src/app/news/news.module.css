@@ -104,7 +104,8 @@
   text-decoration: none;
 }
 
-.cardLink:hover {
+.cardLink:hover,
+.cardLink:focus-visible {
   text-decoration: underline;
 }
 
