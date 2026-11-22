@@ -138,7 +138,7 @@ export function PastVisit({ placeId, existing }: Props) {
                   aria-busy={pending}
                 >
                   Zapisz wizytę z przeszłości
-                </button>{" "}
+                </button>
               </div>
             </form>
           ) : null}

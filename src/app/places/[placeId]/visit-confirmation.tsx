@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { StatusBadge } from "@/design-system/components/status-badge";
 import { formatProgress, type Progress } from "@/features/album/domain/progress";
 import {
   geolocationProblemMessage,
   visitOutcomeMessage,
+  VISIT_RECORDED_MESSAGE,
   type GeolocationProblem,
 } from "@/features/visits/domain/visit-outcome";
 
@@ -39,6 +40,14 @@ type State =
   | { kind: "inaccurate"; accuracyM: number }
   | { kind: "problem"; problem: GeolocationProblem }
   | { kind: "failed"; message: string; canRetry: boolean };
+
+// States whose message is scrolled into view (a result the person has to see).
+const SCROLLED_KINDS: ReadonlySet<State["kind"]> = new Set([
+  "out_of_range",
+  "inaccurate",
+  "problem",
+  "failed",
+]);
 
 const FAILURES: Record<number, string> = {
   400: "Nie udało się odczytać lokalizacji. Spróbuj ponownie.",
@@ -103,6 +112,19 @@ function feedbackText(state: State, radiusM: number | undefined): string {
 export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM }: Props) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const attempt = useRef<Attempt | null>(null);
+  const feedback = useRef<HTMLParagraphElement | null>(null);
+
+  // On a phone the button sits in the pinned bar and the message in the section, which may be
+  // off screen: bring the result into view. The focus stays where it is (the button keeps it).
+  useEffect(() => {
+    if (!SCROLLED_KINDS.has(state.kind)) {
+      return;
+    }
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    feedback.current?.scrollIntoView({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
+  }, [state.kind]);
 
   async function send(current: Attempt) {
     setState({ kind: "sending" });
@@ -190,7 +212,7 @@ export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM
     return (
       <div className={styles.box}>
         <p className={styles.success} role="status" tabIndex={-1} ref={focusOnMount}>
-          {visitOutcomeMessage({ result: "recorded", distanceM: 0 })}
+          {VISIT_RECORDED_MESSAGE}
         </p>
         {state.collections.length === 0 ? null : (
           <ul className={styles.progress} aria-label="Twój postęp po tej wizycie">
@@ -252,6 +274,7 @@ export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM
               : ""
         }`}
         role={state.kind === "failed" || state.kind === "problem" ? "alert" : "status"}
+        ref={feedback}
       >
         {feedbackText(state, radiusM)}
       </p>

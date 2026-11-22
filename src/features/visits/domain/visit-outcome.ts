@@ -58,6 +58,9 @@ export function toVisitOutcome(
   }
 }
 
+/** The sentence after a saved visit (it needs no distance). */
+export const VISIT_RECORDED_MESSAGE = "To miejsce jest w Twoim albumie.";
+
 /**
  * The message under the "Potwierdzam wizytę" button for every outcome. The radius
  * of the place (public data) tells how close the person has to come; without it
@@ -66,7 +69,7 @@ export function toVisitOutcome(
 export function visitOutcomeMessage(outcome: VisitOutcome, radiusM?: number): string {
   switch (outcome.result) {
     case "recorded":
-      return "To miejsce jest w Twoim albumie.";
+      return VISIT_RECORDED_MESSAGE;
     case "out_of_range": {
       const distance = `Jesteś ${formatDistance(outcome.distanceM)} od miejsca.`;
 

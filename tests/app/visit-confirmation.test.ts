@@ -3,7 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // No DOM in unit tests: `useState` and `useRef` are replaced by a small store
 // that survives repeated calls of the component function.
-const store = vi.hoisted(() => ({ values: [] as unknown[], cursor: 0 }));
+const store = vi.hoisted(() => ({
+  values: [] as unknown[],
+  cursor: 0,
+  refs: [] as { current: unknown }[],
+  refCursor: 0,
+  effects: [] as (() => void)[],
+}));
 
 vi.mock("react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react")>()),
@@ -21,7 +27,17 @@ vi.mock("react", async (importOriginal) => ({
       },
     ];
   },
-  useRef: (initial: unknown) => ({ current: initial }),
+  useRef: (initial: unknown) => {
+    const index = store.refCursor++;
+
+    store.refs[index] ??= { current: initial };
+
+    return store.refs[index];
+  },
+  // The effects are collected, not run: a test runs them by hand.
+  useEffect: (effect: () => void) => {
+    store.effects.push(effect);
+  },
 }));
 
 const { VisitConfirmation } = await import("@/app/places/[placeId]/visit-confirmation");
@@ -38,6 +54,9 @@ type Node = {
 beforeEach(() => {
   store.values = [];
   store.cursor = 0;
+  store.refs = [];
+  store.refCursor = 0;
+  store.effects = [];
 });
 
 describe("VisitConfirmation after a saved visit", () => {
@@ -66,7 +85,9 @@ describe("VisitConfirmation after a saved visit", () => {
     }>;
     const children = root.props.children as unknown as Node[];
 
-    expect(children.some((child) => child?.props?.ref !== undefined)).toBe(false);
+    // Only the success message takes the focus (tabIndex -1); the feedback paragraph has a ref
+    // for scrolling but is not focusable.
+    expect(children.some((child) => child?.props?.tabIndex !== undefined)).toBe(false);
   });
 });
 
@@ -148,4 +169,57 @@ describe("VisitConfirmation texts (D-49)", () => {
 
     expect(textOf(dock)).toBe("Sprawdź ponownie");
   });
+
+  it("gives the radius in kilometres when it is 1000 m or more", () => {
+    store.values = [{ kind: "out_of_range", distanceM: 6200 }];
+
+    expect(
+      textOf(VisitConfirmation({ placeId: "p1", initialWanted: false, radiusM: 1500 })),
+    ).toContain("w promieniu 1,5 km od niego.");
+
+    store.cursor = 0;
+    store.refCursor = 0;
+
+    expect(
+      textOf(VisitConfirmation({ placeId: "p1", initialWanted: false, radiusM: 1000 })),
+    ).toContain("w promieniu 1 km od niego.");
+  });
+});
+
+describe("VisitConfirmation scrolls the result into view (the button is in the pinned bar)", () => {
+  function scrolls(kind: Record<string, unknown>, reduced: boolean) {
+    store.values = [kind];
+    vi.stubGlobal("window", { matchMedia: () => ({ matches: reduced }) });
+
+    const calls: unknown[] = [];
+
+    VisitConfirmation({ placeId: "p1", initialWanted: false });
+    store.refs[1]!.current = { scrollIntoView: (options: unknown) => calls.push(options) };
+    store.effects.forEach((effect) => effect());
+    vi.unstubAllGlobals();
+
+    return calls;
+  }
+
+  it.each([
+    { kind: "out_of_range", distanceM: 900 },
+    { kind: "inaccurate", accuracyM: 500 },
+    { kind: "problem", problem: "denied" },
+    { kind: "failed", message: "Brak połączenia.", canRetry: true },
+  ])("after the state $kind", (state) => {
+    expect(scrolls(state, false)).toEqual([{ block: "nearest", behavior: "smooth" }]);
+  });
+
+  it("does not animate when the person limits motion", () => {
+    expect(scrolls({ kind: "out_of_range", distanceM: 900 }, true)).toEqual([
+      { block: "nearest", behavior: "auto" },
+    ]);
+  });
+
+  it.each([{ kind: "idle" }, { kind: "locating" }, { kind: "sending" }])(
+    "does not scroll in the state $kind",
+    (state) => {
+      expect(scrolls(state, false)).toEqual([]);
+    },
+  );
 });

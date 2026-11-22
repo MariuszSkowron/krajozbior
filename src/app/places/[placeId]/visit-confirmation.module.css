@@ -24,9 +24,9 @@
 }
 
 /*
- * Przypięty przycisk główny (telefon, poniżej 48rem): dolny pasek z przyciskiem i komunikatem
- * stanu nad nim (komunikat `role="status"` jest cały czas widoczny, nie ucieka z przewijaną
- * treścią). Tło pełne (`canvas`, bez rozmycia: kontrast i lekkość na słabszych telefonach).
+ * Przypięty przycisk główny (telefon, poniżej 48rem): dolny pasek z samym przyciskiem (albo
+ * znacznikiem „Odwiedzone”). Komunikat o lokalizacji stoi w treści sekcji i po pojawieniu się
+ * jest przewijany do widoku. Tło pełne (`canvas`, bez rozmycia: kontrast i lekkość na słabszych telefonach).
  * Od 48rem opakowanie nie istnieje w układzie.
  */
 .dock {
