@@ -21,6 +21,20 @@ import {
 // Potok korzysta z prawdziwego `sharp`; generowanie dużych obrazów chwilę trwa.
 const SLOW = 60_000;
 
+/** Typy bloków kontenera RIFF/WebP (np. "VP8 ", "EXIF", "XMP "), czytane z nagłówków bloków. */
+function webpChunkTypes(file: Buffer): string[] {
+  expect(file.toString("latin1", 0, 4)).toBe("RIFF");
+  expect(file.toString("latin1", 8, 12)).toBe("WEBP");
+  const types: string[] = [];
+  let offset = 12;
+  while (offset + 8 <= file.length) {
+    types.push(file.toString("latin1", offset, offset + 4));
+    const size = file.readUInt32LE(offset + 4);
+    offset += 8 + size + (size % 2);
+  }
+  return types;
+}
+
 async function failureOf(input: Buffer, options?: Parameters<typeof processImage>[1]) {
   try {
     await processImage(input, options);
@@ -51,8 +65,11 @@ describe("potok obróbki zdjęć (prawdziwy sharp)", () => {
         expect(metadata.icc).toBeUndefined();
         expect(file.includes(FAKE_AUTHOR)).toBe(false);
         expect(file.includes(FAKE_XMP_MARKER)).toBe(false);
-        expect(file.includes("Exif")).toBe(false);
-        expect(file.includes("XMP")).toBe(false);
+        // Struktura kontenera, nie 3-4 litery w losowych bajtach obrazu (te trafiały się przypadkiem).
+        expect(webpChunkTypes(file)).not.toContain("EXIF");
+        expect(webpChunkTypes(file)).not.toContain("XMP ");
+        expect(webpChunkTypes(file)).not.toContain("ICCP");
+        expect(file.includes("http://ns.adobe.com/xap/1.0/")).toBe(false);
       }
     },
     SLOW,
