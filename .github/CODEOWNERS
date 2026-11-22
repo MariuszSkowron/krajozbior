@@ -88,6 +88,8 @@
 /src/app/news/                    @MariuszSkowron
 /e2e/news*.spec.ts                @MariuszSkowron
 /scripts/news-import.ts           @MariuszSkowron
+/tests/integration/news-*.test.ts @MariuszSkowron
+/docs/news-import.md              @MariuszSkowron
 
 # Album odkrywcy: zapisane kolekcje, wizyty (dane PRIV; wizytę na miejscu tworzy funkcja bazy)
 /src/features/album/               @MariuszSkowron
