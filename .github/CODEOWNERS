@@ -80,6 +80,15 @@
 /src/features/catalog/             @MariuszSkowron
 /tests/features/catalog/           @MariuszSkowron
 
+# Aktualności zespołu (E7-R: dane publiczne po publikacji, zapis tylko funkcją operatora
+# z wpisem w dzienniku; migracja i trasy API mają już właściciela przez /src/lib/db/migrations/
+# i /src/app/api/)
+/src/features/news/               @MariuszSkowron
+/tests/features/news/             @MariuszSkowron
+/src/app/news/                    @MariuszSkowron
+/e2e/news*.spec.ts                @MariuszSkowron
+/scripts/news-import.ts           @MariuszSkowron
+
 # Zdjęcia miejsc (E4-2a, tabela `place_photos`: klasa Publiczna po publikacji, inaczej CUR):
 # pobieranie z Wikimedia Commons jako rola operatora (`photos:fetch`); migracja i testy dostępu
 # mają właściciela przez /src/lib/db/ i /tests/integration/
