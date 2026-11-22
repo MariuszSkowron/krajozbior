@@ -74,7 +74,7 @@ describe("news list page", () => {
     expect(html).toContain('aria-label="Filtr aktualności"');
     expect(html).toMatch(/aria-current="true" href="\/news">Wszystkie</);
     expect(html).toContain('href="/news?filtr=wydarzenia">Wydarzenia</a>');
-    expect(html).toMatch(/<p class="[^"]+">Aktualności: 2</);
+    expect(html).toMatch(/<p class="[^"]+">2 aktualności</);
     expect(mocks.list).toHaveBeenCalledWith(null, {});
   });
 
@@ -135,7 +135,7 @@ describe("news list page", () => {
     const html = await list();
 
     expect(html).toContain("Zespół Krajozbioru nie opublikował jeszcze aktualności.");
-    expect(html).toContain("Aktualności: 0");
+    expect(html).toContain("0 aktualności");
     expect(html).not.toContain("Pokaż wszystkie aktualności");
   });
 
