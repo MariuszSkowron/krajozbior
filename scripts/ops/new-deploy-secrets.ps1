@@ -147,6 +147,8 @@ Write-Host ''
 if ($OdswiezWdroz) {
   Write-Host 'Gotowe. Wgranie kolekcji (plik z folderu ImportDir):' -ForegroundColor Green
   Write-Host "  powershell -ExecutionPolicy Bypass -File `"`$env:USERPROFILE\.config\krajozbior-deploy\wdroz.ps1`" -Import <pelna sciezka pliku>"
+  Write-Host 'Publikowanie aktualnosci redakcji (plik aktualnosci-<nazwa>.ndjson z folderu ImportDir):' -ForegroundColor Green
+  Write-Host "  powershell -ExecutionPolicy Bypass -File `"`$env:USERPROFILE\.config\krajozbior-deploy\wdroz.ps1`" -Aktualnosci <pelna sciezka pliku>"
   Write-Host 'Pobranie zdjec z Wikimedia Commons (po wgraniu kolekcji):' -ForegroundColor Green
   Write-Host "  powershell -ExecutionPolicy Bypass -File `"`$env:USERPROFILE\.config\krajozbior-deploy\wdroz.ps1`" -Zdjecia"
   exit 0
