@@ -3,8 +3,8 @@ import { createHash } from "node:crypto";
 // Reguły wejścia trasy `/media/{kind}/{photoId}/{size}` (spec E4, 5.4 z uzupełnieniem S5) i
 // nagłówki odpowiedzi (5.4, 5.11.7). Czysta domena: bez Next.js i bazy.
 
-/** Rozmiary serwowane od E4-2b; `og` dojdzie z E4-3. */
-export const MEDIA_SIZES = ["main", "w400"] as const;
+/** Rozmiary serwowane od E4-2b; `og` (JPEG 1200 px do podglądu linku) od E4-3. */
+export const MEDIA_SIZES = ["main", "w400", "og"] as const;
 export type MediaSize = (typeof MEDIA_SIZES)[number];
 
 export type MediaRequest = Readonly<{ photoId: string; size: MediaSize }>;
@@ -63,9 +63,14 @@ export function etagMatches(ifNoneMatch: string | null, etag: string): boolean {
 }
 
 /** Nagłówki odpowiedzi ze zdjęciem (albo `304`); `Cache-Control` zależy od widoczności. */
-export function photoHeaders(visibility: PhotoVisibility, etag: string): Record<string, string> {
+export function photoHeaders(
+  visibility: PhotoVisibility,
+  etag: string,
+  size: MediaSize = "main",
+): Record<string, string> {
   return {
-    "Content-Type": "image/webp",
+    // Rozmiar `og` to JPEG (podgląd linku w serwisach, które nie czytają WebP); reszta to WebP.
+    "Content-Type": size === "og" ? "image/jpeg" : "image/webp",
     "X-Content-Type-Options": "nosniff",
     "Content-Disposition": "inline",
     "Content-Security-Policy": "default-src 'none'; sandbox",

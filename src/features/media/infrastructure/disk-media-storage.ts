@@ -69,6 +69,38 @@ export class DiskMediaStorage implements MediaStorage {
     );
   }
 
+  async read(kind: MediaKind, key: string, variant: MediaVariant): Promise<Uint8Array | null> {
+    try {
+      const path = this.inside(mediaFilePath(kind, key, variant));
+      // Jeden uchwyt: sprawdzenie i odczyt dotyczą tego samego pliku.
+      const handle = await open(path, "r");
+      try {
+        const info = await handle.stat();
+        if (!info.isFile() || info.size === 0) return null;
+        return await handle.readFile();
+      } finally {
+        await handle.close();
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  async storeOg(kind: MediaKind, key: string, og: Uint8Array): Promise<void> {
+    await mkdir(this.tmpDirectory, { recursive: true, mode: DIRECTORY_MODE });
+    const target = this.inside(mediaFilePath(kind, key, "og"));
+    const tmp = join(this.tmpDirectory, `${randomUUID()}.tmp`);
+    try {
+      await writeSynced(tmp, og);
+      // `rename` pliku na katalog kończy się błędem, więc osobne sprawdzenie celu nie jest potrzebne.
+      await rename(tmp, target);
+    } catch (error) {
+      await unlink(tmp).catch(() => undefined);
+      throw error;
+    }
+    await syncDirectory(dirname(target));
+  }
+
   async remove(kind: MediaKind, key: string): Promise<void> {
     await rm(this.inside(mediaDirectory(kind, key)), { recursive: true, force: true });
   }

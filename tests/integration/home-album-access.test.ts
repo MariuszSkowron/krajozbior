@@ -323,6 +323,7 @@ describe("home page: personal album and public collections", () => {
       region: "pomorskie",
       organization: { name: expect.any(String) },
       placeCount: expect.any(Number),
+      cover: null,
     });
     expect(seen.find((collection) => collection.id === fresh.collectionId)?.placeCount).toBe(2);
 
