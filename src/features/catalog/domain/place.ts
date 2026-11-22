@@ -8,14 +8,31 @@ export const VISIT_RADIUS_MIN_M = 50;
 export const VISIT_RADIUS_MAX_M = 2000;
 export const VISIT_RADIUS_DEFAULT_M = 200;
 
+// E1-S11 (R-14): whether the grounds of a place may be entered. `none` is the default.
+export const ACCESS_RESTRICTIONS = ["none", "private", "fenced", "ruin"] as const;
+
+export type AccessRestriction = (typeof ACCESS_RESTRICTIONS)[number];
+
+export function isAccessRestriction(value: unknown): value is AccessRestriction {
+  return ACCESS_RESTRICTIONS.some((item) => item === value);
+}
+
 export type PlaceField =
-  "name" | "description" | "address" | "accessInfo" | "latitude" | "longitude" | "visitRadiusM";
+  | "name"
+  | "description"
+  | "address"
+  | "accessInfo"
+  | "accessRestriction"
+  | "latitude"
+  | "longitude"
+  | "visitRadiusM";
 
 export type PlaceInput = Readonly<{
   name: string;
   description: string;
   address: string;
   accessInfo: string;
+  accessRestriction: AccessRestriction;
   latitude: number;
   longitude: number;
   visitRadiusM: number;
@@ -58,6 +75,7 @@ export function validatePlaceInput(input: Record<string, unknown>): PlaceValidat
   const description = text(input.description, PLACE_DESCRIPTION_MAX_LENGTH, false);
   const address = text(input.address, PLACE_ADDRESS_MAX_LENGTH, false);
   const accessInfo = text(input.accessInfo, PLACE_ACCESS_MAX_LENGTH, false);
+  const restriction = input.accessRestriction === undefined ? "none" : input.accessRestriction;
   const latitude = coordinate(input.latitude, 90);
   const longitude = coordinate(input.longitude, 180);
   const radius = input.visitRadiusM === undefined ? VISIT_RADIUS_DEFAULT_M : input.visitRadiusM;
@@ -66,6 +84,7 @@ export function validatePlaceInput(input: Record<string, unknown>): PlaceValidat
   if (description === null) errors.push("description");
   if (address === null) errors.push("address");
   if (accessInfo === null) errors.push("accessInfo");
+  if (!isAccessRestriction(restriction)) errors.push("accessRestriction");
   if (latitude === null) errors.push("latitude");
   if (longitude === null) errors.push("longitude");
 
@@ -88,6 +107,7 @@ export function validatePlaceInput(input: Record<string, unknown>): PlaceValidat
       description: description as string,
       address: address as string,
       accessInfo: accessInfo as string,
+      accessRestriction: restriction as AccessRestriction,
       latitude: latitude as number,
       longitude: longitude as number,
       visitRadiusM: radius as number,
