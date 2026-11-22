@@ -186,6 +186,8 @@ test.describe("curator panel", () => {
     await expect(
       curator.locator("main [role=alert]").getByRole("link", { name: /Promień/ }),
     ).toBeVisible();
+    // The place form with the folded part open and the error summary (the save leaves the page).
+    await expectNoAccessibilityViolations(curator);
     await curator.getByLabel("Promień potwierdzania wizyty (m)").fill("300");
     await curator.getByRole("button", { name: "Zapisz zmiany" }).click();
     await expect(

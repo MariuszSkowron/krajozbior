@@ -110,6 +110,7 @@ function PlaceFields({
   const [positionMissing, setPositionMissing] = useState(false);
   const showMapButton = useRef<HTMLButtonElement>(null);
   const missingNotice = useRef<HTMLParagraphElement>(null);
+  const mapHolder = useRef<HTMLDivElement>(null);
   const focusShowButton = useRef(false);
   const coordinatesRefused = ["latitude", "longitude", "visitRadiusM"].some((name) =>
     refused.includes(name),
@@ -126,6 +127,12 @@ function PlaceFields({
       focusShowButton.current = false;
       showMapButton.current?.focus();
     }
+
+    // The button is gone once the map is asked for: keep the focus on the loading text until the
+    // map mounts and takes it (if the fragment never loads, the focus stays here, not on body).
+    if (mapShown) {
+      mapHolder.current?.focus();
+    }
   }, [mapShown]);
 
   function pick(next: PinPosition) {
@@ -140,6 +147,9 @@ function PlaceFields({
 
     if (typed !== null) {
       setPosition(typed);
+    } else if (latitude.trim() === "" && longitude.trim() === "") {
+      // Both fields cleared: the status line says "not set" instead of keeping the old pin.
+      setPosition(null);
     }
   }
 
@@ -316,27 +326,32 @@ function PlaceFields({
           </p>
         ) : null}
         {mapShown ? (
-          <PlaceMapLoader
-            position={position}
-            radiusM={readRadius(radiusText)}
-            bounds={props.mode === "create" ? props.collectionPoints : []}
-            onPick={pick}
-            onTilesFailed={() => {
-              setTilesFailed(true);
-              setSettingsOpen(true);
-            }}
-            onHide={() => {
-              focusShowButton.current = true;
-              setMapShown(false);
-            }}
-          />
+          <div ref={mapHolder} tabIndex={-1}>
+            <PlaceMapLoader
+              position={position}
+              radiusM={readRadius(radiusText)}
+              bounds={props.mode === "create" ? props.collectionPoints : []}
+              onPick={pick}
+              onTilesFailed={() => {
+                setTilesFailed(true);
+                setSettingsOpen(true);
+              }}
+              onHide={() => {
+                focusShowButton.current = true;
+                setMapShown(false);
+              }}
+            />
+          </div>
         ) : (
           <div className={styles.actions}>
             <button
               ref={showMapButton}
               type="button"
               className="button button--outline"
-              onClick={() => setMapShown(true)}
+              onClick={() => {
+                setTilesFailed(false);
+                setMapShown(true);
+              }}
             >
               Pokaż mapę
             </button>

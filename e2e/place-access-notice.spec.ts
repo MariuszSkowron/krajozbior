@@ -122,6 +122,8 @@ test.describe("access notice of a place", () => {
     await waitForHydration(page);
     await expect(page.getByLabel("Wejście na teren")).toHaveValue("none");
     await page.getByLabel("Wejście na teren").selectOption("fenced");
+    // The place form before the save (the save leaves the page for the collection).
+    await expectNoAccessibilityViolations(page);
     await page.getByRole("button", { name: "Zapisz zmiany" }).click();
     await expect(
       page.getByRole("status").filter({ hasText: "Zapisano zmiany miejsca" }),

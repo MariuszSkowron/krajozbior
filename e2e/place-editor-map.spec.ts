@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import axe from "axe-core";
 import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
@@ -100,6 +101,39 @@ async function openNewPlace(page: Page, collectionId: string, name: string) {
 
 const pinStatus = (page: Page) => page.getByTestId("pin-status");
 
+async function expectNoAccessibilityViolations(page: Page) {
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+  );
+  await page.addScriptTag({ content: axe.source });
+
+  // The whole page, the map included (as in collection-map.spec.ts): the tiles are a stubbed
+  // image and the Leaflet controls are ours, so nothing needs to be excluded.
+  const violations = await page.evaluate(async () => {
+    const result = await (window as unknown as { axe: typeof axe }).axe.run();
+
+    return result.violations.map((violation) => ({
+      id: violation.id,
+      nodes: violation.nodes.map((node) => node.target.join(" ")),
+    }));
+  });
+
+  expect(violations).toEqual([]);
+}
+
+// Opens the place form in each theme (the cookie is read on a fresh load) and runs the check.
+async function inBothThemes(page: Page, url: string, check: () => Promise<void>) {
+  for (const theme of ["dark", "light"]) {
+    await page
+      .context()
+      .addCookies([{ name: "krajozbior-theme", value: theme, url: "http://127.0.0.1" }]);
+    await page.goto(url);
+    await waitForHydration(page);
+    await expect(page.locator("html")).toHaveClass(new RegExp(`theme-${theme}`));
+    await check();
+  }
+}
+
 test.describe("place editor with a map", () => {
   test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
 
@@ -107,10 +141,23 @@ test.describe("place editor with a map", () => {
 
   test("no tile request until the map is shown; a pin alone adds the place with a message", async ({
     page,
+    baseURL,
   }) => {
     const tiles = await stubTiles(page);
 
     await signInAsCurator(page);
+
+    // Every request to a host other than the app, from here until "Pokaż mapę" is clicked.
+    const appHost = new URL(baseURL ?? page.url()).host;
+    const foreign: string[] = [];
+
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+
+      if (/^https?:$/.test(url.protocol) && url.host !== appHost) {
+        foreign.push(request.url());
+      }
+    });
 
     const collectionId = await newCollection(page);
 
@@ -119,6 +166,7 @@ test.describe("place editor with a map", () => {
     // The numbers are folded away.
     await expect(page.getByLabel("Szerokość geograficzna")).toBeHidden();
     expect(tiles).toEqual([]);
+    expect(foreign).toEqual([]);
 
     await page.getByRole("button", { name: "Pokaż mapę" }).click();
 
@@ -171,10 +219,54 @@ test.describe("place editor with a map", () => {
     await page.getByLabel("Szerokość geograficzna").fill("54,5");
     await page.getByLabel("Szerokość geograficzna").blur();
     await expect(pinStatus(page)).toHaveText("Pinezka: 54,5, 18,7919");
+    // Clearing both fields takes the pin back: the line says the position is not set.
+    await page.getByLabel("Szerokość geograficzna").fill("");
+    await page.getByLabel("Długość geograficzna").fill("");
+    await page.getByLabel("Długość geograficzna").blur();
+    await expect(pinStatus(page)).toHaveText("Położenie nie jest jeszcze ustawione");
+    await page.getByLabel("Szerokość geograficzna").fill("54,5");
+    await page.getByLabel("Długość geograficzna").fill("18,7919");
+    await page.getByLabel("Długość geograficzna").blur();
     await page.getByRole("button", { name: "Zapisz zmiany" }).click();
     await expect(
       page.getByRole("status").filter({ hasText: "Zapisano zmiany miejsca" }),
     ).toBeVisible();
+  });
+
+  test("the place form has no accessibility violations, new and edited, map shown, both themes", async ({
+    page,
+  }) => {
+    await stubTiles(page);
+    await signInAsCurator(page);
+
+    const collectionId = await newCollection(page);
+    const place = await page.request.post(`/api/curator/collections/${collectionId}/places`, {
+      data: { name: "Miejsce do kontroli", address: "Gniew", latitude: 53.83, longitude: 18.82 },
+    });
+
+    expect(place.ok(), await place.text()).toBe(true);
+
+    const placeId = String(((await place.json()) as { placeId: string }).placeId);
+
+    // A new place: the folded part open, then the map shown.
+    await inBothThemes(page, `/curator/collections/${collectionId}/places/new`, async () => {
+      await page.getByText(SETTINGS).click();
+      await expect(page.getByLabel("Promień potwierdzania wizyty (m)")).toBeVisible();
+      await expectNoAccessibilityViolations(page);
+      await page.getByRole("button", { name: "Pokaż mapę" }).click();
+      await expect(page.getByTestId("place-map")).toBeVisible();
+      await expectNoAccessibilityViolations(page);
+    });
+
+    // An existing place: the same, with the position already set.
+    await inBothThemes(page, `/curator/collections/${collectionId}/places/${placeId}`, async () => {
+      await page.getByText(SETTINGS).click();
+      await expect(page.getByLabel("Promień potwierdzania wizyty (m)")).toBeVisible();
+      await expectNoAccessibilityViolations(page);
+      await page.getByRole("button", { name: "Pokaż mapę" }).click();
+      await expect(page.getByTestId("place-map")).toBeVisible();
+      await expectNoAccessibilityViolations(page);
+    });
   });
 
   test("the pin can be set from the keyboard and the crosshair stays visible", async ({ page }) => {
@@ -193,12 +285,19 @@ test.describe("place editor with a map", () => {
     await expect(crosshair).toBeVisible();
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("Tab");
 
     const button = page.getByRole("button", { name: "Ustaw pinezkę na środku mapy" });
 
-    // The zoom buttons come before it in the tab order; reach it by focus, then press it.
-    await button.focus();
+    // The zoom buttons come before it in the tab order: Tab until the button has the focus.
+    for (let step = 0; step < 10; step += 1) {
+      await page.keyboard.press("Tab");
+
+      if (await button.evaluate((element) => element === document.activeElement)) {
+        break;
+      }
+    }
+
+    await expect(button).toBeFocused();
     await expect(crosshair).toBeVisible();
     await button.press("Enter");
     await expect(button).toBeFocused();
