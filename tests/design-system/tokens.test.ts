@@ -172,6 +172,60 @@ describe("kontrast tekstu (WCAG 2.x, pary dozwolone ≥ 4,5:1)", () => {
   });
 });
 
+// Scena karty legendarnej (E6-4a, D-52): zawsze motyw nocny; tekst, nazwa kategorii i symbol
+// mają stały kolor z tokenów tekstu na stałym tle karty, opalizacja jest tylko na ramce i w
+// połysku, więc kontrast nie zależy od kategorii.
+describe("scena karty legendarnej (motyw nocny)", () => {
+  const cardText = ["strong", "primary", "secondary", "label", "meta"].map(
+    (n) => `color.text.${n}`,
+  );
+
+  it.each(cardText)("%s na color.surface.card ≥ 4,5:1 (etykieta, nazwa kategorii, treść)", (fg) => {
+    expect(contrast(fg, "color.surface.card", "dark")).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(cardText)("%s na color.surface.canvas (tło zasłony i sceny) ≥ 4,5:1", (fg) => {
+    expect(contrast(fg, "color.surface.canvas", "dark")).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // Akcent medalionu (`--legendary-accent`) każdej kategorii: barwa wybrana w legendary-card.module.css
+  // (WCAG 1.4.11, element graficzny aria-hidden; znaczenie niesie stopka).
+  const accents = [
+    ["krajozbior", "end"],
+    ["culture-night", "end"],
+    ["heritage", "end"],
+    ["national-holiday", "start"],
+    ["nature-sky", "end"],
+    ["trail-community", "end"],
+  ];
+
+  it.each(accents)(
+    "akcent medalionu kategorii %s (%s) na color.surface.card ≥ 3:1",
+    (category, end) => {
+      expect(
+        contrast(`color.legendary.${category}.${end}`, "color.surface.card", "dark"),
+      ).toBeGreaterThanOrEqual(3);
+    },
+  );
+
+  it("akcenty z testu odpowiadają --legendary-accent w CSS karty", () => {
+    const cardCss = readFileSync(
+      new URL("../../src/design-system/components/legendary-card.module.css", import.meta.url),
+      "utf8",
+    );
+    const used = [
+      ...cardCss.matchAll(/--legendary-accent:\s*var\(--color-legendary-([a-z-]+)-(start|end)\)/g),
+    ]
+      .map((m) => `${m[1]}|${m[2]}`)
+      .sort();
+    expect(used).toEqual(accents.map(([c, e]) => `${c}|${e}`).sort());
+  });
+
+  it("symbol kategorii (color.text.label) na color.surface.card ≥ 3:1", () => {
+    expect(contrast("color.text.label", "color.surface.card", "dark")).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe("odznaki stanu (tło stanu nałożone na tło)", () => {
   const states = ["success", "warning", "danger", "info"];
   // Dozwolone: wszystkie w nocnym; w jasnym ok tylko na card, warn i bad/info zależnie od tła.
@@ -405,6 +459,15 @@ describe("ruch", () => {
     );
   });
 
+  it("redukcja ruchu zeruje każdy --motion-duration-* (także nowe)", () => {
+    const media = /@media \(prefers-reduced-motion: reduce\)\s*{\s*:root\s*{([^}]*)}/.exec(css);
+    if (media === null) throw new Error("Brak bloku prefers-reduced-motion w tokens.css");
+    const zeroed = declarations(media[1]);
+    const durations = [...sharedBlock.keys()].filter((n) => n.startsWith("motion-duration-"));
+    expect(durations.length).toBeGreaterThanOrEqual(3);
+    for (const name of durations) expect(zeroed.get(name), name).toBe("0ms");
+  });
+
   it("theme.css wyłącza animacje i przejścia jedną regułą z !important", () => {
     const theme = readFileSync(
       new URL("../../src/design-system/theme/theme.css", import.meta.url),
@@ -418,16 +481,55 @@ describe("ruch", () => {
 
 describe("brak kolorów poza tokens.css", () => {
   const srcDir = fileURLToPath(new URL("../../src/", import.meta.url));
-  // Jedyny wyjątek: stała themeColor (sprawdzana wyżej) i pierścienie color-mix z tokenem.
+  // Wyjątki: stała themeColor (sprawdzana wyżej), pierścienie color-mix z tokenem oraz środek
+  // gradientu karty legendarnej (`legendaryMix`, E6-4a).
   const colorFiles = new Set(["design-system/tokens/tokens.css", "app/shell/theme.ts"]);
   const files = (readdirSync(srcDir, { recursive: true, encoding: "utf8" }) as string[]).filter(
     (file) => /\.(css|tsx?)$/.test(file) && !colorFiles.has(file.replaceAll("\\", "/")),
   );
   const colorLiteral = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|color-mix)\(/i;
-  const ringMix = /color-mix\(in srgb, var\(--[a-z-]+\) \d+%, transparent\)/g;
+  const ringMix = /color-mix\(\s*in srgb,\s*var\(--[a-z-]+\)\s+\d+%,\s*transparent\s*\)/g;
+  // Wąski wyjątek (E6-4a, D-52): środek opalizacji to mieszanka początku i końca TEJ SAMEJ
+  // kategorii; odwołanie wsteczne \1 wymusza jedną kategorię, a w argumentach są wyłącznie tokeny
+  // `color.legendary.*` (bez literałów koloru).
+  const legendaryMix =
+    /color-mix\(\s*in oklch,\s*var\(--color-legendary-([a-z-]+)-start\)(\s+\d+%)?,\s*var\(--color-legendary-\1-end\)(\s+\d+%)?\s*\)/g;
+  const strip = (text: string) => text.replace(ringMix, "").replace(legendaryMix, "");
 
   it.each(files)("%s nie zawiera literałów koloru", (file) => {
-    const text = readFileSync(join(srcDir, file), "utf8").replace(ringMix, "");
+    const text = strip(readFileSync(join(srcDir, file), "utf8"));
     expect(text).not.toMatch(colorLiteral);
+  });
+
+  it("przepuszcza środek gradientu jednej kategorii legendarnej", () => {
+    for (const mix of [
+      "color-mix(in oklch, var(--color-legendary-culture-night-start), var(--color-legendary-culture-night-end))",
+      "color-mix(in oklch, var(--color-legendary-heritage-start) 40%, var(--color-legendary-heritage-end) 60%)",
+      "color-mix(in srgb, var(--color-legendary-nature-sky-start) 40%, transparent)",
+    ]) {
+      expect(strip(`background: ${mix};`)).not.toMatch(colorLiteral);
+    }
+  });
+
+  it.each([
+    ["literał koloru", "color-mix(in oklch, #ff0000, var(--color-legendary-heritage-end))"],
+    [
+      "token spoza color.legendary",
+      "color-mix(in oklch, var(--color-brand-accent), var(--color-legendary-heritage-end))",
+    ],
+    [
+      "tokeny dwóch różnych kategorii",
+      "color-mix(in oklch, var(--color-legendary-heritage-start), var(--color-legendary-nature-sky-end))",
+    ],
+    [
+      "inna przestrzeń barw z literałem",
+      "color-mix(in srgb, var(--color-legendary-heritage-start), red)",
+    ],
+    [
+      "dwa tokeny tej samej kategorii w złej przestrzeni",
+      "color-mix(in srgb, var(--color-legendary-heritage-start), var(--color-legendary-heritage-end))",
+    ],
+  ])("odrzuca color-mix: %s", (_label, mix) => {
+    expect(strip(`background: ${mix};`)).toMatch(colorLiteral);
   });
 });

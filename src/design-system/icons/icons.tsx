@@ -76,6 +76,71 @@ export function NewsIcon(props: IconProps) {
   );
 }
 
+// Symbole kategorii kart legendarnych (E6-4a, D-52): proste kontury rysowane od zera, bez godła,
+// herbów i znaków wydarzeń.
+
+// Noc kultury: półksiężyc z gwiazdką.
+export function MoonStarIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M14 4.5a8.5 8.5 0 1 0 6 12.8A8 8 0 0 1 14 4.5Z" />
+      <path d="M18.5 3.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9Z" />
+    </Icon>
+  );
+}
+
+// Dziedzictwo: kapitel kolumny.
+export function ColumnCapitalIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 5h16v3H4Z" />
+      <path d="M6 8c0 3 2 4 3 4h6c1 0 3-1 3-4" />
+      <path d="M9 12v8M15 12v8M7 20h10" />
+    </Icon>
+  );
+}
+
+// Święto narodowe: kokarda, sam kontur.
+export function RosetteIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="9" r="5" />
+      <circle cx="12" cy="9" r="1.8" />
+      <path d="M9.5 13.4 7.5 20.5l3-1.5 1.5 2" />
+      <path d="M14.5 13.4l2 7.1-3-1.5-1.5 2" />
+    </Icon>
+  );
+}
+
+// Przyroda i niebo: liść.
+export function LeafIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5 19C5 10 10 5 19 5c0 9-5 14-14 14Z" />
+      <path d="M5 19 14 10" />
+    </Icon>
+  );
+}
+
+// Szlak i wspólnota: róża wiatrów.
+export function CompassRoseIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2Z" />
+    </Icon>
+  );
+}
+
+// Krajozbiór: sygnet, pierścień z kropką.
+export function SignetIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="1.8" fill="currentColor" />
+    </Icon>
+  );
+}
+
 // Miejsce: pinezka.
 export function PinIcon(props: IconProps) {
   return (
