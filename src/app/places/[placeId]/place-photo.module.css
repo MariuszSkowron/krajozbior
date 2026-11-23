@@ -1,6 +1,8 @@
 /*
- * Okładka miejsca: zdjęcie na całą szerokość treści, z zachowaniem proporcji z atrybutów width i
- * height (bez skoku układu), z tłem zastępczym do czasu pobrania. Tylko tokeny z tokens.css.
+ * Zdjęcie miejsca (R3): ramka „slotu” (karta, 8 px odstępu), nad zdjęciem wiersz z numerem i stanem,
+ * zdjęcie zawsze w całości (contain) na tle zastępczym; podpis pod ramką. Stan nieodwiedzony ma
+ * ramkę przerywaną. Na telefonie zdjęcie sięga krawędzi ekranu, bez ramki-karty (linia przerywana
+ * tylko górą i dołem). Tylko tokeny z tokens.css.
  */
 .photo {
   display: grid;
@@ -8,14 +10,73 @@
   margin: 0;
 }
 
-.photo img {
+.slot {
+  padding: var(--space-sm);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+}
+
+.slotUndiscovered {
+  border-style: dashed;
+  border-color: var(--color-border-strong);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0 var(--space-xs) var(--space-sm);
+  color: var(--color-text-meta);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
+}
+
+.frame {
+  overflow: hidden;
+  background: var(--color-surface-tint);
+  border-radius: var(--radius-md);
+}
+
+.frame img {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 32rem;
-  /* contain, nie cover: zdjęcia nie przycinamy (podpis mówi, że tylko je zmniejszamy); wysokie
-     zdjęcie ma po bokach tło zastępcze. */
+  max-height: 36rem;
+  /* contain, nie cover (Q4, D-57): to jedyne pełne zdjęcie miejsca; podpis mówi, że tylko je
+     zmniejszamy. Wolne pasy wypełnia tło ramki. */
   object-fit: contain;
-  border-radius: var(--radius-md);
-  background: var(--color-surface-tint);
+}
+
+@media (max-width: 47.99rem) {
+  .slot {
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .row {
+    padding: 0 var(--space-page-inline) var(--space-sm);
+  }
+
+  /* Podpis pod zdjęciem sięgającym krawędzi ma własny margines boczny. */
+  .photo > :last-child {
+    padding-inline: var(--space-page-inline);
+  }
+
+  .frame {
+    border-radius: 0;
+    border-block: 1px dashed var(--color-border-strong);
+  }
+
+  .slot:not(.slotUndiscovered) .frame {
+    border-block-style: solid;
+    border-block-color: var(--color-border-default);
+  }
 }

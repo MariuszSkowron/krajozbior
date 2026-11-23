@@ -25,27 +25,29 @@ export function PlaceSources({
       <Heading id="zrodla-miejsca" className={styles.title}>
         Źródła
       </Heading>
-      <p>
-        {source.attribution}. <Link href="/zrodla">Licencje i szczegóły</Link>
-      </p>
-      {hasLinks ? (
-        <ul className={styles.links}>
-          {source.wikipediaUrl === null ? null : (
-            <li>
-              <a href={source.wikipediaUrl} rel="noopener noreferrer">
-                Więcej w Wikipedii
-              </a>
-            </li>
-          )}
-          {source.wikidataQid === null ? null : (
-            <li>
-              <a href={wikidataUrl(source.wikidataQid)} rel="noopener noreferrer">
-                Dane w Wikidanych
-              </a>
-            </li>
-          )}
-        </ul>
-      ) : null}
+      <div className={styles.body}>
+        <p>
+          {source.attribution}. <Link href="/zrodla">Licencje i szczegóły</Link>
+        </p>
+        {hasLinks ? (
+          <ul className={styles.links}>
+            {source.wikipediaUrl === null ? null : (
+              <li>
+                <a href={source.wikipediaUrl} rel="noopener noreferrer">
+                  Więcej w Wikipedii
+                </a>
+              </li>
+            )}
+            {source.wikidataQid === null ? null : (
+              <li>
+                <a href={wikidataUrl(source.wikidataQid)} rel="noopener noreferrer">
+                  Dane w Wikidanych
+                </a>
+              </li>
+            )}
+          </ul>
+        ) : null}
+      </div>
     </section>
   );
 }

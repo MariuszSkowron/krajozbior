@@ -5,6 +5,10 @@ import { cache } from "react";
 
 import { getRequestActor, logReadFailure, loginHref } from "@/app/request-actor";
 import { StatusBadge } from "@/design-system/components/status-badge";
+import { getCollectionProgress } from "@/features/album/application/saved-collections";
+import { progressCounts } from "@/features/album/domain/progress";
+import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
+import type { PublishedPlace } from "@/features/catalog/application/catalog-types";
 import { getPublishedPlace } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import { getMyVisitOfPlace } from "@/features/visits/application/mark-past-visits";
@@ -15,10 +19,11 @@ import { isWantedPlace } from "@/features/want-to-see/application/want-to-see";
 import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-see-deps";
 
 import albumStyles from "../../my/collections/collections.module.css";
-import styles from "../../catalog.module.css";
 import { ReportContentLink } from "../../report-content-link";
 import { PinnedAction } from "./pinned-action";
 import { PlaceAccessNotice } from "./place-access-notice";
+import { PlaceCollections, type CollectionVisitProgress } from "./place-collections";
+import styles from "./place-page.module.css";
 import { PlacePhoto } from "./place-photo";
 import { PlaceSources } from "./place-sources";
 import reportStyles from "./report-link.module.css";
@@ -45,7 +50,7 @@ const load = cache(async (placeId: string) => {
 // What the page adds for the visitor: a guest is sent to sign in and back here,
 // an explorer gets the visit button (or the note that the place is visited). A
 // failure leaves the public page whole, without the personal part.
-async function loadVisit(placeId: string) {
+async function loadVisit(placeId: string, collectionIds: readonly string[]) {
   try {
     const actor = await getRequestActor();
 
@@ -75,8 +80,27 @@ async function loadVisit(placeId: string) {
     // visit from the past the confirm button stays and the page says when it was.
     const { past } = state.value;
 
+    // The explorer's progress in each collection of the place (usually 1-3); a failed read hides
+    // only the progress of that card.
+    const progress = new Map<string, CollectionVisitProgress>();
+
+    await Promise.all(
+      collectionIds.map(async (collectionId) => {
+        try {
+          const answer = await getCollectionProgress(actor, collectionId, getAlbumDeps());
+
+          if (answer.status === "ok" && answer.value.progress.kind === "progress") {
+            progress.set(collectionId, progressCounts(answer.value.progress));
+          }
+        } catch (error) {
+          logReadFailure("Place collection progress read", error);
+        }
+      }),
+    );
+
     return {
       kind: "explorer",
+      progress,
       visited: state.value.onSite,
       past:
         past === null
@@ -110,88 +134,138 @@ export default async function PlacePage({ params }: { params: Params }) {
   }
 
   const place = result.value;
-  const visit = await loadVisit((await params).placeId);
+  const visit = await loadVisit(
+    (await params).placeId,
+    place.collections.map((collection) => collection.id),
+  );
+  // The first collection (alphabetically) names the place number in the head: "Nr 1 z 13 · …".
+  const first = place.collections[0];
+  const photoState =
+    visit.kind === "explorer" ? (visit.visited ? "visited" : "undiscovered") : undefined;
 
   return (
-    <div className={`content-width ${styles.page}`}>
-      <header className={styles.header}>
-        <h1>{place.name}</h1>
-        <p className={styles.meta}>Kurator: {place.organization.name}</p>
-      </header>
-      <PlaceAccessNotice restriction={place.accessRestriction} />
-      {place.cover === null ? null : <PlacePhoto cover={place.cover} placeName={place.name} />}
-      <dl className={styles.facts}>
-        {place.address === "" ? null : (
-          <div>
-            <dt>Adres</dt>
-            <dd>{place.address}</dd>
-          </div>
-        )}
-        {place.accessInfo === "" ? null : (
-          <div>
-            <dt>Dostęp</dt>
-            <dd>{place.accessInfo}</dd>
-          </div>
-        )}
-        {place.description === "" ? null : (
-          <div>
-            <dt>Opis</dt>
-            <dd>{place.description}</dd>
-          </div>
-        )}
-      </dl>
-      <PlaceSources source={place.source} />
-      <section className={styles.section} aria-labelledby="wizyta">
-        <h2 id="wizyta">Wizyta</h2>
-        {visit.kind === "guest" ? (
-          <div className={albumStyles.guestAction}>
-            <Link className="button button--primary" href={visit.loginHref}>
-              Zaloguj się
-            </Link>
-            <p className={albumStyles.feedback}>
-              Po zalogowaniu potwierdzisz wizytę albo zapiszesz miejsce na „Chcę zobaczyć”. Wrócisz
-              na tę stronę.
+    <div className={`content-width-wide ${styles.page}`}>
+      <div className={styles.top}>
+        <header className={styles.head}>
+          {first === undefined ? null : (
+            <p className={styles.number}>
+              Nr {first.position} z {first.placeCount} · {first.title}
             </p>
-          </div>
-        ) : visit.kind === "explorer" ? (
-          visit.visited ? (
-            <div className={styles.card}>
-              <PinnedAction>
-                <p className={visitStyles.visitedMark}>
-                  <StatusBadge tone="success">Odwiedzone</StatusBadge>
-                </p>
-              </PinnedAction>
-              {visit.wanted === true ? <WantToSeeButton placeId={place.id} initialWanted /> : null}
-            </div>
-          ) : (
-            <VisitConfirmation
-              placeId={place.id}
-              initialWanted={visit.wanted}
-              past={visit.past}
-              radiusM={place.visitRadiusM}
-            />
-          )
-        ) : visit.kind === "unavailable" ? (
-          <p className={albumStyles.feedback}>
-            Nie udało się sprawdzić Twojej wizyty. Odśwież stronę za chwilę.
+          )}
+          <h1 className={styles.title}>{place.name}</h1>
+          <p className={styles.curator}>
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3l8 3v6c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V6z" />
+            </svg>
+            Kurator: {place.organization.name}
           </p>
-        ) : null}
-      </section>
-      <section className={styles.section} aria-labelledby="kolekcje">
+        </header>
+        {place.cover === null ? null : (
+          <div className={styles.photo}>
+            <PlacePhoto
+              cover={place.cover}
+              placeName={place.name}
+              number={first?.position}
+              state={photoState}
+            />
+          </div>
+        )}
+        <div className={styles.rest}>
+          <PlaceAccessNotice restriction={place.accessRestriction} />
+          <VisitSection place={place} visit={visit} />
+          <div>
+            <dl className={styles.facts}>
+              {place.address === "" ? null : (
+                <div className={styles.fact}>
+                  <dt>Adres</dt>
+                  <dd>{place.address}</dd>
+                </div>
+              )}
+              {place.accessInfo === "" ? null : (
+                <div className={styles.fact}>
+                  <dt>Dostęp</dt>
+                  <dd>{place.accessInfo}</dd>
+                </div>
+              )}
+              {place.description === "" ? null : (
+                <div className={styles.fact}>
+                  <dt>Opis</dt>
+                  <dd>{place.description}</dd>
+                </div>
+              )}
+            </dl>
+            <PlaceSources source={place.source} />
+          </div>
+        </div>
+      </div>
+      <section className={styles.collections} aria-labelledby="kolekcje">
         <h2 id="kolekcje">Kolekcje z tym miejscem</h2>
-        <ul className={styles.list}>
-          {place.collections.map((collection) => (
-            <li key={collection.slug} className={styles.item}>
-              <Link className={styles.itemLink} href={`/collections/${collection.slug}`}>
-                <span className={styles.itemTitle}>{collection.title}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <PlaceCollections
+          collections={place.collections}
+          progress={visit.kind === "explorer" ? visit.progress : new Map()}
+        />
+        <p className={reportStyles.report}>
+          <ReportContentLink path={`/places/${place.id}`} title={place.name} />
+        </p>
       </section>
-      <p className={reportStyles.report}>
-        <ReportContentLink path={`/places/${place.id}`} title={place.name} />
-      </p>
     </div>
+  );
+}
+
+function VisitSection({
+  place,
+  visit,
+}: {
+  place: PublishedPlace;
+  visit: Awaited<ReturnType<typeof loadVisit>>;
+}) {
+  return (
+    <section className={styles.visit} aria-labelledby="wizyta">
+      <h2 id="wizyta" className={styles.visuallyHidden}>
+        Wizyta
+      </h2>
+      {visit.kind === "guest" ? (
+        <div className={albumStyles.guestAction}>
+          <Link className="button button--primary" href={visit.loginHref}>
+            Zaloguj się
+          </Link>
+          <p className={albumStyles.feedback}>
+            Po zalogowaniu potwierdzisz wizytę albo zapiszesz miejsce na „Chcę zobaczyć”. Wrócisz na
+            tę stronę.
+          </p>
+        </div>
+      ) : visit.kind === "explorer" ? (
+        visit.visited ? (
+          <div className={visitStyles.box}>
+            <PinnedAction>
+              <p className={visitStyles.visitedMark}>
+                <StatusBadge tone="success">Odwiedzone</StatusBadge>
+              </p>
+            </PinnedAction>
+            {visit.wanted === true ? <WantToSeeButton placeId={place.id} initialWanted /> : null}
+          </div>
+        ) : (
+          <VisitConfirmation
+            placeId={place.id}
+            initialWanted={visit.wanted}
+            past={visit.past}
+            radiusM={place.visitRadiusM}
+          />
+        )
+      ) : visit.kind === "unavailable" ? (
+        <p className={albumStyles.feedback}>
+          Nie udało się sprawdzić Twojej wizyty. Odśwież stronę za chwilę.
+        </p>
+      ) : null}
+    </section>
   );
 }

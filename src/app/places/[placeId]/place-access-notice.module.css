@@ -1,21 +1,35 @@
 /*
- * Informacja o terenie miejsca: tło stanu ostrzegawczego z obramowaniem (jak inne ostrzeżenia
- * w aplikacji), tekst podstawowy. Tylko tokeny z tokens.css.
+ * Informacja o terenie miejsca (D-57, R3): zwarta etykieta (pigułka) w stanie ostrzegawczym z jednym
+ * zdaniem pod nią; nie blok nad zdjęciem. Słowo „Wejście na teren” jest nagłówkiem wewnątrz
+ * pigułki, nazwa stanu pogrubiona (znaczenie niesie tekst, nie kolor). Tylko tokeny z tokens.css.
  */
 .notice {
   display: grid;
   gap: var(--space-sm);
-  padding: var(--space-md);
-  background: var(--color-feedback-warning-bg);
-  border: 1px solid var(--color-border-default);
-  border-inline-start: var(--space-xs) solid var(--color-feedback-warning);
-  border-radius: var(--radius-md);
+  justify-items: start;
   color: var(--color-text-primary);
 }
 
 .notice p {
   margin: 0;
   max-width: 40rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.pill {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
+  background: var(--color-feedback-warning-bg);
+  border-radius: var(--radius-pill);
+  color: var(--color-feedback-warning);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
 }
 
 .state {
@@ -24,10 +38,7 @@
 
 .title {
   margin: 0;
-  color: var(--color-text-label);
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-regular);
-  letter-spacing: var(--font-tracking-label);
-  text-transform: uppercase;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
 }

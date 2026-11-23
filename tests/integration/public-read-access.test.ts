@@ -202,7 +202,18 @@ describe("public read of collections and places (guest context)", () => {
         longitude: 18.7919,
         visitRadiusM: 200,
         organization: { name: "Gmina A", slug: "gmina-a" },
-        collections: [{ slug: collection.slug, title: "Publiczna" }],
+        collections: [
+          {
+            id: collection.id,
+            slug: collection.slug,
+            title: "Publiczna",
+            region: "pomorskie",
+            position: 1,
+            placeCount: 2,
+            contentUpdatedAt: expect.any(Date),
+            cover: null,
+          },
+        ],
         source: null,
         cover: null,
       },
@@ -241,9 +252,55 @@ describe("public read of collections and places (guest context)", () => {
 
     expect(result).toMatchObject({
       status: "ok",
-      value: { collections: [{ slug: published.slug, title: "Opublikowana" }] },
+      value: {
+        collections: [{ id: published.id, slug: published.slug, title: "Opublikowana" }],
+      },
     });
     expect(JSON.stringify(result)).not.toContain("Szkic z tym samym miejscem");
+  });
+
+  it("gives the card of a collection the first photo of its places as the cover, never a hidden one", async () => {
+    const collection = await newCollection(curA, orgA, "Z okładką");
+    const first = await newPlace(curA, orgA, "Bez zdjęcia");
+    const second = await newPlace(curA, orgA, "Ze zdjęciem");
+
+    await link(curA, collection.id, first, orgA, 1);
+    await link(curA, collection.id, second, orgA, 2);
+    await publish(curA, collection.id);
+
+    const withoutPhoto = await getPublishedPlace(second, deps);
+
+    expect(withoutPhoto).toMatchObject({ value: { collections: [{ cover: null }] } });
+
+    const photoId = (
+      await admin$<{ id: string }>(
+        `insert into public.place_photos
+           (organization_id, place_id, position, file_state, storage_key, width, height, alt_text,
+            source_kind, title, author_text, source_url, license_code, license_url, license_label,
+            rights_statement, commons_file)
+         values ($1, $2, 1, 'ready', $3, 1280, 853, 'Opis zdjęcia', 'commons_import', 'Tytuł',
+                 'Autor', 'https://commons.wikimedia.org/wiki/File:X.jpg', 'cc-by-sa-4.0',
+                 'https://creativecommons.org/licenses/by-sa/4.0/', 'CC BY-SA 4.0',
+                 'commons-import/1', 'Plik.jpg')
+         returning id`,
+        [orgA, second, randomUUID()],
+      )
+    )[0]!.id;
+
+    // Seen from the other place of the same collection too: the card is the collection's.
+    for (const placeId of [first, second]) {
+      expect(await getPublishedPlace(placeId, deps)).toMatchObject({
+        value: {
+          collections: [
+            {
+              position: placeId === first ? 1 : 2,
+              placeCount: 2,
+              cover: { photoId, width: 1280, height: 853, altText: "Opis zdjęcia" },
+            },
+          ],
+        },
+      });
+    }
   });
 
   it("hides a withdrawn collection and shows it again after it is published once more", async () => {

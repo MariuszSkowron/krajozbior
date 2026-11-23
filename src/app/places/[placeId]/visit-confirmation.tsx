@@ -282,12 +282,14 @@ export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM
       ) : null}
       {/* Drugorzędne akcje zostają w treści, nie w przypiętym pasku: „Zaznaczam wcześniejszą wizytę”
           (wizyta z przeszłości, decyzja P5) i „Chcę zobaczyć”. */}
-      <PastVisit placeId={placeId} existing={past} />
-      {initialWanted === null ? (
-        <p className={styles.feedback}>Lista „Chcę zobaczyć” jest chwilowo niedostępna.</p>
-      ) : (
-        <WantToSeeButton placeId={placeId} initialWanted={initialWanted} />
-      )}
+      <div className={styles.secondaryActions}>
+        <PastVisit placeId={placeId} existing={past} />
+        {initialWanted === null ? (
+          <p className={styles.feedback}>Lista „Chcę zobaczyć” jest chwilowo niedostępna.</p>
+        ) : (
+          <WantToSeeButton placeId={placeId} initialWanted={initialWanted} />
+        )}
+      </div>
     </div>
   );
 }
