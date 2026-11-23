@@ -64,8 +64,8 @@ function Fields({
   ...props
 }: Props & Readonly<{ feedback: Feedback | null; onFeedback: (f: Feedback) => void }>) {
   const router = useRouter();
-  const initial: Values =
-    props.mode === "edit" ? props.collection : { title: "", summary: "", region: "pomorskie" };
+  const initial: Omit<Values, "region"> =
+    props.mode === "edit" ? props.collection : { title: "", summary: "" };
   // A new collection starts without a region: no region is assumed for a person from elsewhere.
   const initialRegion = props.mode === "edit" ? props.collection.region : "";
   const [summaryLength, setSummaryLength] = useState(initial.summary.length);
