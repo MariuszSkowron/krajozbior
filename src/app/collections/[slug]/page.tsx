@@ -194,9 +194,7 @@ export default async function CollectionPage({
             <Link className="button button--primary" href={album.loginHref}>
               Zaloguj się, aby zapisać kolekcję
             </Link>
-            <p className={albumStyles.feedback}>
-              Aby zapisać kolekcję, zalogujesz się i wrócisz tutaj.
-            </p>
+            <p className={albumStyles.feedback}>Po zalogowaniu wrócisz tutaj.</p>
           </div>
         ) : album.kind === "explorer" ? (
           <SaveCollectionButton collectionId={collection.id} initialSaved={album.saved} />

@@ -362,9 +362,11 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html.match(/Zaloguj się, aby/g)).toHaveLength(1);
-      expect(html).toContain("Zaloguj się, aby potwierdzić wizytę lub zapisać na „Chcę zobaczyć”");
-      expect(html).toContain("Po zalogowaniu wrócisz na tę stronę.");
+      expect(html.match(/Zaloguj się/g)).toHaveLength(1);
+      expect(html).toContain(">Zaloguj się</a>");
+      expect(html).toContain(
+        "Po zalogowaniu potwierdzisz wizytę albo zapiszesz miejsce na „Chcę zobaczyć”. Wrócisz na tę stronę.",
+      );
     });
 
     it("lets an explorer remove a visited place from the list (W1)", async () => {
@@ -431,7 +433,7 @@ describe("public catalog pages", () => {
       const html = await render();
 
       expect(html).toContain("Z przeszłości · marzec 2019");
-      expect(html).toContain("Wizyta z przeszłości zapisana");
+      expect(html).not.toContain("Wizyta z przeszłości zapisana");
       expect(html).toContain("Potwierdzam wizytę na miejscu");
       expect(html).toContain("Potwierdź na miejscu, gdy tu będziesz.");
       expect(html).toContain("Usuń wizytę z przeszłości");

@@ -273,10 +273,7 @@ test.describe("panel kuratora", () => {
     const menu = page.getByRole("navigation", { name: "Panel kuratora" });
     await expect(menu).toBeVisible();
     await expect(menu.getByText("Kurator", { exact: true })).toBeVisible();
-    await expect(menu.getByRole("link", { name: "Profil prywatny" })).toHaveAttribute(
-      "href",
-      "/my",
-    );
+    await expect(menu.getByRole("link", { name: "Mój album" })).toHaveAttribute("href", "/my");
     // Bieżąca pozycja menu panelu: jedna, z aria-current="page" na liście kolekcji.
     await expect(menu.locator("[aria-current]")).toHaveCount(1);
     await expect(menu.getByRole("link", { name: "Kolekcje" })).toHaveAttribute(

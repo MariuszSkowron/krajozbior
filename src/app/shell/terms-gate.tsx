@@ -32,10 +32,7 @@ export function TermsGate({
     <div className={`content-width ${styles.page}`}>
       <meta name="robots" content="noindex" />
       <h1>Zanim zaczniesz</h1>
-      <p>
-        Żeby korzystać z konta, zapoznaj się z zasadami serwisu i zaakceptuj regulamin.
-        Najważniejsze z nich:
-      </p>
+      <p>Żeby korzystać z konta, zaakceptuj regulamin. Najważniejsze zasady:</p>
       <ul className={styles.summary}>
         <li>Krajozbiór jest bezpłatny i nie ma w nim reklam.</li>
         <li>Nie zapisujemy Twojej lokalizacji; zapamiętujemy samą wizytę.</li>

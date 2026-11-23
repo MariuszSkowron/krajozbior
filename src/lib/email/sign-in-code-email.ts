@@ -33,7 +33,7 @@ export const PRIVACY_POLICY_PATH = "/polityka-prywatnosci";
 export function renderSignInCodeEmail(input: SignInCodeEmailInput): RenderedEmail {
   const { code, siteUrl } = input;
   const subject = `${code.replace(/[\r\n]+/g, " ")} — kod logowania (${APP_NAME})`;
-  const rest = `Kod jest ważny ${SIGN_IN_CODE_VALIDITY_MINUTES} minut. Jeśli to nie Ty prosisz o kod, zignoruj tę wiadomość — bez kodu nikt nie zaloguje się na Twoje konto.`;
+  const rest = `Kod jest ważny ${SIGN_IN_CODE_VALIDITY_MINUTES} minut. Nie prosisz o kod? Zignoruj tę wiadomość — bez kodu nikt nie zaloguje się na Twoje konto.`;
   const privacy = `Polityka prywatności: ${siteUrl.replace(/\/+$/, "")}${PRIVACY_POLICY_PATH}`;
 
   const text = [

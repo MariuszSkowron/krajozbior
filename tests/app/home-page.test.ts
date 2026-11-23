@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getActor: vi.fn(),
   getHomeAlbum: vi.fn(),
+  listSaved: vi.fn(),
   listRecent: vi.fn(),
   listNearby: vi.fn(),
   getProfile: vi.fn(),
@@ -18,6 +19,9 @@ vi.mock("@/features/catalog/infrastructure/catalog-deps", () => ({ getCatalogDep
 vi.mock("@/features/profile/infrastructure/profile-deps", () => ({ getProfileDeps: () => ({}) }));
 vi.mock("@/features/profile/application/profile", () => ({ getMyProfile: mocks.getProfile }));
 vi.mock("@/features/album/application/home-album", () => ({ getHomeAlbum: mocks.getHomeAlbum }));
+vi.mock("@/features/album/application/saved-collections", () => ({
+  listMyCollectionsWithProgress: mocks.listSaved,
+}));
 vi.mock("@/features/catalog/application/public-catalog", () => ({
   listRecentlyPublishedCollections: mocks.listRecent,
   listNearbyCandidates: mocks.listNearby,
@@ -107,6 +111,7 @@ beforeEach(() => {
   mocks.listRecent.mockReset().mockResolvedValue(discover);
   mocks.listNearby.mockReset().mockResolvedValue(nearby);
   mocks.getHomeAlbum.mockReset().mockResolvedValue({ status: "ok", value: album });
+  mocks.listSaved.mockReset().mockResolvedValue({ status: "ok", value: [] });
   mocks.getProfile.mockReset().mockResolvedValue({ status: "ok", value: { firstName: "Anna" } });
 });
 
@@ -239,6 +244,35 @@ describe("home page of a signed-in explorer", () => {
     expect(html).toContain("Mosty i zamki");
     // The phone shows the first four favourites; the rest only on a wide screen.
     expect(html.match(/phoneHidden/g)?.length ?? 0).toBe(2);
+  });
+
+  it("leaves a saved collection out of the collections to discover (W-07)", async () => {
+    mocks.listRecent.mockResolvedValue([
+      ...discover,
+      { ...discover[0], id: "c9", slug: "inna", title: "Inna kolekcja" },
+    ]);
+    mocks.listSaved.mockResolvedValue({ status: "ok", value: [{ slug: "mosty-i-zamki" }] });
+
+    const html = await render();
+
+    expect(html).not.toContain('href="/collections/mosty-i-zamki"');
+    expect(html).toContain('href="/collections/inna"');
+  });
+
+  it("says so when every collection is saved, and keeps the whole list when the read fails (W-07)", async () => {
+    mocks.listSaved.mockResolvedValue({ status: "ok", value: [{ slug: "mosty-i-zamki" }] });
+
+    const html = await render();
+
+    expect(html).toContain("Masz zapisane wszystkie kolekcje.");
+    expect(html).not.toContain("Nie ma jeszcze opublikowanych kolekcji");
+
+    mocks.listSaved.mockRejectedValue(new Error("db down: secret-saved"));
+
+    const failed = await render();
+
+    expect(failed).toContain('href="/collections/mosty-i-zamki"');
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
   });
 
   it("greets without a name when the profile has none, or cannot be read (K-37)", async () => {

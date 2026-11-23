@@ -5,4 +5,4 @@ export const TILES_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 // The credit required by the tile policy; the link points to the OSM copyright page.
 export const TILES_ATTRIBUTION =
-  '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>';
+  '<a href="https://www.openstreetmap.org/copyright">© autorzy OpenStreetMap</a>';

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { getRequestActor, logActorFailure, logReadFailure } from "@/app/request-actor";
 import { getHomeAlbum } from "@/features/album/application/home-album";
+import { listMyCollectionsWithProgress } from "@/features/album/application/saved-collections";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import {
   listNearbyCandidates,
@@ -70,6 +71,20 @@ async function loadAlbum(actor: Actor) {
   }
 }
 
+// Slugs of the collections the explorer saved: "Kolekcje do odkrycia" leaves them out, because
+// they are already in "Moje kolekcje". A failed read leaves the list whole (an empty set).
+async function loadSavedSlugs(actor: Actor): Promise<ReadonlySet<string>> {
+  try {
+    const result = await listMyCollectionsWithProgress(actor, getAlbumDeps());
+
+    return new Set(result.status === "ok" ? result.value.map(({ slug }) => slug) : []);
+  } catch (error) {
+    logReadFailure("Home saved collections read", error);
+
+    return new Set();
+  }
+}
+
 // The first name for the greeting (the same profile read as the profile screen). Without a
 // name, or when the read fails, the greeting is said without it; the failure is logged by class.
 async function loadFirstName(actor: Actor): Promise<string | null> {
@@ -99,12 +114,24 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const signOutFailed = first(params.wylogowanie) === "blad";
   // Only a signal for the message after deleting the account (E9-5).
   const accountDeleted = first(params.konto) === "usuniete";
-  const [discover, nearby, album, firstName] = await Promise.all([
+  const [allDiscover, allNearby, album, firstName, saved] = await Promise.all([
     loadDiscover(),
     loadNearby(),
     actor === null ? Promise.resolve(null) : loadAlbum(actor),
     actor === null ? Promise.resolve(null) : loadFirstName(actor),
+    actor === null ? Promise.resolve(null) : loadSavedSlugs(actor),
   ]);
+  // A saved collection is not "to discover": it has its place in "Moje kolekcje".
+  const discover =
+    allDiscover === null || saved === null
+      ? allDiscover
+      : allDiscover.filter(({ slug }) => !saved.has(slug));
+  const nearby =
+    allNearby === null || saved === null
+      ? allNearby
+      : allNearby.filter(({ slug }) => !saved.has(slug));
+  const allSaved =
+    discover !== null && allDiscover !== null && allDiscover.length > 0 && discover.length === 0;
 
   return (
     <div className={`content-width-wide ${styles.page}`}>
@@ -163,7 +190,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         </>
       )}
       {album === null ? null : <RecentVisits visits={album.recentVisits} />}
-      <CollectionsToDiscover collections={discover} candidates={nearby} />
+      <CollectionsToDiscover collections={discover} candidates={nearby} allSaved={allSaved} />
     </div>
   );
 }

@@ -245,12 +245,7 @@ export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM
 
   return (
     <div className={styles.box}>
-      {/* Stan na górze sekcji: wizyta z przeszłości jest już zapisana (jej data jest niżej, przy „Usuń”). */}
-      {past === null ? null : (
-        <p className={styles.pastState}>
-          <StatusBadge tone="info">Wizyta z przeszłości zapisana</StatusBadge>
-        </p>
-      )}
+      {/* Wizyta z przeszłości ma jeden znacznik (z datą), w polu „Usuń” niżej; tu go nie powtarzamy. */}
       {/* W przypiętym pasku (telefon) jest tylko przycisk; komunikaty o lokalizacji stoją pod nim
           w treści sekcji, więc nic ich nie zasłania. Po wizycie z przeszłości przycisk jest
           drugorzędny. Stan w trakcie zapisu pokazuje wskaźnik na przycisku, nie napis. */}

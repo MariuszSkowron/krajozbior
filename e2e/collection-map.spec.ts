@@ -187,9 +187,10 @@ test.describe("the map view of a collection", () => {
 
     await expect(region).toBeVisible();
     await expect(page.locator(".leaflet-marker-icon")).toHaveCount(3);
-    await expect(
-      region.getByRole("link", { name: "© OpenStreetMap contributors" }),
-    ).toHaveAttribute("href", "https://www.openstreetmap.org/copyright");
+    await expect(region.getByRole("link", { name: "© autorzy OpenStreetMap" })).toHaveAttribute(
+      "href",
+      "https://www.openstreetmap.org/copyright",
+    );
     await expect(region.getByRole("button", { name: "Przybliż" })).toBeVisible();
     await expect(region.getByRole("button", { name: "Oddal" })).toBeVisible();
     await expect.poll(() => tiles.stubbed.length).toBeGreaterThan(0);
@@ -301,7 +302,7 @@ test.describe("the map view of a collection", () => {
       page.getByRole("status").filter({ hasText: "Mapa nie wczytała się w całości" }),
     ).toHaveCount(1);
     await expect(page.locator(".leaflet-marker-icon")).toHaveCount(3);
-    await expect(page.getByRole("link", { name: "© OpenStreetMap contributors" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "© autorzy OpenStreetMap" })).toBeVisible();
   });
 
   test("no accessibility violations in both themes, also with a popup open", async ({ page }) => {
