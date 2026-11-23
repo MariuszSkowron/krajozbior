@@ -122,8 +122,24 @@ const collectionCardColumns = `c.id, c.slug, c.title, c.region, o.name as "organ
 // leaves the photo only when everyone may see it (ready, not hidden, in a public collection);
 // the conditions are repeated for the reader of the query. No cover or a photo nobody may see
 // gives nulls: the card keeps the placeholder.
-const collectionCardJoin = `left join public.place_photos cph
-    on cph.id = c.cover_place_photo_id and cph.file_state = 'ready' and cph.storage_key is not null`;
+//
+// The automatic cover (D-55 pkt 1, D-57): the photo chosen by the curator when it is ready,
+// otherwise the first ready photo of the first place (by position in the collection) that has
+// one. Both are only photos of the collection's own places. The columns are listed (never
+// `ph.*`): the application role has no grant on the `hidden_*` columns.
+const collectionCoverLateral = (alias: string) => `left join lateral (
+      select ph.id, ph.width, ph.height, ph.alt_text, ph.title, ph.author_text, ph.author_url,
+             ph.source_url, ph.source_kind, ph.license_code, ph.license_url, ph.license_label
+        from public.place_photos ph
+        left join public.collection_places cp
+          on cp.place_id = ph.place_id and cp.collection_id = c.id
+       where ph.file_state = 'ready' and ph.storage_key is not null
+         and (ph.id = c.cover_place_photo_id or cp.collection_id is not null)
+       order by (ph.id = c.cover_place_photo_id) desc, cp.position, ph.position
+       limit 1
+    ) ${alias} on true`;
+
+const collectionCardJoin = collectionCoverLateral("cph");
 
 const LIKE = `like ? escape '\\'`;
 
@@ -569,8 +585,8 @@ export const postgresCatalogRepository: CatalogRepository = {
                 ph.license_code as "licenseCode", ph.license_url as "licenseUrl",
                 ph.license_label as "licenseLabel"
            from public.collections c
-           join public.place_photos ph on ph.id = c.cover_place_photo_id
-          where c.id = ? and ph.file_state = 'ready' and ph.storage_key is not null`,
+           ${collectionCoverLateral("ph")}
+          where c.id = ? and ph.id is not null`,
         [collection.id],
       ),
     );

@@ -212,7 +212,7 @@ test.describe("the collection as an album", () => {
     await expect(card(page, /./)).toHaveCount(2);
     await expect(card(page, /Most Tczewski/)).toHaveCount(0);
     // The numbers of the places stay the numbers in the collection.
-    await expect(card(page, /Zamek w Gniewie/)).toContainText("2.");
+    await expect(card(page, /Zamek w Gniewie/)).toContainText("02");
 
     await page.goto(`${COLLECTION}?stan=cokolwiek`);
     await expect(nav.getByRole("link", { name: "Wszystkie (3)" })).toHaveAttribute(

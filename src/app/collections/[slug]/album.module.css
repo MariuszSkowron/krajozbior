@@ -1,41 +1,154 @@
 /*
- * Kolekcja jako album (E12-4): filtr stanu i siatka kart (karta prowadzi do strony miejsca;
- * panel „Wybrane miejsce” usunięty w D-49 pkt 1). Telefon: jedna kolumna kart. Od 48rem:
- * siatka kart. Tylko tokeny; karty i linki wierszy dziedziczą z catalog.module.css.
+ * Kolekcja jako album (E12-4, R3 / D-57): przełącznik „Karty / Mapa”, przyklejone filtry stanu i
+ * siatka kafelków ze zdjęciami (kafelek prowadzi do strony miejsca; panel „Wybrane miejsce”
+ * usunięty w D-49 pkt 1). Telefon: lista wierszy z miniaturą 96 px. Od 48 rem: kafelki po dwa,
+ * od 64 rem po trzy. Tylko tokeny.
  */
-.filter {
+
+/* Wstęp pod okładką: opis, kurator i data po lewej, przycisk zapisu po prawej (od 48 rem: kolumny
+   7 i 4 z dwunastu, z linią z lewej strony przycisku; telefon: jedna pod drugą, przycisk na całą
+   szerokość). */
+.intro {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.introText {
+  display: grid;
+  gap: var(--space-sm);
+  align-content: start;
+}
+
+.introText p {
+  margin: 0;
+}
+
+.curator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.updated {
+  color: var(--color-text-meta);
+  font-size: var(--font-size-sm);
+}
+
+.introAction {
+  align-self: start;
+}
+
+.introAction :where(.button) {
+  width: 100%;
+}
+
+.places {
+  gap: var(--space-md);
+}
+
+/* Nagłówek sekcji miejsc: tytuł i przełącznik „Karty / Mapa”. */
+.listHead {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.listHead h2 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+}
+
+/* Przełącznik „Karty / Mapa”: segment w pigułce, wybrany wyróżniony tłem. */
+.segment {
+  display: flex;
+  box-sizing: border-box;
+  padding: var(--space-xs);
+  background: var(--color-surface-tint);
+  border-radius: var(--radius-pill);
+}
+
+.segmentLink {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: var(--size-touch-min);
+  padding-inline: var(--space-lg);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  border-radius: var(--radius-pill);
+}
+
+.segmentLink[aria-current="page"] {
+  color: var(--color-text-strong);
+  background: var(--color-border-strong);
+}
+
+/* Filtry stanu: pigułki 44 px w wierszu przyklejonym do góry okna z linią u dołu. Wiersz
+   zasłania treść pod sobą, więc ma tło strony; odstęp na górze okna (`scroll-padding-top`)
+   chroni fokus przed schowaniem pod nim. */
+.chips {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 5;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-sm);
+  padding-block: var(--space-md);
+  background: var(--color-surface-canvas);
+  border-block-end: 1px solid var(--color-border-subtle);
 }
 
-/* Pozycja filtra: obrys z tekstem, aktywna z akcentem i pogrubieniem (stan niesie też aria-current). */
-.filterLink {
+:global(html):has(.chips) {
+  scroll-padding-top: 5rem;
+}
+
+/* Sam wiersz filtrów i jego pigułki są wyjęte spod tego odstępu: stoją przyklejone przy samej
+   górze okna, więc bez tego przeglądarka przewijała stronę o ok. 80 px przy każdym fokusie
+   albo kliknięciu filtra (strona „skakała”, U-07). */
+.chips,
+.chip {
+  scroll-margin-block-start: -5rem;
+}
+
+.chip {
   display: inline-flex;
+  flex: 1 1 auto;
   align-items: center;
+  justify-content: center;
   box-sizing: border-box;
   min-height: var(--size-touch-min);
   padding-inline: var(--space-md);
   color: var(--color-text-strong);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
   text-decoration: none;
-  border: 1px solid var(--color-border-default);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-pill);
 }
 
 @media (hover: hover) {
-  .filterLink:hover {
-    border-color: var(--color-border-strong);
+  .chip:hover {
+    border-color: var(--color-text-secondary);
   }
 }
 
-.filterLink[aria-current="page"] {
-  color: var(--color-text-accent);
-  font-weight: var(--font-weight-strong);
-  border-color: var(--color-border-focus);
+/* Wybrany filtr: odwrócone kolory (nie akcent: ten zostaje dla akcji głównej). Stan niesie też
+   aria-current. */
+.chip[aria-current="page"] {
+  color: var(--color-surface-canvas);
+  background: var(--color-text-strong);
+  border-color: var(--color-text-strong);
 }
 
-.filterCount {
+.chipCount {
   margin-inline-start: var(--space-xs);
+  font-family: var(--font-family-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -81,16 +194,20 @@
   white-space: nowrap;
 }
 
+/* Lista zmienia wysokość po kliknięciu filtra (znika albo wraca przycisk „Zaznacz odwiedzone”).
+   Bez `overflow-anchor: none` przeglądarka „kotwiczyła” przewijanie do przyklejonych filtrów i
+   przesuwała stronę o wysokość tego przycisku (U-07: strona ma zostać tam, gdzie jest). */
 .listColumn {
+  overflow-anchor: none;
   display: grid;
   gap: var(--space-md);
   min-width: 0;
   align-content: start;
 }
 
+/* Siatka kafelków: na telefonie wiersze oddzielone linią. */
 .grid {
   display: grid;
-  gap: var(--space-sm);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -108,9 +225,273 @@
   color: var(--color-text-secondary);
 }
 
+/* Kafelek miejsca (telefon): miniatura 96 px po lewej, tekst po prawej, min. 96 px wysokości. */
+.tile {
+  position: relative;
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.tileLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  box-sizing: border-box;
+  min-height: 6rem;
+  padding-block: var(--space-sm);
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.photo {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 6rem;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: linear-gradient(
+    160deg,
+    var(--color-image-placeholder),
+    var(--color-image-placeholder-alt)
+  );
+  border-radius: var(--radius-sm);
+}
+
+/* Zdjęcie wypełnia pole 4:3; przycięte stylami, plik się nie zmienia (Q4). */
+.thumb {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.thumbImage,
+.thumbImageWhole {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-position: center 45%;
+  transition: transform var(--motion-duration-medium) var(--motion-easing-standard);
+}
+
+.thumbImage {
+  object-fit: cover;
+}
+
+/* Panorama albo zdjęcie pionowe: w całości, na tle zastępczym (Q4). */
+.thumbImageWhole {
+  object-fit: contain;
+}
+
+/* Odwiedzone: cienka jasna ramka na zdjęciu i znacznik w rogu. */
+.visited .photo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text-on-image) 30%, transparent);
+  pointer-events: none;
+}
+
+/* Nieodwiedzone: zdjęcie przyciemnione, tytuł przygaszony (stan niesie też tekst pod zdjęciem). */
+.todo .photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-image-scrim) 55%, transparent);
+  pointer-events: none;
+}
+
+.badge {
+  position: absolute;
+  inset-block-start: var(--space-xs);
+  inset-inline-end: var(--space-xs);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--color-text-on-accent);
+  background: var(--color-feedback-success);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-image-scrim) 70%, transparent);
+}
+
+.badge svg {
+  width: 0.8125rem;
+  height: 0.8125rem;
+}
+
+.tileText {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.stateRow {
+  color: var(--color-text-meta);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--font-tracking-label);
+}
+
+.stateVisited {
+  color: var(--color-feedback-success);
+}
+
+.tileName {
+  color: var(--color-text-strong);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-lg);
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.tileAddress {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+}
+
+.todo .tileName {
+  color: var(--color-text-secondary);
+}
+
+.todo .tileAddress {
+  color: var(--color-text-meta);
+}
+
+/* Pole wyboru w trybie „Zaznacz odwiedzone”: w rogu zdjęcia, cały kafelek jest jego etykietą. */
+.pickInput {
+  position: absolute;
+  inset-block-start: var(--space-sm);
+  inset-inline-start: var(--space-sm);
+  z-index: 3;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+  accent-color: var(--color-brand-accent);
+}
+
+@media (hover: hover) {
+  .tileLink:hover .thumbImage {
+    transform: scale(1.03);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumbImage,
+  .thumbImageWhole {
+    transition: none;
+  }
+
+  .tileLink:hover .thumbImage {
+    transform: none;
+  }
+}
+
 @media (min-width: 48rem) {
+  .intro {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--space-lg);
+  }
+
+  .introText {
+    grid-column: span 7;
+  }
+
+  .introAction {
+    grid-column: 9 / span 4;
+    padding-inline-start: var(--space-lg);
+    border-inline-start: 1px solid var(--color-border-subtle);
+  }
+
+  .introAction :where(.button) {
+    width: auto;
+  }
+
+  .places {
+    margin-block-start: var(--space-xl);
+  }
+
+  .listHead {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .listHead h2 {
+    font-size: var(--font-size-2xl);
+  }
+
   .grid {
-    grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
-    gap: var(--space-md);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: calc(var(--space-xl) + var(--space-md)) var(--space-lg);
+    margin-block-start: var(--space-md);
+  }
+
+  .tile {
+    border-block-end: 0;
+  }
+
+  .tileLink {
+    display: block;
+    min-height: 0;
+    padding-block: 0;
+  }
+
+  .photo {
+    width: 100%;
+  }
+
+  .tileText {
+    margin-block-start: var(--space-md);
+  }
+
+  .tileName {
+    font-size: var(--font-size-xl);
+  }
+
+  .segment {
+    display: inline-flex;
+  }
+
+  .chips {
+    flex-wrap: nowrap;
+  }
+
+  .chip {
+    flex: 0 0 auto;
+    padding-inline: var(--space-md);
+  }
+}
+
+@media (min-width: 64rem) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 47.99rem) {
+  /* Telefon: przycisk zapisu na całą szerokość (kontener przycisku trzyma go inaczej po lewej). */
+  .introAction > div {
+    justify-items: stretch;
+  }
+
+  .chips {
+    gap: 6px;
+    padding-block: 12px;
+  }
+
+  /* Trzy filtry mają się zmieścić w jednym wierszu przy 390 px (VERIFY-R3); przy węższym oknie
+     ostatni zawija się do drugiego wiersza zamiast się ucinać. */
+  .chip {
+    padding-inline: 8px;
+    font-size: 0.75rem;
+  }
+
+  .chipCount {
+    margin-inline-start: 2px;
   }
 }

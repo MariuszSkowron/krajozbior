@@ -46,6 +46,7 @@ Zostajemy przy gramatyce repozytorium; nazwy z PDF design systemu mapujemy 1:1. 
 | `--ok` `--warn` `--bad` `--info` (+`-bg`) | `color.feedback.success` / `.warning` / `.danger` / `.info` (+`.bg`) | stany |
 | `--glass` | `color.surface.glass` | półprzezroczyste tło dolnego paska nawigacji (E3-2a) |
 | `--img-a` / `--img-b` | `color.image.placeholder` / `.placeholder-alt` | okładka kolekcji bez zdjęcia: gradient (E3-2a) |
+| `--scrim` / `#fff` | `color.image.scrim` / `color.text.on-image` | przyciemnienie pod tekstem na zdjęciu (gradient w `color-mix`) i tekst na takim zdjęciu; ta sama wartość w obu motywach (D-57, DT-2) |
 
 Tokeny, które pierwszy używa kolejny PR (zasada 5), powstają dopiero w nim: `radius.xl`, `space.2xl`, `space.3xl`, odstępy kart. PR E3-2b dodał `font.size.5xl`, `font.tracking.display`, `motion.duration.medium`, `motion.duration.enter`, `size.row.min`, `size.icon.badge` i `border.width.state`. PR E3-2a dodał `color.surface.glass`, `color.image.placeholder(-alt)`, `shadow.card-hover`, `shadow.accent-glow`, `font.size.2xs` i `font.weight.medium`.
 

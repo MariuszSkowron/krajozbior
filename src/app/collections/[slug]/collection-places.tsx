@@ -1,14 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { PastVisitDateFields } from "@/app/past-visit-date-fields";
 import { PastVisitMessage } from "@/app/past-visit-message";
 import pastStyles from "@/app/past-visit.module.css";
-import type { PlaceThumb as PlaceThumbData } from "@/features/catalog/application/catalog-types";
-import { StatusBadge } from "@/design-system/components/status-badge";
 import {
   EMPTY_PAST_VISIT_DATE,
   INCOMPLETE_DATE_MESSAGE,
@@ -20,16 +17,10 @@ import {
 } from "@/features/visits/domain/past-visit-form";
 import { MAX_PAST_VISITS_PER_REQUEST } from "@/features/visits/domain/limits";
 
-import styles from "../../catalog.module.css";
 import albumStyles from "./album.module.css";
-import { PlaceThumb } from "./place-thumb";
+import { PlaceTile, type TilePlace } from "./place-tile";
 
-type Place = {
-  id: string;
-  name: string;
-  address: string;
-  position: number;
-  thumb: PlaceThumbData | null;
+type Place = TilePlace & {
   /** The explorer's visit of the place: confirmed on site, from the past, or none. */
   kind: "on_site" | "past" | null;
 };
@@ -156,56 +147,24 @@ export function CollectionPlaces({ places }: { places: Place[] }) {
         />
       </div>
       <ol className={albumStyles.grid}>
-        {places.map((place) => {
-          const title = (
-            <span className={styles.itemTitle}>
-              <span className={styles.itemNumber}>{place.position}.</span> {place.name}
-            </span>
-          );
-
-          return (
-            <li key={place.id} className={styles.item}>
-              {picking && place.kind === null ? (
-                <label className={pastStyles.pickLabel}>
-                  {place.thumb === null ? null : (
-                    <span className={pastStyles.pickThumb}>
-                      <PlaceThumb thumb={place.thumb} />
-                    </span>
-                  )}
-                  <input
-                    type="checkbox"
-                    checked={chosen.includes(place.id)}
-                    disabled={full && !chosen.includes(place.id)}
-                    onChange={(event) => toggle(place.id, event.target.checked)}
-                  />
-                  <span className={pastStyles.pickBody}>
-                    {title}
-                    {place.address === "" ? null : (
-                      <span className={styles.itemMeta}>{place.address}</span>
-                    )}
-                  </span>
-                </label>
-              ) : (
-                <Link className={styles.itemLink} href={`/places/${place.id}`}>
-                  <PlaceThumb thumb={place.thumb} />
-                  {title}
-                  {place.address === "" ? null : (
-                    <span className={styles.itemMeta}>{place.address}</span>
-                  )}
-                  {place.kind === null ? null : (
-                    <span className={pastStyles.badgeRow}>
-                      {place.kind === "on_site" ? (
-                        <StatusBadge tone="success">Odwiedzone</StatusBadge>
-                      ) : (
-                        <StatusBadge tone="info">Z przeszłości</StatusBadge>
-                      )}
-                    </span>
-                  )}
-                </Link>
-              )}
-            </li>
-          );
-        })}
+        {places.map((place) => (
+          <PlaceTile
+            key={place.id}
+            place={place}
+            state={place.kind ?? "todo"}
+            pick={
+              picking && place.kind === null ? (
+                <input
+                  type="checkbox"
+                  className={albumStyles.pickInput}
+                  checked={chosen.includes(place.id)}
+                  disabled={full && !chosen.includes(place.id)}
+                  onChange={(event) => toggle(place.id, event.target.checked)}
+                />
+              ) : undefined
+            }
+          />
+        ))}
       </ol>
       {picking ? (
         // Under the list, so that the keyboard reaches the checkboxes before the button;
