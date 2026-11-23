@@ -9,6 +9,8 @@ import { CollectionProgress } from "@/design-system/components/collection-progre
 import { StatusBadge } from "@/design-system/components/status-badge";
 import {
   LegendaryCard,
+  imageFailedToLoad,
+  isPhotoShown,
   legendaryCategories,
   type LegendaryCardCategory,
 } from "@/design-system/components/legendary-card";
@@ -233,7 +235,7 @@ describe("LegendaryEmblem (D-56 pkt 1)", () => {
 
     expect(html).toContain(`data-emblem="${c}"`);
     expect(html).toContain(categoryLabels[c]);
-    expect(html).toContain('aria-label="Odsłoń kartę: Noc Muzeów"');
+    expect(html).toContain(`aria-label="Odsłoń kartę: Noc Muzeów, ${categoryLabels[c]}"`);
   });
 });
 
@@ -241,7 +243,7 @@ describe("LegendaryCardReveal", () => {
   it("zakryta: przycisk zasłony z nazwą dostępną, pusty region aria-live, karta niedostępna", () => {
     const html = render(createElement(LegendaryCardReveal, { card: sampleCard }));
 
-    expect(html).toContain('aria-label="Odsłoń kartę: Noc Muzeów"');
+    expect(html).toMatch(/aria-label="Odsłoń kartę: Noc Muzeów, [^"]+"/);
     expect(html).toMatch(/<button type="button"/);
     expect(html).toMatch(/aria-live="polite"[^>]*><\/div>/);
     expect(html).toContain("inert");
@@ -435,10 +437,56 @@ describe("karta legendarna: zdjęcie, okno i ramka (D-56)", () => {
     const describedBy = /<img [^>]*aria-describedby="([^"]+)"/.exec(html)?.[1];
 
     expect(describedBy).toBeTruthy();
-    const caption = new RegExp(`<p id="${describedBy}"[^>]*>([^<]*)</p>`).exec(html);
+    const caption = new RegExp(`<div id="${describedBy}"[^>]*>([^<]*)</div>`).exec(html);
     expect(caption?.[1]).toMatch(/^Zdjęcie/);
     expect(html.indexOf("</article>")).toBeLessThan(html.indexOf(`id="${describedBy}"`));
     expect(html).not.toContain("<figure");
+  });
+
+  it("podpis z dwóch akapitów to prawidłowe zagnieżdżenie w div, aria-describedby wskazuje go", () => {
+    const html = render(
+      createElement(LegendaryCard, {
+        ...sampleCard,
+        photo,
+        photoCredit: createElement(
+          "figcaption",
+          null,
+          createElement("p", null, "Zdjęcie: Obraz."),
+          createElement("p", null, "Licencja: CC."),
+        ),
+      }),
+    );
+    const describedBy = /<img [^>]*aria-describedby="([^"]+)"/.exec(html)?.[1];
+
+    expect(html).not.toMatch(/<p[^>]*><figcaption/);
+    expect(html).toMatch(
+      new RegExp(
+        `<div id="${describedBy}"[^>]*><figcaption><p>Zdjęcie: Obraz\\.</p><p>Licencja: CC\\.</p></figcaption></div>`,
+      ),
+    );
+  });
+
+  it("zdjęcie, które się nie wczytało, daje wariant z emblematem i bez podpisu", () => {
+    expect(isPhotoShown(photo, null)).toBe(true);
+    expect(isPhotoShown(photo, "/inne.svg")).toBe(true);
+    expect(isPhotoShown(photo, photo.src)).toBe(false);
+    expect(isPhotoShown(undefined, null)).toBe(false);
+    expect(imageFailedToLoad({ complete: true, naturalWidth: 0 })).toBe(true);
+    expect(imageFailedToLoad({ complete: true, naturalWidth: 800 })).toBe(false);
+    expect(imageFailedToLoad({ complete: false, naturalWidth: 0 })).toBe(false);
+  });
+
+  it("srcSet i sizes trafiają do img", () => {
+    const html = render(
+      createElement(LegendaryCard, {
+        ...sampleCard,
+        photo: { ...photo, srcSet: "/m.svg 400w, /d.svg 1200w", sizes: "18rem" },
+        photoCredit: credit,
+      }),
+    );
+
+    expect(html).toMatch(/<img [^>]*srcSet="\/m\.svg 400w, \/d\.svg 1200w"/);
+    expect(html).toMatch(/<img [^>]*sizes="18rem"/);
   });
 
   it("bez zdjęcia: emblemat kategorii w oknie, bez img i bez podpisu", () => {

@@ -37,7 +37,7 @@ export const legendarySamples: Readonly<Record<LegendaryCardCategory, LegendaryC
   },
   trail_community: {
     category: "trail_community",
-    eventName: "Rajd Wzdłuż Wisły",
+    eventName: "Rajd wzdłuż Wisły",
     collectionTitle: "Szlak nadwiślański",
     placeName: "Przystań w Tczewie",
     dateLabel: "20.6.2026, 9:00",

@@ -140,7 +140,7 @@ export function LegendaryCardReveal({
           <button
             type="button"
             className={styles.veil}
-            aria-label={`Odsłoń kartę: ${card.eventName}`}
+            aria-label={`Odsłoń kartę: ${card.eventName}, ${legendaryCategoryLabel(card.category ?? "krajozbior")}`}
             aria-hidden={revealed ? "true" : undefined}
             tabIndex={revealed ? -1 : undefined}
             disabled={revealed}

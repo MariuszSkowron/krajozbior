@@ -37,7 +37,13 @@ export function legendaryCategoryLabel(category: LegendaryCardCategory): string 
 }
 
 /** Zdjęcie miejsca: wymiary rezerwują miejsce w układzie. `alt` to nazwa miejsca. */
-export type LegendaryCardPhoto = Readonly<{ src: string; width: number; height: number }>;
+export type LegendaryCardPhoto = Readonly<{
+  src: string;
+  width: number;
+  height: number;
+  srcSet?: string;
+  sizes?: string;
+}>;
 
 type PhotoProps =
   | Readonly<{
@@ -82,6 +88,19 @@ function Effect({ category }: Readonly<{ category: LegendaryCardCategory }>) {
   }
 }
 
+/** Czy okno ma pokazać zdjęcie: jest zdjęcie i to samo źródło nie zgłosiło błędu. */
+export function isPhotoShown(
+  photo: LegendaryCardPhoto | undefined,
+  failedSrc: string | null,
+): boolean {
+  return photo !== undefined && failedSrc !== photo.src;
+}
+
+/** Obraz zakończył wczytywanie bez danych (błąd mógł wyprzedzić obsługę zdarzenia). */
+export function imageFailedToLoad(image: Pick<HTMLImageElement, "complete" | "naturalWidth">) {
+  return image.complete && image.naturalWidth === 0;
+}
+
 export function LegendaryCard({
   eventName,
   collectionTitle,
@@ -99,12 +118,12 @@ export function LegendaryCard({
   const imageRef = useRef<HTMLImageElement>(null);
   // Zdjęcie, które się nie wczytało (zdarzenie `error`): karta wygląda wtedy jak bez zdjęcia.
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  const showPhoto = photo !== undefined && failedSrc !== photo.src;
+  const showPhoto = isPhotoShown(photo, failedSrc);
 
   // Błąd mógł wystąpić, zanim React podpiął obsługę (renderowanie po stronie serwera).
   useEffect(() => {
     const image = imageRef.current;
-    if (image !== null && image.complete && image.naturalWidth === 0) {
+    if (image !== null && imageFailedToLoad(image)) {
       setFailedSrc(image.getAttribute("src"));
     }
   }, [photo?.src]);
@@ -143,12 +162,14 @@ export function LegendaryCard({
             <span className={styles.category}>{label}</span>
           </p>
           <div className={styles.window} data-layer="window">
-            {showPhoto ? (
+            {showPhoto && photo ? (
               // eslint-disable-next-line @next/next/no-img-element -- zdjęcie bez obróbki, jak PlacePhoto
               <img
                 ref={imageRef}
                 className={styles.photo}
                 src={photo.src}
+                srcSet={photo.srcSet}
+                sizes={photo.sizes}
                 width={photo.width}
                 height={photo.height}
                 alt={placeName}
@@ -173,9 +194,9 @@ export function LegendaryCard({
         </div>
       </article>
       {showPhoto ? (
-        <p id={creditId} className={styles.credit} data-part="credit">
+        <div id={creditId} className={styles.credit} data-part="credit">
           {photoCredit}
-        </p>
+        </div>
       ) : null}
     </div>
   );

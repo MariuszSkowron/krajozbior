@@ -14,7 +14,7 @@ export const longCredit = (
   </>
 );
 
-export const shortCredit = <>Zdjęcie. Autor: Fikcyjny Autor Testowy. Status: domena publiczna.</>;
+export const shortCredit = <>Zdjęcie: autor Fikcyjny Autor Testowy. Status: domena publiczna.</>;
 
 /** Dane przykładowe kategorii z obrazem zastępczym o wskazanych proporcjach i podpisem. */
 export function withPhoto(
