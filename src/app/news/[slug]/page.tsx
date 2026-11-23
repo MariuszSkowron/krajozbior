@@ -9,7 +9,13 @@ import { showUpdatedNote } from "@/features/news/domain/news";
 import { formatNewsDate, newsBodyParagraphs, newsDateTime } from "@/features/news/domain/news-view";
 import { getNewsReadDeps } from "@/features/news/infrastructure/news-read-deps";
 
-import { NewsBody, NewsEventDays, NewsKicker, NewsOrganization } from "../news-parts";
+import {
+  NewsBody,
+  NewsEventDays,
+  NewsKicker,
+  NewsOrganization,
+  NewsPublished,
+} from "../news-parts";
 import styles from "../news.module.css";
 
 // Same rules as the list: dynamic, always read as a guest.
@@ -82,6 +88,7 @@ export default async function NewsItemPage({ params }: { params: Params }) {
       <NewsEventDays card={item} />
       <div className={styles.meta}>
         <NewsOrganization name={item.organization.name} verification={item.verification} />
+        <NewsPublished card={item} />
         {updated && item.contentUpdatedAt !== null ? (
           <p>
             Zaktualizowano{" "}

@@ -153,9 +153,7 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     // Nothing visited yet: "Nierozpoczęte" only.
     await choose("W trakcie");
     await expect(page).toHaveURL(/\/my\/collections\?stan=w-trakcie$/);
-    await expect(
-      page.getByText("Żadna zapisana kolekcja nie jest w stanie „W trakcie”."),
-    ).toBeVisible();
+    await expect(page.getByText("Nie ma zapisanych kolekcji ze stanem „W trakcie”.")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Zapisane kolekcje (0 z 1)" })).toBeVisible();
     await expect(current("W trakcie")).toHaveAttribute("aria-current", "page");
     // A shorter list may clamp scrollY to the new maximum, but never to the top.
@@ -164,9 +162,7 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     await inBothThemes(page, () => expectNoAccessibilityViolations(page));
 
     await choose("Ukończone");
-    await expect(
-      page.getByText("Żadna zapisana kolekcja nie jest w stanie „Ukończone”."),
-    ).toBeVisible();
+    await expect(page.getByText("Nie ma zapisanych kolekcji ze stanem „Ukończone”.")).toBeVisible();
 
     await choose("Nierozpoczęte");
     await expect(card()).toBeVisible();
@@ -176,7 +172,7 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     await visitFirstPlace();
     await page.goto("/my/collections?stan=nierozpoczete");
     await expect(
-      page.getByText("Żadna zapisana kolekcja nie jest w stanie „Nierozpoczęte”."),
+      page.getByText("Nie ma zapisanych kolekcji ze stanem „Nierozpoczęte”."),
     ).toBeVisible();
     await page.getByRole("link", { name: "Pokaż wszystkie" }).click();
     await expect(page).toHaveURL(/\/my\/collections$/);
@@ -192,6 +188,39 @@ test.describe("Moje kolekcje: filtr postępu", () => {
 
     await page.context().close();
   });
+
+  for (const width of [1280, 1440]) {
+    test(`on ${width} px the content is as wide as on the home page and the cards use 3 columns`, async ({
+      browser,
+    }) => {
+      await saveDemoCollection();
+
+      const page = await signedInPage(browser, { width });
+      const contentWidth = () =>
+        page.evaluate(
+          () => document.querySelector("main > :first-child")?.getBoundingClientRect().width ?? 0,
+        );
+
+      await page.goto("/");
+      await expect(page.getByRole("main")).toBeVisible();
+
+      const homeWidth = await contentWidth();
+
+      await page.goto("/my/collections");
+      await expect(list(page).getByRole("link", { name: DEMO_TITLE })).toBeVisible();
+      expect(await contentWidth()).toBe(homeWidth);
+
+      const columns = await page.evaluate(
+        () =>
+          getComputedStyle(
+            document.querySelector('section[aria-labelledby="zapisane"] ul')!,
+          ).gridTemplateColumns.split(" ").length,
+      );
+
+      expect(columns).toBeGreaterThanOrEqual(3);
+      await page.context().close();
+    });
+  }
 
   test("the block 'Pokaż nowe w okolicy' is gone from the screen", async ({ browser }) => {
     await saveDemoCollection();

@@ -16,6 +16,13 @@ export const PROGRESS_FILTER_LABELS: Readonly<Record<ProgressFilter, string>> = 
   ukonczone: "Ukończone",
 };
 
+/** The sentence for a state that matches nothing; a one-letter word never ends a line ("ze stanem", „W trakcie”). */
+export function noMatchingCollectionsMessage(filter: ProgressFilter): string {
+  const label = PROGRESS_FILTER_LABELS[filter].replace(/(^|\s)(\p{L}) /gu, "$1$2 ");
+
+  return `Nie ma zapisanych kolekcji ze stanem „${label}”.`;
+}
+
 /** The value of `?stan=`; anything unknown (or repeated) means "Wszystkie". */
 export function parseProgressFilter(value: string | readonly string[] | undefined): ProgressFilter {
   return PROGRESS_FILTERS.find((filter) => filter === value) ?? "wszystkie";
