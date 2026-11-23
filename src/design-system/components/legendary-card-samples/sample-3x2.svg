@@ -1,0 +1,44 @@
+<!-- Dane przykładowe do historii Storybooka, nie styl interfejsu; kolory poza tokens.css celowo (spec E6, DT-E6-4a-13). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1f2a5a" />
+      <stop offset="1" stop-color="#f0a060" />
+    </linearGradient>
+    <path id="gO" d="M0 0H4V6H0Z" />
+    <path id="gB" d="M0 0V6H3L4 5V3.5L3 3H0M0 0H3L4 1V2L3 3" />
+    <path id="gR" d="M0 6V0H3L4 1V2L3 3H0M2 3L4 6" />
+    <path id="gA" d="M0 6L2 0L4 6M0.7 4H3.3" />
+    <path id="gZ" d="M0 0H4L0 6H4" />
+    <path id="gP" d="M0 6V0H3L4 1V2L3 3H0" />
+    <path id="gY" d="M0 0L2 3L4 0M2 3V6" />
+    <path id="gK" d="M0 0V6M4 0L0 3.5M1.5 2.5L4 6" />
+    <path id="gL" d="M1.5 0V6H4M0 4L3 2" />
+    <path id="gD" d="M0 0V6H3L4 5V1L3 0Z" />
+    <path id="gW" d="M0 0L1 6L2 2.5L3 6L4 0" />
+  </defs>
+  <rect width="1200" height="800" fill="url(#sky)" />
+  <circle cx="900" cy="190" r="62" fill="#f6efd8" />
+  <path d="M0 560Q200 470 400 540T800 520T1200 540V800H0Z" fill="#2c4a52" />
+  <rect x="520" y="300" width="64" height="260" fill="#16222a" />
+  <path d="M506 300L552 230L598 300Z" fill="#16222a" />
+  <path d="M0 650Q300 590 600 650T1200 640V800H0Z" fill="#1c3036" />
+  <g transform="translate(40 740) scale(4)" fill="none" stroke="#ffffff" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round">
+    <use href="#gO" x="0" />
+    <use href="#gB" x="5" />
+    <use href="#gR" x="10" />
+    <use href="#gA" x="15" />
+    <use href="#gZ" x="20" />
+    <use href="#gP" x="30" />
+    <use href="#gR" x="35" />
+    <use href="#gZ" x="40" />
+    <use href="#gY" x="45" />
+    <use href="#gK" x="50" />
+    <use href="#gL" x="55" />
+    <use href="#gA" x="60" />
+    <use href="#gD" x="65" />
+    <use href="#gO" x="70" />
+    <use href="#gW" x="75" />
+    <use href="#gY" x="80" />
+  </g>
+</svg>

@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { LegendaryCard, legendaryCategoryLabel, type LegendaryCardProps } from "./legendary-card";
+import { LegendaryCard, legendaryCategoryLabel, type LegendaryCardContent } from "./legendary-card";
 import { LegendaryEmblem } from "./legendary-emblems";
 import styles from "./legendary-card-reveal.module.css";
 
@@ -42,7 +42,7 @@ export function LegendaryCardReveal({
   actions,
   motion = "auto",
 }: Readonly<{
-  card: Omit<LegendaryCardProps, "playing">;
+  card: LegendaryCardContent;
   initialState?: "sealed" | "revealed";
   onReveal?: () => void;
   /** Przyciski pod kartą po odsłonięciu; składa je ekran. */

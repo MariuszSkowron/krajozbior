@@ -1,10 +1,12 @@
-import type { LegendaryCardCategory, LegendaryCardProps } from "./legendary-card";
+import type {
+  LegendaryCardCategory,
+  LegendaryCardContent,
+  LegendaryCardPhoto,
+} from "./legendary-card";
 
 // Wymyślone dane do historii Storybooka (D-51 pkt 5): ani prawdziwych kuratorów, ani miejsc
 // kultu i pamięci (D-39). Pierwsza karta pochodzi z makiety skrytki.
-export const legendarySamples: Readonly<
-  Record<LegendaryCardCategory, Omit<LegendaryCardProps, "playing">>
-> = {
+export const legendarySamples: Readonly<Record<LegendaryCardCategory, LegendaryCardContent>> = {
   culture_night: {
     category: "culture_night",
     eventName: "Noc Muzeów",
@@ -50,3 +52,36 @@ export const legendarySamples: Readonly<
 };
 
 export const previewNote = "Zapowiedź funkcji: karty legendarne nie działają jeszcze w aplikacji.";
+export const photoNote = "Obraz i podpis są przykładowe.";
+
+// Obrazy zastępcze narysowane w repozytorium (DT-E6-4a-13): bez zdjęć z sieci i prawdziwych miejsc.
+// Ścieżki rozwiązuje Vite Storybooka; aplikacja (`npm run build`) tego pliku nie importuje.
+export const samplePhotos = {
+  "3x2": {
+    src: new URL("./legendary-card-samples/sample-3x2.svg", import.meta.url).href,
+    width: 1200,
+    height: 800,
+  },
+  "2x3": {
+    src: new URL("./legendary-card-samples/sample-2x3.svg", import.meta.url).href,
+    width: 800,
+    height: 1200,
+  },
+  "1x1": {
+    src: new URL("./legendary-card-samples/sample-1x1.svg", import.meta.url).href,
+    width: 1000,
+    height: 1000,
+  },
+  "3x1": {
+    src: new URL("./legendary-card-samples/sample-3x1.svg", import.meta.url).href,
+    width: 1500,
+    height: 500,
+  },
+} as const satisfies Readonly<Record<string, LegendaryCardPhoto>>;
+
+/** Zepsuty adres: pokazuje stan „zdjęcie nie ładuje się”. */
+export const brokenPhoto: LegendaryCardPhoto = {
+  src: "https://obraz-przykladowy.invalid/nie-istnieje.jpg",
+  width: 1200,
+  height: 800,
+};

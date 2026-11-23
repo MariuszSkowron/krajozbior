@@ -8,7 +8,8 @@ import {
   type LegendaryCardCategory,
 } from "./legendary-card";
 import { LegendaryCardReveal } from "./legendary-card-reveal";
-import { legendarySamples, previewNote } from "./legendary-card.samples";
+import { withPhoto } from "./legendary-card.credits";
+import { legendarySamples, photoNote, previewNote } from "./legendary-card.samples";
 
 const meta = {
   title: "Krajozbiór Components/LegendaryCardReveal",
@@ -34,7 +35,8 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-const sample = legendarySamples.culture_night;
+const note = `${previewNote} ${photoNote}`;
+const sample = withPhoto("culture_night");
 
 // Przykładowe przyciski bez działania: ekran skrytki (E6-4) złoży własne.
 const actions = (
@@ -55,20 +57,20 @@ async function reveal(canvasElement: HTMLElement) {
 export const Sealed: Story = {
   name: "Zakryta",
   args: { card: sample },
-  parameters: { docs: { description: { story: previewNote } } },
+  parameters: { docs: { description: { story: note } } },
 };
 
 export const Revealing: Story = {
   name: "Odsłanianie (kliknięcie w zasłonę)",
   args: { card: sample, actions },
-  parameters: { docs: { description: { story: previewNote } } },
+  parameters: { docs: { description: { story: note } } },
   play: async ({ canvasElement }) => reveal(canvasElement),
 };
 
 export const Revealed: Story = {
   name: "Odsłonięta",
   args: { card: sample, initialState: "revealed", actions },
-  parameters: { docs: { description: { story: previewNote } } },
+  parameters: { docs: { description: { story: note } } },
 };
 
 export const ReducedMotion: Story = {
@@ -100,21 +102,21 @@ export const LightTheme: Story = {
   name: "W jasnym motywie (scena zostaje nocna)",
   args: { card: sample, actions },
   globals: { theme: "light" },
-  parameters: { docs: { description: { story: previewNote } } },
+  parameters: { docs: { description: { story: note } } },
 };
 
 function categoryRevealed(category: LegendaryCardCategory): Story {
   return {
     name: `Odsłonięta: ${legendaryCategoryLabel(category)}`,
-    args: { card: legendarySamples[category], initialState: "revealed", actions },
-    parameters: { docs: { description: { story: previewNote } } },
+    args: { card: withPhoto(category), initialState: "revealed", actions },
+    parameters: { docs: { description: { story: note } } },
   };
 }
 
 function categoryReveal(category: LegendaryCardCategory): Story {
   return {
     name: `Odsłonięcie z efektem: ${legendaryCategoryLabel(category)}`,
-    args: { card: legendarySamples[category] },
+    args: { card: withPhoto(category) },
     parameters: {
       docs: {
         description: {
@@ -168,7 +170,7 @@ export const AllVeils: Story = {
 export const AllCategories: Story = {
   name: "Wszystkie kategorie (odsłonięte obok siebie)",
   args: { card: sample },
-  parameters: { docs: { description: { story: previewNote } } },
+  parameters: { docs: { description: { story: note } } },
   render: () => (
     <div
       style={{
@@ -179,11 +181,7 @@ export const AllCategories: Story = {
       }}
     >
       {legendaryCategories.map((category) => (
-        <LegendaryCardReveal
-          key={category}
-          card={legendarySamples[category]}
-          initialState="revealed"
-        />
+        <LegendaryCardReveal key={category} card={withPhoto(category)} initialState="revealed" />
       ))}
     </div>
   ),

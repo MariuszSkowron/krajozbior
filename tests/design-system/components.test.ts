@@ -373,10 +373,10 @@ describe("karta legendarna: tekst nie jest przycinany (CSS)", () => {
 
   it("przycinane są tylko kontenery warstw ozdobnych", () => {
     expect(block(".frame")).toMatch(/overflow:\s*clip/);
-    expect(block(".medallion")).toMatch(/overflow:\s*clip/);
+    expect(block(".fx")).toMatch(/overflow:\s*clip/);
     const clipped = [...css.matchAll(/(?:^|\n)([^{}\n]+)\{[^}]*overflow:\s*(?:hidden|clip)/g)];
     for (const [, selector] of clipped) {
-      expect(selector, selector).toMatch(/\.frame|\.medallion/);
+      expect(selector, selector).toMatch(/\.frame|\.fx/);
     }
   });
 
@@ -384,39 +384,135 @@ describe("karta legendarna: tekst nie jest przycinany (CSS)", () => {
     const html = render(createElement(LegendaryCard, sampleCard));
 
     expect(html).toMatch(/<span class="[^"]*frame[^"]*" aria-hidden="true">/);
-    expect(html).toMatch(/<div class="[^"]*medallion[^"]*"[^>]* aria-hidden="true">/);
+    expect(html).toMatch(/<span class="[^"]*fx[^"]*" aria-hidden="true">/);
   });
 });
 
-// Przegląd UX A1–A2: medalion kategorii w pustym środku, widoczny połysk, ramka 3 px z poświatą.
-describe("karta legendarna: medalion i ramka", () => {
+// D-56: zdjęcie główne w oknie, bez symbolu i medalionu na karcie ze zdjęciem; połysk i efekty
+// tylko wokół zdjęcia; podpis przypisany do zdjęcia; ramka 3 px z poświatą.
+describe("karta legendarna: zdjęcie, okno i ramka (D-56)", () => {
   const dir = new URL("../../src/design-system/components/", import.meta.url);
   const css = readFileSync(new URL("legendary-card.module.css", dir), "utf8").replace(
     /\/\*[\s\S]*?\*\//g,
     "",
   );
+  const photo = { src: "/obraz.svg", width: 1200, height: 800 } as const;
+  const credit = "Zdjęcie: Obraz przykładowy. Autor: Fikcyjny Autor Testowy.";
+  const withPhoto = (c?: LegendaryCardCategory) =>
+    render(
+      createElement(LegendaryCard, {
+        ...sampleCard,
+        category: c,
+        photo,
+        photoCredit: credit,
+      }),
+    );
+  const face = (html: string) => /<div class="[^"]*face[^"]*">(.*)<\/article>/.exec(html)![1];
 
   it.each(legendaryCategories)(
-    "%s: medalion z dużym symbolem i połyskiem między tytułem a miejscem",
+    "%s ze zdjęciem: zdjęcie w oknie, bez emblematu i medalionu",
     (c) => {
-      const html = render(createElement(LegendaryCard, { ...sampleCard, category: c }));
-      const medallion = /<div class="[^"]*medallion[^"]*"[^>]*>(.*?)<\/div>/.exec(html);
+      const html = withPhoto(c);
 
-      expect(medallion).not.toBeNull();
-      expect(medallion![1]).toMatch(/<span class="[^"]*sheen[^"]*">/);
-      const svg = /<svg [^>]*>/.exec(medallion![1])?.[0] ?? "";
-      expect(svg).toContain('aria-hidden="true"');
-      expect(svg).toMatch(/class="[^"]*medallionSymbol/);
-      expect(html.indexOf("Wieże ciśnień Pomorza")).toBeLessThan(html.indexOf("medallion"));
-      expect(html.indexOf("medallion")).toBeLessThan(html.indexOf("Wieża ciśnień w Tczewie"));
+      expect(html).toMatch(/<img [^>]*src="\/obraz\.svg"/);
+      expect(html).not.toContain('data-layer="medallion"');
+      expect(html).not.toContain("<svg");
+      expect(html).not.toContain("data-emblem");
+      expect(html).toContain(categoryLabels[c]);
     },
   );
 
-  it("połysk leży w medalionie, nie w ramce pod twarzą", () => {
-    const html = render(createElement(LegendaryCard, sampleCard));
-    const frame = /<span class="[^"]*frame[^"]*" aria-hidden="true">(.*?)<\/span><div/.exec(html);
+  it("alt zdjęcia to nazwa miejsca, wymiary rezerwują miejsce", () => {
+    const html = withPhoto();
 
-    expect(frame?.[1] ?? "").not.toContain("sheen");
+    expect(html).toMatch(/<img [^>]*alt="Wieża ciśnień w Tczewie"/);
+    expect(html).toMatch(/<img [^>]*width="1200"/);
+    expect(html).toMatch(/<img [^>]*height="800"/);
+  });
+
+  it("podpis jest poza ramką karty i wskazuje go aria-describedby zdjęcia, zaczyna się od „Zdjęcie”", () => {
+    const html = withPhoto();
+    const describedBy = /<img [^>]*aria-describedby="([^"]+)"/.exec(html)?.[1];
+
+    expect(describedBy).toBeTruthy();
+    const caption = new RegExp(`<p id="${describedBy}"[^>]*>([^<]*)</p>`).exec(html);
+    expect(caption?.[1]).toMatch(/^Zdjęcie/);
+    expect(html.indexOf("</article>")).toBeLessThan(html.indexOf(`id="${describedBy}"`));
+    expect(html).not.toContain("<figure");
+  });
+
+  it("bez zdjęcia: emblemat kategorii w oknie, bez img i bez podpisu", () => {
+    const html = render(createElement(LegendaryCard, { ...sampleCard, category: "heritage" }));
+
+    expect(html).toContain('data-emblem="heritage"');
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("aria-describedby");
+    expect(html).toContain('data-photo="none"');
+  });
+
+  it("karta jest zawsze nocna (theme-dark na korzeniu karty)", () => {
+    expect(withPhoto()).toMatch(/<article class="theme-dark /);
+  });
+
+  it("warstwy połysku i efektów nie są potomkami okna zdjęcia", () => {
+    for (const c of legendaryCategories) {
+      const html = withPhoto(c);
+      const start = html.indexOf('data-layer="window"');
+      const end = html.indexOf('data-layer="window"') + html.slice(start).indexOf("</div>");
+      const windowHtml = html.slice(start, end);
+
+      for (const layer of ["sheen", "sweep", "aurora", "sparks", "edge", "glow", "ring"]) {
+        expect(windowHtml, `${c}: ${layer}`).not.toContain(`data-layer="${layer}"`);
+      }
+      expect(html).toContain('data-layer="sheen"');
+    }
+    expect(face(withPhoto())).toContain('data-layer="window"');
+  });
+
+  it("CSS: zdjęcie i okno bez filtrów, mieszania, półprzezroczystości, przycięcia i maski", () => {
+    const forbidden =
+      /(?:^|[;\s])(filter|mix-blend-mode|clip-path|mask|mask-image)\s*:|opacity\s*:\s*(?!1\b)/;
+    for (const selector of [
+      ".photo",
+      ".window",
+      '.card[data-photo="none"] .window',
+      ".face",
+      ".card",
+    ]) {
+      const body = css.match(
+        new RegExp(`(?:^|\\n)${selector.replace(/[.[\]"=]/g, "\\$&")}\\s*\\{([^}]*)\\}`),
+      )?.[1];
+      expect(body, selector).toBeDefined();
+      expect(body, selector).not.toMatch(forbidden);
+    }
+    expect(css).toMatch(/\.photo\s*\{[^}]*object-fit:\s*contain/);
+    expect(css).not.toMatch(/\.photo\s*\{[^}]*(?:border-radius|object-fit:\s*cover)/);
+  });
+
+  it("CSS: żadna animacja nie dotyczy zdjęcia ani okna", () => {
+    const targets = [...css.matchAll(/([^{}]+)\{[^}]*animation:[^}]*\}/g)].map((m) => m[1]);
+
+    expect(targets.length).toBeGreaterThan(0);
+    for (const selector of targets) {
+      expect(selector, selector).not.toMatch(/\.photo|\.window|\.emblem|\.face\b|\.credit/);
+    }
+  });
+
+  it("CSS: okno rośnie z kartą i ma minimum 10 rem; zdjęcie ma margines passe-partout", () => {
+    expect(css).toMatch(/\.window\s*\{[^}]*flex:\s*1 1 auto[^}]*min-block-size:\s*10rem/);
+    expect(css).toMatch(/\.photo\s*\{[^}]*inset:\s*var\(--space-sm\)/);
+    expect(css).toMatch(
+      /\.photo\s*\{[^}]*max-inline-size:\s*calc\(100% - 2 \* var\(--space-sm\)\)/,
+    );
+  });
+
+  it("CSS: wysoki kontrast — CanvasText, tło okna Canvas, linki LinkText, efekty ukryte", () => {
+    const forced = css.slice(css.indexOf("@media (forced-colors: active)"));
+
+    expect(forced).toMatch(/\.window[^{]*\{[^}]*background:\s*Canvas/);
+    expect(forced).toMatch(/\.photo\s*\{[^}]*border-color:\s*CanvasText/);
+    expect(forced).toMatch(/\.credit a\s*\{[^}]*color:\s*LinkText/);
+    expect(forced).toContain(".fx");
   });
 
   it("ramka ma 3 px i stałą poświatę z tokenów kategorii, bez animacji", () => {
@@ -427,12 +523,9 @@ describe("karta legendarna: medalion i ramka", () => {
     expect(card).not.toMatch(/animation/);
   });
 
-  it("medalion: poświata i symbol z tokenów kategorii, w trybie wysokiego kontrastu bez tła", () => {
-    expect(css).toMatch(/\.medallion\s*\{[^}]*radial-gradient\([^}]*var\(--legendary-accent\)/);
-    expect(css).toMatch(/\.medallionSymbol\s*\{[^}]*color:\s*var\(--legendary-accent\)/);
-    const forced = css.slice(css.indexOf("@media (forced-colors: active)"));
-    expect(forced).toMatch(/\.medallion\s*\{[^}]*background:\s*none/);
-    expect(forced).toMatch(/\.medallionSymbol[^}]*color:\s*CanvasText/);
+  it("passe-partout: poświata z tokenu kategorii na stałym tle karty, bez medalionu", () => {
+    expect(css).toMatch(/\.window\s*\{[^}]*radial-gradient\([^}]*var\(--legendary-accent\)/);
+    expect(css).not.toMatch(/medallion/);
   });
 
   it("każda kategoria ustawia --legendary-accent z własnego tokenu", () => {
@@ -457,7 +550,7 @@ describe("karta legendarna: teksty i dane przykładowe", () => {
 
   it("wersaliki etykiety daje CSS, nie treść", () => {
     expect(read("legendary-card.module.css")).toMatch(
-      /\n\.label\s*\{[^}]*text-transform:\s*uppercase/,
+      /\n\.topbar\s*\{[^}]*text-transform:\s*uppercase/,
     );
   });
 

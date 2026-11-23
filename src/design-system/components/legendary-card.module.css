@@ -1,10 +1,21 @@
 /*
- * Karta legendarna (E6-4a, D-52). Ramka z opalizującego gradientu (tokeny color.legendary.*),
- * wnętrze na stałym tle color.surface.card. Tekst i symbol mają stały kolor z tokenów tekstu i
- * nigdy nie stoją na barwach opalizacji. Stan końcowy każdego efektu leży w regułach bazowych
- * (np. gwiazdy zapalone); animacja to tylko warstwa nad nim, jeden cykl w czasie
- * motion.duration.reveal, bez pętli. Środek gradientu liczy color-mix tej samej kategorii.
+ * Karta legendarna (E6-4a, D-52, D-56). Ramka z opalizującego gradientu (tokeny color.legendary.*)
+ * i cienka linia wewnętrzna, wnętrze na stałym tle color.surface.card. Głównym elementem jest
+ * okno zdjęcia (passe-partout): zdjęcie leży w nim w całości, bez filtrów, przycięcia i warstw
+ * nad nim. Połysk i efekty kategorii (.fx, .sparks, .edge, .glow, .ring) obejmują tylko ramkę,
+ * pasek górny i tablicę nazwy i zawsze leżą pod oknem. Tekst nigdy nie stoi na zdjęciu ani na
+ * barwach opalizacji. Stan końcowy każdego efektu leży w regułach bazowych (np. gwiazdy
+ * zapalone); animacja to tylko warstwa nad nim, jeden cykl w czasie motion.duration.reveal,
+ * bez pętli. Środek gradientu liczy color-mix tej samej kategorii.
  */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  inline-size: 100%;
+  max-inline-size: 18rem;
+}
+
 .card {
   --legendary-gradient: linear-gradient(
     135deg,
@@ -22,7 +33,7 @@
   /*
    * Bez overflow: hidden na karcie i twarzy: aspect-ratio daje tylko minimum 5:7, a przy
    * długich nazwach i powiększonym tekście (WCAG 1.4.4) karta rośnie. Przycinane są wyłącznie
-   * warstwy ozdobne, w osobnych kontenerach (.frame, .medallion).
+   * warstwy ozdobne, w osobnych kontenerach (.frame, .fx).
    */
   position: relative;
   isolation: isolate;
@@ -30,7 +41,6 @@
   flex-direction: column;
   box-sizing: border-box;
   inline-size: 100%;
-  max-inline-size: 18rem;
   aspect-ratio: 5 / 7;
   padding: 3px;
   color: var(--color-text-primary);
@@ -122,7 +132,7 @@
   --legendary-ring: var(--color-legendary-krajozbior-end);
 }
 
-/* Kontenery warstw ozdobnych: jedyne miejsca z przycinaniem (karta sama może rosnąć). */
+/* Kontener ramki: jedyne miejsce z przycinaniem (karta sama może rosnąć). */
 .frame {
   position: absolute;
   inset: 0;
@@ -131,46 +141,9 @@
   pointer-events: none;
 }
 
-/*
- * Medalion kategorii: pusty środek karty (bez tekstu). Poświata z tokenu kategorii, duży symbol
- * i połysk leżą wyłącznie tutaj, na stałym tle karty; tekst nigdy nie stoi na opalizacji.
- * Efekty odsłonięcia (iskry, połysk, zorza, pierścień) grają w tej samej strefie.
- */
-.medallion {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  flex: 1 1 auto;
-  place-items: center;
-  min-block-size: 7rem;
-  overflow: clip;
-  background: radial-gradient(
-    circle at 50% 50%,
-    color-mix(in srgb, var(--legendary-accent) 24%, transparent),
-    transparent 70%
-  );
-  border-radius: var(--radius-md);
-  pointer-events: none;
-}
-
-.medallionSymbol {
-  position: relative;
-  z-index: 1;
-  inline-size: 5.5rem;
-  block-size: 5.5rem;
-  color: var(--legendary-accent);
-}
-
-/* Połysk: ukośny pas nad poświatą medalionu, nieruchomy. */
-.sheen {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(115deg, transparent 35%, var(--legendary-glow) 50%, transparent 65%);
-  pointer-events: none;
-}
-
 .edge,
-.glow {
+.glow,
+.ring {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -191,6 +164,13 @@
   opacity: 0;
 }
 
+/* Krajozbiór: ramka rozbłyska raz w barwie akcentu. */
+.ring {
+  z-index: 2;
+  border: 3px solid var(--legendary-ring, var(--color-legendary-krajozbior-end));
+  opacity: 0;
+}
+
 .face {
   position: relative;
   z-index: 1;
@@ -199,23 +179,125 @@
   gap: var(--space-sm);
   box-sizing: border-box;
   flex: 1;
-  padding: var(--space-md);
+  padding: var(--space-md) var(--space-md) var(--space-sm);
   background: var(--color-surface-card);
   border-radius: calc(var(--radius-lg) - 3px);
 }
 
-.face > :not([aria-hidden="true"]) {
+/* Cienka linia wewnętrzna (podwójna ramka); leży poza oknem zdjęcia, w marginesie twarzy. */
+.face::after {
+  position: absolute;
+  inset: var(--space-xs);
+  z-index: 0;
+  content: "";
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--legendary-accent) 45%, transparent);
+  border-radius: calc(var(--radius-lg) - 6px);
+}
+
+/*
+ * Warstwa połysku i efektów tła: pod oknem zdjęcia (okno ma wyższy z-index i nieprzezroczyste
+ * tło), więc widać ją tylko na pasku górnym, tablicy nazwy i w pasie passe-partout poza zdjęciem.
+ */
+.fx {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: clip;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.topbar,
+.window,
+.plate {
   position: relative;
   z-index: 1;
 }
 
-.label {
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-xs) var(--space-sm);
   margin: 0;
   color: var(--color-text-label);
   font-family: var(--font-family-mono);
   font-size: var(--font-size-xs);
   letter-spacing: var(--font-tracking-label);
   text-transform: uppercase;
+}
+
+.label,
+.category {
+  margin: 0;
+}
+
+/* Okno zdjęcia (passe-partout): rośnie, ile pozwala karta; zdjęcie w nim leży w całości. */
+.window {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  min-block-size: 10rem;
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      color-mix(in srgb, var(--legendary-accent) 18%, transparent),
+      transparent 70%
+    ),
+    var(--color-surface-card);
+  border-radius: var(--radius-sm);
+}
+
+/* Bez zdjęcia (także gdy się nie wczytało): mocniejsza poświata passe-partout i emblemat. */
+.card[data-photo="none"] .window {
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      color-mix(in srgb, var(--legendary-accent) 28%, transparent),
+      transparent 70%
+    ),
+    var(--color-surface-card);
+}
+
+/*
+ * Zdjęcie bez obróbki: pudełko obrazka ma wymiary widocznego zdjęcia (object-fit: contain),
+ * więc linia 1 px i cień obejmują dokładnie zdjęcie, jak oprawioną odbitkę.
+ */
+.photo {
+  position: absolute;
+  inset: var(--space-sm);
+  box-sizing: border-box;
+  inline-size: auto;
+  block-size: auto;
+  max-inline-size: calc(100% - 2 * var(--space-sm));
+  max-block-size: calc(100% - 2 * var(--space-sm));
+  margin: auto;
+  object-fit: contain;
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-card);
+}
+
+.emblem {
+  position: absolute;
+  inset: 0;
+  display: block;
+  box-sizing: border-box;
+  inline-size: auto;
+  block-size: 60%;
+  max-inline-size: 60%;
+  margin: auto;
+  aspect-ratio: 1;
+}
+
+/* Tablica nazwy pod zdjęciem: linia z gradientu kategorii i tekst na stałym tle. */
+.plate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding-block-start: var(--space-sm);
+  border-block-start: 1px solid transparent;
+  border-image: var(--legendary-gradient) 1;
 }
 
 .eventName {
@@ -228,54 +310,62 @@
   letter-spacing: var(--font-tracking-display);
 }
 
-.collection {
+.place {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-xs);
   margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
 }
 
-.meta {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  margin: auto 0 0;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-}
-
-.meta > :last-child {
-  color: var(--color-text-label);
+.date {
+  color: var(--color-text-meta);
   font-family: var(--font-family-mono);
   font-size: var(--font-size-xs);
 }
 
-.category {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  margin: 0;
-  padding-block-start: var(--space-sm);
-  color: var(--color-text-label);
-  border-block-start: 1px solid var(--color-border-subtle);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
+.date::after {
+  margin-inline-start: var(--space-xs);
+  content: "·";
 }
 
-.symbol {
-  flex: none;
-  inline-size: 1.25rem;
-  block-size: 1.25rem;
+/* Podpis zdjęcia: poza kartą, na motywie strony; linki w kolorze akcentu tekstu. */
+.credit {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-body);
+  text-align: start;
+}
+
+.credit a {
+  color: var(--color-text-accent);
 }
 
 /* --- Efekty kategorii: warstwy ozdobne, stan końcowy w regule bazowej --- */
 
-/* Noc kultury: gwiazdy zapalone na stałe; podczas odsłaniania zapalają się po kolei. */
+/* Połysk: ukośny pas raz po ramce, pasku górnym i tablicy nazwy; w spoczynku niewidoczny. */
+.sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, var(--legendary-glow) 50%, transparent 65%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Noc kultury: gwiazdy w pasku górnym zapalone na stałe; podczas odsłaniania zapalają się po kolei. */
 .sparks {
   position: absolute;
-  inset-block-start: var(--space-sm);
-  inset-inline-end: var(--space-sm);
-  inline-size: 3rem;
-  block-size: 2rem;
+  inset-block: 0;
+  inset-inline: 38% 38%;
   pointer-events: none;
 }
 
@@ -288,54 +378,42 @@
 }
 
 .starA {
-  inset-block-start: 0.1rem;
-  inset-inline-end: 0.2rem;
+  inset-block-start: 0;
+  inset-inline-start: 0;
 }
 
 .starB {
-  inset-block-start: 1rem;
-  inset-inline-end: 1.4rem;
+  inset-block-start: 0.3rem;
+  inset-inline-start: 0.9rem;
 }
 
 .starC {
-  inset-block-start: 0.35rem;
-  inset-inline-end: 2.4rem;
+  inset-block-start: 0;
+  inset-inline-start: 1.8rem;
 }
 
-/* Dziedzictwo: połysk przesuwa się raz jak światło po metalu. */
+/* Dziedzictwo: światło przesuwa się raz po ramce i tablicy nazwy (pod oknem zdjęcia). */
 .sweep,
 .aurora {
   position: absolute;
   inset-block: 0;
+  inset-inline-start: 0;
   inline-size: 60%;
   pointer-events: none;
   opacity: 0;
 }
 
 .sweep {
-  inset-inline-start: 0;
   background: linear-gradient(105deg, transparent 20%, var(--legendary-glow) 50%, transparent 80%);
 }
 
-/* Przyroda i niebo: jedna łagodna fala zorzy przez kartę. */
+/* Przyroda i niebo: jedna łagodna fala zorzy przez pasek górny i pas passe-partout. */
 .aurora {
-  inset-inline-start: 0;
   background: linear-gradient(90deg, transparent, var(--legendary-glow), transparent);
 }
 
-/* Krajozbiór: pierścień rozbłyska raz. */
-.ring {
-  position: absolute;
-  inset-block-start: 50%;
-  inset-inline-start: 50%;
-  inline-size: 40%;
-  aspect-ratio: 1;
-  margin-block-start: -20%;
-  margin-inline-start: -20%;
-  border: 2px solid var(--legendary-ring, var(--color-legendary-krajozbior-end));
-  border-radius: 50%;
-  opacity: 0;
-  pointer-events: none;
+.card[data-playing="true"] .sheen {
+  animation: sheen var(--motion-duration-reveal) var(--motion-easing-standard) 1;
 }
 
 .card[data-playing="true"] .starA {
@@ -368,6 +446,18 @@
 
 .card[data-playing="true"] .ring {
   animation: ring var(--motion-duration-reveal) var(--motion-easing-standard) 1;
+}
+
+@keyframes sheen {
+  from {
+    opacity: 1;
+    transform: translateX(-100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(100%);
+  }
 }
 
 @keyframes starA {
@@ -474,21 +564,20 @@
 @keyframes ring {
   0% {
     opacity: 0;
-    transform: scale(0.5);
   }
 
-  30% {
-    opacity: 0.8;
+  40% {
+    opacity: 0.9;
   }
 
   100% {
     opacity: 0;
-    transform: scale(1.8);
   }
 }
 
 /*
- * Tryb wysokiego kontrastu: bez opalizacji i efektów; obrys, tekst i symbol w kolorach systemowych.
+ * Tryb wysokiego kontrastu: bez opalizacji, połysku i efektów; ramka i linia wokół zdjęcia
+ * w CanvasText, tło okna Canvas, tekst CanvasText, linki w podpisie LinkText. Zdjęcie bez zmian.
  */
 @media (forced-colors: active) {
   .card {
@@ -499,13 +588,15 @@
   }
 
   .frame,
+  .fx,
   .sheen,
   .edge,
   .glow,
   .sparks,
   .sweep,
   .aurora,
-  .ring {
+  .ring,
+  .face::after {
     display: none;
   }
 
@@ -514,25 +605,31 @@
     border-radius: inherit;
   }
 
-  .label,
-  .eventName,
-  .collection,
-  .meta,
-  .meta > :last-child,
-  .category {
-    color: CanvasText;
+  .window,
+  .card[data-photo="none"] .window {
+    background: Canvas;
   }
 
-  .category {
+  .photo {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+
+  .plate {
+    border-image: none;
     border-block-start-color: CanvasText;
   }
 
-  .medallion {
-    background: none;
+  .topbar,
+  .eventName,
+  .place,
+  .meta,
+  .date,
+  .credit {
+    color: CanvasText;
   }
 
-  .symbol,
-  .medallionSymbol {
-    color: CanvasText;
+  .credit a {
+    color: LinkText;
   }
 }
