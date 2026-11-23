@@ -8,6 +8,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useTransition,
   type ReactNode,
 } from "react";
 
@@ -20,8 +21,17 @@ import styles from "./own.module.css";
 
 function useAction() {
   const router = useRouter();
-  const [pending, setPending] = useState(false);
+  const [requesting, setPending] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  // The button stays busy until the page has been rendered again with the new list, so a click
+  // is never answered by "Dodano" next to a list that still shows the old state.
+  const pending = requesting || refreshing;
+
+  // Rendering the page again as a transition: `refreshing` is true until the new data arrives.
+  function refresh() {
+    startRefresh(() => router.refresh());
+  }
 
   async function run<T>(
     send: () => Promise<OwnApiResult<T>>,
@@ -42,7 +52,7 @@ function useAction() {
     if (result.ok) {
       setMessage({ kind: "ok", text: successText });
       if (after === undefined) {
-        router.refresh();
+        refresh();
       } else {
         after();
       }
@@ -51,7 +61,7 @@ function useAction() {
     }
   }
 
-  return { pending, message, run };
+  return { pending, message, run, refresh };
 }
 
 function Message({
@@ -135,9 +145,8 @@ export function RemoveEntryButton({
   entryId,
   label,
 }: Readonly<{ collectionId: string; entryId: string; label: string }>) {
-  const router = useRouter();
   const announce = useContext(Announce);
-  const { pending, message, run } = useAction();
+  const { pending, message, run, refresh } = useAction();
 
   return (
     <span className={styles.rowAction}>
@@ -156,7 +165,7 @@ export function RemoveEntryButton({
             () => {
               // The row (and this button) disappears: the focus goes to the heading of the list.
               announce("Usunięto z kolekcji.");
-              router.refresh();
+              refresh();
               document.getElementById("miejsca")?.focus();
             },
           )
