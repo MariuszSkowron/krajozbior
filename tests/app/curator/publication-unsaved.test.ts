@@ -94,7 +94,7 @@ describe("PublicationControls with unsaved text in the form", () => {
     expect(store.refresh).not.toHaveBeenCalled();
     expect(render().feedback?.props.feedback).toEqual({
       kind: "info",
-      message: "Najpierw zapisz zmiany w danych kolekcji.",
+      message: "Najpierw zapisz zmiany kolekcji.",
     });
   });
 
@@ -111,7 +111,7 @@ describe("PublicationControls with unsaved text in the form", () => {
     await clickPublish();
     expect(render().feedback?.props.feedback).toEqual({
       kind: "info",
-      message: "Najpierw zapisz zmiany w danych kolekcji.",
+      message: "Najpierw zapisz zmiany kolekcji.",
     });
     expect(render().feedback?.props.announceKey).toBe(2);
   });

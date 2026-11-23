@@ -23,7 +23,7 @@ export function UnsavedChangesProvider({ children }: Readonly<{ children: ReactN
 
 export const useUnsavedChanges = () => useContext(UnsavedChangesContext);
 
-export const UNSAVED_FIRST_MESSAGE = "Najpierw zapisz zmiany w danych kolekcji.";
+export const UNSAVED_FIRST_MESSAGE = "Najpierw zapisz zmiany kolekcji.";
 
 export const GO_TO_SAVE_LABEL = "Przejdź do zapisu";
 export const UNSAVED_BADGE = "Masz niezapisane zmiany";
