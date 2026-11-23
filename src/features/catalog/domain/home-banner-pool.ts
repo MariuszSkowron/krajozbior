@@ -1,8 +1,8 @@
 // Pula zdjęć banera strony głównej dla gościa (R3, D-57, PR 4): stała lista wybranych miejsc.
 // Przy każdym wejściu serwer losuje jedno miejsce z puli, które ma dziś dostępne zdjęcie.
 //
-// LISTA CZEKA NA AKCEPTACJĘ WŁAŚCICIELA (spec R3, Q1): właściciel zatwierdza ją przed scaleniem
-// PR 4. Zmiana listy to mała zmiana w tym pliku (B-01); nie zmieniaj jej poza tym plikiem.
+// Lista zaakceptowana przez właściciela 2026-11-24 (spec R3, Q1; 13 miejsc z kadrami na telefon v2).
+// Zmiana listy to mała zmiana w tym pliku (B-01); nie zmieniaj jej poza tym plikiem.
 //
 // Reguły dla każdego miejsca na liście:
 //  - B-02: tylko fotografie (nie ryciny); szerokość pliku `main` (po obróbce, najwyżej 1600 px)
