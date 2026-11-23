@@ -12,6 +12,7 @@ import {
   legendaryCategories,
   type LegendaryCardCategory,
 } from "@/design-system/components/legendary-card";
+import { LegendaryEmblem } from "@/design-system/components/legendary-emblems";
 import {
   isSwipeUp,
   LegendaryCardReveal,
@@ -201,6 +202,38 @@ describe("LegendaryCard", () => {
     const html = render(createElement(LegendaryCard, { ...sampleCard, headingLevel: 2 }));
 
     expect(html).toMatch(/<h2 class="[^"]*">Noc Muzeów<\/h2>/);
+  });
+});
+
+describe("LegendaryEmblem (D-56 pkt 1)", () => {
+  it.each(legendaryCategories)("%s: SVG 120×120, ozdoba, bez kolorów w znacznikach", (c) => {
+    const html = render(createElement(LegendaryEmblem, { category: c }));
+
+    expect(html).toContain(`data-emblem="${c}"`);
+    expect(html).toContain('viewBox="0 0 120 120"');
+    expect(html).toContain('aria-hidden="true"');
+    expect(html).toContain('focusable="false"');
+    expect(html).not.toContain("<title");
+    expect(html).not.toMatch(/(?:stroke|fill)="(?!none)[^"]+"/);
+    expect(html).not.toMatch(/#[0-9a-f]{3,8}\b|rgb\(/i);
+  });
+
+  it("żadne dwa emblematy nie mają tego samego rysunku", () => {
+    const drawings = legendaryCategories.map((c) =>
+      render(createElement(LegendaryEmblem, { category: c })).replace(/class="[^"]*"/g, ""),
+    );
+
+    expect(new Set(drawings).size).toBe(legendaryCategories.length);
+  });
+
+  it.each(legendaryCategories)("zasłona %s pokazuje emblemat i nazwę kategorii tekstem", (c) => {
+    const html = render(
+      createElement(LegendaryCardReveal, { card: { ...sampleCard, category: c } }),
+    );
+
+    expect(html).toContain(`data-emblem="${c}"`);
+    expect(html).toContain(categoryLabels[c]);
+    expect(html).toContain('aria-label="Odsłoń kartę: Noc Muzeów"');
   });
 });
 
@@ -467,7 +500,7 @@ describe("scena odsłonięcia: gest i czas", () => {
 
   it("zasłona przewija stronę (pan-y), a tylko uchwyt gestu ma touch-action: none", () => {
     expect(rule(".veil")).toMatch(/touch-action:\s*pan-y/);
-    expect(rule(".veilRing")).toMatch(/touch-action:\s*none/);
+    expect(rule(".veilEmblem")).toMatch(/touch-action:\s*none/);
     expect(rule(".scene")).not.toMatch(/touch-action/);
     expect([...css.matchAll(/touch-action:\s*none;/g)]).toHaveLength(1);
   });

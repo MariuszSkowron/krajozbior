@@ -139,6 +139,32 @@ export const RevealNatureSky = categoryReveal("nature_sky");
 export const RevealTrailCommunity = categoryReveal("trail_community");
 export const RevealKrajozbior = categoryReveal("krajozbior");
 
+export const AllVeils: Story = {
+  name: "Wszystkie zasłony (zakryte, z emblematem)",
+  args: { card: sample },
+  parameters: {
+    docs: {
+      description: {
+        story: `${previewNote} Sześć zasłon obok siebie, każda z emblematem swojej kategorii.`,
+      },
+    },
+  },
+  render: () => (
+    <div
+      style={{
+        display: "grid",
+        gap: "var(--space-lg)",
+        gridTemplateColumns: "repeat(auto-fill, minmax(min(20rem, 100%), 1fr))",
+        background: "var(--color-surface-canvas)",
+      }}
+    >
+      {legendaryCategories.map((category) => (
+        <LegendaryCardReveal key={category} card={legendarySamples[category]} />
+      ))}
+    </div>
+  ),
+};
+
 export const AllCategories: Story = {
   name: "Wszystkie kategorie (odsłonięte obok siebie)",
   args: { card: sample },

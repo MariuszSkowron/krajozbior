@@ -117,17 +117,23 @@
 }
 
 /*
- * Uchwyt gestu w środku zasłony: tylko tu przeglądarka oddaje pionowy ruch palca stronie
- * (touch-action: none), więc pointermove dochodzi do progu 110 px i gest w górę działa.
- * Reszta zasłony ma pan-y i przewija stronę.
+ * Emblemat kategorii (D-56 pkt 1) w środku zasłony, w miejscu dawnego pierścienia. To zarazem
+ * uchwyt gestu: tylko tu przeglądarka oddaje pionowy ruch palca stronie (touch-action: none),
+ * więc pointermove dochodzi do progu 110 px i gest w górę działa. Reszta zasłony ma pan-y
+ * i przewija stronę.
  */
-.veilRing {
-  inline-size: 5rem;
-  block-size: 5rem;
+.veilEmblem {
+  display: block;
+  inline-size: 7.5rem;
+  block-size: 7.5rem;
   touch-action: none;
-  border: 2px solid var(--color-brand-accent);
-  border-radius: 50%;
-  box-shadow: var(--shadow-accent-glow);
+}
+
+/* Nazwa kategorii tekstem pod napisem „Odsłoń” (kategorii nie rozpoznaje się po rysunku). */
+.veilCategory {
+  margin-block-start: calc(-1 * var(--space-sm));
+  color: var(--color-text-label);
+  font-size: var(--font-size-xs);
 }
 
 /* Stan końcowy: zasłona niewidoczna i nie przechwytuje kliknięć (karta pod spodem działa). */
@@ -230,9 +236,8 @@
     color: ButtonText;
   }
 
-  .veilRing {
-    border-color: ButtonText;
-    box-shadow: none;
+  .veilCategory {
+    color: ButtonText;
   }
 
   .heading,

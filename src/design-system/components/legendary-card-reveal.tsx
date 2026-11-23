@@ -10,7 +10,8 @@ import {
   type ReactNode,
 } from "react";
 
-import { LegendaryCard, type LegendaryCardProps } from "./legendary-card";
+import { LegendaryCard, legendaryCategoryLabel, type LegendaryCardProps } from "./legendary-card";
+import { LegendaryEmblem } from "./legendary-emblems";
 import styles from "./legendary-card-reveal.module.css";
 
 // Scena odsłonięcia karty legendarnej (E6-4a): zasłona zakrywa kartę, odsłania ją kliknięcie,
@@ -152,8 +153,13 @@ export function LegendaryCardReveal({
               if (event.target === event.currentTarget) setPlaying(false);
             }}
           >
-            <span className={styles.veilRing} aria-hidden="true" />
+            <span className={styles.veilEmblem} aria-hidden="true">
+              <LegendaryEmblem category={card.category ?? "krajozbior"} />
+            </span>
             <span aria-hidden="true">Odsłoń</span>
+            <span className={styles.veilCategory} aria-hidden="true">
+              {legendaryCategoryLabel(card.category ?? "krajozbior")}
+            </span>
             <span className={styles.veilMark} aria-hidden="true">
               Krajozbiór
             </span>
