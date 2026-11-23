@@ -7,6 +7,7 @@ import { COLLECTION_STATUS_LABELS, REGION_LABELS } from "@/features/catalog/doma
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 
 import { CollectionForm } from "../../collection-form";
+import { CollectionVersionProvider } from "../../collection-version";
 import { CoverPicker } from "../../cover-picker";
 import styles from "../../curator.module.css";
 import { pageValue, requireCurator } from "../../curator-session";
@@ -39,7 +40,7 @@ export default async function CollectionEditorPage({
   );
 
   return (
-    <>
+    <CollectionVersionProvider version={collection.version}>
       <nav className={styles.breadcrumb} aria-label="Ścieżka">
         <ol>
           <li>
@@ -102,6 +103,6 @@ export default async function CollectionEditorPage({
           wasPublished: collection.firstPublishedAt !== null,
         }}
       />
-    </>
+    </CollectionVersionProvider>
   );
 }
