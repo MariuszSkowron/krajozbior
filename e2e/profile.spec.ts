@@ -63,13 +63,18 @@ test.describe("profile and logout", () => {
 
     await expect(page).toHaveTitle("Profil — Krajozbiór");
     await expect(main.getByRole("heading", { level: 1, name: "Profil" })).toBeVisible();
-    await expect(main).toContainText("Twoja rola: Użytkownik");
-    await expect(main.getByRole("link")).toHaveText([
-      "Moje kolekcje",
-      "Chcę zobaczyć",
-      "Ustawienia",
-      "Napisz do nas",
-    ]);
+    // Paczka N: no role name for an explorer and no tiles that repeat the main menu.
+    await expect(main).not.toContainText("Twoja rola");
+    await expect(main).not.toContainText("Użytkownik");
+    await expect(main.getByRole("link")).toHaveText(["Ustawienia", "Napisz do nas"]);
+    await expect(main.getByRole("link", { name: "Moje kolekcje" })).toHaveCount(0);
+    await expect(main.getByRole("link", { name: "Chcę zobaczyć" })).toHaveCount(0);
+    // The header says "Profil" (no first name saved) and links to the profile.
+    await expect(page.getByRole("banner").getByRole("link", { name: /^Profil/ })).toHaveAttribute(
+      "href",
+      "/my",
+    );
+    await expect(page.getByRole("banner").getByRole("button", { name: "Wyloguj" })).toBeVisible();
     // E9-6a: contact is a mailto link to the team's address (no form, no data).
     const contact = main.getByRole("link", { name: "Napisz do nas" });
     await expect(contact).toBeVisible();
@@ -89,6 +94,20 @@ test.describe("profile and logout", () => {
     for (const link of await main.getByRole("link").all()) {
       expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(44);
     }
+
+    // Na telefonie liczby i odnośniki zajmują pełną szerokość treści (390 px minus marginesy).
+    const phoneWidth = (await main.getByTestId("profile-stats").boundingBox())?.width ?? 0;
+    expect(phoneWidth).toBeGreaterThanOrEqual(330);
+    // Trzy liczby stoją w jednym rzędzie (ta sama współrzędna top), bez pustej połowy ekranu.
+    const tops = await main
+      .getByTestId("profile-stats")
+      .locator("dd")
+      .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().top));
+    expect(tops).toHaveLength(3);
+    expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(2);
+    expect(
+      (await main.getByRole("link", { name: "Ustawienia" }).boundingBox())?.width ?? 0,
+    ).toBeGreaterThanOrEqual(330);
 
     await expectNoAccessibilityViolations(page);
 

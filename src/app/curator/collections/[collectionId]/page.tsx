@@ -13,6 +13,7 @@ import { pageValue, requireCurator } from "../../curator-session";
 import { placeNotice } from "../../place-notice";
 import { PlaceList } from "../../place-list";
 import { PublicationControls } from "../../publication-controls";
+import { UnsavedChangesProvider } from "../../unsaved-changes";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export default async function CollectionEditorPage({
   );
 
   return (
-    <>
+    <UnsavedChangesProvider>
       <nav className={styles.breadcrumb} aria-label="Ścieżka">
         <ol>
           <li>
@@ -102,6 +103,6 @@ export default async function CollectionEditorPage({
           wasPublished: collection.firstPublishedAt !== null,
         }}
       />
-    </>
+    </UnsavedChangesProvider>
   );
 }
