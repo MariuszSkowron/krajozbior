@@ -349,7 +349,7 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
       .getAttribute("href");
 
     paths.place = placeHref ?? "";
-    await page.getByRole("button", { name: "Zapisz kolekcję" }).click();
+    await page.getByRole("button", { name: "Zapisuję kolekcję" }).click();
     await expect(page.getByText("Kolekcja jest zapisana.")).toBeVisible();
     await page.goto(paths.place);
     await waitForHydration(page);
