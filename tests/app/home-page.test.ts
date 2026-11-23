@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   listSaved: vi.fn(),
   listRecent: vi.fn(),
   listNearby: vi.fn(),
+  getBanner: vi.fn(),
   getProfile: vi.fn(),
 }));
 
@@ -25,6 +26,7 @@ vi.mock("@/features/album/application/saved-collections", () => ({
 vi.mock("@/features/catalog/application/public-catalog", () => ({
   listRecentlyPublishedCollections: mocks.listRecent,
   listNearbyCandidates: mocks.listNearby,
+  getCollectionBanner: mocks.getBanner,
 }));
 
 const { default: HomePage } = await import("@/app/page");
@@ -48,6 +50,22 @@ const discover = [
     cover: null,
   },
 ];
+
+const coverOf = (photoId: string) => ({ photoId, width: 1600, height: 1000, altText: "Zamek" });
+
+const banner = {
+  ...coverOf("ph1"),
+  title: null,
+  authorText: "Jan Autor",
+  authorUrl: null,
+  sourceUrl: "https://commons.wikimedia.org/wiki/File:Zamek.jpg",
+  sourceKind: "commons_import",
+  licenseCode: "cc-by-sa-4.0",
+  licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+  licenseLabel: "CC BY-SA 4.0",
+  placeId: "p9",
+  placeName: "Zamek w Płotach",
+};
 
 const nearby = [
   {
@@ -110,6 +128,7 @@ beforeEach(() => {
   mocks.getActor.mockReset().mockResolvedValue(null);
   mocks.listRecent.mockReset().mockResolvedValue(discover);
   mocks.listNearby.mockReset().mockResolvedValue(nearby);
+  mocks.getBanner.mockReset().mockResolvedValue(null);
   mocks.getHomeAlbum.mockReset().mockResolvedValue({ status: "ok", value: album });
   mocks.listSaved.mockReset().mockResolvedValue({ status: "ok", value: [] });
   mocks.getProfile.mockReset().mockResolvedValue({ status: "ok", value: { firstName: "Anna" } });
@@ -136,6 +155,31 @@ describe("home page of a guest", () => {
     expect(html).not.toContain("<select");
     expect(html).toMatch(/<a [^>]*href="\/search"[^>]*>Wszystkie kolekcje<\/a>/);
     expect(mocks.getHomeAlbum).not.toHaveBeenCalled();
+  });
+
+  it("shows the fixed banner photo with the place as a link and the full credit", async () => {
+    mocks.listRecent.mockResolvedValue([{ ...discover[0], cover: coverOf("ph1") }]);
+    mocks.getBanner.mockResolvedValue(banner);
+    const html = await render();
+
+    expect(mocks.getBanner).toHaveBeenCalledWith("mosty-i-zamki", expect.anything());
+    expect(html).toMatch(/<img [^>]*src="\/media\/p\/ph1\/main"[^>]*fetchPriority="high"/);
+    expect(html).toMatch(/<a [^>]*href="\/places\/p9"[^>]*>Zamek w Płotach<\/a>/);
+    expect(html).toContain("Autor:");
+    expect(html).toContain("Jan Autor");
+    expect(html).toContain("CC BY-SA 4.0");
+    expect(html).toContain("<em>w swoim albumie</em>");
+    // The search button is an outline button; the primary one is "Zaloguj się" on the banner.
+    expect(html).toMatch(/<button [^>]*class="button button--outline"[^>]*>Szukaj<\/button>/);
+  });
+
+  it("keeps the introduction on a calm placeholder when no collection has a photo", async () => {
+    const html = await render();
+
+    expect(html).toMatch(/<h1[^>]*>Odkrywaj miejsca/);
+    expect(html).toMatch(/<a [^>]*href="\/login"[^>]*>Zaloguj się<\/a>/);
+    expect(mocks.getBanner).not.toHaveBeenCalled();
+    expect(html).not.toContain("<img");
   });
 
   it("tells that there are no collections yet, and shows a message when the read fails", async () => {
@@ -225,7 +269,7 @@ describe("home page of a signed-in explorer", () => {
   it("shows the summary, the favourites with X/Y progress, the visits and the collections to discover", async () => {
     const html = await render();
 
-    expect(html).toMatch(/<h1[^>]*>Dzień dobry, Anna<\/h1>/);
+    expect(html).toMatch(/<h1[^>]*>Dzień dobry, <em>Anna<\/em><\/h1>/);
     // K-37: no announcement of what is below and no "Profil" button (the menu has it).
     expect(html).not.toContain("Oto Twój album");
     expect(html).not.toContain("Profil");
@@ -305,7 +349,43 @@ describe("home page of a signed-in explorer", () => {
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
   });
 
-  it("points the empty favourites to the list of all collections", async () => {
+  it("shows the cover of the first saved collection as a banner with progress, then the album", async () => {
+    mocks.getBanner.mockResolvedValue(banner);
+    const html = await render();
+
+    expect(mocks.getBanner).toHaveBeenCalledWith("wiezyce", expect.anything());
+    // The whole banner is one link; the credit stays outside it (links do not nest).
+    expect(html).toMatch(/<a [^>]*href="\/collections\/wiezyce"[^>]*><img [^>]*alt=""/);
+    expect(html).toContain("Kolekcja · Łódzkie");
+    expect(html).toContain("1/4 odwiedzone");
+    expect(html).toMatch(/<\/a><p [^>]*>[^<]*<a [^>]*href="\/places\/p9"/);
+    expect(html.indexOf("Moje kolekcje")).toBeLessThan(html.indexOf("Twój album"));
+    expect(html.indexOf("Twój album")).toBeLessThan(html.indexOf("Kolekcje do odkrycia"));
+  });
+
+  it("keeps a calm placeholder banner when the saved collection has no photo", async () => {
+    const html = await render();
+
+    expect(html).toContain("Wieżyce");
+    expect(html).toContain("1/4 odwiedzone");
+    expect(html).not.toContain("<img");
+  });
+
+  it("shows the empty state on the banner photo for an explorer without a saved collection (Q6)", async () => {
+    mocks.listRecent.mockResolvedValue([{ ...discover[0], cover: coverOf("ph1") }]);
+    mocks.getBanner.mockResolvedValue(banner);
+    mocks.getHomeAlbum.mockResolvedValue({
+      status: "ok",
+      value: { ...album, favorites: [], recentVisits: [] },
+    });
+    const html = await render();
+
+    expect(html).toContain("Nie masz jeszcze zapisanych kolekcji");
+    expect(html).toMatch(/<img [^>]*src="\/media\/p\/ph1\/main"/);
+    expect(html).not.toContain("Odkrywaj miejsca");
+  });
+
+  it("leaves the empty favourites with one sentence; the list of all collections is in the next heading row", async () => {
     mocks.getHomeAlbum.mockResolvedValue({
       status: "ok",
       value: { ...album, favorites: [], recentVisits: [] },
@@ -314,7 +394,8 @@ describe("home page of a signed-in explorer", () => {
     const html = await render();
 
     expect(html).toContain("Nie masz jeszcze zapisanych kolekcji");
-    expect(html).toMatch(/<a [^>]*href="\/search"[^>]*>Przeglądaj wszystkie kolekcje<\/a>/);
+    expect(html).not.toContain("Przeglądaj wszystkie kolekcje");
+    expect(html).toMatch(/<a [^>]*href="\/search"[^>]*>Wszystkie kolekcje<\/a>/);
     expect(html).not.toContain("Wszystkie moje kolekcje");
     expect(html).toContain("Nie masz jeszcze wizyt");
   });

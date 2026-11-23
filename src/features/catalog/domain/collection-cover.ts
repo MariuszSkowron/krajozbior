@@ -13,6 +13,11 @@ export type CardCoverInput = Readonly<{
 
 export type CardCoverImage = Readonly<{
   src: string;
+  /** Miniatura `w400` i plik główny do wyboru przez przeglądarkę (gęste ekrany); brak, gdy plik nie jest większy niż miniatura. */
+  srcSet?: string;
+  sizes?: string;
+  /** Zdjęcie pokazane w całości (panorama, pion), reguła `showsWhole` (Q4). */
+  whole: boolean;
   width: number;
   height: number;
   alt: string;
@@ -20,7 +25,8 @@ export type CardCoverImage = Readonly<{
 
 /**
  * Obraz okładki na karcie: miniatura `w400`, z wymiarami miniatury (rezerwują miejsce, strona nie
- * skacze). Zdjęcie węższe niż 400 px nie jest powiększane, więc miniatura ma jego wymiary.
+ * skacze). Zdjęcie węższe niż 400 px nie jest powiększane, więc miniatura ma jego wymiary. Gdy plik
+ * jest większy niż miniatura, `srcSet` pozwala gęstym ekranom wziąć plik główny.
  */
 export function cardCoverImage(cover: CardCoverInput | null): CardCoverImage | null {
   if (cover === null) {
@@ -28,9 +34,16 @@ export function cardCoverImage(cover: CardCoverInput | null): CardCoverImage | n
   }
 
   const width = Math.min(cover.width, CARD_WIDTH);
+  const thumb = `/media/p/${cover.photoId}/w400`;
+  const hasChoice = cover.width > CARD_WIDTH;
 
   return {
-    src: `/media/p/${cover.photoId}/w400`,
+    src: thumb,
+    srcSet: hasChoice
+      ? `${thumb} ${CARD_WIDTH}w, /media/p/${cover.photoId}/main ${cover.width}w`
+      : undefined,
+    sizes: hasChoice ? "(min-width: 48rem) 25rem, calc(100vw - 2rem)" : undefined,
+    whole: showsWhole(cover.width, cover.height),
     width,
     height: Math.max(1, Math.round((cover.height * width) / cover.width)),
     alt: cover.altText,

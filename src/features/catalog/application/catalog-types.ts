@@ -97,6 +97,9 @@ export type PublishedCollection = Readonly<{
   cover: PlaceCover | null;
 }>;
 
+/** The cover of a collection with the place it shows (the banner of the home page). */
+export type CollectionBanner = PlaceCover & Readonly<{ placeId: string; placeName: string }>;
+
 /** The cover on a card: a small photo of the collection, public fields only (E4-3). */
 export type CollectionCover = Readonly<{
   photoId: string;
@@ -326,6 +329,8 @@ export interface CatalogRepository {
     slug: string,
   ): Promise<PublishedCollection | null>;
   findPublishedPlace(tx: TransactionContext, id: string): Promise<PublishedPlace | null>;
+  /** The cover (with its credit and place) of a published collection, `null` when it has none. */
+  findCollectionBanner(tx: TransactionContext, slug: string): Promise<CollectionBanner | null>;
   /** Published collections of approved organizations, first published most recently first, at most `limit`. */
   listRecentlyPublishedCollections(
     tx: TransactionContext,

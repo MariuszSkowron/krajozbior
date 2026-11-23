@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { PinIcon } from "../icons/icons";
 import { CollectionProgress } from "./collection-progress";
@@ -19,13 +20,25 @@ export function CollectionCard({
   progress,
   cover,
   headingLevel = 3,
+  note,
 }: Readonly<{
+  /** Drobna notatka pod nazwą (np. „13 miejsc · kurator”), wewnątrz karty, czyli wewnątrz linku. */
+  note?: ReactNode;
   href: string;
   title: string;
   regionLabel: string;
   progress?: Readonly<{ visited: number; total: number }>;
   /** Zdjęcie okładki: adres, wymiary (rezerwują miejsce) i tekst alternatywny. */
-  cover?: Readonly<{ src: string; width: number; height: number; alt: string }> | null;
+  cover?: Readonly<{
+    src: string;
+    srcSet?: string;
+    sizes?: string;
+    /** Zdjęcie w całości (panorama, pion) zamiast przycięcia do pola okładki. */
+    whole?: boolean;
+    width: number;
+    height: number;
+    alt: string;
+  }> | null;
   headingLevel?: 2 | 3 | 4 | 5 | 6;
 }>) {
   const Heading = `h${headingLevel}` as const;
@@ -36,8 +49,12 @@ export function CollectionCard({
         <div className={styles.cover}>
           {/* eslint-disable-next-line @next/next/no-img-element -- plik z własnej trasy, bez optymalizatora */}
           <img
-            className={styles.coverImage}
+            className={
+              cover.whole ? `${styles.coverImage} ${styles.coverWhole}` : styles.coverImage
+            }
             src={cover.src}
+            srcSet={cover.srcSet}
+            sizes={cover.sizes}
             width={cover.width}
             height={cover.height}
             alt={cover.alt}
@@ -56,6 +73,7 @@ export function CollectionCard({
           {regionLabel}
         </span>
         <Heading className={styles.title}>{title}</Heading>
+        {note === undefined ? null : <p className={styles.note}>{note}</p>}
         {progress === undefined ? null : (
           <CollectionProgress {...progress} label={`Postęp w kolekcji ${title}`} />
         )}

@@ -209,16 +209,19 @@ export function CollectionsToDiscover({
                     title={collection.title}
                     regionLabel={REGION_LABELS[collection.region]}
                     cover={cardCoverImage(collection.cover)}
+                    note={
+                      <>
+                        {distance === undefined ? null : `${formatNearbyDistance(distance.km)} · `}
+                        {formatPlaceCount(collection.placeCount)} · {collection.organization.name}
+                        {distance?.isNew ? (
+                          <>
+                            {" "}
+                            <StatusBadge tone="info">{NEW_NEARBY_LABEL}</StatusBadge>
+                          </>
+                        ) : null}
+                      </>
+                    }
                   />
-                  <p className={styles.cardNote}>
-                    {distance === undefined ? null : `${formatNearbyDistance(distance.km)} · `}
-                    {formatPlaceCount(collection.placeCount)} · {collection.organization.name}
-                  </p>
-                  {distance?.isNew ? (
-                    <p className={styles.cardNote}>
-                      <StatusBadge tone="info">{NEW_NEARBY_LABEL}</StatusBadge>
-                    </p>
-                  ) : null}
                 </li>
               );
             })}

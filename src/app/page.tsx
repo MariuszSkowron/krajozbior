@@ -5,6 +5,7 @@ import { getHomeAlbum } from "@/features/album/application/home-album";
 import { listMySavedCollectionSlugs } from "@/features/album/application/saved-collections";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import {
+  getCollectionBanner,
   listNearbyCandidates,
   listRecentlyPublishedCollections,
 } from "@/features/catalog/application/public-catalog";
@@ -16,7 +17,9 @@ import { getProfileDeps } from "@/features/profile/infrastructure/profile-deps";
 
 import { AlbumSummary } from "./home/album-summary";
 import { CollectionsToDiscover } from "./home/collections-to-discover";
-import { FavoriteCollections } from "./home/favorite-collections";
+import { FavoriteCollections, MoreFavoriteCollections } from "./home/favorite-collections";
+import { HomeBanner } from "./home/home-banner";
+import bannerStyles from "./home/home-banner.module.css";
 import { RecentVisits } from "./home/recent-visits";
 import styles from "./home.module.css";
 import { SearchForm } from "./search/search-form";
@@ -53,6 +56,22 @@ async function loadNearby() {
     return await listNearbyCandidates(getCatalogDeps());
   } catch (error) {
     logReadFailure("Home nearby read", error);
+
+    return null;
+  }
+}
+
+// The cover of a collection with its credit for the banner (public read). No slug, no photo or a
+// failed read gives `null`: the banner keeps the calm placeholder and the page stays whole.
+async function loadBanner(slug: string | null) {
+  if (slug === null) {
+    return null;
+  }
+
+  try {
+    return await getCollectionBanner(slug, getCatalogDeps());
+  } catch (error) {
+    logReadFailure("Home banner read", error);
 
     return null;
   }
@@ -137,6 +156,16 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const allSaved =
     discover !== null && allDiscover !== null && allDiscover.length > 0 && discover.length === 0;
 
+  // The banner photo. Explorer with a saved collection: its cover. Otherwise (a guest, an explorer
+  // without a saved collection) a fixed photo: the cover of the first of "Kolekcje do odkrycia"
+  // that has one (the draw from a pool comes later and falls back to this).
+  const favorites = album?.favorites ?? [];
+  const bannerSlug =
+    favorites.length > 0
+      ? favorites[0].slug
+      : (discover?.find(({ cover }) => cover !== null)?.slug ?? null);
+  const banner = await loadBanner(actor !== null && album === null ? null : bannerSlug);
+
   return (
     <div className={`content-width-wide ${styles.page}`}>
       {accountDeleted ? (
@@ -161,36 +190,57 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           Nie udało się wylogować. Spróbuj ponownie.
         </p>
       ) : null}
-      <section className={styles.hero} aria-labelledby="start-title">
-        <div className={styles.heroIntro}>
-          {actor === null ? (
-            <>
-              <h1 id="start-title">Odkrywaj miejsca i zbieraj je w swoim albumie</h1>
-              <p className={styles.lead}>
+      {actor === null ? (
+        <>
+          <section aria-labelledby="start-title">
+            <HomeBanner cover={banner}>
+              <h1 id="start-title">
+                Odkrywaj miejsca i zbieraj je <em>w swoim albumie</em>
+              </h1>
+              <p className={bannerStyles.lead}>
                 Krajozbiór to kolekcje ciekawych miejsc w Polsce. Przeglądaj je bez konta; po
                 zalogowaniu zapiszesz kolekcję i zaznaczysz miejsca już odwiedzone.
               </p>
-              <div className={styles.actions}>
+              <div className={bannerStyles.actions}>
                 <Link className="button button--primary" href="/login">
                   Zaloguj się
                 </Link>
-                <Link className="button button--outline" href="#do-odkrycia">
+                <Link
+                  className={`button button--outline ${bannerStyles.onPhoto}`}
+                  href="#do-odkrycia"
+                >
                   Zobacz kolekcje
                 </Link>
               </div>
-            </>
-          ) : (
-            <h1 id="start-title">
-              {firstName === null ? "Dzień dobry" : `Dzień dobry, ${firstName}`}
-            </h1>
-          )}
-        </div>
-        <SearchForm id="home-search" />
-      </section>
+            </HomeBanner>
+          </section>
+          <div className={styles.guestSearch}>
+            <SearchForm id="home-search" outlineButton />
+          </div>
+        </>
+      ) : (
+        <section className={styles.hero} aria-labelledby="start-title">
+          <h1 id="start-title">
+            {firstName === null ? (
+              "Dzień dobry"
+            ) : (
+              <>
+                Dzień dobry, <em>{firstName}</em>
+              </>
+            )}
+          </h1>
+          <SearchForm id="home-search" outlineButton />
+        </section>
+      )}
       {album === null ? null : (
         <>
+          <FavoriteCollections
+            collections={album.favorites}
+            banner={favorites.length > 0 ? banner : null}
+            fallbackBanner={favorites.length > 0 ? null : banner}
+          />
           <AlbumSummary summary={album.summary} />
-          <FavoriteCollections collections={album.favorites} />
+          <MoreFavoriteCollections collections={album.favorites} />
         </>
       )}
       {album === null ? null : <RecentVisits visits={album.recentVisits} />}

@@ -3,6 +3,7 @@ import type { NearbyCandidate } from "../domain/nearby";
 import { isUuid } from "../domain/uuid";
 import type {
   CatalogDeps,
+  CollectionBanner,
   PublishedCollection,
   PublishedPlace,
   RecentCollection,
@@ -17,6 +18,18 @@ export type PublicReadResult<T> =
   Readonly<{ status: "ok"; value: T }> | Readonly<{ status: "not_found" }>;
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/** The cover of a published collection for the banner of the home page (guest context). */
+export async function getCollectionBanner(
+  slug: string,
+  deps: CatalogDeps,
+): Promise<CollectionBanner | null> {
+  if (!SLUG.test(slug) || slug.length > 80) {
+    return null;
+  }
+
+  return deps.withGuestContext((tx) => deps.repository.findCollectionBanner(tx, slug));
+}
 
 export async function getPublishedCollection(
   slug: string,

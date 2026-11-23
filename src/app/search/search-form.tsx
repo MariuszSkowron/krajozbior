@@ -13,7 +13,10 @@ export function SearchForm({
   phrase = "",
   region = null,
   withRegion = false,
+  outlineButton = false,
 }: Readonly<{
+  /** Przycisk „Szukaj” obrysowy (strona główna, gdzie główny przycisk jest na banerze). */
+  outlineButton?: boolean;
   /** Prefiks identyfikatorów pól: na stronie jest jeden formularz, ale id musi być unikalne. */
   id: string;
   phrase?: string;
@@ -25,7 +28,7 @@ export function SearchForm({
       action="/search"
       role="search"
       aria-label="Wyszukiwarka miejsc i kolekcji"
-      className={styles.form}
+      className={outlineButton && !withRegion ? `${styles.form} ${styles.inline}` : styles.form}
     >
       <div className={styles.field}>
         <label htmlFor={`${id}-q`}>Szukaj miejsc i kolekcji</label>
@@ -52,7 +55,10 @@ export function SearchForm({
           </select>
         </div>
       ) : null}
-      <button type="submit" className="button button--primary">
+      <button
+        type="submit"
+        className={outlineButton ? "button button--outline" : "button button--primary"}
+      >
         Szukaj
       </button>
     </Form>

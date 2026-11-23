@@ -19,10 +19,23 @@ const EXPLORER_B = "user2@demo.krajozbior.local";
 const THEME_COOKIE = "krajozbior-theme";
 
 async function expectNoAccessibilityViolations(page: Page) {
-  // Wejście sekcji przygasza treść; axe liczy kontrast dopiero po końcu animacji.
-  await page.evaluate(() =>
-    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+  // Wejście sekcji przygasza treść; axe liczy kontrast dopiero po końcu animacji. Kończymy je
+  // od razu (`finish()` nie zależy od zegara animacji), zamiast czekać na `finished`: ta obietnica
+  // nie spełni się, gdy strona nie rysuje klatek (karta w tle, obciążony komputer), a wszystkie
+  // animacje strony głównej są skończone (jedno przejście). Animacja nieskończona to błąd:
+  // `finish()` jej nie kończy, więc test ją wypisuje i pada.
+  const infinite = await page.evaluate(() =>
+    document.getAnimations().flatMap((a) => {
+      try {
+        a.finish();
+        return [];
+      } catch {
+        return [a instanceof CSSAnimation ? a.animationName : String(a.id || "animation")];
+      }
+    }),
   );
+
+  expect(infinite).toEqual([]);
   await page.addScriptTag({ content: axe.source });
 
   const violations = await page.evaluate(async () => {
@@ -198,8 +211,9 @@ test.describe("home page with the catalog", () => {
     await expect(a.getByRole("heading", { level: 1, name: "Dzień dobry" })).toBeVisible();
     await expect(a.getByText("Nie masz jeszcze zapisanych kolekcji")).toBeVisible();
     await expect(a.getByText("Nie masz jeszcze wizyt")).toBeVisible();
-    // The empty favourites lead to the list of all collections.
-    await expect(a.getByRole("link", { name: "Przeglądaj wszystkie kolekcje" })).toHaveAttribute(
+    // The list of all collections is one link, in the heading of "Kolekcje do odkrycia".
+    await expect(a.getByRole("link", { name: "Przeglądaj wszystkie kolekcje" })).toHaveCount(0);
+    await expect(a.getByRole("link", { name: "Wszystkie kolekcje" })).toHaveAttribute(
       "href",
       "/search",
     );
