@@ -38,6 +38,20 @@ vi.mock("@/features/settings/infrastructure/settings-deps", () => ({
   }),
 }));
 
+// The organizations of the account that just signed in (paczka N, faza 2): the real use case
+// over a fake reader, so the actor passed to it is checked too.
+const memberships = vi.hoisted(() => ({ list: vi.fn(), withUserContext: vi.fn() }));
+const failures = vi.hoisted(() => ({ log: vi.fn() }));
+
+vi.mock("@/features/organizations/infrastructure/postgres-organization-reader", () => ({
+  listMyOrganizationsDeps: {
+    withUserContext: memberships.withUserContext,
+    listMemberships: memberships.list,
+  },
+}));
+
+vi.mock("@/lib/log-failure", () => ({ logFailure: failures.log }));
+
 vi.mock("@/features/identity/infrastructure", () => ({
   getIdentityProvider: (): IdentityProvider => provider,
   getSignInThrottle: () => throttle,
@@ -103,6 +117,13 @@ beforeEach(() => {
   provider.signInWithCode.mockReset();
   cleanup.mockReset().mockResolvedValue(undefined);
   settings.readTheme.mockReset().mockResolvedValue(null);
+  memberships.list.mockReset().mockResolvedValue([]);
+  memberships.withUserContext
+    .mockReset()
+    .mockImplementation(async (_actor: unknown, work: (tx: unknown) => Promise<unknown>) =>
+      work({}),
+    );
+  failures.log.mockReset();
 });
 
 // The address kept for the code sign-in is dropped by every sign-in and by sign-out (S-3).
@@ -467,6 +488,82 @@ describe("POST /api/auth/login", () => {
     expect(form.headers.get("Location")).toBe("/my");
     expect(emptyReturnTo.headers.get("Location")).toBe("/my");
     expect(await json.json()).toEqual({ role: "admin", returnTo: "/my" });
+  });
+
+  describe("destination of a curator (paczka N, faza 2)", () => {
+    const user = { id: "22222222-2222-4222-8222-222222222222", role: "user" } as const;
+    const organization = (status: "approved" | "suspended") => ({
+      id: "33333333-3333-4333-8333-333333333333",
+      name: "Muzeum",
+      slug: "muzeum",
+      kind: "museum",
+      status,
+    });
+
+    it("sends an account with an approved organization to the panel, without returnTo", async () => {
+      provider.signIn.mockResolvedValue({ actor: user, setCookies: [] });
+      memberships.list.mockResolvedValue([organization("approved")]);
+
+      const form = await login(formLogin({ email: "a@b.c", password: "pw" }));
+      const json = await login(jsonLogin('{"email":"a@b.c","password":"pw"}'));
+
+      expect(form.status).toBe(303);
+      expect(form.headers.get("Location")).toBe("/curator");
+      expect(await json.json()).toEqual({ role: "user", returnTo: "/curator" });
+      // The actor is the one of the sign-in result, never one from the request.
+      expect(memberships.withUserContext).toHaveBeenCalledWith(user, expect.any(Function));
+    });
+
+    it("sends the same curator after a sign-in with a code", async () => {
+      provider.signInWithCode.mockResolvedValue({ actor: user, setCookies: [] });
+      provider.signOut.mockResolvedValue([]);
+      memberships.list.mockResolvedValue([organization("approved")]);
+
+      const response = await verifyCode(
+        jsonPost("/api/auth/code/verify", { email: "a@b.test", code: "123456" }),
+      );
+
+      expect(await response.json()).toEqual({ role: "user", returnTo: "/curator" });
+    });
+
+    it("keeps an explicit returnTo, also for a curator", async () => {
+      provider.signIn.mockResolvedValue({ actor: user, setCookies: [] });
+      memberships.list.mockResolvedValue([organization("approved")]);
+
+      const response = await login(
+        formLogin({ email: "a@b.c", password: "pw", returnTo: "/collections/x" }),
+      );
+
+      expect(response.headers.get("Location")).toBe("/collections/x");
+    });
+
+    it("sends a suspended organization and an account without one to the account view", async () => {
+      provider.signIn.mockResolvedValue({ actor: user, setCookies: [] });
+      memberships.list.mockResolvedValue([organization("suspended")]);
+
+      const suspended = await login(formLogin({ email: "a@b.c", password: "pw" }));
+
+      memberships.list.mockResolvedValue([]);
+
+      const none = await login(formLogin({ email: "a@b.c", password: "pw" }));
+
+      expect(suspended.headers.get("Location")).toBe("/my");
+      expect(none.headers.get("Location")).toBe("/my");
+    });
+
+    it("signs in anyway and logs when the membership cannot be read", async () => {
+      provider.signIn.mockResolvedValue({ actor: user, setCookies: ["s=1"] });
+      memberships.list.mockRejectedValue(new Error("db down"));
+
+      const form = await login(formLogin({ email: "a@b.c", password: "pw" }));
+      const json = await login(jsonLogin('{"email":"a@b.c","password":"pw"}'));
+
+      expect(form.status).toBe(303);
+      expect(form.headers.get("Location")).toBe("/my");
+      expect(form.headers.getSetCookie()).toContain("s=1");
+      expect(await json.json()).toEqual({ role: "user", returnTo: "/my" });
+      expect(failures.log).toHaveBeenCalledWith("Sign-in destination", expect.any(Error));
+    });
   });
 
   it("revokes the session the browser already had after a successful login", async () => {

@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 
+import { getApprovedOrganizations } from "@/app/request-organizations";
 import { getRequestActor } from "@/app/request-actor";
 import { LogoutForm } from "@/app/shell/logout-form";
 import { shouldListDemoAccounts } from "@/features/identity/domain/demo-account-list";
 import { requestedReturnTo } from "@/features/identity/domain/return-to";
-import { roleHome, roleLabels } from "@/features/identity/domain/role-home";
+import { roleLabels, signInDestination } from "@/features/identity/domain/role-home";
 import { findSeededDemoAccounts } from "@/features/identity/infrastructure/demo-accounts";
 import { logFailure } from "@/lib/log-failure";
 
@@ -57,6 +58,18 @@ async function listDemoAccounts() {
   }
 }
 
+// A signed-in curator is sent to the panel, like right after signing in. A failed read
+// only changes the link to the profile.
+async function isCuratorAccount(): Promise<boolean> {
+  try {
+    return (await getApprovedOrganizations()).length > 0;
+  } catch (error) {
+    logFailure("Curator link on the account screen", error);
+
+    return false;
+  }
+}
+
 export default async function LoginPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const returnTo = requestedReturnTo(first(params.returnTo)) ?? undefined;
@@ -65,13 +78,15 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
   const actor = await getActor();
 
   if (actor !== null) {
+    const isCurator = await isCuratorAccount();
+
     return (
       <div className={`content-width ${styles.page}`}>
         <ClearStoredEmail />
         <h1>Konto</h1>
         <p>
-          <Link href={roleHome(actor.role)} className={styles.link}>
-            Przejdź do profilu
+          <Link href={signInDestination({ returnTo: null, isCurator })} className={styles.link}>
+            {isCurator ? "Przejdź do panelu kuratora" : "Przejdź do profilu"}
           </Link>
         </p>
         <LogoutForm className={`button button--outline ${styles.submit}`}>Wyloguj</LogoutForm>

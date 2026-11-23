@@ -21,7 +21,8 @@ async function signIn(page: Page, name: string) {
   await form.getByLabel("E-mail").fill(emailOf(name));
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  // A curator lands in the panel, everyone else on the profile (paczka N, faza 2).
+  await expect(page).toHaveURL(name.startsWith("curator") ? /\/curator$/ : /\/my$/);
 }
 
 async function signedInPage(browser: Browser, name: string): Promise<Page> {
@@ -100,7 +101,7 @@ test.describe("curator panel", () => {
     const explorer = await signedInPage(browser, "user");
 
     await expect(
-      explorer.getByRole("banner").getByRole("link", { name: "Panel kuratora" }),
+      explorer.getByRole("banner").getByRole("link", { name: /^Kurator ·/ }),
     ).toHaveCount(0);
     await explorer.goto("/curator");
     await expect(explorer.getByRole("heading", { level: 1, name: "Nie znaleziono" })).toBeVisible();
@@ -112,7 +113,10 @@ test.describe("curator panel", () => {
   }) => {
     const curator = await signedInPage(browser, "curator-a");
 
-    await curator.getByRole("banner").getByRole("link", { name: "Panel kuratora" }).click();
+    await curator
+      .getByRole("banner")
+      .getByRole("link", { name: /^Kurator ·/ })
+      .click();
     await expect(curator).toHaveURL(/\/curator$/);
     await expect(curator.getByRole("heading", { level: 1, name: "Twoje kolekcje" })).toBeVisible();
     await expect(curator).toHaveTitle("Panel kuratora — Krajozbiór");

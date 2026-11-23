@@ -5,7 +5,11 @@ import { join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Testy „real process” uruchamiają proces `node` (przy obciążonym komputerze ponad 5 s), więc
+// domyślny limit nie wystarcza. Limit dotyczy tylko tego pliku.
+vi.setConfig({ testTimeout: 30_000 });
 
 // The Claude Code hook that refuses shell commands reaching a server or SSH keys
 // when the command text says so: SSH clients and relatives, rsync, PuTTY tools,

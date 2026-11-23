@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import {
   COLLECTION_SUMMARY_MAX_LENGTH,
@@ -16,6 +16,13 @@ import { callApi } from "./curator-api";
 import { failed, Field, FeedbackRegion, type Feedback } from "./curator-ui";
 import styles from "./curator.module.css";
 import { fieldHints } from "./failure-message";
+import {
+  confirmDiscard,
+  differsFromSaved,
+  SAVE_BUTTON_ID,
+  UNSAVED_BADGE,
+  useUnsavedChanges,
+} from "./unsaved-changes";
 
 type CollectionValues = Readonly<{ title: string; summary: string; region: Region }>;
 
@@ -39,6 +46,7 @@ const FIELDS = {
 export function CollectionForm(props: CollectionFormProps) {
   const router = useRouter();
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const { dirty } = useUnsavedChanges();
   const key = props.mode === "edit" ? props.collection.version : "new";
 
   return (
@@ -47,6 +55,10 @@ export function CollectionForm(props: CollectionFormProps) {
         feedback={feedback}
         fields={FIELDS}
         onReload={() => {
+          if (!confirmDiscard(dirty)) {
+            return;
+          }
+
           setFeedback({ kind: "info", message: "Wczytano aktualną wersję kolekcji." });
           router.refresh();
         }}
@@ -68,6 +80,27 @@ function CollectionFields({
     props.mode === "edit" ? props.collection : { title: "", summary: "", region: "pomorskie" };
   const [summaryLength, setSummaryLength] = useState(initial.summary.length);
   const [pending, setPending] = useState(false);
+  const { dirty, setDirty } = useUnsavedChanges();
+
+  // The fields are remounted on a new version (after a save or a reload): then
+  // nothing typed is left, so nothing is unsaved.
+  useEffect(() => () => setDirty(false), [setDirty]);
+
+  function track(form: HTMLFormElement) {
+    const data = new FormData(form);
+
+    setDirty(
+      differsFromSaved(
+        {
+          title: String(data.get("title") ?? ""),
+          summary: String(data.get("summary") ?? ""),
+          region: String(data.get("region") ?? ""),
+        },
+        initial,
+      ),
+    );
+  }
+
   const refused = feedback?.kind === "error" ? feedback.fields : [];
   const hint = (name: keyof typeof FIELDS) =>
     refused.includes(name) ? fieldHints[name] : undefined;
@@ -127,7 +160,12 @@ function CollectionFields({
   }
 
   return (
-    <form className={styles.form} onSubmit={submit} noValidate>
+    <form
+      className={styles.form}
+      onSubmit={submit}
+      onChange={(event) => track(event.currentTarget)}
+      noValidate
+    >
       <Field
         id={FIELDS.title[0]}
         label="Nazwa"
@@ -177,6 +215,7 @@ function CollectionFields({
       </Field>
       <div className={styles.actions}>
         <button
+          id={props.mode === "edit" ? SAVE_BUTTON_ID : undefined}
           type="submit"
           className={`button button--primary ${styles.pending}`}
           aria-disabled={pending}
@@ -194,6 +233,11 @@ function CollectionFields({
               ? "Zapisywanie…"
               : "Zapisz zmiany"}
         </button>
+        {props.mode === "edit" && dirty ? (
+          <p role="status" className={styles.notice}>
+            {UNSAVED_BADGE}
+          </p>
+        ) : null}
       </div>
     </form>
   );
