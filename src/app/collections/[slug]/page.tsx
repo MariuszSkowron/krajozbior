@@ -34,6 +34,7 @@ import mapStyles from "./collection-map.module.css";
 import { CollectionCover } from "./collection-cover";
 import { CollectionMapLoader } from "./collection-map-loader";
 import { CollectionPlaces } from "./collection-places";
+import { PlaceThumb } from "./place-thumb";
 import { SaveCollectionButton } from "./save-collection-button";
 
 // Rendered on every request and never cached by a shared cache (src/proxy.ts
@@ -292,6 +293,7 @@ export default async function CollectionPage({
                       name: place.name,
                       address: place.address,
                       position: place.position,
+                      thumb: place.thumb,
                       kind: kinds.get(place.id) ?? null,
                     }))}
                   />
@@ -300,6 +302,7 @@ export default async function CollectionPage({
                     {shown.map((place) => (
                       <li key={place.id} className={styles.item}>
                         <Link className={styles.itemLink} href={`/places/${place.id}`}>
+                          <PlaceThumb thumb={place.thumb} />
                           <span className={styles.itemTitle}>
                             <span className={styles.itemNumber}>{place.position}.</span>{" "}
                             {place.name}
