@@ -15,8 +15,7 @@ import { TermsGuard } from "./shell/terms-guard";
 import { TestVersionBanner } from "./shell/test-version-banner";
 import { requestTheme, themeColor } from "./shell/theme";
 import { ThemeSwitch } from "./shell/theme-switch";
-import { shellCuratorLink } from "./shell/shell-curator";
-import { shellRole } from "./shell/shell-role";
+import { shellAccount } from "./shell/shell-account";
 
 export const metadata: Metadata = {
   title: "Krajozbiór",
@@ -46,8 +45,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const role = await shellRole();
-  const curatorLink = await shellCuratorLink(role);
+  const { role, displayName, curatorOrganizations } = await shellAccount();
   const theme = await requestTheme();
   // Until the current terms are accepted a signed-in account sees only the "Zanim zaczniesz"
   // screen and the logout button; the legal pages stay readable (F-K3, E11-Q4 A). The layout
@@ -73,7 +71,11 @@ export default async function RootLayout({
             </Link>
             <div className={styles.headerEnd}>
               <ThemeSwitch theme={theme} />
-              <AccountArea role={role} curatorLink={showNav && curatorLink} />
+              <AccountArea
+                role={role}
+                displayName={displayName}
+                curatorOrganization={showNav ? (curatorOrganizations[0] ?? null) : null}
+              />
             </div>
           </header>
         </div>
