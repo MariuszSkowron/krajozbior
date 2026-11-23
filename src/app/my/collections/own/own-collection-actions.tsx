@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useTransition,
@@ -27,6 +28,11 @@ function useAction() {
   // The button stays busy until the page has been rendered again with the new list, so a click
   // is never answered by "Dodano" next to a list that still shows the old state.
   const pending = requesting || refreshing;
+  // The answer to a success is shown only after the refresh has ended, so "Dodano" never stands
+  // next to a list that still shows the old state.
+  const [awaiting, setAwaiting] = useState<string | null>(null);
+  const shown =
+    message ?? (awaiting !== null && !refreshing ? { kind: "ok" as const, text: awaiting } : null);
 
   // Rendering the page again as a transition: `refreshing` is true until the new data arrives.
   function refresh() {
@@ -44,16 +50,18 @@ function useAction() {
 
     setPending(true);
     setMessage(null);
+    setAwaiting(null);
 
     const result = await send();
 
     setPending(false);
 
     if (result.ok) {
-      setMessage({ kind: "ok", text: successText });
       if (after === undefined) {
+        setAwaiting(successText);
         refresh();
       } else {
+        setMessage({ kind: "ok", text: successText });
         after();
       }
     } else {
@@ -61,7 +69,7 @@ function useAction() {
     }
   }
 
-  return { pending, message, run, refresh };
+  return { pending, message: shown, run };
 }
 
 function Message({
@@ -90,50 +98,68 @@ export function AddPlaceButton({
 }: Readonly<{ collectionId: string; placeId: string; placeName: string; alreadyThere: boolean }>) {
   const { pending, message, run } = useAction();
 
-  if (alreadyThere) {
-    return <span className={styles.statusText}>Już w kolekcji</span>;
-  }
-
+  // The live region is rendered in both states, so it outlives the swap of the button for
+  // "Już w kolekcji" and the answer is still announced after the refresh.
   return (
     <span className={styles.rowAction}>
-      <button
-        type="button"
-        className="button button--outline"
-        aria-disabled={pending}
-        aria-label={`Dodaj do kolekcji: ${placeName}`}
-        onClick={() =>
-          void run(
-            () => callOwnApi("POST", `/api/me/own-collections/${collectionId}/items`, { placeId }),
-            "Dodano do kolekcji.",
-          )
-        }
-      >
-        {pending ? "Dodawanie…" : "Dodaj"}
-      </button>
+      {alreadyThere ? (
+        <span className={styles.statusText}>Już w kolekcji</span>
+      ) : (
+        <button
+          type="button"
+          className="button button--outline"
+          aria-disabled={pending}
+          aria-label={`Dodaj do kolekcji: ${placeName}`}
+          onClick={() =>
+            void run(
+              () =>
+                callOwnApi("POST", `/api/me/own-collections/${collectionId}/items`, { placeId }),
+              "Dodano do kolekcji.",
+            )
+          }
+        >
+          {pending ? "Dodawanie…" : "Dodaj"}
+        </button>
+      )}
       <Message message={message} />
     </span>
   );
 }
 
-const Announce = createContext<(text: string) => void>(() => undefined);
+const Announce = createContext<{
+  refreshThenAnnounce: (text: string) => void;
+  refreshing: boolean;
+}>({ refreshThenAnnounce: () => undefined, refreshing: false });
 
 /**
  * Wraps the list of entries. A removed entry takes its button and its own `role="status"` with it,
- * so the answer to the removal is announced here, in a region that stays on the page.
+ * so the page is refreshed from here and the answer to the removal is announced here, once the
+ * refresh has ended, in a region that stays on the page.
  */
 export function EntriesRegion({ children }: Readonly<{ children: ReactNode }>) {
+  const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
   const [announcement, setAnnouncement] = useState({ count: 0, text: "" });
-  const announce = useCallback(
-    (text: string) => setAnnouncement((previous) => ({ count: previous.count + 1, text })),
-    [],
+
+  const refreshThenAnnounce = useCallback(
+    (text: string) => {
+      // The text is shown only while no refresh is going on (see below).
+      setAnnouncement((previous) => ({ count: previous.count + 1, text }));
+      startRefresh(() => router.refresh());
+    },
+    [router],
+  );
+  const value = useMemo(
+    () => ({ refreshThenAnnounce, refreshing }),
+    [refreshThenAnnounce, refreshing],
   );
 
   return (
-    <Announce.Provider value={announce}>
+    <Announce.Provider value={value}>
       {children}
       <p role="status" className={styles.statusText}>
         {/* A new element for every answer, so an identical one is read again. */}
-        <span key={announcement.count}>{announcement.text}</span>
+        <span key={announcement.count}>{refreshing ? "" : announcement.text}</span>
       </p>
     </Announce.Provider>
   );
@@ -145,8 +171,10 @@ export function RemoveEntryButton({
   entryId,
   label,
 }: Readonly<{ collectionId: string; entryId: string; label: string }>) {
-  const announce = useContext(Announce);
-  const { pending, message, run, refresh } = useAction();
+  const { refreshThenAnnounce, refreshing } = useContext(Announce);
+  const action = useAction();
+  const { message, run } = action;
+  const pending = action.pending || refreshing;
 
   return (
     <span className={styles.rowAction}>
@@ -164,8 +192,7 @@ export function RemoveEntryButton({
             "Usunięto z kolekcji.",
             () => {
               // The row (and this button) disappears: the focus goes to the heading of the list.
-              announce("Usunięto z kolekcji.");
-              refresh();
+              refreshThenAnnounce("Usunięto z kolekcji.");
               document.getElementById("miejsca")?.focus();
             },
           )

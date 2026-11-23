@@ -181,6 +181,45 @@ test.describe("own collections", () => {
     await page.context().close();
   });
 
+  test("adding a place waits for the refreshed list before it announces the answer", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, EXPLORER_A);
+    const id = await createCollection(page);
+
+    // The refresh of the page (a request for the React Server Components payload) is slowed down,
+    // so the time between the answer of the API and the new list can be observed.
+    await page.route("**/*", async (route) => {
+      const request = route.request();
+
+      if (request.headers()["rsc"] === "1" || request.url().includes("_rsc=")) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+      await route.continue();
+    });
+
+    await page.goto(`/my/collections/own/${id}?q=Tczew`);
+
+    const add = page.getByRole("button", { name: `Dodaj do kolekcji: ${PLACE}` });
+    const announced = page.getByRole("status").filter({ hasText: "Dodano do kolekcji." });
+
+    await add.click();
+    // While the list is refreshed: the button is busy (not activatable again) and nothing is
+    // announced yet, so the answer never stands next to the old list.
+    await expect(add).toHaveText("Dodawanie…");
+    await expect(add).toHaveAttribute("aria-disabled", "true");
+    await expect(announced).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 2, name: "Miejsca (0)" })).toBeVisible();
+
+    // After the refresh: the new list, the answer in a region that stays, no second "Dodaj".
+    await expect(page.getByRole("heading", { level: 2, name: "Miejsca (1)" })).toBeVisible();
+    await expect(announced).toHaveText("Dodano do kolekcji.");
+    await expect(page.getByText("Już w kolekcji")).toBeVisible();
+    await expect(page.getByRole("button", { name: `Dodaj do kolekcji: ${PLACE}` })).toHaveCount(0);
+
+    await page.context().close();
+  });
+
   test("another explorer and a guest do not see the collection of the first one", async ({
     browser,
   }) => {
