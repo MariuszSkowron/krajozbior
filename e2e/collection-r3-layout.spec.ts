@@ -9,6 +9,7 @@ import sharp from "sharp";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
+import { waitForEntrance } from "./scroll-support";
 
 // R3 / D-57 (PR 1): the new look of the collection page. A cover with the title (and, for the
 // explorer, the big progress number) on the photo, the credit under it, the section "Miejsca w
@@ -335,16 +336,16 @@ test.describe("collection page: the R3 look", () => {
 
     const page = await signedInPage(browser);
 
-    // A low window: the page must scroll well past the place where the bar sticks (with a tall
-    // window the page is only just long enough and the bar stays a few px below the top edge).
+    // A low window: the page scrolls well past the place where the bar sticks.
     await page.setViewportSize({ width: 1440, height: 500 });
     await page.goto(`/collections/${slug}`);
     await waitForHydration(page);
+    // During the entrance animation the bar is drawn up to 12 px lower than where it sticks.
+    await waitForEntrance(page);
 
     const nav = page.getByRole("navigation", { name: "Filtr miejsc" });
 
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(200);
 
     const top = (await nav.boundingBox())!.y;
 

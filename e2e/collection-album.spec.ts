@@ -4,7 +4,7 @@ import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
-import { expectScrollKept } from "./scroll-support";
+import { expectScrollKept, waitForEntrance } from "./scroll-support";
 
 // E12-4: the collection page as an album: header, state filter (works without JavaScript),
 // grid of cards (a card is a plain link to the place; the selected-place card is gone, D-49). Needs a
@@ -251,6 +251,7 @@ test.describe("the collection as an album", () => {
     await page.setViewportSize({ width: 1280, height: 400 });
     await page.goto(COLLECTION);
     await waitForHydration(page);
+    await waitForEntrance(page);
 
     const nav = page.getByRole("navigation", { name: "Filtr miejsc" });
 
@@ -288,6 +289,7 @@ test.describe("the collection as an album", () => {
       await page.setViewportSize({ width, height: width === 1280 ? 420 : 240 });
       await page.goto(COLLECTION);
       await waitForHydration(page);
+      await waitForEntrance(page);
 
       const nav = page.getByRole("navigation", { name: "Filtr miejsc" });
       const lastFilter = nav.getByRole("link").last();
