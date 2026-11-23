@@ -67,6 +67,15 @@ export type PublishedPlaceSummary = Readonly<{
   /** Public, like on the place page; the collection map puts the marker here (E12-5). */
   latitude: number;
   longitude: number;
+  /** The first public photo of the place (as on the place page): a thumbnail on the card, or `null`. */
+  thumb: PlaceThumb | null;
+}>;
+
+/** What a card of a place needs to show its photo: id and size (public fields). */
+export type PlaceThumb = Readonly<{
+  photoId: string;
+  width: number;
+  height: number;
 }>;
 
 export type PublishedCollection = Readonly<{

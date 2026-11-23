@@ -50,6 +50,49 @@ test.describe("gość", () => {
     await expect(page.getByRole("banner").getByRole("link", { name: "Aktualności" })).toBeVisible();
     await context.close();
   });
+
+  for (const width of [360, 375, 390]) {
+    test(`nagłówek gościa mieści się w jednym rzędzie przy ${width} px, cele dotyku mają co najmniej 44 px`, async ({
+      browser,
+    }) => {
+      const context = await browser.newContext({ viewport: { width, height: 800 } });
+      const page = await context.newPage();
+
+      await page.goto("/");
+      await waitForHydration(page);
+
+      const header = page.getByRole("banner");
+      const items = [
+        header.getByRole("link", { name: "Krajozbiór" }),
+        header.getByRole("button", { name: /motyw/i }),
+        header.getByRole("link", { name: "Aktualności" }),
+        header.getByRole("link", { name: "Zaloguj się" }),
+      ];
+      const boxes = [];
+
+      for (const item of items) {
+        await expect(item).toBeVisible();
+        boxes.push((await item.boundingBox())!);
+      }
+
+      const tops = boxes.map((box) => box.y);
+
+      // Jeden rząd: wszystkie cztery elementy zaczynają się na tej samej wysokości.
+      expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(2);
+      expect((await header.boundingBox())!.height).toBeLessThan(70);
+      for (const box of boxes) {
+        expect(box.height).toBeGreaterThanOrEqual(44);
+        expect(box.width).toBeGreaterThanOrEqual(44);
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+      }
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        ),
+      ).toBeLessThanOrEqual(0);
+      await context.close();
+    });
+  }
 });
 
 test.describe("dolny pasek na telefonie", () => {

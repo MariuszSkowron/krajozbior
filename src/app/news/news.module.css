@@ -131,7 +131,10 @@
   text-transform: uppercase;
 }
 
-.kicker time {
+.published {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
 }
 
