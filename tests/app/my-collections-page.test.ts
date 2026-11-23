@@ -76,7 +76,7 @@ describe("Moje kolekcje", () => {
 
     const markup = await render("ukonczone");
 
-    expect(markup).toContain("Żadna zapisana kolekcja nie jest w stanie „Ukończone”.");
+    expect(markup).toContain("Nie ma zapisanych kolekcji ze stanem „Ukończone”.");
     expect(markup).toContain('href="/my/collections">Pokaż wszystkie</a>');
   });
 
@@ -85,7 +85,7 @@ describe("Moje kolekcje", () => {
 
     const markup = await render("w-trakcie");
 
-    expect(markup).toContain("jest w stanie „W trakcie”.");
+    expect(markup).toContain("ze stanem „W trakcie”.");
   });
 
   it("uses the wide content width of the home page, also while loading", async () => {

@@ -9,7 +9,7 @@ export default function NewsNotFound() {
       <p>Tej strony nie ma albo nie jest dostępna.</p>
       <p>
         <Link className="button button--outline" href="/news">
-          Wszystkie aktualności
+          Zobacz aktualności
         </Link>
       </p>
     </div>

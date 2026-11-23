@@ -9,7 +9,7 @@ describe("news not-found page", () => {
 
     expect(html).toContain("<h1>Nie znaleziono</h1>");
     expect(html).toContain("Tej strony nie ma albo nie jest dostępna.");
-    expect(html).toContain('href="/news">Wszystkie aktualności</a>');
+    expect(html).toContain('href="/news">Zobacz aktualności</a>');
   });
 
   it("names neither the address nor the reason", () => {

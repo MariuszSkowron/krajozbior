@@ -153,9 +153,7 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     // Nothing visited yet: "Nierozpoczęte" only.
     await choose("W trakcie");
     await expect(page).toHaveURL(/\/my\/collections\?stan=w-trakcie$/);
-    await expect(
-      page.getByText("Żadna zapisana kolekcja nie jest w stanie „W trakcie”."),
-    ).toBeVisible();
+    await expect(page.getByText("Nie ma zapisanych kolekcji ze stanem „W trakcie”.")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Zapisane kolekcje (0 z 1)" })).toBeVisible();
     await expect(current("W trakcie")).toHaveAttribute("aria-current", "page");
     // A shorter list may clamp scrollY to the new maximum, but never to the top.
@@ -164,9 +162,7 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     await inBothThemes(page, () => expectNoAccessibilityViolations(page));
 
     await choose("Ukończone");
-    await expect(
-      page.getByText("Żadna zapisana kolekcja nie jest w stanie „Ukończone”."),
-    ).toBeVisible();
+    await expect(page.getByText("Nie ma zapisanych kolekcji ze stanem „Ukończone”.")).toBeVisible();
 
     await choose("Nierozpoczęte");
     await expect(card()).toBeVisible();
@@ -176,7 +172,7 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     await visitFirstPlace();
     await page.goto("/my/collections?stan=nierozpoczete");
     await expect(
-      page.getByText("Żadna zapisana kolekcja nie jest w stanie „Nierozpoczęte”."),
+      page.getByText("Nie ma zapisanych kolekcji ze stanem „Nierozpoczęte”."),
     ).toBeVisible();
     await page.getByRole("link", { name: "Pokaż wszystkie" }).click();
     await expect(page).toHaveURL(/\/my\/collections$/);

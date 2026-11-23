@@ -226,7 +226,7 @@ test.describe("aktualności dla gościa", () => {
       expect(response?.status(), slug).toBe(404);
       await expect(page.getByRole("heading", { level: 1, name: "Nie znaleziono" })).toBeVisible();
       await expect(
-        page.getByRole("main").getByRole("link", { name: "Wszystkie aktualności" }),
+        page.getByRole("main").getByRole("link", { name: "Zobacz aktualności" }),
       ).toHaveAttribute("href", "/news");
       await expect(page.locator("body")).not.toContainText("Szkic aktualności demo");
       await expect(page.locator("body")).not.toContainText(WITHDRAWN.title);
