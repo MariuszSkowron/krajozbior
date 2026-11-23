@@ -20,7 +20,7 @@ vi.mock("@/features/profile/infrastructure/profile-deps", () => ({ getProfileDep
 vi.mock("@/features/profile/application/profile", () => ({ getMyProfile: mocks.getProfile }));
 vi.mock("@/features/album/application/home-album", () => ({ getHomeAlbum: mocks.getHomeAlbum }));
 vi.mock("@/features/album/application/saved-collections", () => ({
-  listMyCollectionsWithProgress: mocks.listSaved,
+  listMySavedCollectionSlugs: mocks.listSaved,
 }));
 vi.mock("@/features/catalog/application/public-catalog", () => ({
   listRecentlyPublishedCollections: mocks.listRecent,
@@ -251,7 +251,7 @@ describe("home page of a signed-in explorer", () => {
       ...discover,
       { ...discover[0], id: "c9", slug: "inna", title: "Inna kolekcja" },
     ]);
-    mocks.listSaved.mockResolvedValue({ status: "ok", value: [{ slug: "mosty-i-zamki" }] });
+    mocks.listSaved.mockResolvedValue({ status: "ok", value: ["mosty-i-zamki"] });
 
     const html = await render();
 
@@ -259,8 +259,28 @@ describe("home page of a signed-in explorer", () => {
     expect(html).toContain('href="/collections/inna"');
   });
 
+  it("asks for more collections than it shows and trims to twelve after the filter (W-07)", async () => {
+    const many = Array.from({ length: 14 }, (_, i) => ({
+      ...discover[0],
+      id: `m${i}`,
+      slug: `m-${i}`,
+      title: `Kolekcja ${i}`,
+    }));
+
+    mocks.listSaved.mockResolvedValue({ status: "ok", value: ["m-0", "m-1"] });
+    mocks.listRecent.mockResolvedValue(many);
+
+    const html = await render();
+
+    // Two saved, so two more than twelve are read; twelve of the remaining ones are shown.
+    expect(mocks.listRecent).toHaveBeenCalledWith(14, expect.anything());
+    expect(html).not.toContain('href="/collections/m-0"');
+    expect(html).not.toContain('href="/collections/m-1"');
+    expect(html.match(/href="\/collections\/m-\d+"/g)).toHaveLength(12);
+  });
+
   it("says so when every collection is saved, and keeps the whole list when the read fails (W-07)", async () => {
-    mocks.listSaved.mockResolvedValue({ status: "ok", value: [{ slug: "mosty-i-zamki" }] });
+    mocks.listSaved.mockResolvedValue({ status: "ok", value: ["mosty-i-zamki"] });
 
     const html = await render();
 

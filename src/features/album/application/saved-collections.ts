@@ -117,6 +117,24 @@ export async function unsaveCollection(
   });
 }
 
+/** Slugs of the saved, currently published collections: a light read (no places, no progress). */
+export async function listMySavedCollectionSlugs(
+  actor: Actor | null,
+  deps: AlbumDeps,
+): Promise<AlbumOutcome<readonly string[]>> {
+  const admitted = await admit(actor, deps, { counted: false });
+
+  if ("refusal" in admitted) {
+    return admitted.refusal;
+  }
+
+  return deps.withUserContext(admitted.actor, async (tx) => {
+    const collections = await deps.repository.listSavedCollections(tx);
+
+    return { status: "ok", value: collections.map(({ slug }) => slug) } as const;
+  });
+}
+
 /** "Moje kolekcje": the saved, currently published collections with X/Y progress, newest save first. */
 export async function listMyCollectionsWithProgress(
   actor: Actor | null,
