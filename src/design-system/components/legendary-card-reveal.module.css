@@ -83,6 +83,40 @@
 }
 
 /*
+ * Prążki zasłony (D-54): nieruchome, z tokenów obramowania, u góry i u dołu zasłony; tekst
+ * i znak stoją na stałym tle. Znak „Krajozbiór” u dołu, bez ruchu i bez refleksu w pętli.
+ */
+.veil::before,
+.veil::after {
+  position: absolute;
+  inset-inline: var(--space-md);
+  block-size: 0.75rem;
+  content: "";
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-border-strong) 0 2px,
+    transparent 2px 8px
+  );
+}
+
+.veil::before {
+  inset-block-start: var(--space-md);
+}
+
+.veil::after {
+  inset-block-end: 2.75rem;
+}
+
+.veilMark {
+  position: absolute;
+  inset-block-end: var(--space-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-label);
+}
+
+/*
  * Uchwyt gestu w środku zasłony: tylko tu przeglądarka oddaje pionowy ruch palca stronie
  * (touch-action: none), więc pointermove dochodzi do progu 110 px i gest w górę działa.
  * Reszta zasłony ma pan-y i przewija stronę.
@@ -190,6 +224,10 @@
     color: ButtonText;
     background: ButtonFace;
     border: 2px solid ButtonText;
+  }
+
+  .veilMark {
+    color: ButtonText;
   }
 
   .veilRing {

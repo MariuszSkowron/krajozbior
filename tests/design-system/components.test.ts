@@ -213,7 +213,7 @@ describe("LegendaryCardReveal", () => {
     expect(html).toMatch(/aria-live="polite"[^>]*><\/div>/);
     expect(html).toContain("inert");
     // Twarda spacja po „w”: jednoliterowy spójnik nie zostaje na końcu wiersza.
-    expect(html).toContain("Karta z wydarzenia Noc Muzeów czeka w Twojej skrytce");
+    expect(html).toContain("Noc Muzeów: Twoja karta czeka");
     expect(html).toContain("Dotknij karty albo przesuń ją w górę");
     expect(html).toContain('data-state="sealed"');
   });

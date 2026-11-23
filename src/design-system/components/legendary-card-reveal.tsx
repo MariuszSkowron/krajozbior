@@ -105,9 +105,7 @@ export function LegendaryCardReveal({
     if (event.key === "Escape" && playing) setPlaying(false);
   }
 
-  const heading = revealed
-    ? card.placeName
-    : `Karta z wydarzenia ${card.eventName} czeka w Twojej skrytce`;
+  const heading = revealed ? card.placeName : `${card.eventName}: Twoja karta czeka`;
 
   return (
     <section
@@ -155,7 +153,10 @@ export function LegendaryCardReveal({
             }}
           >
             <span className={styles.veilRing} aria-hidden="true" />
-            <span aria-hidden="true">Odsłoń kartę</span>
+            <span aria-hidden="true">Odsłoń</span>
+            <span className={styles.veilMark} aria-hidden="true">
+              Krajozbiór
+            </span>
           </button>
         ) : null}
       </div>
