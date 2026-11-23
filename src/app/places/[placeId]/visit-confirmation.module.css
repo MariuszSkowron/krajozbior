@@ -7,11 +7,6 @@
 .box {
   display: grid;
   gap: var(--space-sm);
-  padding: var(--space-md);
-  background: var(--color-surface-card);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
 }
 
 .box p,
@@ -19,8 +14,29 @@
   margin: 0;
 }
 
+/* R3: „Potwierdzam wizytę” na całą szerokość kolumny, pod nim dwa przyciski obok siebie (zawijają
+   się, gdy brakuje miejsca albo gdy otwiera się formularz daty). */
 .action {
-  justify-self: start;
+  justify-self: stretch;
+}
+
+.secondaryActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.secondaryActions > * {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.secondaryActions :global(.button) {
+  width: 100%;
+  padding-inline: var(--space-md);
+  font-size: var(--font-size-sm);
+  text-wrap: balance;
 }
 
 /*
@@ -47,7 +63,8 @@
    * Specyficzność (0,2,0) wygrywa z `:where` w theme.css; opóźnienie i czas zostają z motywu,
    * a przy `prefers-reduced-motion` animacje i tak wyłącza reguła globalna.
    */
-  :global(.content-width) > :has([data-pinned-action]) {
+  :global(.content-width) > :has([data-pinned-action]),
+  :global(.content-width-wide) > :has([data-pinned-action]) {
     animation-name: pinned-section-enter;
   }
 

@@ -644,10 +644,13 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
       return {
         bottom: dock.getBoundingClientRect().bottom,
         innerHeight: window.innerHeight,
-        sectionAnimations: dock
-          .closest("section")!
-          .getAnimations()
-          .filter((animation) => animation.playState === "running").length,
+        // The entrance animates the child of the page frame that holds the dock (since R3 the
+        // two-column block, not the visit section): look at exactly that element.
+        sectionAnimations:
+          dock
+            .closest(".content-width-wide > *, .content-width > *")
+            ?.getAnimations()
+            .filter((animation) => animation.playState === "running").length ?? 0,
       };
     }, DOCK);
 
