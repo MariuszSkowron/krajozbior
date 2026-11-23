@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import { useCollectionVersion } from "./collection-version";
 import { callApi } from "./curator-api";
 import { failed, FeedbackRegion, type Feedback } from "./curator-ui";
 import styles from "./curator.module.css";
@@ -31,6 +32,7 @@ type PublicationControlsProps = Readonly<{
 // tells the answer.
 export function PublicationControls({ collection }: PublicationControlsProps) {
   const router = useRouter();
+  const known = useCollectionVersion(collection.version);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [pending, setPending] = useState(false);
   // Clicks on publish while the form has unsaved text. The "save first" notice
@@ -66,12 +68,13 @@ export function PublicationControls({ collection }: PublicationControlsProps) {
       "POST",
       `/api/curator/collections/${collection.id}/${path}`,
       "collection",
-      { version: collection.version },
+      { version: known.current },
     );
 
     setPending(false);
 
     if (result.ok) {
+      known.report(result.value);
       setFeedback({ kind: "success", message: doneMessage });
       router.refresh();
     } else {
