@@ -408,6 +408,18 @@
     );
   }
 
+  /*
+   * Zalogowany: lewy koniec zostaje przy krawędzi okna (logo nad menu), a prawy kończy się na
+   * prawej krawędzi ramy treści obok menu (17 rem + rama), tak jak u gościa.
+   */
+  .shell.withNav .header,
+  .shell.withNav .testBanner {
+    padding-inline-end: max(
+      var(--space-page-inline),
+      calc(100% - 17rem - var(--layout-frame-max) + var(--space-page-inline))
+    );
+  }
+
   .top {
     grid-column: 1 / -1;
   }

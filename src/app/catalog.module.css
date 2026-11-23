@@ -61,6 +61,14 @@
   list-style: none;
 }
 
+/* Od 48 rem lista kart to siatka wypełniająca ramę (D-53), nie jedna długa kolumna. */
+@media (min-width: 48rem) {
+  .list {
+    grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr));
+    gap: var(--space-md);
+  }
+}
+
 .item {
   background: var(--color-surface-card);
   border: 1px solid var(--color-border-subtle);
