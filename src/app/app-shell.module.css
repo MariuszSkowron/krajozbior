@@ -391,13 +391,21 @@
 }
 
 @media (min-width: 48rem) {
-  /* Treść stron ma różne szerokości (48 i 72 rem), więc odnośniki stopki są wyśrodkowane na każdej. */
-  .footerList {
-    justify-content: center;
-  }
-
   .header {
     padding-block: var(--space-sm);
+  }
+
+  /*
+   * Wspólna rama (D-53): zawartość nagłówka i paska „Wersja testowa” leży na tych samych liniach
+   * co treść strony (rama 90 rem, odstęp boczny strony); tło zostaje na całą szerokość ekranu.
+   * Dla zalogowanego nagłówek sięga krawędzi okna, bo menu boczne też zaczyna się przy krawędzi.
+   */
+  .shell:not(.withNav) .header,
+  .shell:not(.withNav) .testBanner {
+    padding-inline: max(
+      var(--space-page-inline),
+      calc((100% - var(--layout-frame-max)) / 2 + var(--space-page-inline))
+    );
   }
 
   .top {
@@ -430,11 +438,12 @@
   }
 
   /*
-   * Po zalogowaniu na komputerze (K-35): wąska treść (Profil, Ustawienia, formularze) zaczyna się
-   * przy menu bocznym, zamiast wisieć na środku z pustym tłem po obu stronach. Strony szerokie
-   * (`content-width-wide`) wypełniają kolumnę do 72 rem, a telefon nie jest zmieniany.
+   * Po zalogowaniu na komputerze (K-35, D-53): rama treści i stopki zaczyna się przy menu bocznym
+   * (bez pustego pasa po prawej), a nie wisi na środku kolumny; telefon nie jest zmieniany.
    */
-  .withNav .main > :global(.content-width) {
+  .withNav .main > :global(.content-width),
+  .withNav .main > :global(.content-width-wide),
+  .withNav .footer > nav {
     margin-inline: 0 auto;
   }
 

@@ -109,21 +109,34 @@ h2 em {
   text-transform: uppercase;
 }
 
-/* Dwie szerokości treści: czytelna (48 rem) i szeroka (72 rem: lista lub tabela na komputerze). */
+/*
+ * Jedna rama strony (D-53): 90 rem. Zmienna układu, nie token; ta sama wartość wyznacza ramę
+ * treści, nagłówka, paska „Wersja testowa” i stopki (zob. app-shell.module.css).
+ */
+:root {
+  --layout-frame-max: 90rem;
+}
+
+/*
+ * `.content-width-wide`: rama strony z listami, siatkami i mapą (do 90 rem, wyśrodkowana).
+ * `.content-width`: strona czytana albo formularz, kolumna 40 rem przy lewej krawędzi tej samej
+ * ramy (margines po lewej to odstęp ramy od krawędzi okna; na telefonie i w wąskim oknie zero).
+ */
 .content-width,
 .content-width-wide {
   box-sizing: border-box;
   width: 100%;
-  margin-inline: auto;
   padding-inline: var(--space-page-inline);
 }
 
-.content-width {
-  max-width: 48rem;
+.content-width-wide {
+  max-width: var(--layout-frame-max);
+  margin-inline: auto;
 }
 
-.content-width-wide {
-  max-width: 72rem;
+.content-width {
+  max-width: calc(40rem + 2 * var(--space-page-inline));
+  margin-inline: max(0px, calc((100% - var(--layout-frame-max)) / 2)) auto;
 }
 
 /*

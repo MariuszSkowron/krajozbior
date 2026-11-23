@@ -125,7 +125,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
 
   if (outcome.status === "timeout" || outcome.status === "busy") {
     return (
-      <div className={`content-width ${styles.page}`}>
+      <div className={`content-width-wide ${styles.page}`}>
         <h1>Szukaj miejsc i kolekcji</h1>
         <SearchForm id="search" phrase={formPhrase} withRegion />
         <p role="alert" className={`${styles.notice} ${styles.noticeDanger}`}>
@@ -143,7 +143,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
     const empty = collections.length === 0 && places.length === 0;
 
     return (
-      <div className={`content-width ${styles.page}`}>
+      <div className={`content-width-wide ${styles.page}`}>
         <h1>
           {empty
             ? `Nic nie znaleziono dla „${outcome.phrase}”`
@@ -193,7 +193,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
       : null;
 
   return (
-    <div className={`content-width ${styles.page}`}>
+    <div className={`content-width-wide ${styles.page}`}>
       <h1>{heading}</h1>
       <ResultAnnouncer message={`${heading}: ${count}.`} />
       <SearchForm id="search" phrase={formPhrase} region={region} withRegion />

@@ -93,7 +93,7 @@ export default async function OwnCollectionPage({ params, searchParams }: Props)
       : [];
 
   return (
-    <div className={`content-width ${catalog.page}`}>
+    <div className={`content-width-wide ${catalog.page}`}>
       <header className={catalog.header}>
         <p>
           <Link href="/my/collections">← Moje kolekcje</Link>

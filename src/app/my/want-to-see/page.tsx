@@ -40,7 +40,7 @@ export default async function WantToSeePage() {
   const places = result.value;
 
   return (
-    <div className={`content-width ${catalog.page}`}>
+    <div className={`content-width-wide ${catalog.page}`}>
       <header className={catalog.header}>
         <h1>Chcę zobaczyć</h1>
         <p className={catalog.summary}>Miejsca zapisane na później, od najnowszych.</p>

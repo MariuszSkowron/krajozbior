@@ -76,7 +76,7 @@ export default async function MyCollectionsPage({ searchParams }: { searchParams
   ) as Record<ProgressFilter, number>;
 
   return (
-    <div className={`content-width ${catalog.page}`}>
+    <div className={`content-width-wide ${catalog.page}`}>
       <header className={catalog.header}>
         <h1>Moje kolekcje</h1>
         <p className={catalog.summary}>Zapisane kolekcje i Twój postęp w nich.</p>
