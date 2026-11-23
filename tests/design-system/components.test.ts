@@ -529,7 +529,9 @@ describe("karta legendarna: zdjęcie, okno i ramka (D-56)", () => {
       ".card",
     ]) {
       const body = css.match(
-        new RegExp(`(?:^|\\n)${selector.replace(/[.[\]"=]/g, "\\$&")}\\s*\\{([^}]*)\\}`),
+        new RegExp(
+          `(?:^|\\n)${selector.replace(/[\\^$.*+?()[\]{}|"=]/g, "\\$&")}\\s*\\{([^}]*)\\}`,
+        ),
       )?.[1];
       expect(body, selector).toBeDefined();
       expect(body, selector).not.toMatch(forbidden);
