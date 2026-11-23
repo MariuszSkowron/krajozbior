@@ -19,7 +19,7 @@ async function signIn(page: Page, name: string) {
   await form.getByLabel("E-mail").fill(emailOf(name));
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(/\/curator$/);
 }
 
 async function createDraftWithPlace(page: Page, title: string): Promise<string> {
