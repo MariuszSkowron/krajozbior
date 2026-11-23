@@ -1,7 +1,10 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Testy uruchamiają proces `node` (przy obciążonym komputerze ponad 5 s); limit tylko dla tego pliku.
+vi.setConfig({ testTimeout: 30_000 });
 
 import { findPrGateViolations, isAllowedMergeArgs } from "../../.claude/hooks/guard-pr-merge.mjs";
 
