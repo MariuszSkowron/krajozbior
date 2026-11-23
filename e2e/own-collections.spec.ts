@@ -203,7 +203,14 @@ test.describe("own collections", () => {
     const add = page.getByRole("button", { name: `Dodaj do kolekcji: ${PLACE}` });
     const announced = page.getByRole("status").filter({ hasText: "Dodano do kolekcji." });
 
+    // The checks below must run in the window of the slowed refresh, i.e. after the write
+    // itself has been answered, not while the POST is still in flight.
+    const added = page.waitForResponse(
+      (r) => r.url().includes("/items") && r.request().method() === "POST",
+    );
+
     await add.click();
+    await added;
     // While the list is refreshed: the button is busy (not activatable again) and nothing is
     // announced yet, so the answer never stands next to the old list.
     await expect(add).toHaveText("Dodawanie…");
