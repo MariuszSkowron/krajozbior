@@ -578,7 +578,8 @@ export const postgresCatalogRepository: CatalogRepository = {
         photoHeight: number | null;
       })[]
     >(
-      `select p.id, p.name, p.address, cp.position, p.latitude, p.longitude,
+      `select p.id, p.name, p.address, (row_number() over (order by cp.position))::int as position,
+              p.latitude, p.longitude,
               ph.id as "photoId", ph.width as "photoWidth", ph.height as "photoHeight"
          from public.collection_places cp
          join public.places p on p.id = cp.place_id
@@ -712,16 +713,7 @@ export const postgresCatalogRepository: CatalogRepository = {
          from public.collection_places cp
          join public.collections c on c.id = cp.collection_id
          join public.organizations o on o.id = c.organization_id
-         left join lateral (
-           select ph.id, ph.width, ph.height, ph.alt_text
-             from public.place_photos ph
-             left join public.collection_places x on x.place_id = ph.place_id and x.collection_id = c.id
-            where ph.file_state = 'ready' and ph.storage_key is not null
-              and (ph.id = c.cover_place_photo_id
-                   or (c.cover_place_photo_id is null and x.collection_id is not null))
-            order by (ph.id = c.cover_place_photo_id) desc, x.position, ph.position
-            limit 1
-         ) cph on true
+         ${collectionCardJoin}
         where cp.place_id = ? and c.status = 'published' and o.status = 'approved'
         order by c.title, c.slug`,
       [id],

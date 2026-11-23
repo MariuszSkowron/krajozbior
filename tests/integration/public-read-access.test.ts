@@ -386,9 +386,45 @@ describe("public read of collections and places (guest context)", () => {
       expect(await coverOf(first)).toBe(chosen);
     });
 
-    // Today a hidden choice of the curator gives no cover at all; it should fall back to the
-    // automatic photo. Fixed after #129 (the shared collectionCoverLateral).
-    it.todo("falls back to the automatic photo when the chosen one is hidden (after #129)");
+    it("falls back to the automatic photo when the chosen one is hidden", async () => {
+      const collection = await newCollection(curA, orgA, "Okładka z ukrytym wyborem");
+      const first = await newPlace(curA, orgA, "Pierwsze z ukrytym wyborem");
+      const second = await newPlace(curA, orgA, "Drugie z ukrytym wyborem");
+
+      await link(curA, collection.id, first, orgA, 1);
+      await link(curA, collection.id, second, orgA, 2);
+      await publish(curA, collection.id);
+
+      const automatic = await addPhoto(first);
+      const chosen = await addPhoto(second);
+
+      await admin$(`update public.collections set cover_place_photo_id = $1 where id = $2`, [
+        chosen,
+        collection.id,
+      ]);
+      await admin$(`update public.place_photos set hidden_at = now() where id = $1`, [chosen]);
+
+      expect(await coverOf(first)).toBe(automatic);
+    });
+
+    it("numbers the places on the collection page in sequence, also after a gap in positions", async () => {
+      const collection = await newCollection(curA, orgA, "Strona z dziurą w pozycjach");
+      const a = await newPlace(curA, orgA, "Strona A");
+      const b = await newPlace(curA, orgA, "Strona B");
+      const c = await newPlace(curA, orgA, "Strona C");
+
+      await link(curA, collection.id, a, orgA, 1);
+      await link(curA, collection.id, b, orgA, 4);
+      await link(curA, collection.id, c, orgA, 9);
+      await publish(curA, collection.id);
+
+      const result = await getPublishedCollection(collection.slug, deps);
+
+      expect(result).toMatchObject({ status: "ok" });
+      expect(
+        result.status === "ok" ? result.value.places.map((place) => place.position) : [],
+      ).toEqual([1, 2, 3]);
+    });
 
     it("numbers the place in its collection in sequence, also after a gap in positions", async () => {
       const collection = await newCollection(curA, orgA, "Z dziurą w pozycjach");
