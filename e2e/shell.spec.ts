@@ -167,6 +167,12 @@ test.describe("dolny pasek na telefonie", () => {
       for (const path of ["/my/collections", "/my/want-to-see"]) {
         await page.goto(path);
         await waitForHydration(page);
+        // Strony „Moje kolekcje” i „Chcę zobaczyć” najpierw pokazują szkielet (loading.tsx) bez
+        // elementów z fokusem; hydratacja <main> kończy się już na nim. Czekamy na prawdziwą treść.
+        await page
+          .locator("main a[href], main button, main input, main select, main textarea")
+          .first()
+          .waitFor();
         // Odstęp przed treścią ustawia pierwszy element z fokusem tuż nad dolną krawędzią
         // ekranu, czyli pod paskiem, ale w całości w oknie przeglądarki. Przeglądarka przewija
         // do fokusu tylko element, który uważa za niewidoczny; bez scroll-padding-bottom
