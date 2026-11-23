@@ -32,7 +32,7 @@ async function signedInPage(
   await form.getByLabel("E-mail").fill(emailOf(name));
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(name.startsWith("curator") ? /\/curator$/ : /\/my$/);
 
   return page;
 }
@@ -337,10 +337,96 @@ test.describe("panel kuratora", () => {
     await expect(page.getByRole("note")).toContainText(
       "Panel kuratora jest przeznaczony na komputer",
     );
+    await expect(
+      page.getByRole("note").getByRole("link", { name: "Przejdź do profilu" }),
+    ).toHaveAttribute("href", "/my");
     await expect(page.getByRole("navigation", { name: "Panel kuratora" })).toBeHidden();
     await expect(page.getByRole("heading", { level: 1, name: "Twoje kolekcje" })).toBeHidden();
     // Dolny pasek zostaje, żeby dało się wyjść z panelu.
     await expect(page.locator(NAV)).toBeVisible();
+    await page.context().close();
+  });
+});
+
+// Paczka N (K-12…K-16): nagłówek konta z imieniem albo „Profil”, etykieta kuratora na komputerze,
+// „Wyloguj” jako akcja drugorzędna i nagłówek w jednym wierszu.
+test.describe("nagłówek konta", () => {
+  test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
+
+  const oneRow = async (page: Page) => {
+    const tops = await page
+      .getByRole("banner")
+      .locator("a, button")
+      .evaluateAll((elements) =>
+        elements
+          .filter((element) => element.getBoundingClientRect().width > 0)
+          .map((element) => Math.round(element.getBoundingClientRect().top / 10)),
+      );
+
+    expect(new Set(tops).size).toBe(1);
+  };
+
+  test("odkrywca widzi odnośnik do profilu zamiast nazwy roli, a „Wyloguj” jest drugorzędny", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, "user", PHONE);
+    const banner = page.getByRole("banner");
+
+    await expect(banner.getByRole("link", { name: /^Profil/ })).toHaveAttribute("href", "/my");
+    await expect(banner).not.toContainText("Użytkownik");
+    await expect(banner).not.toContainText("Twoja rola");
+    await expect(banner.getByRole("link", { name: /^Kurator ·/ })).toHaveCount(0);
+
+    const logout = banner.getByRole("button", { name: "Wyloguj" });
+    expect((await logout.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    expect(await logout.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
+      "rgba(0, 0, 0, 0)",
+    );
+    await oneRow(page);
+    await page.context().close();
+  });
+
+  test("kurator na komputerze widzi „Kurator · organizacja” prowadzące do panelu, na telefonie nie", async ({
+    browser,
+  }) => {
+    const desktop = await signedInPage(browser, "curator-a", DESKTOP);
+    const label = desktop.getByRole("banner").getByRole("link", { name: /^Kurator ·/ });
+
+    await expect(label).toBeVisible();
+    await expect(label).toHaveAttribute("href", "/curator");
+    await oneRow(desktop);
+    await desktop.context().close();
+
+    const phone = await signedInPage(browser, "curator-a", PHONE);
+
+    await expect(phone.getByRole("banner").getByRole("link", { name: /^Kurator ·/ })).toBeHidden();
+    await expect(phone.getByRole("banner").getByRole("link", { name: /^Profil/ })).toBeVisible();
+    await oneRow(phone);
+    await phone.context().close();
+  });
+
+  test("profil kuratora opisuje rolę i prowadzi do panelu", async ({ browser }) => {
+    const page = await signedInPage(browser, "curator-a", DESKTOP);
+
+    // Po zalogowaniu kurator ląduje w panelu; profil otwiera się z menu panelu.
+    await page.goto("/my");
+
+    const main = page.getByRole("main");
+
+    await expect(main).toContainText("Kurator ·");
+    await expect(main.getByRole("link", { name: "Przejdź do panelu kuratora" })).toHaveAttribute(
+      "href",
+      "/curator",
+    );
+    await expect(main).not.toContainText("Tu są Twoje wizyty i liczby jako odkrywcy.");
+    // Na komputerze dopisek „(na komputerze)” i przycisk „Wyloguj” w treści są ukryte (D-54).
+    await expect(
+      main.getByRole("link", { name: "Przejdź do panelu kuratora" }),
+    ).toHaveAccessibleName("Przejdź do panelu kuratora");
+    await expect(main.getByRole("button", { name: "Wyloguj" })).toHaveCount(0);
+    // Bez imienia kurator nie jest „Odkrywcą” nad własną rolą.
+    await expect(main.getByTestId("profile-name")).toHaveText("Bez imienia");
+    await expect(main.getByTestId("profile-name")).not.toContainText("Odkrywca");
     await page.context().close();
   });
 });

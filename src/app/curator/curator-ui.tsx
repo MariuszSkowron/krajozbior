@@ -23,9 +23,19 @@ type FeedbackRegionProps = Readonly<{
   /** Field name -> [id of the control, its label], for the links of the summary. */
   fields?: Readonly<Record<string, readonly [string, string]>>;
   onReload?: () => void;
+  /** A new value re-inserts the message, so a screen reader reads it again. */
+  announceKey?: number;
+  /** A button after an info message, e.g. a way to the place where the message points. */
+  action?: Readonly<{ label: string; onClick: () => void }>;
 }>;
 
-export function FeedbackRegion({ feedback, fields = {}, onReload }: FeedbackRegionProps) {
+export function FeedbackRegion({
+  feedback,
+  fields = {},
+  onReload,
+  announceKey,
+  action,
+}: FeedbackRegionProps) {
   const alertRef = useRef<HTMLDivElement>(null);
   const isError = feedback?.kind === "error";
 
@@ -39,9 +49,16 @@ export function FeedbackRegion({ feedback, fields = {}, onReload }: FeedbackRegi
     <div className={styles.feedback}>
       <div role="status">
         {feedback !== null && feedback.kind !== "error" ? (
-          <p className={styles.notice}>{feedback.message}</p>
+          <p key={announceKey} className={styles.notice}>
+            {feedback.message}
+          </p>
         ) : null}
       </div>
+      {feedback !== null && feedback.kind !== "error" && action !== undefined ? (
+        <button type="button" className="button button--outline" onClick={action.onClick}>
+          {action.label}
+        </button>
+      ) : null}
       {feedback !== null && feedback.kind === "error" ? (
         <div ref={alertRef} role="alert" tabIndex={-1} className={styles.errorSummary}>
           <p className={styles.errorLine}>

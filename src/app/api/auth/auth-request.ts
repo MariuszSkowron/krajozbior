@@ -1,12 +1,17 @@
 import { clientIp } from "@/features/identity/domain/client-ip";
 import { isDemoEmail } from "@/features/identity/domain/demo-account-list";
 import type { SignInResult } from "@/features/identity/domain/identity-provider";
-import { roleHome } from "@/features/identity/domain/role-home";
+import { signInDestination } from "@/features/identity/domain/role-home";
 import type { SignInThrottle, ThrottleSubject } from "@/features/identity/domain/sign-in-throttle";
 import { getClientIpHeader } from "@/features/identity/infrastructure";
 import { getMyTheme } from "@/features/settings/application/settings";
 import type { SettingsDeps } from "@/features/settings/application/settings-types";
 import { getSettingsDeps } from "@/features/settings/infrastructure/settings-deps";
+import {
+  approvedOrganizations,
+  listMyOrganizations,
+} from "@/features/organizations/application/list-my-organizations";
+import { listMyOrganizationsDeps } from "@/features/organizations/infrastructure/postgres-organization-reader";
 import { readBoundedForm, readJsonBody } from "@/features/visits/http/request-body";
 import { isDemoSignInAllowed } from "@/lib/config/env";
 import { logFailure } from "@/lib/log-failure";
@@ -163,15 +168,38 @@ export async function reserveAttempt(
   return { subject };
 }
 
+/**
+ * Whether the account that just signed in is a curator (an `approved` organization). Read in
+ * the user context with the actor of the sign-in result: the session cookie does not exist
+ * yet, and nothing from the request names the account. It only chooses the landing page
+ * (the panel checks the membership itself), so a failure never blocks the sign-in: the
+ * account lands on its profile and the failure goes to the log.
+ */
+async function isCuratorAfterSignIn(actor: SignInResult["actor"]): Promise<boolean> {
+  try {
+    const result = await listMyOrganizations(actor, listMyOrganizationsDeps);
+
+    return result.status === "ok" && approvedOrganizations(result.organizations).length > 0;
+  } catch (error) {
+    logFailure("Sign-in destination", error);
+
+    return false;
+  }
+}
+
 /** The response of a successful sign-in: the session cookies and the destination. */
-export function signedIn(
+export async function signedIn(
   request: Request,
   result: SignInResult,
   returnTo: string | null,
   extraCookies: readonly string[] = [],
 ) {
   const headers = new Headers(NO_STORE);
-  const destination = returnTo ?? roleHome(result.actor.role);
+  // An explicit returnTo wins, so the membership is read only when it is needed.
+  const destination = signInDestination({
+    returnTo,
+    isCurator: returnTo === null && (await isCuratorAfterSignIn(result.actor)),
+  });
 
   for (const cookie of [...result.setCookies, ...extraCookies]) {
     headers.append("Set-Cookie", cookie);
