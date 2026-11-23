@@ -43,7 +43,7 @@ export default async function NewsPage({ searchParams }: { searchParams: SearchP
   const cards = await load(filter);
 
   return (
-    <div className={`content-width ${styles.page}`}>
+    <div className={`content-width-wide ${styles.page}`}>
       <header className={styles.header}>
         <h1>Aktualności</h1>
         <p className={styles.subtitle}>

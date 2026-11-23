@@ -25,6 +25,9 @@
   margin: 0;
   padding: 0;
   list-style: none;
+  /* The list changes height after a click on the filter; the browser must not shift scrollY to
+     keep one of its cards in place (scroll anchoring), the filter itself stays where it was. */
+  overflow-anchor: none;
 }
 
 @media (min-width: 48rem) {
@@ -127,6 +130,7 @@
 
 .noMatch {
   margin: 0;
+  overflow-anchor: none;
   color: var(--color-text-secondary);
 }
 
