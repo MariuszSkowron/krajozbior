@@ -23,8 +23,10 @@
 // Ryzyka z podglądu puli:
 //  - Pęzino (Q15641193): najmniejszy plik puli (1613 px na Commons), kontrast niezmierzony na
 //    zdjęciu z Commons (limit serwera); pierwsza kandydatka do wymiany;
-//  - Swobnica (Q33254678): na telefonie przeważa niebo, ruina jest przy dolnej krawędzi pod
-//    tekstem; kandydat do usunięcia, gdy zależy nam na telefonie (pula dalej ma 12).
+//  - Swobnica (Q33254678): na telefonie kadr to wieża i chmury; ruina jest pod tekstem, bo
+//    baner na telefonie przycina zdjęcie tylko poziomo (kandydat do usunięcia, pula ma 12).
+//  - Na telefonie (baner 640 px wysokości) zdjęcie jest skalowane do wysokości, więc działa tylko
+//    pierwsza liczba `narrow` (poziom); druga zostaje 50%.
 
 export type HomeBannerFocus = Readonly<{
   /** `object-position` na laptopie i szerszych ekranach. */
@@ -45,11 +47,11 @@ export const HOME_BANNER_POOL: readonly HomeBannerPoolEntry[] = [
   // Zamek w Pęzinie (p2); ryzyko: najmniejszy plik puli
   { qid: "Q15641193", focus: { wide: "50% 38%", narrow: "62% 50%" } },
   // Stary zamek w Płotach (p4)
-  { qid: "Q86668541", focus: { wide: "50% 30%", narrow: "55% 50%" } },
+  { qid: "Q86668541", focus: { wide: "50% 30%", narrow: "45% 50%" } },
   // Zamek w Świdwinie (p5)
   { qid: "Q9386773", focus: { wide: "50% 35%", narrow: "32% 50%" } },
-  // Zamek templariuszy (joannitów) w Swobnicy (p9); ryzyko: słaby kadr na telefonie
-  { qid: "Q33254678", focus: { wide: "50% 40%", narrow: "40% 50%" } },
+  // Zamek templariuszy (joannitów) w Swobnicy (p9); na telefonie widać wieżę i chmury, ruina jest pod tekstem
+  { qid: "Q33254678", focus: { wide: "50% 40%", narrow: "3% 50%" } },
   // Zamek w Krągu (p11)
   { qid: "Q16619003", focus: { wide: "50% 40%", narrow: "55% 50%" } },
   // Zamek Książąt Pomorskich w Darłowie (p12)
@@ -57,13 +59,13 @@ export const HOME_BANNER_POOL: readonly HomeBannerPoolEntry[] = [
   // Rezerwat przyrody Kadzielnia w Kielcach
   { qid: "Q9308632", focus: { wide: "50% 50%", narrow: "50% 50%" } },
   // Zabytkowa Kopalnia „Ignacy” w Rybniku
-  { qid: "Q9385507", focus: { wide: "50% 50%", narrow: "40% 50%" } },
+  { qid: "Q9385507", focus: { wide: "50% 50%", narrow: "100% 50%" } },
   // Zamek biskupów warmińskich w Lidzbarku Warmińskim
-  { qid: "Q5420724", focus: { wide: "50% 50%", narrow: "40% 50%" } },
+  { qid: "Q5420724", focus: { wide: "50% 50%", narrow: "66% 50%" } },
   // Monaster w Supraślu
-  { qid: "Q2987314", focus: { wide: "50% 50%", narrow: "40% 50%" } },
+  { qid: "Q2987314", focus: { wide: "50% 50%", narrow: "30% 50%" } },
   // Zamek w Kórniku
   { qid: "Q524338", focus: { wide: "50% 45%", narrow: "55% 50%" } },
   // Sobór Świętej Trójcy w Hajnówce
-  { qid: "Q1138724", focus: { wide: "50% 40%", narrow: "55% 50%" } },
+  { qid: "Q1138724", focus: { wide: "50% 40%", narrow: "62% 50%" } },
 ];
