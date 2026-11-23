@@ -27,7 +27,11 @@ const { PlaceThumb } = await import("@/app/collections/[slug]/place-thumb");
 
 const thumb = { photoId: "0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b", width: 1280, height: 853 };
 
-type Box = { props: { children: ReactElement<{ src: string; alt: string; onError: () => void }> } };
+type Box = {
+  props: {
+    children: ReactElement<{ src: string; alt: string; className: string; onError: () => void }>;
+  };
+};
 
 function render(value: typeof thumb | null) {
   store.cursor = 0;
@@ -49,6 +53,16 @@ describe("PlaceThumb", () => {
 
     expect(image?.props.src).toBe(`/media/p/${thumb.photoId}/w400`);
     expect(image?.props.alt).toBe("");
+  });
+
+  it("crops a photo of ordinary proportions and shows a panorama or a portrait whole", () => {
+    const className = (width: number, height: number) =>
+      render({ ...thumb, width, height })?.props.children.props.className;
+
+    expect(className(1280, 853)).toContain("thumbImage");
+    expect(className(1280, 853)).not.toContain("Whole");
+    expect(className(2400, 600)).toContain("thumbImageWhole");
+    expect(className(600, 900)).toContain("thumbImageWhole");
   });
 
   it("disappears when the file does not load, so no broken image icon is shown", () => {

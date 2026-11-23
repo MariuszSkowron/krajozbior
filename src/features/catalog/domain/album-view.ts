@@ -10,7 +10,7 @@ export const STATE_FILTERS: readonly StateFilter[] = ["wszystkie", "odwiedzone",
 export const STATE_FILTER_LABELS: Readonly<Record<StateFilter, string>> = {
   wszystkie: "Wszystkie",
   odwiedzone: "Odwiedzone",
-  "do-odwiedzenia": "Do odwiedzenia",
+  "do-odwiedzenia": "Do odkrycia",
 };
 
 type Raw = string | readonly string[] | undefined;

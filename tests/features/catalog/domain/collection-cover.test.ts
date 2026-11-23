@@ -4,6 +4,7 @@ import {
   cardCoverImage,
   ogCoverDescription,
   ogImageUrl,
+  showsWhole,
 } from "@/features/catalog/domain/collection-cover";
 
 const ID = "0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b";
@@ -104,5 +105,20 @@ describe("ogCoverDescription (E4-3, uznanie autorstwa w podglądzie linku)", () 
 
     expect(text.endsWith(`, ${"L".repeat(220)}`)).toBe(true);
     expect(text).not.toContain("Autor");
+  });
+});
+
+describe("showsWhole (okładka i kafelek: przycinać czy pokazać w całości)", () => {
+  it("crops photos of ordinary proportions, 4:3 to 16:9 inclusive", () => {
+    expect(showsWhole(1280, 853)).toBe(false);
+    expect(showsWhole(400, 300)).toBe(false);
+    expect(showsWhole(1600, 900)).toBe(false);
+  });
+
+  it("shows a panorama or a portrait whole", () => {
+    expect(showsWhole(2400, 600)).toBe(true);
+    expect(showsWhole(1601, 900)).toBe(true);
+    expect(showsWhole(600, 900)).toBe(true);
+    expect(showsWhole(1000, 800)).toBe(true);
   });
 });

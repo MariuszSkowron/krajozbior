@@ -19,19 +19,10 @@
   margin: 0;
 }
 
-/* Tytuł kolekcji: szeryf, na komputerze większy (5xl) z lekkim ściśnięciem liter. */
-.collectionTitle {
-  letter-spacing: var(--font-tracking-display);
-}
-
 @media (min-width: 48rem) {
   .page {
     gap: var(--space-xl);
     padding-block: var(--space-xl);
-  }
-
-  .collectionTitle {
-    font-size: var(--font-size-5xl);
   }
 }
 
@@ -96,23 +87,6 @@
   color: inherit;
   text-decoration: none;
   border-radius: var(--radius-lg);
-}
-
-/* Miniatura zdjęcia na karcie miejsca w kolekcji: pole 16:9, zdjęcie w całości (contain), wolne
-   pasy wypełnia tło tint. Karta bez zdjęcia nie ma tego pola. */
-.thumb {
-  display: block;
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
-  background: var(--color-surface-tint);
-  border-radius: var(--radius-md);
-}
-
-.thumbImage {
-  display: block;
-  inline-size: 100%;
-  block-size: 100%;
-  object-fit: contain;
 }
 
 .itemTitle {

@@ -1,20 +1,199 @@
 /*
- * Okładka w nagłówku kolekcji: zdjęcie na szerokość treści, z zachowaniem proporcji z atrybutów
- * width i height (bez skoku układu), z tłem zastępczym do czasu pobrania. Tylko tokeny.
+ * Okładka kolekcji (R3, D-57): zdjęcie na całą szerokość ramy, tytuł i postęp w lewym dolnym
+ * rogu na gradiencie przyciemniającym (wartości procentowe z makiety; gradientu nie osłabiać,
+ * bo trzyma kontrast tekstu ≥ 4,5:1). Tylko tokeny. Wysokość to minimum, nie stała: przy
+ * powiększeniu tekstu okładka rośnie razem z tytułem.
  */
-.cover {
+.figure {
   display: grid;
   gap: var(--space-sm);
   margin: 0;
 }
 
-.cover img {
+.cover {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  box-sizing: border-box;
+  min-height: 25rem;
+  overflow: hidden;
+  background: linear-gradient(
+    160deg,
+    var(--color-image-placeholder),
+    var(--color-image-placeholder-alt)
+  );
+  border-radius: var(--radius-lg);
+}
+
+.photo,
+.photoWhole {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
-  height: auto;
-  max-height: 28rem;
-  /* contain, nie cover: zdjęcia nie przycinamy (podpis mówi, że tylko je zmniejszamy). */
+  height: 100%;
+}
+
+.photo {
+  object-fit: cover;
+  object-position: center 45%;
+}
+
+/* Panorama albo zdjęcie pionowe: w całości, bez przycinania (Q4). */
+.photoWhole {
   object-fit: contain;
-  border-radius: var(--radius-md);
-  background: var(--color-surface-tint);
+}
+
+.withPhoto::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--color-image-scrim) 96%, transparent) 0%,
+    color-mix(in srgb, var(--color-image-scrim) 88%, transparent) 34%,
+    color-mix(in srgb, var(--color-image-scrim) 55%, transparent) 62%,
+    color-mix(in srgb, var(--color-image-scrim) 0%, transparent) 100%
+  );
+  pointer-events: none;
+}
+
+.text {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  display: grid;
+  gap: var(--space-sm);
+  justify-items: start;
+  width: 100%;
+  padding: var(--space-md);
+  color: var(--color-text-on-image);
+}
+
+/* Przyciemnienie siedzi na samym bloku tekstu, więc podąża za jego wysokością (długi tytuł,
+   powiększony tekst): pod całym tekstem, łącznie z etykietą na górze bloku, jest ≥78% koloru
+   przyciemnienia (kontrast ≥4,5:1 także na białym zdjęciu). Zanikanie zajmuje tylko
+   górny odstęp bloku (--space-lg), nad etykietą. */
+.withPhoto .text {
+  padding-block-start: var(--space-xl);
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--color-image-scrim) 96%, transparent) 0%,
+    color-mix(in srgb, var(--color-image-scrim) 78%, transparent) calc(100% - var(--space-lg)),
+    color-mix(in srgb, var(--color-image-scrim) 0%, transparent) 100%
+  );
+}
+
+.text > p,
+.text > h1 {
+  margin: 0;
+}
+
+.text h1 {
+  max-width: 12em;
+  font-size: var(--font-size-3xl);
+  letter-spacing: var(--font-tracking-display);
+  overflow-wrap: anywhere;
+}
+
+/* Okładka zastępcza: tło motywu, więc tekst w kolorach motywu (DT-3). */
+.plain .text {
+  color: var(--color-text-strong);
+}
+
+.eyebrow {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
+}
+
+.progress {
+  display: grid;
+  gap: var(--space-sm);
+  width: min(18rem, 100%);
+}
+
+.count {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  margin: 0;
+}
+
+/* Liczba: 52 px na telefonie, 56 px od 48 rem (makieta); 104 px na stronie głównej dojdzie osobno. */
+.big {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-4xl);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.of,
+.label {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-md);
+  line-height: 1;
+}
+
+.label {
+  margin-inline-start: var(--space-xs);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
+}
+
+/* Pasek 3 px (z makiety; w tokenach rozmiarów nie ma tak cienkiej wartości): tor
+   półprzezroczysty biały, wypełnienie akcentem z poświatą. */
+.bar {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-text-on-image) 22%, transparent);
+  border: 0;
+  border-radius: var(--radius-pill);
+}
+
+.bar::-webkit-progress-bar {
+  background: color-mix(in srgb, var(--color-text-on-image) 22%, transparent);
+}
+
+.bar::-webkit-progress-value {
+  background: var(--color-brand-accent);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-accent-glow);
+}
+
+.bar::-moz-progress-bar {
+  background: var(--color-brand-accent);
+  border-radius: var(--radius-pill);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+@media (min-width: 48rem) {
+  .cover {
+    min-height: 28.75rem;
+  }
+
+  .text {
+    padding: var(--space-xl);
+  }
+
+  .text h1 {
+    font-size: var(--font-size-5xl);
+  }
+
+  .big {
+    font-size: var(--font-size-5xl);
+  }
 }

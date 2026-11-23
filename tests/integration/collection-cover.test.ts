@@ -502,10 +502,11 @@ describe("collection cover", () => {
       expect(page.status === "ok" && page.value.cover).toBeNull();
       expect((await cardOf())?.cover).toBeNull();
 
-      // The photo is shown again: the cover stays empty until the curator chooses it again.
+      // The photo is shown again: the choice of the curator stays cleared (the column), and the
+      // automatic cover (the first photo of the first place with one) shows it on the card.
       await admin$(`update public.place_photos set hidden_at = null where id = $1`, [photoId]);
       expect(await coverOf(collection.id)).toBeNull();
-      expect((await cardOf())?.cover).toBeNull();
+      expect((await cardOf())?.cover).toMatchObject({ photoId });
 
       await setCollectionCover(asActor(curA), collection.id, { placePhotoId: photoId }, deps);
       expect((await cardOf())?.cover).toMatchObject({ photoId });
@@ -566,6 +567,90 @@ describe("collection cover", () => {
       await admin$(`update public.place_photos set hidden_at = now() where id = $1`, [photoId]);
 
       expect(await coverOf(collection.id)).toBeNull();
+    });
+  });
+
+  // D-55 pkt 1 / D-57 (DT-4): a collection without a cover chosen by the curator shows the first
+  // ready, visible photo of the first place (by position) that has one. Read in the guest context,
+  // so a hidden or not ready photo and a photo of another collection never become the cover.
+  describe("the automatic cover (no choice of the curator)", () => {
+    const pageCover = async (slug: string) => {
+      const page = await getPublishedCollection(slug, deps);
+
+      return page.status === "ok" ? page.value.cover : undefined;
+    };
+    const cardCover = async (id: string) =>
+      (await listRecentlyPublishedCollections(200, deps)).find((item) => item.id === id)?.cover;
+
+    it("takes the first photo of the first place that has one, on the page and on the card", async () => {
+      const bare = await newPlace(orgA);
+      const first = await newPlace(orgA);
+      const second = await newPlace(orgA);
+      const firstPhoto = await photo(first, orgA);
+
+      await photo(first, orgA);
+      await photo(second, orgA);
+
+      const collection = await newCollection(orgA, [bare, first, second], true);
+
+      expect(await coverOf(collection.id)).toBeNull();
+      expect(await pageCover(collection.slug)).toMatchObject({
+        photoId: firstPhoto,
+        authorText: "Autor",
+        licenseLabel: "CC BY-SA 4.0",
+      });
+      expect(await cardCover(collection.id)).toEqual({
+        photoId: firstPhoto,
+        width: 1280,
+        height: 853,
+        altText: "Opis zdjęcia",
+      });
+    });
+
+    it("skips a hidden or not ready photo and takes the next one", async () => {
+      const first = await newPlace(orgA);
+      const second = await newPlace(orgA);
+      const hidden = await photo(first, orgA);
+      const notReady = await photo(first, orgA, "pending_fetch");
+      const visible = await photo(second, orgA);
+      const collection = await newCollection(orgA, [first, second], true);
+
+      await admin$(`update public.place_photos set hidden_at = now() where id = $1`, [hidden]);
+
+      expect(notReady).not.toBe(visible);
+      expect(await pageCover(collection.slug)).toMatchObject({ photoId: visible });
+      expect(await cardCover(collection.id)).toMatchObject({ photoId: visible });
+    });
+
+    it("lets the choice of the curator win over the first photo", async () => {
+      const first = await newPlace(orgA);
+      const second = await newPlace(orgA);
+
+      await photo(first, orgA);
+
+      const chosen = await photo(second, orgA);
+      const collection = await newCollection(orgA, [first, second], true);
+
+      await setCollectionCover(asActor(curA), collection.id, { placePhotoId: chosen }, deps);
+
+      expect(await pageCover(collection.slug)).toMatchObject({ photoId: chosen });
+      expect(await cardCover(collection.id)).toMatchObject({ photoId: chosen });
+    });
+
+    it("never takes the photo of a place that is not in the collection, nor of a collection without photos", async () => {
+      const inside = await newPlace(orgA);
+      const outside = await newPlace(orgA);
+
+      await photo(outside, orgA);
+
+      const collection = await newCollection(orgA, [inside], true);
+
+      // The place is in another published collection, so the guest may see its photo (RLS lets
+      // it through): only the condition on the collection in the query keeps it off this cover.
+      await newCollection(orgA, [outside], true);
+
+      expect(await pageCover(collection.slug)).toBeNull();
+      expect((await cardCover(collection.id)) ?? null).toBeNull();
     });
   });
 
