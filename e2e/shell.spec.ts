@@ -167,6 +167,12 @@ test.describe("dolny pasek na telefonie", () => {
       for (const path of ["/my/collections", "/my/want-to-see"]) {
         await page.goto(path);
         await waitForHydration(page);
+        // Strony „Moje kolekcje” i „Chcę zobaczyć” najpierw pokazują szkielet (loading.tsx) bez
+        // elementów z fokusem; hydratacja <main> kończy się już na nim. Czekamy na prawdziwą treść.
+        await page
+          .locator("main a[href], main button, main input, main select, main textarea")
+          .first()
+          .waitFor();
         // Odstęp przed treścią ustawia pierwszy element z fokusem tuż nad dolną krawędzią
         // ekranu, czyli pod paskiem, ale w całości w oknie przeglądarki. Przeglądarka przewija
         // do fokusu tylko element, który uważa za niewidoczny; bez scroll-padding-bottom
@@ -369,7 +375,12 @@ test.describe("nagłówek konta", () => {
       "href",
       "/curator",
     );
-    await expect(main).toContainText("Tu są Twoje wizyty i liczby jako odkrywcy.");
+    await expect(main).not.toContainText("Tu są Twoje wizyty i liczby jako odkrywcy.");
+    // Na komputerze dopisek „(na komputerze)” i przycisk „Wyloguj” w treści są ukryte (D-54).
+    await expect(
+      main.getByRole("link", { name: "Przejdź do panelu kuratora" }),
+    ).toHaveAccessibleName("Przejdź do panelu kuratora");
+    await expect(main.getByRole("button", { name: "Wyloguj" })).toHaveCount(0);
     // Bez imienia kurator nie jest „Odkrywcą” nad własną rolą.
     await expect(main.getByTestId("profile-name")).toHaveText("Bez imienia");
     await expect(main.getByTestId("profile-name")).not.toContainText("Odkrywca");

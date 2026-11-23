@@ -1,7 +1,11 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Każdy przypadek uruchamia proces `node` (przy obciążonym komputerze ponad 5 s), więc domyślny
+// limit nie wystarcza. Limit dotyczy tylko tego pliku.
+vi.setConfig({ testTimeout: 30_000 });
 
 // Commands that an injected prompt (an issue, a web page, a file read by the
 // agent) could ask for. Every hook runs as a real process with the hook event
