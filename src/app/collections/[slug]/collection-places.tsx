@@ -7,6 +7,7 @@ import { useRef, useState } from "react";
 import { PastVisitDateFields } from "@/app/past-visit-date-fields";
 import { PastVisitMessage } from "@/app/past-visit-message";
 import pastStyles from "@/app/past-visit.module.css";
+import type { PlaceThumb as PlaceThumbData } from "@/features/catalog/application/catalog-types";
 import { StatusBadge } from "@/design-system/components/status-badge";
 import {
   EMPTY_PAST_VISIT_DATE,
@@ -21,12 +22,14 @@ import { MAX_PAST_VISITS_PER_REQUEST } from "@/features/visits/domain/limits";
 
 import styles from "../../catalog.module.css";
 import albumStyles from "./album.module.css";
+import { PlaceThumb } from "./place-thumb";
 
 type Place = {
   id: string;
   name: string;
   address: string;
   position: number;
+  thumb: PlaceThumbData | null;
   /** The explorer's visit of the place: confirmed on site, from the past, or none. */
   kind: "on_site" | "past" | null;
 };
@@ -171,6 +174,7 @@ export function CollectionPlaces({ places }: { places: Place[] }) {
                     onChange={(event) => toggle(place.id, event.target.checked)}
                   />
                   <span>
+                    <PlaceThumb thumb={place.thumb} />
                     {title}
                     {place.address === "" ? null : (
                       <span className={styles.itemMeta}> {place.address}</span>
@@ -179,6 +183,7 @@ export function CollectionPlaces({ places }: { places: Place[] }) {
                 </label>
               ) : (
                 <Link className={styles.itemLink} href={`/places/${place.id}`}>
+                  <PlaceThumb thumb={place.thumb} />
                   {title}
                   {place.address === "" ? null : (
                     <span className={styles.itemMeta}>{place.address}</span>

@@ -55,7 +55,15 @@ const collection = {
   region: "pomorskie",
   organization: { name: "Gmina A", slug: "gmina-a" },
   places: [
-    { id: placeId, name: "Most", address: "Tczew", position: 1, latitude: 54.09, longitude: 18.79 },
+    {
+      id: placeId,
+      name: "Most",
+      address: "Tczew",
+      position: 1,
+      latitude: 54.09,
+      longitude: 18.79,
+      thumb: null,
+    },
   ],
   placeCount: 1,
   contentUpdatedAt: new Date("2026-11-18T10:00:00Z"),
@@ -113,6 +121,36 @@ describe("public catalog pages", () => {
     expect(html).toContain("1 miejsce · aktualizacja 18.11.2026");
     expect(html).toContain(`href="/places/${placeId}"`);
     expect(html).toContain("Miejsca w kolekcji (1)");
+  });
+
+  it("show a thumbnail on the card of a place that has a photo, and none on a card without", async () => {
+    const photoId = "0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b";
+    const withPhoto = {
+      ...collection.places[0],
+      thumb: { photoId, width: 1280, height: 853, altText: "Most nad rzeką" },
+    };
+
+    mocks.collection.mockResolvedValue({
+      status: "ok",
+      value: { ...collection, places: [withPhoto] },
+    });
+
+    const html = renderToStaticMarkup(
+      await collectionPage.default({ params: Promise.resolve({ slug: next() }) }),
+    );
+
+    expect(html).toContain(`src="/media/p/${photoId}/w400"`);
+    expect(html).toContain('width="1280"');
+    expect(html).toContain('alt=""');
+
+    mocks.collection.mockResolvedValue({ status: "ok", value: collection });
+
+    const plain = renderToStaticMarkup(
+      await collectionPage.default({ params: Promise.resolve({ slug: next() }) }),
+    );
+
+    expect(plain).not.toContain("/media/p/");
+    expect(plain).not.toContain("<img");
   });
 
   it("title a collection page with its name, and a missing one with nothing", async () => {
@@ -461,12 +499,14 @@ describe("public catalog pages", () => {
       name: "Zamek",
       address: "",
       position: 2,
+      thumb: null,
     };
     const third = {
       id: "44444444-4444-4444-8444-444444444444",
       name: "Brama",
       address: "",
       position: 3,
+      thumb: null,
     };
     const render = async () =>
       renderToStaticMarkup(
@@ -555,12 +595,19 @@ describe("public catalog pages", () => {
       name: "Zamek",
       address: "Gniew",
       position: 2,
+      thumb: {
+        photoId: "0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b",
+        width: 1280,
+        height: 853,
+        altText: "x",
+      },
     };
     const third = {
       id: "44444444-4444-4444-8444-444444444444",
       name: "Brama",
       address: "",
       position: 3,
+      thumb: null,
     };
     const outsider = "55555555-5555-4555-8555-555555555555";
     const render = async (query: Record<string, string | string[] | undefined> = {}) =>
