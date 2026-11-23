@@ -18,7 +18,7 @@ describe("cardCoverImage (E4-3)", () => {
     expect(cardCoverImage({ photoId: ID, width: 1280, height: 853, altText: "Zamek" })).toEqual({
       src: `/media/p/${ID}/w400`,
       srcSet: `/media/p/${ID}/w400 400w, /media/p/${ID}/main 1280w`,
-      sizes: "(min-width: 48rem) 25rem, 130px",
+      sizes: "(min-width: 48rem) 25rem, calc(100vw - 2rem)",
       whole: false,
       width: 400,
       height: 267,
