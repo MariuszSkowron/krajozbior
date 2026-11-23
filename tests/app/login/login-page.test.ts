@@ -7,9 +7,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getActor: vi.fn(),
   cookie: vi.fn(),
+  organizations: vi.fn(),
 }));
 
 vi.mock("@/app/request-actor", () => ({ getRequestActor: mocks.getActor }));
+vi.mock("@/app/request-organizations", () => ({ getApprovedOrganizations: mocks.organizations }));
+vi.mock("@/lib/log-failure", () => ({ logFailure: vi.fn() }));
 vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (name: string) => mocks.cookie(name) }),
 }));
@@ -28,6 +31,7 @@ const render = async (params: Record<string, string> = {}) =>
 beforeEach(() => {
   mocks.getActor.mockReset().mockResolvedValue(null);
   mocks.cookie.mockReset().mockReturnValue(undefined);
+  mocks.organizations.mockReset().mockResolvedValue([]);
 });
 
 describe("login page, step 1", () => {
@@ -166,8 +170,31 @@ describe("login page of a signed-in user", () => {
 
     const html = await render();
 
+    expect(html).toContain('href="/my"');
     expect(html).toContain("Przejdź do profilu");
+    expect(html).not.toContain("Przejdź do panelu kuratora");
     expect(html).not.toContain("Twoja rola");
     expect(html).not.toContain("Przejdź do swojego konta");
+  });
+
+  it("links a curator to the panel", async () => {
+    mocks.getActor.mockResolvedValue({ id: "x", role: "user" });
+    mocks.organizations.mockResolvedValue([{ name: "Muzeum" }]);
+
+    const html = await render();
+
+    expect(html).toContain('href="/curator"');
+    expect(html).toContain("Przejdź do panelu kuratora");
+    expect(html).not.toContain("Przejdź do profilu");
+  });
+
+  it("falls back to the profile when the organizations cannot be read", async () => {
+    mocks.getActor.mockResolvedValue({ id: "x", role: "user" });
+    mocks.organizations.mockRejectedValue(new Error("db down"));
+
+    const html = await render();
+
+    expect(html).toContain('href="/my"');
+    expect(html).toContain("Przejdź do profilu");
   });
 });

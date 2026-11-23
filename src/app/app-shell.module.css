@@ -616,6 +616,35 @@
   height: 1.5rem;
 }
 
+/*
+ * Telefon (do ok. 430 px): gość ma w nagłówku cztery elementy (nazwa, motyw, „Aktualności”,
+ * „Zaloguj się”). Mniejsze odstępy i nazwa o stopień mniejsza trzymają je w jednym rzędzie od
+ * 360 px; wysokość celów zostaje 44 px, szerokość też (ikona motywu ma min-width 44 px).
+ */
+@media (max-width: 26.8rem) {
+  .header {
+    column-gap: var(--space-xs);
+    padding-inline: var(--space-sm);
+  }
+
+  .brand {
+    font-size: var(--font-size-md);
+  }
+
+  .headerEnd,
+  .account {
+    gap: var(--space-xs);
+  }
+
+  .headerLink {
+    padding-inline: var(--space-xs);
+  }
+
+  .accountAction {
+    padding-inline: var(--space-sm);
+  }
+}
+
 /* Najwęższe nagłówki: sama ikona, napis zostaje w DOM jako nazwa dostępna (ukryty wizualnie). */
 @media (max-width: 26.8rem) {
   .themeText {

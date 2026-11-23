@@ -17,6 +17,9 @@ describe("renderSignInCodeEmail", () => {
     expect(email.subject).toBe(`123456 — kod logowania (${APP_NAME})`);
     expect(email.text).toContain(`Twój kod logowania (${APP_NAME}): 123456.`);
     expect(email.text).toContain("Kod jest ważny 10 minut.");
+    expect(email.text).toContain(
+      "To nie Ty prosisz o kod? Zignoruj tę wiadomość — bez kodu nikt nie zaloguje się na Twoje konto.",
+    );
     expect(email.html).toContain("123456");
     expect(email.html).toContain('lang="pl"');
   });

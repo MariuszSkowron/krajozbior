@@ -82,6 +82,7 @@ Jedno pojęcie, jedna nazwa. Nie zmieniamy słów dla urozmaicenia.
 - Odmiana liczebników: „1 miejsce, 2 miejsca, 5 miejsc, 22 miejsca” (wzór w `src/features/catalog/domain/place-count.ts`).
 - Ułamek dziesiętny z przecinkiem: „6,2 km”. Spacja przed jednostką: „200 m”.
 - Cudzysłów polski „…”, w cudzysłowie wewnętrznym »…«. Wielokropek jako jeden znak „…”.
+- Skrót daty „08.11” obowiązuje w zwartych wierszach (wizyty, miejsca). Karty i strony aktualności pokazują pełną datę z rokiem („22.11.2026”), bo lista aktualności sięga wstecz bez limitu.
 - Półpauza „–” lub pauza „—” ze spacjami jest w polszczyźnie poprawna; nie usuwamy jej, ale w krótkich tekstach interfejsu wolimy kropkę lub dwukropek.
 
 ## Czego nie robimy [Z]/[P]

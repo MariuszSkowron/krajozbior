@@ -146,9 +146,12 @@ export default async function PlacePage({ params }: { params: Params }) {
         {visit.kind === "guest" ? (
           <div className={albumStyles.guestAction}>
             <Link className="button button--primary" href={visit.loginHref}>
-              Zaloguj się, aby potwierdzić wizytę lub zapisać na „Chcę zobaczyć”
+              Zaloguj się
             </Link>
-            <p className={albumStyles.feedback}>Po zalogowaniu wrócisz na tę stronę.</p>
+            <p className={albumStyles.feedback}>
+              Po zalogowaniu potwierdzisz wizytę albo zapiszesz miejsce na „Chcę zobaczyć”. Wrócisz
+              na tę stronę.
+            </p>
           </div>
         ) : visit.kind === "explorer" ? (
           visit.visited ? (

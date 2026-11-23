@@ -4,6 +4,7 @@ import {
   NEWS_EVENT_FILTER_LIMIT,
   NEWS_LIST_LIMIT,
   formatEventDays,
+  formatNewsCount,
   formatNewsDate,
   isNewsSlug,
   newsBodyParagraphs,
@@ -111,6 +112,25 @@ describe("newsBodyParagraphs", () => {
       [{ kind: "text", text: "Skrót https://bit.ly/abc" }],
       [{ kind: "text", text: "Drugi akapit\nw dwóch wierszach" }],
     ]);
+  });
+});
+
+describe("formatNewsCount", () => {
+  it.each([
+    [0, null, "0 aktualności"],
+    [1, null, "1 aktualność"],
+    [2, null, "2 aktualności"],
+    [5, null, "5 aktualności"],
+    [12, null, "12 aktualności"],
+    [22, null, "22 aktualności"],
+    [0, "events", "0 wydarzeń"],
+    [1, "events", "1 wydarzenie"],
+    [2, "events", "2 wydarzenia"],
+    [5, "events", "5 wydarzeń"],
+    [14, "events", "14 wydarzeń"],
+    [23, "events", "23 wydarzenia"],
+  ] as const)("writes %i with the filter %s as %s", (count, filter, text) => {
+    expect(formatNewsCount(count, filter)).toBe(text);
   });
 });
 

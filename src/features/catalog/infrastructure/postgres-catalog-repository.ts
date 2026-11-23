@@ -527,14 +527,38 @@ export const postgresCatalogRepository: CatalogRepository = {
       return null;
     }
 
-    const places = await tx.em.execute<PublishedCollection["places"][number][]>(
-      `select p.id, p.name, p.address, cp.position, p.latitude, p.longitude
+    // The thumbnail of a card is the first ready photo of the place by position, the same photo as
+    // the cover of the place page. The guest context leaves only a photo everyone may see; only
+    // public columns are read.
+    const placeRows = await tx.em.execute<
+      (Omit<PublishedCollection["places"][number], "thumb"> & {
+        photoId: string | null;
+        photoWidth: number | null;
+        photoHeight: number | null;
+      })[]
+    >(
+      `select p.id, p.name, p.address, cp.position, p.latitude, p.longitude,
+              ph.id as "photoId", ph.width as "photoWidth", ph.height as "photoHeight"
          from public.collection_places cp
          join public.places p on p.id = cp.place_id
+         left join lateral (
+           select id, width, height
+             from public.place_photos
+            where place_id = p.id and file_state = 'ready' and storage_key is not null
+            order by position
+            limit 1
+         ) ph on true
         where cp.collection_id = ?
         order by cp.position`,
       [collection.id],
     );
+    const places = placeRows.map(({ photoId, photoWidth, photoHeight, ...place }) => ({
+      ...place,
+      thumb:
+        photoId === null || photoWidth === null || photoHeight === null
+          ? null
+          : { photoId, width: photoWidth, height: photoHeight },
+    }));
     // The cover with its credit. The guest context leaves only a photo everyone may see; the
     // application role has no grant on the `hidden_*` columns, so the query does not read them.
     const cover = first(
