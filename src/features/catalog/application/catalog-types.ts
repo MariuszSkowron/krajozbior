@@ -100,6 +100,13 @@ export type PublishedCollection = Readonly<{
 /** The cover of a collection with the place it shows (the banner of the home page). */
 export type CollectionBanner = PlaceCover & Readonly<{ placeId: string; placeName: string }>;
 
+/** A place of the home banner pool with its photo (`qid`: the key of the pool entry). */
+export type HomeBannerCandidate = CollectionBanner & Readonly<{ qid: string }>;
+
+/** The drawn banner of a guest: the photo with its credit and the crop of the pool entry. */
+export type HomeBannerPick = CollectionBanner &
+  Readonly<{ focus: Readonly<{ wide: string; narrow: string }> }>;
+
 /** The cover on a card: a small photo of the collection, public fields only (E4-3). */
 export type CollectionCover = Readonly<{
   photoId: string;
@@ -331,6 +338,15 @@ export interface CatalogRepository {
   findPublishedPlace(tx: TransactionContext, id: string): Promise<PublishedPlace | null>;
   /** The cover (with its credit and place) of a published collection, `null` when it has none. */
   findCollectionBanner(tx: TransactionContext, slug: string): Promise<CollectionBanner | null>;
+  /**
+   * Places with the given Wikidata ids that are in a published collection of an approved
+   * organization and have a ready, visible photo (at least 1100 px wide, at most 16:9): one place
+   * per id (the smallest `id`, a stable choice), with that photo. Guest context.
+   */
+  findHomeBannerCandidates(
+    tx: TransactionContext,
+    qids: readonly string[],
+  ): Promise<readonly HomeBannerCandidate[]>;
   /** Published collections of approved organizations, first published most recently first, at most `limit`. */
   listRecentlyPublishedCollections(
     tx: TransactionContext,
