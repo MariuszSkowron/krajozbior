@@ -385,7 +385,7 @@ describe("home page of a signed-in explorer", () => {
     expect(html).not.toContain("Odkrywaj miejsca");
   });
 
-  it("points the empty favourites to the list of all collections", async () => {
+  it("leaves the empty favourites with one sentence; the list of all collections is in the next heading row", async () => {
     mocks.getHomeAlbum.mockResolvedValue({
       status: "ok",
       value: { ...album, favorites: [], recentVisits: [] },
@@ -394,7 +394,8 @@ describe("home page of a signed-in explorer", () => {
     const html = await render();
 
     expect(html).toContain("Nie masz jeszcze zapisanych kolekcji");
-    expect(html).toMatch(/<a [^>]*href="\/search"[^>]*>Przeglądaj wszystkie kolekcje<\/a>/);
+    expect(html).not.toContain("Przeglądaj wszystkie kolekcje");
+    expect(html).toMatch(/<a [^>]*href="\/search"[^>]*>Wszystkie kolekcje<\/a>/);
     expect(html).not.toContain("Wszystkie moje kolekcje");
     expect(html).toContain("Nie masz jeszcze wizyt");
   });

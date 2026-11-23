@@ -198,8 +198,9 @@ test.describe("home page with the catalog", () => {
     await expect(a.getByRole("heading", { level: 1, name: "Dzień dobry" })).toBeVisible();
     await expect(a.getByText("Nie masz jeszcze zapisanych kolekcji")).toBeVisible();
     await expect(a.getByText("Nie masz jeszcze wizyt")).toBeVisible();
-    // The empty favourites lead to the list of all collections.
-    await expect(a.getByRole("link", { name: "Przeglądaj wszystkie kolekcje" })).toHaveAttribute(
+    // The list of all collections is one link, in the heading of "Kolekcje do odkrycia".
+    await expect(a.getByRole("link", { name: "Przeglądaj wszystkie kolekcje" })).toHaveCount(0);
+    await expect(a.getByRole("link", { name: "Wszystkie kolekcje" })).toHaveAttribute(
       "href",
       "/search",
     );

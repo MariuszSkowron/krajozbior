@@ -14,7 +14,7 @@ import styles from "./home-sections.module.css";
 // „Moje kolekcje” (R3, D-57): zapisane przez odkrywcę, ostatnio używane na górze. Pierwsza z nich
 // to baner z okładką i postępem (cały jednym linkiem); bez zapisanej kolekcji baner pokazuje
 // zdjęcie gościa i istniejący tekst stanu pustego. Pozostałe zapisane kolekcje to zwykłe karty
-// (`MoreFavoriteCollections`), żeby nic nie znikało ze strony. Stan pusty odsyła do `/search`.
+// (`MoreFavoriteCollections`), żeby nic nie znikało ze strony. Stan pusty to samo zdanie na niskim banerze; do wszystkich kolekcji odsyła niżej „Wszystkie kolekcje”.
 export function FavoriteCollections({
   collections,
   banner,
@@ -32,16 +32,17 @@ export function FavoriteCollections({
     <section className={styles.section} aria-labelledby="ulubione-title">
       <div className={styles.sectionHead}>
         <h2 id="ulubione-title">Moje kolekcje</h2>
-        {first === undefined ? null : <Link href="/my/collections">Wszystkie moje kolekcje</Link>}
+        {first === undefined ? null : (
+          <Link className={styles.sectionLink} href="/my/collections">
+            Wszystkie moje kolekcje
+          </Link>
+        )}
       </div>
       {first === undefined ? (
-        <HomeBanner cover={fallbackBanner} compact>
+        <HomeBanner cover={fallbackBanner} size="short">
           <p className={bannerStyles.lead}>
             Nie masz jeszcze zapisanych kolekcji. Zapisz pierwszą, a pojawi się tutaj.
           </p>
-          <Link className="button button--primary" href="/search">
-            Przeglądaj wszystkie kolekcje
-          </Link>
         </HomeBanner>
       ) : (
         <SavedCollectionBanner

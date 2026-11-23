@@ -47,10 +47,13 @@ function BannerCredit({
 
   return (
     <p className={className}>
-      <Link className={styles.creditLink} href={`/places/${cover.placeId}`}>
+      <Link
+        className={`${styles.creditLink} ${styles.placeLink}`}
+        href={`/places/${cover.placeId}`}
+      >
         {cover.placeName}
       </Link>
-      {" · "}
+      <span className={styles.sep}> · </span>
       {credit.title === null ? null : `${credit.title}. `}
       Autor:{" "}
       {credit.author.url === null ? (
@@ -89,10 +92,15 @@ function BannerCredit({
 // Bez zdjęcia: spokojne tło zastępcze i tekst w kolorach motywu.
 export function HomeBanner({
   cover,
-  compact = false,
+  size: variant = "tall",
   children,
-}: Readonly<{ cover: CollectionBanner | null; compact?: boolean; children: ReactNode }>) {
-  const size = compact ? styles.compact : styles.tall;
+}: Readonly<{
+  cover: CollectionBanner | null;
+  /** `short`: baner z jednym zdaniem (stan pusty), niższy niż `tall` gościa. */
+  size?: "tall" | "short";
+  children: ReactNode;
+}>) {
+  const size = variant === "short" ? styles.short : styles.tall;
 
   if (cover === null) {
     return (
@@ -136,11 +144,11 @@ export function SavedCollectionBanner({
         href={href}
       >
         {cover === null ? null : <BannerPhoto cover={cover} alt="" className={styles.still} />}
-        <span className={`${styles.body} ${styles.savedBody}`}>
-          <span>
+        <div className={`${styles.body} ${styles.savedBody}`}>
+          <div>
             <span className={styles.eyebrow}>{eyebrow}</span>
-            <span className={styles.savedTitle}>{title}</span>
-          </span>
+            <h3 className={styles.savedTitle}>{title}</h3>
+          </div>
           {progress === null || progress.total === 0 ? null : (
             <span className={styles.count}>
               <span className={styles.srOnly}>
@@ -161,7 +169,7 @@ export function SavedCollectionBanner({
               </span>
             </span>
           )}
-        </span>
+        </div>
       </Link>
       {cover === null ? null : <BannerCredit cover={cover} className={styles.creditBelow} />}
     </div>

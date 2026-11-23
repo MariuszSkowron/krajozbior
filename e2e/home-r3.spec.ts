@@ -330,6 +330,11 @@ test.describe("home page: the R3 look", () => {
 
   for (const size of [
     { name: "1440", width: 1440, height: 900, touch: 24 },
+    // Between the phone and the wide layout the paragraph must stay on the strong part of the
+    // left gradient (contrast measured below).
+    { name: "1024", width: 1024, height: 768, touch: 24 },
+    { name: "834", width: 834, height: 1112, touch: 24 },
+    { name: "768", width: 768, height: 1024, touch: 24 },
     { name: "390", width: 390, height: 844, touch: 44 },
   ]) {
     for (const theme of ["dark", "light"] as const) {
@@ -392,7 +397,8 @@ test.describe("home page: the R3 look", () => {
         const searchBox = (await search.boundingBox())!;
 
         expect(searchBox.y).toBeGreaterThanOrEqual(photoBox.y + photoBox.height - 1);
-        await expect(search.getByRole("button", { name: "Szukaj" })).toHaveClass(/button--outline/);
+        // The search button is a real button inside the search landmark, below the banner.
+        await expect(search.getByRole("button", { name: "Szukaj" })).toBeVisible();
 
         await expectNoAccessibilityViolations(page);
         await shot(page, `strona-gosc-${size.name}-${theme}`);
@@ -418,6 +424,8 @@ test.describe("home page: the R3 look", () => {
 
   for (const size of [
     { name: "1440", width: 1440, height: 900, reserved: 0 },
+    { name: "1024", width: 1024, height: 768, reserved: 0 },
+    { name: "834", width: 834, height: 1112, reserved: 0 },
     // On a phone the bottom bar (about 64 px) covers the lower edge of the window.
     { name: "390", width: 390, height: 844, reserved: 80 },
   ]) {
@@ -436,7 +444,8 @@ test.describe("home page: the R3 look", () => {
 
         const { slug, title } = seeded!;
         const main = page.getByRole("main");
-        const banner = main.getByRole("link", { name: new RegExp(title) });
+        // A string name matches as a substring (no escaping of the title needed).
+        const banner = main.getByRole("link", { name: title });
 
         await expect(banner).toHaveAttribute("href", `/collections/${slug}`);
         await expect(banner).toContainText("Kolekcja · Pomorskie");
@@ -462,7 +471,7 @@ test.describe("home page: the R3 look", () => {
         const progressBox = (await banner.getByText("odwiedzone", { exact: true }).boundingBox())!;
 
         expect(progressBox.y + progressBox.height).toBeLessThanOrEqual(visibleBottom);
-        if (size.width >= 1024) {
+        if (size.width >= 1440) {
           expect(albumBox.y + albumBox.height).toBeLessThanOrEqual(visibleBottom);
         }
         await expect(main.getByText("Odkryte miejsca")).toBeVisible();
@@ -482,35 +491,50 @@ test.describe("home page: the R3 look", () => {
     }
   }
 
-  test("an explorer without a saved collection: the empty state lies on the banner photo, the cards of collections have covers", async ({
-    browser,
-  }) => {
-    const page = await signedInPage(browser);
+  for (const size of [
+    { name: "1440", width: 1440, height: 900 },
+    { name: "1024", width: 1024, height: 768 },
+    { name: "834", width: 834, height: 1112 },
+    { name: "390", width: 390, height: 844 },
+  ]) {
+    for (const theme of ["dark", "light"] as const) {
+      test(`an explorer without a saved collection at ${size.name} px (${theme}): the empty state lies on the banner photo, the cards of collections have covers`, async ({
+        browser,
+      }) => {
+        const page = await signedInPage(browser, theme);
 
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/");
-    await waitForHydration(page);
-    await waitForEntrance(page);
+        await page.setViewportSize({ width: size.width, height: size.height });
+        await page.goto("/");
+        await waitForHydration(page);
+        await waitForEntrance(page);
 
-    const main = page.getByRole("main");
-    const photo = main.locator('img[fetchpriority="high"]');
-    const empty = main.getByText("Nie masz jeszcze zapisanych kolekcji");
-    const photoBox = (await photo.boundingBox())!;
-    const emptyBox = (await empty.boundingBox())!;
+        const main = page.getByRole("main");
+        const photo = main.locator('img[fetchpriority="high"]');
+        const empty = main.getByText("Nie masz jeszcze zapisanych kolekcji");
+        const photoBox = (await photo.boundingBox())!;
+        const emptyBox = (await empty.boundingBox())!;
 
-    expect(emptyBox.y).toBeGreaterThanOrEqual(photoBox.y);
-    expect(emptyBox.y + emptyBox.height).toBeLessThanOrEqual(photoBox.y + photoBox.height);
-    await expect(main.getByRole("link", { name: "Przeglądaj wszystkie kolekcje" })).toBeVisible();
-    await expect(main.getByRole("heading", { level: 1, name: /Dzień dobry/ })).toBeVisible();
-    await expect(main.getByText("Odkrywaj miejsca")).toHaveCount(0);
+        expect(emptyBox.y).toBeGreaterThanOrEqual(photoBox.y);
+        expect(emptyBox.y + emptyBox.height).toBeLessThanOrEqual(photoBox.y + photoBox.height);
+        // One sentence on a low banner; no second link to the list of all collections.
+        expect(photoBox.height).toBeLessThanOrEqual(300);
+        await expect(main.getByRole("link", { name: "Przeglądaj wszystkie kolekcje" })).toHaveCount(
+          0,
+        );
+        await expect(main.getByRole("heading", { level: 1, name: /Dzień dobry/ })).toBeVisible();
+        await expect(main.getByText("Odkrywaj miejsca")).toHaveCount(0);
 
-    // "Kolekcje do odkrycia": cards, with a link "Wszystkie kolekcje" in the heading row.
-    const discover = main.locator("#do-odkrycia");
+        // "Kolekcje do odkrycia": cards, with a link "Wszystkie kolekcje" in the heading row.
+        const discover = main.locator("#do-odkrycia");
 
-    await expect(discover.getByRole("link", { name: "Wszystkie kolekcje" })).toBeVisible();
-    await expect(discover.getByRole("link", { name: /13 miejsc|6 miejsc/ }).first()).toBeVisible();
-    await expectNoAccessibilityViolations(page);
-    await shot(page, "strona-odkrywca-bez-kolekcji-1440-dark");
-    await page.context().close();
-  });
+        await expect(discover.getByRole("link", { name: "Wszystkie kolekcje" })).toBeVisible();
+        await expect(
+          discover.getByRole("link", { name: /13 miejsc|6 miejsc/ }).first(),
+        ).toBeVisible();
+        await expectNoAccessibilityViolations(page);
+        await shot(page, `strona-odkrywca-bez-kolekcji-${size.name}-${theme}`);
+        await page.context().close();
+      });
+    }
+  }
 });

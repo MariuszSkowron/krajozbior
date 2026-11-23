@@ -31,6 +31,11 @@
   min-height: 23.75rem; /* 380 px */
 }
 
+/* Stan pusty odkrywcy: jedno zdanie, więc niższy baner (240 px; od 48 rem 280 px). */
+.short {
+  min-height: 15rem;
+}
+
 .plain {
   background: linear-gradient(
     160deg,
@@ -161,11 +166,21 @@
 }
 
 .creditLink {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--size-touch-min);
   color: inherit;
   text-underline-offset: 3px;
+}
+
+/* Miejsce na telefonie: osobny wiersz z celem dotyku 44 px; pozostałe linki podpisu to zwykłe
+   odnośniki w tekście (zwarte wiersze, WCAG 2.5.8 je zwalnia). */
+.placeLink {
+  display: flex;
+  align-items: center;
+  inline-size: fit-content;
+  min-height: var(--size-touch-min);
+}
+
+.sep {
+  display: none;
 }
 
 /* Odkrywca: baner jest linkiem do kolekcji, podpis pod nim. */
@@ -183,13 +198,19 @@
   object-position: 50% 35%;
 }
 
+/* Panorama albo zdjęcie pionowe (Q4) w całości także w banerze odkrywcy. */
+.still.photoWhole {
+  object-fit: contain;
+  object-position: center;
+}
+
 .savedBody {
   align-items: end;
   gap: var(--space-md);
   padding: var(--space-lg);
 }
 
-.savedBody > span:first-child {
+.savedBody > div:first-child {
   display: grid;
   gap: var(--space-sm);
 }
@@ -204,6 +225,8 @@
 
 .savedTitle {
   display: block;
+  margin: 0;
+  font-weight: var(--font-weight-regular);
   font-family: var(--font-family-display);
   font-size: var(--font-size-2xl);
   line-height: 1;
@@ -305,6 +328,16 @@
     min-height: 26.25rem; /* 420 px */
   }
 
+  .short {
+    min-height: 17.5rem; /* 280 px */
+  }
+
+  /* Akapit gościa kończy się w mocnej części lewego gradientu (do ok. 44% szerokości), żeby
+     tekst trzymał kontrast 4,5:1 także przy 768–1279 px. */
+  .tall .lead {
+    max-width: min(34rem, 44%);
+  }
+
   /* Gość: gradient dolny i lewy. */
   .tall.withPhoto::before {
     background:
@@ -325,7 +358,8 @@
   }
 
   /* Okładka odkrywcy: gradient od dołu (makieta). */
-  .compact.withPhoto::before {
+  .compact.withPhoto::before,
+  .short.withPhoto::before {
     background: linear-gradient(
       0deg,
       color-mix(in srgb, var(--color-image-scrim) 93%, transparent) 0%,
@@ -336,7 +370,12 @@
   }
 
   .body {
-    padding: var(--space-xl) var(--space-xl) calc(var(--space-xl) * 2);
+    padding: var(--space-xl);
+  }
+
+  /* Podpis w przepływie pod przyciskami (do 1100 px): nie nachodzi na nic i zawija się dowolnie. */
+  .credit {
+    max-width: 40rem;
   }
 
   .tall .body h1 {
@@ -353,24 +392,14 @@
     flex: none;
   }
 
-  .credit {
-    position: absolute;
-    right: var(--space-lg);
-    bottom: var(--space-sm);
-    max-width: 26rem;
-    text-align: right;
-  }
-
   /* Cel dotyku podpisu na komputerze: 24 px wystarczy (WCAG 2.5.8), ale wiersz zostaje zwarty. */
-  .credit .creditLink,
-  .creditBelow .creditLink {
+  .placeLink {
+    display: inline-flex;
     min-height: var(--space-lg);
   }
 
-  .savedBody {
-    display: flex;
-    justify-content: space-between;
-    padding: var(--space-xl) calc(var(--space-xl) * 1.4);
+  .sep {
+    display: inline;
   }
 
   .savedTitle {
@@ -378,6 +407,35 @@
   }
 
   .count {
+    width: 100%;
+  }
+}
+
+/* 768–1100 px: baner odkrywcy układa tytuł nad liczbą (jak na telefonie) i ma przyciemnienie pod
+   blokiem tekstu, bo długi tytuł zawija się w kilku wierszach i sięga słabej części gradientu. */
+@media (min-width: 48rem) and (max-width: 68.74rem) {
+  .withPhoto .savedBody {
+    padding-block-start: var(--space-xl);
+    background: linear-gradient(
+      to top,
+      color-mix(in srgb, var(--color-image-scrim) 96%, transparent) 0%,
+      color-mix(in srgb, var(--color-image-scrim) 78%, transparent) calc(100% - var(--space-lg)),
+      color-mix(in srgb, var(--color-image-scrim) 0%, transparent) 100%
+    );
+  }
+}
+
+/* Od 1100 px podpis zdjęcia w prawym dolnym rogu, jak w makiecie (miejsce na niego robi dolny
+   odstęp bloku treści), a baner odkrywcy ma tytuł z lewej i liczbę z prawej. */
+@media (min-width: 68.75rem) {
+  .savedBody {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--space-xl) calc(var(--space-xl) * 1.4);
+  }
+
+  .count {
+    width: auto;
     justify-items: end;
     text-align: right;
   }
@@ -385,9 +443,31 @@
   .bar {
     width: 16rem;
   }
+
+  .banner:not(.link) > .body {
+    padding-block-end: calc(var(--space-xl) * 2);
+  }
+
+  .credit {
+    position: absolute;
+    right: var(--space-lg);
+    bottom: var(--space-sm);
+    max-width: 26rem;
+    text-align: right;
+  }
 }
 
 @media (max-width: 47.99rem) {
+  /* Telefon: przyciski jeden pod drugim, na całą szerokość, bez zawijania tekstu. */
+  .actions {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .actions > * {
+    flex: none;
+  }
+
   /* Telefon: przyciemnienie siedzi też na samym bloku tekstu, więc podąża za jego wysokością
      (długi podpis, powiększony tekst): pod całym tekstem jest >= 78% koloru przyciemnienia,
      a zanikanie zajmuje tylko górny odstęp bloku. Trzyma kontrast >= 4,5:1 także na białym

@@ -31,14 +31,18 @@
 }
 
 @media (min-width: 48rem) {
+  .hero h1 {
+    font-size: var(--font-size-4xl);
+  }
+}
+
+/* Dwie kolumny dopiero od 1100 px: przy 768–1100 px menu boczne zabiera miejsce i powitanie
+   zawijałoby się pod wyszukiwarką. */
+@media (min-width: 68.75rem) {
   .hero {
     grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
     align-items: end;
     gap: var(--space-xl);
-  }
-
-  .hero h1 {
-    font-size: var(--font-size-4xl);
   }
 }
 

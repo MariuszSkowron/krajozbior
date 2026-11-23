@@ -82,6 +82,12 @@
   background: var(--color-surface-tint);
 }
 
+/* Panoramy i zdjęcia pionowe (Q4) w całości; wolne pasy wypełnia tło tint. */
+.coverWhole {
+  object-fit: contain;
+  object-position: center;
+}
+
 .body {
   display: grid;
   gap: var(--space-sm);
