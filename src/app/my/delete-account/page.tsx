@@ -91,8 +91,9 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
             Techniczny zapis, że konto usunięto: sam numer konta, bez adresu e-mail i imienia.
           </li>
           <li>
-            Zapisy chroniące logowanie przed nadużyciami: zakodowany adres e-mail (w jednym także
-            adres IP). Znikają same najpóźniej po 2 dniach.
+            Zapisy chroniące logowanie przed nadużyciami. Nie ma w nich Twojego adresu e-mail, tylko
+            ciąg znaków utworzony z adresu, z którego nie da się go odczytać (w jednym zapisie jest
+            też adres IP). Znikają same najpóźniej po 2 dniach.
           </li>
         </ul>
         <p>Tym samym adresem możesz później założyć nowe, puste konto.</p>
