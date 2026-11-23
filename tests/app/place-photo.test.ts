@@ -85,4 +85,42 @@ describe("PlacePhoto", () => {
     expect(html).not.toContain("Wikimedia Commons");
     expect(html).not.toContain("<a ");
   });
+
+  describe("the slot above the photo (R3)", () => {
+    const withState = (props: { number?: number; state?: "undiscovered" | "visited" | "past" }) =>
+      renderToStaticMarkup(
+        createElement(PlacePhoto, { cover, placeName: "Malbork, zamek", ...props }),
+      );
+
+    it("names the number and 'Do odkrycia' for a place the explorer has not visited", () => {
+      const html = withState({ number: 1, state: "undiscovered" });
+
+      expect(html).toContain(">01<");
+      expect(html).toContain("Do odkrycia");
+    });
+
+    it("names 'Odwiedzone' for a visited place", () => {
+      const html = withState({ number: 12, state: "visited" });
+
+      expect(html).toContain(">12<");
+      expect(html).toContain("Odwiedzone");
+      expect(html).not.toContain("Do odkrycia");
+    });
+
+    it("names 'Z przeszłości' for a place with only a past visit, and hides the number from a screen reader", () => {
+      const html = withState({ number: 3, state: "past" });
+
+      expect(html).toContain("Z przeszłości");
+      expect(html).toContain('aria-hidden="true">03<');
+      expect(html).not.toContain("Do odkrycia");
+    });
+
+    it("shows a guest the photo without a state row", () => {
+      const html = withState({});
+
+      expect(html).not.toContain("Do odkrycia");
+      expect(html).not.toContain("Odwiedzone");
+      expect(html).toContain(`src="/media/p/${cover.photoId}/main"`);
+    });
+  });
 });

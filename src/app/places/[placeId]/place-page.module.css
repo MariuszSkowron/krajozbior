@@ -1,0 +1,198 @@
+/*
+ * Układ strony miejsca (R3, D-57). Telefon: tytuł, zdjęcie od krawędzi do krawędzi, reszta (kolejność
+ * z DOM). Od 64 rem: siatka 12 kolumn; zdjęcie ok. 7/12 (przyklejone przy przewijaniu), kolumna
+ * faktów 5/12 z linią z lewej; pod spodem sekcja „Kolekcje z tym miejscem” na całą szerokość ramy.
+ * Do 64 rem jedna kolumna (12 kolumn nie mieści tekstu). Tylko tokeny z tokens.css.
+ */
+.page {
+  display: grid;
+  gap: var(--space-xl);
+  padding-block: var(--space-md) var(--space-xl);
+  /* Szerokość etykiety w wierszu faktów (88 px z makiety), wspólna dla faktów i źródeł. */
+  --place-fact-label: 5.5rem;
+}
+
+.top {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.head {
+  display: grid;
+  gap: var(--space-sm);
+  align-content: start;
+}
+
+.head h1,
+.head p {
+  margin: 0;
+}
+
+.number {
+  color: var(--color-text-label);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
+}
+
+.title {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-regular);
+  letter-spacing: var(--font-tracking-display);
+}
+
+.curator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--color-text-secondary);
+}
+
+.curator svg {
+  flex: none;
+  color: var(--color-text-meta);
+}
+
+/* Na telefonie zdjęcie sięga krawędzi ekranu (margines ujemny równy bocznemu marginesowi strony).
+   Przyklejone zdjęcie nie bywa kotwicą przewijania: sekcja obok zmienia wysokość i strona nie skacze. */
+.photo {
+  margin-inline: calc(-1 * var(--space-page-inline));
+  overflow-anchor: none;
+}
+
+.rest {
+  display: grid;
+  gap: var(--space-lg);
+  align-content: start;
+}
+
+.visit {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.facts {
+  margin: 0;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.fact {
+  display: grid;
+  gap: var(--space-xs);
+  padding-block: var(--space-md);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.fact dt {
+  color: var(--color-text-label);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
+}
+
+.fact dd {
+  margin: 0;
+  max-width: 40rem;
+  white-space: pre-line;
+}
+
+.collections {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.collections h2 {
+  margin: 0;
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-regular);
+}
+
+@media (min-width: 48rem) {
+  .page {
+    padding-block: var(--space-xl);
+  }
+
+  .photo {
+    margin-inline: 0;
+  }
+
+  .title {
+    font-size: var(--font-size-3xl);
+  }
+
+  .fact {
+    grid-template-columns: var(--place-fact-label, 5.5rem) minmax(0, 1fr);
+    gap: var(--space-md);
+  }
+
+  .fact dt {
+    padding-top: var(--space-xs);
+  }
+
+  .collections {
+    padding-top: var(--space-xl);
+    border-top: 1px solid var(--color-border-subtle);
+  }
+
+  .collections h2 {
+    font-size: var(--font-size-2xl);
+  }
+}
+
+@media (min-width: 64rem) {
+  .page {
+    gap: calc(var(--space-xl) * 2);
+  }
+
+  .top {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-template-rows: auto 1fr;
+    column-gap: var(--space-lg);
+    row-gap: 0;
+    align-items: start;
+  }
+
+  .photo {
+    grid-column: 1 / 8;
+    grid-row: 1 / 3;
+    position: sticky;
+    top: var(--space-lg);
+  }
+
+  .head,
+  .rest {
+    grid-column: 8 / 13;
+    padding-left: var(--space-lg);
+    border-left: 1px solid var(--color-border-subtle);
+    align-self: stretch;
+  }
+
+  .head {
+    grid-row: 1;
+    padding-bottom: var(--space-md);
+  }
+
+  .rest {
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .rest {
+    margin-block-start: var(--space-md);
+  }
+}

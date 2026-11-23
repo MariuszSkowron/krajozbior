@@ -142,6 +142,22 @@ export type SearchRows = Readonly<{
   places: readonly SearchPlaceHit[];
 }>;
 
+/**
+ * A published collection holding the place, as the card "Kolekcje z tym miejscem" needs it
+ * (D-57, Q8): public fields only. `position` is the number of this place in the collection.
+ */
+export type PlaceCollection = Readonly<{
+  id: string;
+  slug: string;
+  title: string;
+  region: Region;
+  position: number;
+  placeCount: number;
+  contentUpdatedAt: Date;
+  /** The chosen cover, else the first photo of the collection's places; `null` keeps the placeholder. */
+  cover: CollectionCover | null;
+}>;
+
 export type PublishedPlace = Readonly<{
   id: string;
   name: string;
@@ -154,7 +170,7 @@ export type PublishedPlace = Readonly<{
   longitude: number;
   visitRadiusM: number;
   organization: Readonly<{ name: string; slug: string }>;
-  collections: readonly Readonly<{ slug: string; title: string }>[];
+  collections: readonly PlaceCollection[];
   /** Only a place made from a loaded file has one (`place_sources`); other places keep `null`. */
   source: PublishedPlaceSource | null;
   /** The first public photo of the place (D-E4-7) with what its credit needs, or `null`. */

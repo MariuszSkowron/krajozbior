@@ -13,6 +13,7 @@ import type {
   PlaceRow,
   CollectionBanner,
   PublishedCollection,
+  PlaceCollection,
   PublishedPlace,
   RecentCollection,
   SearchPlaceHit,
@@ -578,7 +579,8 @@ export const postgresCatalogRepository: CatalogRepository = {
         photoHeight: number | null;
       })[]
     >(
-      `select p.id, p.name, p.address, cp.position, p.latitude, p.longitude,
+      `select p.id, p.name, p.address, (row_number() over (order by cp.position))::int as position,
+              p.latitude, p.longitude,
               ph.id as "photoId", ph.width as "photoWidth", ph.height as "photoHeight"
          from public.collection_places cp
          join public.places p on p.id = cp.place_id
@@ -698,14 +700,64 @@ export const postgresCatalogRepository: CatalogRepository = {
       return null;
     }
 
-    const collections = await tx.em.execute<PublishedPlace["collections"][number][]>(
-      `select c.slug, c.title
+    // The card of each collection (D-57, Q8): number of this place, count of places, date of the
+    // last change (same rule as the collection page) and the cover: the chosen one, else the first
+    // ready photo of the collection's places by position. Guest context: the policy of
+    // `place_photos` leaves only photos everyone may see.
+    const collectionRows = await tx.em.execute<
+      (Omit<PlaceCollection, "contentUpdatedAt" | "cover"> & {
+        contentUpdatedAt: string;
+        coverPhotoId: string | null;
+        coverWidth: number | null;
+        coverHeight: number | null;
+        coverAltText: string | null;
+      })[]
+    >(
+      `select c.id, c.slug, c.title, c.region,
+              (select count(*)::int from public.collection_places x
+                where x.collection_id = c.id and x.position <= cp.position) as position,
+              (select count(*)::int from public.collection_places x
+                 join public.places xp on xp.id = x.place_id
+                where x.collection_id = c.id) as "placeCount",
+              to_char(
+                greatest(
+                  c.updated_at,
+                  (select max(x.added_at) from public.collection_places x
+                     join public.places xp on xp.id = x.place_id
+                    where x.collection_id = c.id),
+                  (select max(xp.updated_at) from public.collection_places x
+                     join public.places xp on xp.id = x.place_id
+                    where x.collection_id = c.id)
+                ) at time zone 'UTC',
+                'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+              ) as "contentUpdatedAt",
+              cph.id as "coverPhotoId", cph.width as "coverWidth", cph.height as "coverHeight",
+              cph.alt_text as "coverAltText"
          from public.collection_places cp
          join public.collections c on c.id = cp.collection_id
          join public.organizations o on o.id = c.organization_id
+         ${collectionCardJoin}
         where cp.place_id = ? and c.status = 'published' and o.status = 'approved'
         order by c.title, c.slug`,
       [id],
+    );
+    const collections: PlaceCollection[] = collectionRows.map(
+      ({ contentUpdatedAt, coverPhotoId, coverWidth, coverHeight, coverAltText, ...rest }) => ({
+        ...rest,
+        contentUpdatedAt: new Date(contentUpdatedAt),
+        cover:
+          coverPhotoId === null ||
+          coverWidth === null ||
+          coverHeight === null ||
+          coverAltText === null
+            ? null
+            : {
+                photoId: coverPhotoId,
+                width: coverWidth,
+                height: coverHeight,
+                altText: coverAltText,
+              },
+      }),
     );
     // The cover: the first ready photo by position. This runs in the guest context, so the policy
     // of `place_photos` leaves only what everyone may see (a hidden photo never comes back); the

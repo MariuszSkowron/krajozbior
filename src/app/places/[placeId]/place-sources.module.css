@@ -1,17 +1,37 @@
 /*
- * Linia źródeł pod opisem miejsca: mały, spokojny tekst; odnośniki mają cel dotykowy co najmniej
- * 44 px. Tylko tokeny z tokens.css.
+ * Źródła na stronie miejsca (R3): ostatni wiersz listy faktów, etykieta po lewej (88 px na
+ * komputerze), mały spokojny tekst po prawej; odnośniki mają cel dotykowy co najmniej 44 px.
+ * Tylko tokeny z tokens.css.
  */
 .sources {
   display: grid;
   gap: var(--space-sm);
+  padding-block: var(--space-md);
+  border-bottom: 1px solid var(--color-border-subtle);
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
+}
+
+@media (min-width: 48rem) {
+  .sources {
+    grid-template-columns: var(--place-fact-label, 5.5rem) minmax(0, 1fr);
+    gap: var(--space-md);
+  }
+
+  .title {
+    padding-top: var(--space-xs);
+  }
 }
 
 .sources p {
   margin: 0;
   max-width: 40rem;
+  color: var(--color-text-meta);
+}
+
+.body {
+  display: grid;
+  gap: var(--space-xs);
 }
 
 .title {
@@ -32,7 +52,7 @@
 .links {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-xs) var(--space-md);
+  gap: 0 var(--space-lg);
   margin: 0;
   padding: 0;
   list-style: none;

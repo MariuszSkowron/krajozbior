@@ -81,7 +81,23 @@ const place = {
   longitude: 18,
   visitRadiusM: 200,
   organization: { name: "Gmina A", slug: "gmina-a" },
-  collections: [{ slug: "kolekcja-a1b2c3", title: "Wieże Tczewa" }],
+  collections: [
+    {
+      id: "5b0c1f7e-3d2a-4c58-9e61-7a4b8d2c1e90",
+      slug: "kolekcja-a1b2c3",
+      title: "Wieże Tczewa",
+      region: "pomorskie",
+      position: 2,
+      placeCount: 13,
+      contentUpdatedAt: new Date("2026-11-22T10:00:00Z"),
+      cover: {
+        photoId: "9c1d4e63-8d52-4c8f-8e1b-2d3e4f5a6b7c",
+        width: 1200,
+        height: 800,
+        altText: "Most",
+      },
+    },
+  ],
   source: null,
   cover: null,
 };
@@ -242,7 +258,7 @@ describe("public catalog pages", () => {
     );
 
     expect(without).not.toContain("<figure");
-    expect(without).not.toContain("/media/p/");
+    expect(without).not.toContain(`/media/p/${cover.photoId}/`);
   });
 
   it("say so when a collection has no places yet", async () => {
@@ -405,6 +421,65 @@ describe("public catalog pages", () => {
       expect(html).toContain(
         "Po zalogowaniu potwierdzisz wizytę albo zapiszesz miejsce na „Chcę zobaczyć”. Wrócisz na tę stronę.",
       );
+    });
+
+    it("shows the explorer's progress and the state 'Do odkrycia' on the collection card", async () => {
+      mocks.place.mockResolvedValue({
+        status: "ok",
+        value: {
+          ...place,
+          cover: {
+            photoId: "0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b",
+            width: 1280,
+            height: 853,
+            altText: "Most Tczewski",
+            title: null,
+            authorText: "Fikcyjny Autor",
+            authorUrl: null,
+            sourceUrl: null,
+            sourceKind: "commons_import",
+            licenseCode: "cc-by-4.0",
+            licenseUrl: null,
+            licenseLabel: "CC BY 4.0",
+          },
+        },
+      });
+      mocks.visited.mockResolvedValue({ status: "ok", value: none });
+      mocks.wanted.mockResolvedValue({ status: "ok", value: { wanted: false } });
+      mocks.progress.mockResolvedValue({
+        status: "ok",
+        value: { saved: false, progress: { kind: "progress", visited: 5, total: 13 } },
+      });
+
+      const html = await render();
+
+      expect(html).toContain("Miejsce 2 z 13 · Wieże Tczewa");
+      expect(html).toContain("Do odkrycia");
+      expect(html).toContain("Kolekcja · Pomorskie");
+      expect(html).toContain("13 miejsc · aktualizacja 22.11.2026");
+      expect(html).toMatch(/<progress[^>]*value="5"[^>]*max="13"/);
+    });
+
+    it("keeps the collection card without progress when the progress read fails", async () => {
+      mocks.visited.mockResolvedValue({ status: "ok", value: none });
+      mocks.wanted.mockResolvedValue({ status: "ok", value: { wanted: false } });
+      mocks.progress.mockRejectedValue(new Error("db down"));
+
+      const html = await render();
+
+      expect(html).toContain("Wieże Tczewa");
+      expect(html).not.toContain("<progress");
+      expect(html).toContain("Potwierdzam wizytę");
+    });
+
+    it("shows a guest the collection card without progress or a state label", async () => {
+      mocks.actor.mockResolvedValue(null);
+
+      const html = await render();
+
+      expect(html).toContain('href="/collections/kolekcja-a1b2c3"');
+      expect(html).not.toContain("<progress");
+      expect(html).not.toContain("Do odkrycia");
     });
 
     it("lets an explorer remove a visited place from the list (W1)", async () => {

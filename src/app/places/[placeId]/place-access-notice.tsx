@@ -30,12 +30,13 @@ export function PlaceAccessNotice({
       aria-labelledby={headingId}
       data-testid="place-access-notice"
     >
-      <Heading id={headingId} className={styles.title}>
-        Wejście na teren
-      </Heading>
-      <p>
+      <div className={styles.pill}>
+        <Heading id={headingId} className={styles.title}>
+          Wejście na teren
+        </Heading>
+        <span aria-hidden="true">·</span>
         <strong className={styles.state}>{notice.title}</strong>
-      </p>
+      </div>
       <p>{notice.text}</p>
     </section>
   );
