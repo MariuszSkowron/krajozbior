@@ -27,6 +27,28 @@ export function parseNewsFilter(raw: string | string[] | undefined): NewsFilter 
   return value === "wydarzenia" ? "events" : null;
 }
 
+/** Polish plural form: one, few (2–4, but not 12–14), many. */
+function pluralForm<T>(count: number, one: T, few: T, many: T): T {
+  const lastTwo = count % 100;
+  const last = count % 10;
+
+  if (count === 1) {
+    return one;
+  }
+
+  return last >= 2 && last <= 4 && !(lastTwo >= 12 && lastTwo <= 14) ? few : many;
+}
+
+/** The count above the list in one form for both filters: `1 aktualność`, `2 aktualności`, `5 wydarzeń`. */
+export function formatNewsCount(count: number, filter: NewsFilter): string {
+  const noun =
+    filter === "events"
+      ? pluralForm(count, "wydarzenie", "wydarzenia", "wydarzeń")
+      : pluralForm(count, "aktualność", "aktualności", "aktualności");
+
+  return `${count} ${noun}`;
+}
+
 const dateParts = new Intl.DateTimeFormat("en-CA", {
   day: "numeric",
   month: "2-digit",

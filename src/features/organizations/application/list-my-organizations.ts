@@ -32,6 +32,14 @@ export type ListMyOrganizationsDeps = Readonly<{
   listMemberships: (tx: TransactionContext) => Promise<readonly MyOrganization[]>;
 }>;
 
+// Only an `approved` organization makes a curator; a suspended one gives no panel.
+// One place for the condition, shared by the shell, the panel and the sign-in.
+export function approvedOrganizations(
+  organizations: readonly MyOrganization[],
+): readonly MyOrganization[] {
+  return organizations.filter((organization) => organization.status === "approved");
+}
+
 // The owner is always the actor from the session: no user or organization id
 // comes from the caller.
 export async function listMyOrganizations(

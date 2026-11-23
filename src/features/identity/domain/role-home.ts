@@ -6,12 +6,17 @@ export const roleLabels: Record<Role, string> = {
   admin: "Administrator",
 };
 
-// Where a role lands after signing in without returnTo.
-const roleHomes: Record<Role, string> = {
-  user: "/my",
-  admin: "/my",
-};
+// Where a signed-in account lands right after signing in. A returnTo that already
+// passed return-to.ts wins; otherwise a curator (an account with an approved
+// organization) goes to the panel and everyone else to the account view. The panel
+// still checks the membership itself, so this only chooses a page.
+export function signInDestination({
+  returnTo,
+  isCurator,
+}: Readonly<{ returnTo: string | null; isCurator: boolean }>): string {
+  if (returnTo !== null) {
+    return returnTo;
+  }
 
-export function roleHome(role: Role): string {
-  return roleHomes[role];
+  return isCurator ? "/curator" : "/my";
 }

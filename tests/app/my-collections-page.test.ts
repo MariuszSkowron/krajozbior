@@ -76,8 +76,23 @@ describe("Moje kolekcje", () => {
 
     const markup = await render("ukonczone");
 
-    expect(markup).toContain("Żadna zapisana kolekcja nie jest w stanie „Ukończone”.");
+    expect(markup).toContain("Nie ma zapisanych kolekcji ze stanem „Ukończone”.");
     expect(markup).toContain('href="/my/collections">Pokaż wszystkie</a>');
+  });
+
+  it("does not break the empty-state message after a one-letter word", async () => {
+    mocks.saved.mockResolvedValue({ status: "ok", value: [summary("a", 0, 3)] });
+
+    const markup = await render("w-trakcie");
+
+    expect(markup).toContain("ze stanem „W trakcie”.");
+  });
+
+  it("uses the wide content width of the home page, also while loading", async () => {
+    const markup = await render();
+
+    expect(markup).toMatch(/^<div class="content-width-wide /);
+    expect(renderToStaticMarkup(loading.default())).toMatch(/^<div class="content-width-wide /);
   });
 
   it("says 'Zobacz kolekcje' when nothing is saved", async () => {

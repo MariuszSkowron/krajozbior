@@ -41,7 +41,7 @@ async function signInAsCurator(page: Page) {
   await form.getByLabel("E-mail").fill("curator-a@demo.krajozbior.local");
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(/\/curator$/);
 }
 
 async function created(response: APIResponse): Promise<Record<string, string | number>> {
