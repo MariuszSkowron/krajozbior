@@ -280,7 +280,7 @@ test.describe("collection page: the R3 look", () => {
 
     await expect(tiles).toHaveCount(PLACE_COUNT);
     await expect(tiles.first()).toContainText("01");
-    await expect(page.getByText("Do odwiedzenia")).toHaveCount(0);
+    await expect(page.getByText("Do odkrycia")).toHaveCount(0);
     await expect(
       page.getByRole("heading", { level: 2, name: /Miejsca w kolekcji \(6\)/ }),
     ).toBeVisible();
@@ -319,7 +319,7 @@ test.describe("collection page: the R3 look", () => {
       const tiles = page.getByRole("main").getByRole("list").getByRole("link");
 
       await expect(tiles.nth(1)).toContainText("Z przeszłości");
-      await expect(tiles.nth(0)).toContainText("Do odwiedzenia");
+      await expect(tiles.nth(0)).toContainText("Do odkrycia");
 
       await shot(page, `kolekcja-odkrywca-${size.name}`);
       await page.context().close();
@@ -335,7 +335,9 @@ test.describe("collection page: the R3 look", () => {
 
     const page = await signedInPage(browser);
 
-    await page.setViewportSize({ width: 1440, height: 700 });
+    // A low window: the page must scroll well past the place where the bar sticks (with a tall
+    // window the page is only just long enough and the bar stays a few px below the top edge).
+    await page.setViewportSize({ width: 1440, height: 500 });
     await page.goto(`/collections/${slug}`);
     await waitForHydration(page);
 

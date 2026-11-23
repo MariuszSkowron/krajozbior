@@ -21,7 +21,7 @@ export type TileState = "on_site" | "past" | "todo" | null;
 const STATE_WORDS = {
   on_site: "Odwiedzone",
   past: "Z przeszłości",
-  todo: "Do odwiedzenia",
+  todo: "Do odkrycia",
 } as const;
 
 // Numer miejsca z zerem wiodącym („01”), jak w makiecie.

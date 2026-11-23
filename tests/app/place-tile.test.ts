@@ -31,7 +31,7 @@ describe("PlaceTile (kafelek miejsca w kolekcji)", () => {
     const html = render({ state: null });
 
     expect(html).not.toContain("Odwiedzone");
-    expect(html).not.toContain("Do odwiedzenia");
+    expect(html).not.toContain("Do odkrycia");
     expect(html).not.toContain("Z przeszłości");
     expect(html).not.toContain("<svg");
     expect(html).not.toContain('aria-hidden="true"');
@@ -47,14 +47,14 @@ describe("PlaceTile (kafelek miejsca w kolekcji)", () => {
       expect(html).toContain(`>${word}</span>`);
       // The tick is decorative (hidden from a screen reader): the state is in the word.
       expect(html).toMatch(/<span[^>]*aria-hidden="true"[^>]*><svg/);
-      expect(html).not.toContain("Do odwiedzenia");
+      expect(html).not.toContain("Do odkrycia");
     }
   });
 
   it("dims a place the explorer has not visited and says so in words", () => {
     const html = render({ state: "todo" });
 
-    expect(html).toContain("Do odwiedzenia");
+    expect(html).toContain("Do odkrycia");
     expect(html).not.toContain("<svg");
     expect(html).not.toContain('aria-hidden="true"');
   });

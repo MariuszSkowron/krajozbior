@@ -195,7 +195,7 @@ test.describe("the collection as an album", () => {
       "page",
     );
     await expect(nav.getByRole("link", { name: "Odwiedzone (1)" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Do odwiedzenia (2)" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Do odkrycia (2)" })).toBeVisible();
     await expect(card(page, /./)).toHaveCount(3);
 
     await nav.getByRole("link", { name: "Odwiedzone (1)" }).click();
@@ -207,7 +207,7 @@ test.describe("the collection as an album", () => {
     await expect(card(page, /./)).toHaveCount(1);
     await expect(card(page, /Most Tczewski/)).toContainText("Z przeszłości");
 
-    await nav.getByRole("link", { name: "Do odwiedzenia (2)" }).click();
+    await nav.getByRole("link", { name: "Do odkrycia (2)" }).click();
     await expect(page).toHaveURL(/\?stan=do-odwiedzenia$/);
     await expect(card(page, /./)).toHaveCount(2);
     await expect(card(page, /Most Tczewski/)).toHaveCount(0);
@@ -237,7 +237,7 @@ test.describe("the collection as an album", () => {
     await expect(page.getByRole("status").filter({ hasText: "Zapisano 1 wizytę" })).toBeVisible();
     await expect(page).toHaveURL(/\?stan=do-odwiedzenia$/);
     await expect(page.getByRole("link", { name: "Odwiedzone (1)" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Do odwiedzenia (2)" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Do odkrycia (2)" })).toBeVisible();
     await page.context().close();
   });
 
@@ -267,7 +267,7 @@ test.describe("the collection as an album", () => {
     await page.waitForTimeout(300);
     await expectScrollKept(page, nav, before);
 
-    await nav.getByRole("link", { name: "Do odwiedzenia (2)" }).click();
+    await nav.getByRole("link", { name: "Do odkrycia (2)" }).click();
     await expect(page).toHaveURL(/\?stan=do-odwiedzenia$/);
     await expect(card(page, /./)).toHaveCount(2);
     await page.waitForTimeout(300);
@@ -282,7 +282,10 @@ test.describe("the collection as an album", () => {
       const page = await signedInPage(browser, EXPLORER);
 
       // A low window, so that the page scrolls; the bar is sticky, a tile under it would be hidden.
-      await page.setViewportSize({ width, height: 240 });
+      // The window is still taller than the tile plus the bar (a 1280 px tile is about 310 px
+      // high): when a tile does not fit under the bar at all, the browser's choice of where to
+      // put it is arbitrary and the check below would not test our scroll padding.
+      await page.setViewportSize({ width, height: width === 1280 ? 420 : 240 });
       await page.goto(COLLECTION);
       await waitForHydration(page);
 
@@ -290,18 +293,18 @@ test.describe("the collection as an album", () => {
       const lastFilter = nav.getByRole("link").last();
       const firstTile = card(page, /./).first();
 
-      // The first tile 10 px under the top edge of the window, so under the sticky bar (visible,
+      // The first tile 30 px under the top edge of the window, so under the sticky bar (visible,
       // so the browser scrolls only when the scroll padding says the tile is hidden).
       await page.evaluate(() => {
         const tile = document.querySelector("main ol a");
 
         if (tile) {
-          window.scrollTo(0, tile.getBoundingClientRect().top + window.scrollY - 10);
+          window.scrollTo(0, tile.getBoundingClientRect().top + window.scrollY - 30);
         }
       });
       expect(
         await firstTile.evaluate((element) => element.getBoundingClientRect().top),
-      ).toBeLessThan(40);
+      ).toBeLessThan(60);
       await lastFilter.evaluate((element) =>
         (element as HTMLElement).focus({ preventScroll: true }),
       );
