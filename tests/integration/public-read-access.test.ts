@@ -169,6 +169,7 @@ describe("public read of collections and places (guest context)", () => {
             position: 1,
             latitude: 54.0928,
             longitude: 18.7919,
+            thumb: null,
           },
           {
             id: second,
@@ -177,6 +178,7 @@ describe("public read of collections and places (guest context)", () => {
             position: 2,
             latitude: 54.0928,
             longitude: 18.7919,
+            thumb: null,
           },
         ],
         placeCount: 2,

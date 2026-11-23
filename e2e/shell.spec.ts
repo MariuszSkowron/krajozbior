@@ -32,7 +32,7 @@ async function signedInPage(
   await form.getByLabel("E-mail").fill(emailOf(name));
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(name.startsWith("curator") ? /\/curator$/ : /\/my$/);
 
   return page;
 }
@@ -50,6 +50,49 @@ test.describe("gość", () => {
     await expect(page.getByRole("banner").getByRole("link", { name: "Aktualności" })).toBeVisible();
     await context.close();
   });
+
+  for (const width of [360, 375, 390]) {
+    test(`nagłówek gościa mieści się w jednym rzędzie przy ${width} px, cele dotyku mają co najmniej 44 px`, async ({
+      browser,
+    }) => {
+      const context = await browser.newContext({ viewport: { width, height: 800 } });
+      const page = await context.newPage();
+
+      await page.goto("/");
+      await waitForHydration(page);
+
+      const header = page.getByRole("banner");
+      const items = [
+        header.getByRole("link", { name: "Krajozbiór" }),
+        header.getByRole("button", { name: /motyw/i }),
+        header.getByRole("link", { name: "Aktualności" }),
+        header.getByRole("link", { name: "Zaloguj się" }),
+      ];
+      const boxes = [];
+
+      for (const item of items) {
+        await expect(item).toBeVisible();
+        boxes.push((await item.boundingBox())!);
+      }
+
+      const tops = boxes.map((box) => box.y);
+
+      // Jeden rząd: wszystkie cztery elementy zaczynają się na tej samej wysokości.
+      expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(2);
+      expect((await header.boundingBox())!.height).toBeLessThan(70);
+      for (const box of boxes) {
+        expect(box.height).toBeGreaterThanOrEqual(44);
+        expect(box.width).toBeGreaterThanOrEqual(44);
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+      }
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        ),
+      ).toBeLessThanOrEqual(0);
+      await context.close();
+    });
+  }
 });
 
 test.describe("dolny pasek na telefonie", () => {
@@ -167,6 +210,12 @@ test.describe("dolny pasek na telefonie", () => {
       for (const path of ["/my/collections", "/my/want-to-see"]) {
         await page.goto(path);
         await waitForHydration(page);
+        // Strony „Moje kolekcje” i „Chcę zobaczyć” najpierw pokazują szkielet (loading.tsx) bez
+        // elementów z fokusem; hydratacja <main> kończy się już na nim. Czekamy na prawdziwą treść.
+        await page
+          .locator("main a[href], main button, main input, main select, main textarea")
+          .first()
+          .waitFor();
         // Odstęp przed treścią ustawia pierwszy element z fokusem tuż nad dolną krawędzią
         // ekranu, czyli pod paskiem, ale w całości w oknie przeglądarki. Przeglądarka przewija
         // do fokusu tylko element, który uważa za niewidoczny; bez scroll-padding-bottom
@@ -267,10 +316,7 @@ test.describe("panel kuratora", () => {
     const menu = page.getByRole("navigation", { name: "Panel kuratora" });
     await expect(menu).toBeVisible();
     await expect(menu.getByText("Kurator", { exact: true })).toBeVisible();
-    await expect(menu.getByRole("link", { name: "Profil prywatny" })).toHaveAttribute(
-      "href",
-      "/my",
-    );
+    await expect(menu.getByRole("link", { name: "Mój album" })).toHaveAttribute("href", "/my");
     // Bieżąca pozycja menu panelu: jedna, z aria-current="page" na liście kolekcji.
     await expect(menu.locator("[aria-current]")).toHaveCount(1);
     await expect(menu.getByRole("link", { name: "Kolekcje" })).toHaveAttribute(
@@ -288,10 +334,96 @@ test.describe("panel kuratora", () => {
     await expect(page.getByRole("note")).toContainText(
       "Panel kuratora jest przeznaczony na komputer",
     );
+    await expect(
+      page.getByRole("note").getByRole("link", { name: "Przejdź do profilu" }),
+    ).toHaveAttribute("href", "/my");
     await expect(page.getByRole("navigation", { name: "Panel kuratora" })).toBeHidden();
     await expect(page.getByRole("heading", { level: 1, name: "Twoje kolekcje" })).toBeHidden();
     // Dolny pasek zostaje, żeby dało się wyjść z panelu.
     await expect(page.locator(NAV)).toBeVisible();
+    await page.context().close();
+  });
+});
+
+// Paczka N (K-12…K-16): nagłówek konta z imieniem albo „Profil”, etykieta kuratora na komputerze,
+// „Wyloguj” jako akcja drugorzędna i nagłówek w jednym wierszu.
+test.describe("nagłówek konta", () => {
+  test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
+
+  const oneRow = async (page: Page) => {
+    const tops = await page
+      .getByRole("banner")
+      .locator("a, button")
+      .evaluateAll((elements) =>
+        elements
+          .filter((element) => element.getBoundingClientRect().width > 0)
+          .map((element) => Math.round(element.getBoundingClientRect().top / 10)),
+      );
+
+    expect(new Set(tops).size).toBe(1);
+  };
+
+  test("odkrywca widzi odnośnik do profilu zamiast nazwy roli, a „Wyloguj” jest drugorzędny", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, "user", PHONE);
+    const banner = page.getByRole("banner");
+
+    await expect(banner.getByRole("link", { name: /^Profil/ })).toHaveAttribute("href", "/my");
+    await expect(banner).not.toContainText("Użytkownik");
+    await expect(banner).not.toContainText("Twoja rola");
+    await expect(banner.getByRole("link", { name: /^Kurator ·/ })).toHaveCount(0);
+
+    const logout = banner.getByRole("button", { name: "Wyloguj" });
+    expect((await logout.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    expect(await logout.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
+      "rgba(0, 0, 0, 0)",
+    );
+    await oneRow(page);
+    await page.context().close();
+  });
+
+  test("kurator na komputerze widzi „Kurator · organizacja” prowadzące do panelu, na telefonie nie", async ({
+    browser,
+  }) => {
+    const desktop = await signedInPage(browser, "curator-a", DESKTOP);
+    const label = desktop.getByRole("banner").getByRole("link", { name: /^Kurator ·/ });
+
+    await expect(label).toBeVisible();
+    await expect(label).toHaveAttribute("href", "/curator");
+    await oneRow(desktop);
+    await desktop.context().close();
+
+    const phone = await signedInPage(browser, "curator-a", PHONE);
+
+    await expect(phone.getByRole("banner").getByRole("link", { name: /^Kurator ·/ })).toBeHidden();
+    await expect(phone.getByRole("banner").getByRole("link", { name: /^Profil/ })).toBeVisible();
+    await oneRow(phone);
+    await phone.context().close();
+  });
+
+  test("profil kuratora opisuje rolę i prowadzi do panelu", async ({ browser }) => {
+    const page = await signedInPage(browser, "curator-a", DESKTOP);
+
+    // Po zalogowaniu kurator ląduje w panelu; profil otwiera się z menu panelu.
+    await page.goto("/my");
+
+    const main = page.getByRole("main");
+
+    await expect(main).toContainText("Kurator ·");
+    await expect(main.getByRole("link", { name: "Przejdź do panelu kuratora" })).toHaveAttribute(
+      "href",
+      "/curator",
+    );
+    await expect(main).not.toContainText("Tu są Twoje wizyty i liczby jako odkrywcy.");
+    // Na komputerze dopisek „(na komputerze)” i przycisk „Wyloguj” w treści są ukryte (D-54).
+    await expect(
+      main.getByRole("link", { name: "Przejdź do panelu kuratora" }),
+    ).toHaveAccessibleName("Przejdź do panelu kuratora");
+    await expect(main.getByRole("button", { name: "Wyloguj" })).toHaveCount(0);
+    // Bez imienia kurator nie jest „Odkrywcą” nad własną rolą.
+    await expect(main.getByTestId("profile-name")).toHaveText("Bez imienia");
+    await expect(main.getByTestId("profile-name")).not.toContainText("Odkrywca");
     await page.context().close();
   });
 });

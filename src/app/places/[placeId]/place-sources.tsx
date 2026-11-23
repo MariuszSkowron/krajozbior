@@ -40,7 +40,7 @@ export function PlaceSources({
           {source.wikidataQid === null ? null : (
             <li>
               <a href={wikidataUrl(source.wikidataQid)} rel="noopener noreferrer">
-                Element w Wikidanych ({source.wikidataQid})
+                Dane w Wikidanych
               </a>
             </li>
           )}

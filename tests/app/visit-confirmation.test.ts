@@ -143,7 +143,8 @@ describe("VisitConfirmation texts (D-49)", () => {
     });
     const button = buttonOf(root);
 
-    expect(textOf(root)).toContain("Wizyta z przeszłości zapisana");
+    // One marker of the visit from the past only (it lives in the box with the date).
+    expect(textOf(root)).not.toContain("Wizyta z przeszłości zapisana");
     expect(textOf(button)).toBe("Potwierdzam wizytę na miejscu");
     expect(button.props?.className).toContain("button--outline");
     expect(button.props?.className).not.toContain("button--primary");

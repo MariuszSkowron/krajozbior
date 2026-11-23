@@ -16,7 +16,8 @@ export default function CuratorLayout({ children }: Readonly<{ children: ReactNo
   return (
     <div className="content-width-wide">
       <p className={styles.phoneNotice} role="note">
-        Panel kuratora jest przeznaczony na komputer. Otwórz tę stronę na większym ekranie.
+        Panel kuratora jest przeznaczony na komputer. Otwórz tę stronę na większym ekranie.{" "}
+        <Link href="/my">Przejdź do profilu</Link>
       </p>
       <div className={styles.frame}>
         <nav className={styles.menu} aria-label="Panel kuratora">
@@ -27,7 +28,7 @@ export default function CuratorLayout({ children }: Readonly<{ children: ReactNo
             </li>
           </ul>
           <Link className={`${styles.menuLink} ${styles.menuProfile}`} href="/my">
-            Profil prywatny
+            Mój album
           </Link>
         </nav>
         <div className={styles.panel}>{children}</div>

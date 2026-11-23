@@ -10,6 +10,7 @@ import {
   PROGRESS_FILTERS,
   PROGRESS_FILTER_LABELS,
   matchesProgressFilter,
+  noMatchingCollectionsMessage,
   parseProgressFilter,
   type ProgressFilter,
 } from "@/features/album/domain/progress-filter";
@@ -76,7 +77,7 @@ export default async function MyCollectionsPage({ searchParams }: { searchParams
   ) as Record<ProgressFilter, number>;
 
   return (
-    <div className={`content-width ${catalog.page}`}>
+    <div className={`content-width-wide ${catalog.page}`}>
       <header className={catalog.header}>
         <h1>Moje kolekcje</h1>
         <p className={catalog.summary}>Zapisane kolekcje i Twój postęp w nich.</p>
@@ -142,7 +143,7 @@ export default async function MyCollectionsPage({ searchParams }: { searchParams
           </nav>
           {shown.length === 0 ? (
             <p className={styles.noMatch}>
-              Żadna zapisana kolekcja nie jest w stanie „{PROGRESS_FILTER_LABELS[filter]}”.{" "}
+              {noMatchingCollectionsMessage(filter)}{" "}
               <Link href="/my/collections">Pokaż wszystkie</Link>
             </p>
           ) : (

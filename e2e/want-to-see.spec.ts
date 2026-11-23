@@ -143,12 +143,10 @@ test.describe("the want-to-see list", () => {
     const placePath = new URL(page.url()).pathname;
     const placeId = placePath.split("/").pop() ?? "";
 
-    await expect(page.getByRole("link", { name: /Zaloguj się, aby/ })).toHaveCount(1);
-    await page
-      .getByRole("link", {
-        name: "Zaloguj się, aby potwierdzić wizytę lub zapisać na „Chcę zobaczyć”",
-      })
-      .click();
+    const signIn = page.getByRole("main").getByRole("link", { name: "Zaloguj się", exact: true });
+
+    await expect(signIn).toHaveCount(1);
+    await signIn.click();
     await expect(page).toHaveURL(new RegExp(`/login\\?returnTo=${encodeURIComponent(placePath)}$`));
 
     // The route refuses a guest, and a foreign origin.

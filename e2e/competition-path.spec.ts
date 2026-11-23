@@ -30,7 +30,7 @@ async function signedInPage(browser: Browser, name: string, geolocation = false)
   await form.getByLabel("E-mail").fill(emailOf(name));
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(name.startsWith("curator") ? /\/curator$/ : /\/my$/);
 
   return page;
 }
@@ -166,9 +166,7 @@ test.describe("the competition path", () => {
     );
     await expect(guest.getByRole("heading", { level: 1, name: "Most ze ścieżki" })).toBeVisible();
     await expect(
-      guest.getByRole("link", {
-        name: "Zaloguj się, aby potwierdzić wizytę lub zapisać na „Chcę zobaczyć”",
-      }),
+      guest.getByRole("main").getByRole("link", { name: "Zaloguj się", exact: true }),
     ).toBeVisible();
 
     // The explorer saves it, sees 0/1, confirms the visit on site and sees 1/1.

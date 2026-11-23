@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { getRequestActor, logActorFailure, logReadFailure } from "@/app/request-actor";
 import { getHomeAlbum } from "@/features/album/application/home-album";
+import { listMySavedCollectionSlugs } from "@/features/album/application/saved-collections";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import {
   listNearbyCandidates,
@@ -34,9 +35,10 @@ function first(value: string | string[] | undefined): string | undefined {
 
 // The public part: a guest read, the same for everyone (a curator included). A failure
 // leaves the section with a message and the rest of the page whole.
-async function loadDiscover() {
+async function loadDiscover(extra: number) {
   try {
-    return await listRecentlyPublishedCollections(DISCOVER_LIMIT, getCatalogDeps());
+    // Saved collections are left out later, so as many more are read: the list keeps twelve.
+    return await listRecentlyPublishedCollections(DISCOVER_LIMIT + extra, getCatalogDeps());
   } catch (error) {
     logReadFailure("Home collections read", error);
 
@@ -70,6 +72,20 @@ async function loadAlbum(actor: Actor) {
   }
 }
 
+// Slugs of the collections the explorer saved: "Kolekcje do odkrycia" leaves them out, because
+// they are already in "Moje kolekcje". A failed read leaves the list whole (an empty set).
+async function loadSavedSlugs(actor: Actor): Promise<ReadonlySet<string>> {
+  try {
+    const result = await listMySavedCollectionSlugs(actor, getAlbumDeps());
+
+    return new Set(result.status === "ok" ? result.value : []);
+  } catch (error) {
+    logReadFailure("Home saved collections read", error);
+
+    return new Set();
+  }
+}
+
 // The first name for the greeting (the same profile read as the profile screen). Without a
 // name, or when the read fails, the greeting is said without it; the failure is logged by class.
 async function loadFirstName(actor: Actor): Promise<string | null> {
@@ -99,12 +115,27 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const signOutFailed = first(params.wylogowanie) === "blad";
   // Only a signal for the message after deleting the account (E9-5).
   const accountDeleted = first(params.konto) === "usuniete";
-  const [discover, nearby, album, firstName] = await Promise.all([
-    loadDiscover(),
+  const savedRead = actor === null ? Promise.resolve(null) : loadSavedSlugs(actor);
+  const [allDiscover, allNearby, album, firstName, saved] = await Promise.all([
+    // The saved ones are known first, so the list can read that many more than it shows.
+    savedRead.then((slugs) => loadDiscover(slugs?.size ?? 0)),
     loadNearby(),
     actor === null ? Promise.resolve(null) : loadAlbum(actor),
     actor === null ? Promise.resolve(null) : loadFirstName(actor),
+    savedRead,
   ]);
+  // A saved collection is not "to discover": it has its place in "Moje kolekcje". The list is
+  // trimmed to twelve only after the filter, so it does not shrink with every save.
+  const discover =
+    allDiscover === null || saved === null
+      ? allDiscover
+      : allDiscover.filter(({ slug }) => !saved.has(slug)).slice(0, DISCOVER_LIMIT);
+  const nearby =
+    allNearby === null || saved === null
+      ? allNearby
+      : allNearby.filter(({ slug }) => !saved.has(slug));
+  const allSaved =
+    discover !== null && allDiscover !== null && allDiscover.length > 0 && discover.length === 0;
 
   return (
     <div className={`content-width-wide ${styles.page}`}>
@@ -163,7 +194,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         </>
       )}
       {album === null ? null : <RecentVisits visits={album.recentVisits} />}
-      <CollectionsToDiscover collections={discover} candidates={nearby} />
+      <CollectionsToDiscover collections={discover} candidates={nearby} allSaved={allSaved} />
     </div>
   );
 }

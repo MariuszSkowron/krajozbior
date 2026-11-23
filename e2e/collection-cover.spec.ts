@@ -203,7 +203,7 @@ async function signedInCurator(browser: Browser, theme: "light" | "dark"): Promi
   await form.getByLabel("E-mail").fill(emailOf("curator-a"));
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(/\/curator$/);
 
   return page;
 }
@@ -401,6 +401,30 @@ test.describe("collection cover", () => {
     await curator.context().close();
   });
 
+  test("publishing with unsaved text keeps the text and asks to save first", async ({
+    browser,
+  }) => {
+    const curator = await signedInCurator(browser, "light");
+
+    await curator.goto(`/curator/collections/${draft!.collectionId}`);
+    await waitForHydration(curator);
+
+    const summary = curator.getByLabel("Krótki opis");
+
+    await summary.fill("Tekst, którego jeszcze nie zapisano.");
+    await curator.getByRole("button", { name: "Publikuj" }).click();
+
+    await expect(curator.getByText("Najpierw zapisz zmiany kolekcji.")).toBeVisible();
+    await expect(curator.getByText("Masz niezapisane zmiany")).toBeVisible();
+    await curator.getByRole("button", { name: "Przejdź do zapisu" }).click();
+    await expect(curator.getByRole("button", { name: "Zapisz zmiany" })).toBeFocused();
+    await expect(summary).toHaveValue("Tekst, którego jeszcze nie zapisano.");
+    // Still a draft: nothing was published.
+    await expect(curator.getByRole("button", { name: "Publikuj" })).toBeVisible();
+
+    await curator.context().close();
+  });
+
   test("a curator of another organization has no such collection", async ({ browser }) => {
     const context = await browser.newContext();
     const page = await context.newPage();
@@ -414,7 +438,7 @@ test.describe("collection cover", () => {
     await form.getByLabel("E-mail").fill(emailOf("curator-b"));
     await form.getByLabel("Hasło").fill(password ?? "");
     await form.getByRole("button", { name: "Zaloguj się" }).click();
-    await expect(page).toHaveURL(/\/my$/);
+    await expect(page).toHaveURL(/\/curator$/);
 
     const response = await page.request.put(
       `/api/curator/collections/${published!.collectionId}/cover`,

@@ -2,8 +2,8 @@ import styles from "./collection-progress.module.css";
 
 // Postęp w kolekcji: „X/Y” z natywnym <progress>. Tekst niesie tę samą informację co pasek,
 // więc pasek nigdy nie jest jedynym nośnikiem (wypełnienie akcentem ma w jasnym motywie
-// tylko 2,63:1 na torze). Kolekcja bez miejsc to osobny stan „0/0” bez paska: pasek
-// z zerem miejsc nie miałby sensu. Nigdy procent.
+// tylko 2,63:1 na torze). Kolekcja bez miejsc to osobny stan „Bez miejsc”, bez licznika i paska:
+// pasek z zerem miejsc nie miałby sensu, a „0/0” powtarzałoby to samo. Nigdy procent.
 export function CollectionProgress({
   visited,
   total,
@@ -18,10 +18,13 @@ export function CollectionProgress({
           {counts}
         </progress>
       )}
-      <p className={styles.text}>
-        <span className={styles.count}>{counts}</span>
-        {total === 0 ? " — ta kolekcja nie ma jeszcze miejsc" : " odwiedzone"}
-      </p>
+      {total === 0 ? (
+        <p className={styles.text}>Bez miejsc</p>
+      ) : (
+        <p className={styles.text}>
+          <span className={styles.count}>{counts}</span> odwiedzone
+        </p>
+      )}
     </div>
   );
 }
