@@ -11,8 +11,9 @@ vi.mock("@/app/fonts", () => ({
 }));
 // The shell role (identity, database driver, session library) is a cold import
 // and has nothing to do with the title.
-vi.mock("@/app/shell/shell-role", () => ({ shellRole: async () => null }));
-vi.mock("@/app/shell/shell-curator", () => ({ shellCuratorLink: async () => false }));
+vi.mock("@/app/shell/shell-account", () => ({
+  shellAccount: async () => ({ role: null, displayName: null, curatorOrganizations: [] }),
+}));
 vi.mock("@/app/shell/terms-state", () => ({ shellTermsAccepted: async () => true }));
 vi.mock("@/app/request-actor", () => ({
   getRequestActor: async () => null,
