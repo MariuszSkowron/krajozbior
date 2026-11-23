@@ -279,9 +279,9 @@ test.describe("the map view of a collection", () => {
       page.locator('.leaflet-marker-icon[title="Most Tczewski — odwiedzone"]'),
     ).toHaveText("✓");
     await expect(
-      page.locator('.leaflet-marker-icon[title="Zamek w Gniewie — do odwiedzenia"]'),
+      page.locator('.leaflet-marker-icon[title="Zamek w Gniewie — do odkrycia"]'),
     ).toHaveText("2");
-    await expect(page.getByText("Do odwiedzenia (numer miejsca)")).toBeVisible();
+    await expect(page.getByText("Do odkrycia (numer miejsca)")).toBeVisible();
 
     // The filter works in the map view: only the markers of the filter stay.
     await page.getByRole("link", { name: "Odwiedzone (1)" }).click();

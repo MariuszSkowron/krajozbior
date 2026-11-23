@@ -29,7 +29,7 @@ function markerTitle(place: MapPlace): string {
     return place.name;
   }
 
-  return `${place.name} — ${place.state === "visited" ? "odwiedzone" : "do odwiedzenia"}`;
+  return `${place.name} — ${place.state === "visited" ? "odwiedzone" : "do odkrycia"}`;
 }
 
 // A marker: a circle with the number (to visit) or a rounded square with a check mark (visited).
@@ -204,7 +204,7 @@ export default function CollectionMap({
             <span className={styles.legendMark} aria-hidden="true">
               1
             </span>
-            Do odwiedzenia (numer miejsca)
+            Do odkrycia (numer miejsca)
           </span>
           <span className={styles.legendItem}>
             <span className={`${styles.legendMark} ${styles.legendMarkVisited}`} aria-hidden="true">
