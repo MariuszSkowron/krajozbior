@@ -92,8 +92,9 @@ export function LegendaryCardReveal({
     if (swipeStart.current !== null) swipeLast.current = event.clientY;
   }
 
-  // Zasłona ma `touch-action: pan-y`: pionowe przewijanie strony działa, a gdy przeglądarka je
-  // przejmie (pointercancel), ostatnie położenie palca nadal liczy się do progu gestu.
+  // Uchwyt w środku zasłony ma `touch-action: none` (gest w górę dostaje pointermove bez
+  // pointercancel); reszta zasłony ma `pan-y` i przewija stronę. Pointercancel kończy gest
+  // ostatnim znanym położeniem (np. przy przerwaniu przez system).
   function finishSwipe(endY: number) {
     const start = swipeStart.current;
     swipeStart.current = null;

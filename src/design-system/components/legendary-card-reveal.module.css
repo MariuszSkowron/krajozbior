@@ -13,7 +13,6 @@
   box-sizing: border-box;
   min-block-size: 100%;
   padding: var(--space-lg) var(--space-md);
-  overflow: clip;
   color: var(--color-text-primary);
   text-align: center;
   background: var(--color-surface-canvas);
@@ -43,14 +42,15 @@
 
 /*
  * Scena karty: zasłona odlatuje w górę i znika w granicach sceny, bez nachodzenia na nagłówek
- * i opis. Margines przycięcia zostawia miejsce na poświatę i obrys fokusu karty.
+ * i opis. Przycina `clip-path` z ujemnym marginesem (działa też w WebKit, w przeciwieństwie do
+ * overflow-clip-margin): poświata i obrys fokusu karty mieszczą się w marginesie, a układ
+ * się nie zmienia, więc przy powiększeniu tekstu nic nie jest ucinane.
  */
 .stage {
   position: relative;
   inline-size: 100%;
   max-inline-size: 18rem;
-  overflow: clip;
-  overflow-clip-margin: 1.5rem;
+  clip-path: inset(-1.5rem);
 }
 
 .cardSlot {
@@ -75,16 +75,22 @@
   letter-spacing: var(--font-tracking-label);
   text-transform: uppercase;
   cursor: pointer;
-  touch-action: pan-y;
+  touch-action: pan-y; /* strona dalej się przewija */
   background: var(--color-surface-tint);
   border: 1px solid var(--color-border-strong);
   border-block-start: 4px solid var(--color-brand-accent);
   border-radius: var(--radius-lg);
 }
 
+/*
+ * Uchwyt gestu w środku zasłony: tylko tu przeglądarka oddaje pionowy ruch palca stronie
+ * (touch-action: none), więc pointermove dochodzi do progu 110 px i gest w górę działa.
+ * Reszta zasłony ma pan-y i przewija stronę.
+ */
 .veilRing {
-  inline-size: 4rem;
-  block-size: 4rem;
+  inline-size: 5rem;
+  block-size: 5rem;
+  touch-action: none;
   border: 2px solid var(--color-brand-accent);
   border-radius: 50%;
   box-shadow: var(--shadow-accent-glow);

@@ -462,17 +462,29 @@ describe("scena odsłonięcia: gest i czas", () => {
     "utf8",
   );
 
-  it("zasłona nie blokuje pionowego przewijania strony (touch-action: pan-y)", () => {
-    expect(css).toMatch(/touch-action:\s*pan-y/);
-    expect(css).not.toMatch(/touch-action:\s*none/);
+  const rule = (selector: string) =>
+    new RegExp(`(?:^|\\n)\\${selector}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? "";
+
+  it("zasłona przewija stronę (pan-y), a tylko uchwyt gestu ma touch-action: none", () => {
+    expect(rule(".veil")).toMatch(/touch-action:\s*pan-y/);
+    expect(rule(".veilRing")).toMatch(/touch-action:\s*none/);
+    expect(rule(".scene")).not.toMatch(/touch-action/);
+    expect([...css.matchAll(/touch-action:\s*none;/g)]).toHaveLength(1);
   });
 
-  it("zasłona przy odlocie nie wychodzi poza scenę (overflow: clip na scenie i na polu karty)", () => {
-    const clipped = (selector: string) =>
-      new RegExp(`(?:^|\\n)\\${selector}\\s*\\{[^}]*overflow:\\s*clip`).test(css);
+  it("gest w górę z pointermove (bez pointercancel) przekracza próg 110 px", () => {
+    // Uchwyt z touch-action: none nie dostaje pointercancel: ostatni pointermove rozstrzyga.
+    const moves = [400, 380, 340, 300, 285];
+    expect(isSwipeUp(moves[0], moves[moves.length - 1])).toBe(true);
+    expect(isSwipeUp(moves[0], moves[1])).toBe(false);
+    expect(tsx).toMatch(/onPointerMove=\{onPointerMove\}/);
+    expect(tsx).toMatch(/onPointerUp=\{\(event\) => finishSwipe\(event\.clientY\)\}/);
+  });
 
-    expect(clipped(".scene")).toBe(true);
-    expect(clipped(".stage")).toBe(true);
+  it("przycinanie zasłony: clip-path z ujemnym marginesem na scenie karty, bez overflow na scenie", () => {
+    expect(rule(".stage")).toMatch(/clip-path:\s*inset\(-1\.5rem\)/);
+    expect(rule(".stage")).not.toMatch(/overflow/);
+    expect(rule(".scene")).not.toMatch(/overflow/);
   });
 
   it("przyciski w historii „Odsłonięta” używają klas przycisków systemu", () => {

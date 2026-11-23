@@ -188,6 +188,39 @@ describe("scena karty legendarnej (motyw nocny)", () => {
     expect(contrast(fg, "color.surface.canvas", "dark")).toBeGreaterThanOrEqual(4.5);
   });
 
+  // Akcent medalionu (`--legendary-accent`) każdej kategorii: barwa wybrana w legendary-card.module.css
+  // (WCAG 1.4.11, element graficzny aria-hidden; znaczenie niesie stopka).
+  const accents = [
+    ["krajozbior", "end"],
+    ["culture-night", "end"],
+    ["heritage", "end"],
+    ["national-holiday", "start"],
+    ["nature-sky", "end"],
+    ["trail-community", "end"],
+  ];
+
+  it.each(accents)(
+    "akcent medalionu kategorii %s (%s) na color.surface.card ≥ 3:1",
+    (category, end) => {
+      expect(
+        contrast(`color.legendary.${category}.${end}`, "color.surface.card", "dark"),
+      ).toBeGreaterThanOrEqual(3);
+    },
+  );
+
+  it("akcenty z testu odpowiadają --legendary-accent w CSS karty", () => {
+    const cardCss = readFileSync(
+      new URL("../../src/design-system/components/legendary-card.module.css", import.meta.url),
+      "utf8",
+    );
+    const used = [
+      ...cardCss.matchAll(/--legendary-accent:\s*var\(--color-legendary-([a-z-]+)-(start|end)\)/g),
+    ]
+      .map((m) => `${m[1]}|${m[2]}`)
+      .sort();
+    expect(used).toEqual(accents.map(([c, e]) => `${c}|${e}`).sort());
+  });
+
   it("symbol kategorii (color.text.label) na color.surface.card ≥ 3:1", () => {
     expect(contrast("color.text.label", "color.surface.card", "dark")).toBeGreaterThanOrEqual(3);
   });
