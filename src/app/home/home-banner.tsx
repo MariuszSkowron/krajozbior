@@ -8,6 +8,9 @@ import { buildPhotoCredit } from "@/features/photos/domain/photo-credit";
 
 import styles from "./home-banner.module.css";
 
+// Okładka banera; z puli gościa (PR 4) ma jeszcze kadr (`object-position` na laptopie i telefonie).
+type BannerCover = CollectionBanner & { focus?: Readonly<{ wide: string; narrow: string }> };
+
 // Zdjęcie banera: natywne <img> z `srcset` (miniatura `w400` i plik `main`), wymiary z bazy
 // rezerwują miejsce, kadr stylami (`object-fit: cover`; panoramy i zdjęcia pionowe w całości,
 // Q4). Baner jest zdjęciem nad treścią strony, więc ładuje się od razu (`fetchPriority`).
@@ -15,7 +18,7 @@ function BannerPhoto({
   cover,
   alt,
   className,
-}: Readonly<{ cover: CollectionBanner; alt: string; className: string }>) {
+}: Readonly<{ cover: BannerCover; alt: string; className: string }>) {
   const main = `/media/p/${cover.photoId}/main`;
   const thumb = `/media/p/${cover.photoId}/w400`;
   const hasChoice = cover.width > THUMB_WIDTH;
@@ -30,6 +33,14 @@ function BannerPhoto({
       sizes={hasChoice ? "(min-width: 90rem) 84rem, 100vw" : undefined}
       width={cover.width}
       height={cover.height}
+      style={
+        cover.focus === undefined
+          ? undefined
+          : ({
+              "--focus-wide": cover.focus.wide,
+              "--focus-narrow": cover.focus.narrow,
+            } as CSSProperties)
+      }
       alt={alt}
       decoding="async"
       fetchPriority="high"
@@ -95,7 +106,7 @@ export function HomeBanner({
   size: variant = "tall",
   children,
 }: Readonly<{
-  cover: CollectionBanner | null;
+  cover: BannerCover | null;
   /** `short`: baner z jednym zdaniem (stan pusty), niższy niż `tall` gościa. */
   size?: "tall" | "short";
   children: ReactNode;

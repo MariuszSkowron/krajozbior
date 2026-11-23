@@ -12,6 +12,7 @@ import type {
   CuratorPlaceItem,
   PlaceRow,
   CollectionBanner,
+  HomeBannerCandidate,
   PublishedCollection,
   PlaceCollection,
   PublishedPlace,
@@ -662,6 +663,50 @@ export const postgresCatalogRepository: CatalogRepository = {
             and ph.id is not null`,
         [slug],
       ),
+    );
+  },
+
+  async findHomeBannerCandidates(tx: TransactionContext, qids) {
+    if (qids.length === 0) {
+      return [];
+    }
+
+    // Pula banera (R3, PR 4): miejsce z listy QID, w opublikowanej kolekcji zatwierdzonej
+    // organizacji, z pierwszym gotowym zdjęciem nadającym się na baner (>= 1100 px, nie szersze niż
+    // 16:9). Kontekst gościa zostawia tylko zdjęcie, które wolno zobaczyć każdemu; kolumny
+    // `hidden_*` nie są czytane. Ten sam QID u kilku miejsc daje jedno (najstarsze `id`).
+    return tx.em.execute<HomeBannerCandidate[]>(
+      `select distinct on (s.wikidata_qid)
+              s.wikidata_qid as qid,
+              ph.id as "photoId", ph.width, ph.height, ph.alt_text as "altText", ph.title,
+              ph.author_text as "authorText", ph.author_url as "authorUrl",
+              ph.source_url as "sourceUrl", ph.source_kind as "sourceKind",
+              ph.license_code as "licenseCode", ph.license_url as "licenseUrl",
+              ph.license_label as "licenseLabel",
+              p.id as "placeId", p.name as "placeName"
+         from public.places p
+         join public.organizations o on o.id = p.organization_id
+         join public.place_sources s on s.place_id = p.id
+         join lateral (
+           select x.id, x.width, x.height, x.alt_text, x.title, x.author_text, x.author_url,
+                  x.source_url, x.source_kind, x.license_code, x.license_url, x.license_label
+             from public.place_photos x
+            where x.place_id = p.id and x.file_state = 'ready' and x.storage_key is not null
+              and x.width >= 1100 and x.width * 9 <= x.height * 16
+            order by x.position
+            limit 1
+         ) ph on true
+        where s.wikidata_qid in (${qids.map(() => "?").join(", ")})
+          and o.status = 'approved'
+          and exists (
+            select
+              from public.collection_places cp
+              join public.collections c on c.id = cp.collection_id
+              join public.organizations co on co.id = c.organization_id
+             where cp.place_id = p.id and c.status = 'published' and co.status = 'approved'
+          )
+        order by s.wikidata_qid, p.id`,
+      [...qids],
     );
   },
 

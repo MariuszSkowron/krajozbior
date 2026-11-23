@@ -1,9 +1,12 @@
+import { HOME_BANNER_POOL, type HomeBannerPoolEntry } from "../domain/home-banner-pool";
+import { pickHomeBanner } from "../domain/home-banner";
 import { MAX_COLLECTIONS_PER_LIST } from "../domain/limits";
 import type { NearbyCandidate } from "../domain/nearby";
 import { isUuid } from "../domain/uuid";
 import type {
   CatalogDeps,
   CollectionBanner,
+  HomeBannerPick,
   PublishedCollection,
   PublishedPlace,
   RecentCollection,
@@ -29,6 +32,39 @@ export async function getCollectionBanner(
   }
 
   return deps.withGuestContext((tx) => deps.repository.findCollectionBanner(tx, slug));
+}
+
+/**
+ * The banner of the home page for a guest (R3, PR 4): one place drawn evenly from the pool (that
+ * have a photo today), with its photo, credit and crop. `random` is injected for tests. No
+ * candidate gives `null` (the page keeps the fixed photo).
+ */
+export async function getHomeBanner(
+  deps: CatalogDeps,
+  random: () => number = Math.random,
+  pool: readonly HomeBannerPoolEntry[] = HOME_BANNER_POOL,
+): Promise<HomeBannerPick | null> {
+  const candidates = await deps.withGuestContext((tx) =>
+    deps.repository.findHomeBannerCandidates(
+      tx,
+      pool.map((entry) => entry.qid),
+    ),
+  );
+  const known = candidates.flatMap((candidate) => {
+    const entry = pool.find(({ qid }) => qid === candidate.qid);
+
+    return entry === undefined ? [] : [{ candidate, focus: entry.focus }];
+  });
+  const picked = pickHomeBanner(known, random);
+
+  if (picked === null) {
+    return null;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- `qid` is only the key of the pool
+  const { qid: _qid, ...banner } = picked.candidate;
+
+  return { ...banner, focus: picked.focus };
 }
 
 export async function getPublishedCollection(

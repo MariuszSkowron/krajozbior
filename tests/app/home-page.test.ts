@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   listRecent: vi.fn(),
   listNearby: vi.fn(),
   getBanner: vi.fn(),
+  getHomeBanner: vi.fn(),
+  connection: vi.fn(),
   getProfile: vi.fn(),
 }));
 
@@ -27,7 +29,9 @@ vi.mock("@/features/catalog/application/public-catalog", () => ({
   listRecentlyPublishedCollections: mocks.listRecent,
   listNearbyCandidates: mocks.listNearby,
   getCollectionBanner: mocks.getBanner,
+  getHomeBanner: mocks.getHomeBanner,
 }));
+vi.mock("next/server", () => ({ connection: mocks.connection }));
 
 const { default: HomePage } = await import("@/app/page");
 
@@ -129,6 +133,8 @@ beforeEach(() => {
   mocks.listRecent.mockReset().mockResolvedValue(discover);
   mocks.listNearby.mockReset().mockResolvedValue(nearby);
   mocks.getBanner.mockReset().mockResolvedValue(null);
+  mocks.getHomeBanner.mockReset().mockResolvedValue(null);
+  mocks.connection.mockReset().mockResolvedValue(undefined);
   mocks.getHomeAlbum.mockReset().mockResolvedValue({ status: "ok", value: album });
   mocks.listSaved.mockReset().mockResolvedValue({ status: "ok", value: [] });
   mocks.getProfile.mockReset().mockResolvedValue({ status: "ok", value: { firstName: "Anna" } });
@@ -171,6 +177,39 @@ describe("home page of a guest", () => {
     expect(html).toContain("<em>w swoim albumie</em>");
     // The search button is an outline button; the primary one is "Zaloguj się" on the banner.
     expect(html).toMatch(/<button [^>]*class="button button--outline"[^>]*>Szukaj<\/button>/);
+  });
+
+  it("shows the photo drawn from the pool with its crop and credit, after connection()", async () => {
+    mocks.getHomeBanner.mockResolvedValue({
+      ...banner,
+      photoId: "drawn",
+      placeId: "p7",
+      placeName: "Zamek w Krągu",
+      focus: { wide: "50% 40%", narrow: "55% 50%" },
+    });
+    const html = await render();
+
+    expect(mocks.connection).toHaveBeenCalled();
+    expect(mocks.getBanner).not.toHaveBeenCalled();
+    expect(html).toMatch(/<img [^>]*src="\/media\/p\/drawn\/main"/);
+    expect(html).toContain("--focus-wide:50% 40%");
+    expect(html).toContain("--focus-narrow:55% 50%");
+    expect(html).toMatch(/<a [^>]*href="\/places\/p7"[^>]*>Zamek w Krągu<\/a>/);
+  });
+
+  it("falls back to the fixed photo when the pool gives nothing or its read fails", async () => {
+    mocks.listRecent.mockResolvedValue([{ ...discover[0], cover: coverOf("ph1") }]);
+    mocks.getBanner.mockResolvedValue(banner);
+
+    for (const empty of [() => Promise.resolve(null), () => Promise.reject(new Error("db"))]) {
+      mocks.getHomeBanner.mockImplementation(empty);
+      const html = await render();
+
+      expect(html).toMatch(/<img [^>]*src="\/media\/p\/ph1\/main"/);
+      expect(html).not.toContain("--focus-wide");
+    }
+
+    expect(console.error).toHaveBeenCalledWith("Home banner pool read failed:", "Error");
   });
 
   it("keeps the introduction on a calm placeholder when no collection has a photo", async () => {

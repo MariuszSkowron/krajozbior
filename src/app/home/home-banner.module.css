@@ -57,9 +57,16 @@
   max-width: none;
 }
 
+/* Kadr z puli banera (`--focus-narrow`, `--focus-wide` w atrybucie `style`); bez puli 50% 40%. */
 .photo {
   object-fit: cover;
-  object-position: 50% 40%;
+  object-position: var(--focus-narrow, 50% 40%);
+}
+
+@media (min-width: 48rem) {
+  .photo {
+    object-position: var(--focus-wide, 50% 40%);
+  }
 }
 
 .photoWhole {

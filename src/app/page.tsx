@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { connection } from "next/server";
 
 import { getRequestActor, logActorFailure, logReadFailure } from "@/app/request-actor";
 import { getHomeAlbum } from "@/features/album/application/home-album";
@@ -6,6 +7,7 @@ import { listMySavedCollectionSlugs } from "@/features/album/application/saved-c
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import {
   getCollectionBanner,
+  getHomeBanner,
   listNearbyCandidates,
   listRecentlyPublishedCollections,
 } from "@/features/catalog/application/public-catalog";
@@ -72,6 +74,20 @@ async function loadBanner(slug: string | null) {
     return await getCollectionBanner(slug, getCatalogDeps());
   } catch (error) {
     logReadFailure("Home banner read", error);
+
+    return null;
+  }
+}
+
+// The banner photo drawn from the pool, a new draw on every request (`connection()` keeps the
+// page out of prerendering, so the draw is not frozen at build time). A failed read gives `null`.
+async function loadDrawnBanner() {
+  await connection();
+
+  try {
+    return await getHomeBanner(getCatalogDeps());
+  } catch (error) {
+    logReadFailure("Home banner pool read", error);
 
     return null;
   }
@@ -164,7 +180,11 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
     favorites.length > 0
       ? favorites[0].slug
       : (discover?.find(({ cover }) => cover !== null)?.slug ?? null);
-  const banner = await loadBanner(actor !== null && album === null ? null : bannerSlug);
+  // A guest and an explorer without a saved collection first get a drawn photo from the pool
+  // (R3, PR 4); with no photo in the pool (or a failed read) the fixed photo stays as the fallback.
+  const drawn =
+    favorites.length === 0 && (actor === null || album !== null) ? await loadDrawnBanner() : null;
+  const banner = drawn ?? (await loadBanner(actor !== null && album === null ? null : bannerSlug));
 
   return (
     <div className={`content-width-wide ${styles.page}`}>
