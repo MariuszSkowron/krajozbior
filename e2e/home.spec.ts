@@ -19,9 +19,18 @@ const EXPLORER_B = "user2@demo.krajozbior.local";
 const THEME_COOKIE = "krajozbior-theme";
 
 async function expectNoAccessibilityViolations(page: Page) {
-  // Wejście sekcji przygasza treść; axe liczy kontrast dopiero po końcu animacji.
+  // Wejście sekcji przygasza treść; axe liczy kontrast dopiero po końcu animacji. Kończymy je
+  // od razu (`finish()` nie zależy od zegara animacji), zamiast czekać na `finished`: ta obietnica
+  // nie spełni się, gdy strona nie rysuje klatek (karta w tle, obciążony komputer), a wszystkie
+  // animacje strony głównej są skończone (jedno przejście). Nieskończonej `finish()` nie kończy.
   await page.evaluate(() =>
-    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+    document.getAnimations().forEach((a) => {
+      try {
+        a.finish();
+      } catch {
+        // animacja nieskończona: zostaje, axe jej nie potrzebuje
+      }
+    }),
   );
   await page.addScriptTag({ content: axe.source });
 
