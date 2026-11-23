@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { CollectionCover } from "@/app/collections/[slug]/collection-cover";
+import { CollectionCover, CoverProgress } from "@/app/collections/[slug]/collection-cover";
 import { CollectionCard } from "@/design-system/components/collection-card";
 import type { PlaceCover } from "@/features/catalog/application/catalog-types";
 
@@ -21,9 +21,46 @@ const cover: PlaceCover = {
   licenseLabel: "CC BY-SA 3.0 PL",
 };
 
-describe("CollectionCover (nagłówek kolekcji, E4-3)", () => {
+const eyebrow = "Kolekcja · Pomorskie";
+const title = createElement("h1", null, "Zamki");
+const show = (value: PlaceCover | null) =>
+  createElement(CollectionCover, { cover: value, eyebrow }, title);
+
+describe("CollectionCover (nagłówek kolekcji, E4-3, R3)", () => {
+  it("puts the eyebrow and the title on the photo, with the credit below it", () => {
+    const html = renderToStaticMarkup(show(cover));
+
+    expect(html).toContain("<figure");
+    expect(html).toContain(">Kolekcja · Pomorskie</p>");
+    expect(html).toContain("<h1>Zamki</h1>");
+    expect(html.indexOf("<img")).toBeLessThan(html.indexOf("<h1>"));
+    expect(html.indexOf("<h1>")).toBeLessThan(html.indexOf("<figcaption"));
+  });
+
+  it("gives a panorama and a portrait the same alt text and size as any photo", () => {
+    // Cropping or showing whole is a style choice (rule: showsWhole, tested in the domain).
+    for (const [width, height] of [
+      [2400, 600],
+      [600, 900],
+    ] as const) {
+      const html = renderToStaticMarkup(show({ ...cover, width, height }));
+
+      expect(html).toContain('alt="Zamek nad rzeką"');
+      expect(html).toContain(`width="${width}"`);
+      expect(html).toContain(`height="${height}"`);
+    }
+  });
+
+  it("keeps the title readable without a photo: a placeholder cover, no figure, no credit", () => {
+    const html = renderToStaticMarkup(show(null));
+
+    expect(html).not.toContain("<figure");
+    expect(html).not.toContain("<img");
+    expect(html).toContain("<h1>Zamki</h1>");
+  });
+
   it("shows the cover with srcset, size, its own alt text and the credit", () => {
-    const html = renderToStaticMarkup(createElement(CollectionCover, { cover }));
+    const html = renderToStaticMarkup(show(cover));
 
     expect(html).toContain(`src="/media/p/${cover.photoId}/main"`);
     expect(html).toContain(
@@ -37,12 +74,33 @@ describe("CollectionCover (nagłówek kolekcji, E4-3)", () => {
   });
 
   it("gives a photo not wider than the thumbnail a single file", () => {
-    const html = renderToStaticMarkup(
-      createElement(CollectionCover, { cover: { ...cover, width: 400, height: 267 } }),
-    );
+    const html = renderToStaticMarkup(show({ ...cover, width: 400, height: 267 }));
 
     expect(html).not.toContain("srcSet");
     expect(html).not.toContain("sizes=");
+  });
+});
+
+describe("CoverProgress (postęp odkrywcy na okładce)", () => {
+  const label = "Twój postęp w kolekcji Zamki";
+
+  it("gives a screen reader the whole sentence and hides the visual pieces", () => {
+    const html = renderToStaticMarkup(
+      createElement(CoverProgress, { visited: 5, total: 13, label }),
+    );
+
+    expect(html).toContain("5/13 odwiedzone");
+    expect(html).toContain('<progress class="_bar_');
+    expect(html).toContain('value="5"');
+    expect(html).toContain('max="13"');
+    expect(html).toContain(`aria-label="${label}"`);
+    expect(html.match(/aria-hidden="true"/g)).toHaveLength(3);
+  });
+
+  it("shows neither the number nor the bar for a collection without places", () => {
+    expect(
+      renderToStaticMarkup(createElement(CoverProgress, { visited: 0, total: 0, label })),
+    ).toBe("");
   });
 });
 

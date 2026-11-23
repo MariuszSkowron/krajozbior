@@ -657,7 +657,7 @@ describe("public catalog pages", () => {
         expect(html).toContain('aria-label="Filtr miejsc"');
         expect(html).toMatch(/Wszystkie<span[^>]*>\(3\)<\/span>/);
         expect(html).toMatch(/Odwiedzone<span[^>]*>\(2\)<\/span>/);
-        expect(html).toMatch(/Do odwiedzenia<span[^>]*>\(1\)<\/span>/);
+        expect(html).toMatch(/Do odkrycia<span[^>]*>\(1\)<\/span>/);
         expect(html).toMatch(/href="\/collections\/kolekcja-a1b2c3\?stan=odwiedzone"/);
         // One chosen item in the view switch (Karty) and one in the filter (Wszystkie).
         expect(html.match(/aria-current="page"/g)).toHaveLength(2);
@@ -670,7 +670,7 @@ describe("public catalog pages", () => {
       it("lists only the places of the chosen state, with their numbers", async () => {
         const html = await render({ stan: "do-odwiedzenia" });
 
-        expect(html).toMatch(/aria-current="page"[^>]*>Do odwiedzenia/);
+        expect(html).toMatch(/aria-current="page"[^>]*>Do odkrycia/);
         expect(html).toContain("Zamek");
         expect(html).not.toContain("Brama");
         expect(html).not.toContain(">Most<");

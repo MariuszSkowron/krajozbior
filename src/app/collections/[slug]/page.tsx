@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { getRequestActor, logReadFailure, loginHref } from "@/app/request-actor";
-import { CollectionProgress } from "@/design-system/components/collection-progress";
 import { getCollectionProgress } from "@/features/album/application/saved-collections";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import { progressCounts } from "@/features/album/domain/progress";
@@ -31,10 +30,10 @@ import albumStyles from "../../my/collections/collections.module.css";
 import styles from "../../catalog.module.css";
 import panelStyles from "./album.module.css";
 import mapStyles from "./collection-map.module.css";
-import { CollectionCover } from "./collection-cover";
+import { CollectionCover, CoverProgress } from "./collection-cover";
 import { CollectionMapLoader } from "./collection-map-loader";
 import { CollectionPlaces } from "./collection-places";
-import { PlaceThumb } from "./place-thumb";
+import { PlaceTile } from "./place-tile";
 import { SaveCollectionButton } from "./save-collection-button";
 
 // Rendered on every request and never cached by a shared cache (src/proxy.ts
@@ -174,52 +173,73 @@ export default async function CollectionPage({
 
   return (
     <div className={`content-width-wide ${styles.page}`}>
-      <header className={styles.header}>
-        <p className={styles.itemMetaMono}>Kolekcja · {REGION_LABELS[collection.region]}</p>
-        <h1 className={styles.collectionTitle}>{collection.title}</h1>
-        {collection.cover === null ? null : <CollectionCover cover={collection.cover} />}
+      <CollectionCover
+        cover={collection.cover}
+        eyebrow={`Kolekcja · ${REGION_LABELS[collection.region]}`}
+      >
+        <h1>{collection.title}</h1>
         {album.kind === "explorer" ? (
-          <CollectionProgress
+          <CoverProgress
             {...progressCounts(album.progress)}
             label={`Twój postęp w kolekcji ${collection.title}`}
           />
         ) : null}
-        {collection.summary === "" ? null : <p className={styles.summary}>{collection.summary}</p>}
-        <p className={styles.meta}>Kurator: {collection.organization.name}</p>
-        <p className={styles.meta}>
-          {formatPlaceCount(collection.placeCount)} · aktualizacja{" "}
-          {formatUpdateDate(collection.contentUpdatedAt)}
-        </p>
+      </CollectionCover>
+      <div className={panelStyles.intro}>
+        <div className={panelStyles.introText}>
+          {collection.summary === "" ? null : (
+            <p className={styles.summary}>{collection.summary}</p>
+          )}
+          <p className={panelStyles.curator}>
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z" />
+            </svg>
+            Kurator: {collection.organization.name}
+          </p>
+          <p className={panelStyles.updated}>
+            {formatPlaceCount(collection.placeCount)} · aktualizacja{" "}
+            {formatUpdateDate(collection.contentUpdatedAt)}
+          </p>
+        </div>
         {album.kind === "guest" ? (
-          <div className={albumStyles.guestAction}>
+          <div className={`${albumStyles.guestAction} ${panelStyles.introAction}`}>
             <Link className="button button--primary" href={album.loginHref}>
               Zaloguj się, aby zapisać kolekcję
             </Link>
             <p className={albumStyles.feedback}>Po zalogowaniu wrócisz tutaj.</p>
           </div>
         ) : album.kind === "explorer" ? (
-          <SaveCollectionButton collectionId={collection.id} initialSaved={album.saved} />
+          <div className={panelStyles.introAction}>
+            <SaveCollectionButton collectionId={collection.id} initialSaved={album.saved} />
+          </div>
         ) : album.kind === "unavailable" ? (
-          <p className={albumStyles.feedback}>
+          <p className={`${albumStyles.feedback} ${panelStyles.introAction}`}>
             Nie udało się sprawdzić, czy ta kolekcja jest zapisana. Odśwież stronę za chwilę.
           </p>
         ) : null}
-      </header>
-      <section className={styles.section} aria-labelledby="miejsca">
-        <h2 id="miejsca">
-          {collection.places.length === 0
-            ? "Miejsca w kolekcji"
-            : `Miejsca w kolekcji (${collection.places.length})`}
-        </h2>
-        {collection.places.length === 0 ? (
-          <p>Ta kolekcja nie ma jeszcze miejsc.</p>
-        ) : (
-          <>
-            <nav className={panelStyles.filter} aria-label="Widok miejsc">
+      </div>
+      <section className={`${styles.section} ${panelStyles.places}`} aria-labelledby="miejsca">
+        <div className={panelStyles.listHead}>
+          <h2 id="miejsca">
+            {collection.places.length === 0
+              ? "Miejsca w kolekcji"
+              : `Miejsca w kolekcji (${collection.places.length})`}
+          </h2>
+          {collection.places.length === 0 ? null : (
+            <nav className={panelStyles.segment} aria-label="Widok miejsc">
               {(["karty", "mapa"] as const).map((option) => (
                 <Link
                   key={option}
-                  className={panelStyles.filterLink}
+                  className={panelStyles.segmentLink}
                   href={albumHref(collection.slug, { stan, widok: option })}
                   aria-current={option === widok ? "page" : undefined}
                   aria-describedby={option === "mapa" ? "uwaga-mapa" : undefined}
@@ -228,6 +248,12 @@ export default async function CollectionPage({
                 </Link>
               ))}
             </nav>
+          )}
+        </div>
+        {collection.places.length === 0 ? (
+          <p>Ta kolekcja nie ma jeszcze miejsc.</p>
+        ) : (
+          <>
             <p id="uwaga-mapa" className={panelStyles.mapNote}>
               Mapę dostarcza OpenStreetMap; po jej włączeniu serwer OpenStreetMap widzi adres IP
               urządzenia i oglądany obszar.
@@ -266,18 +292,18 @@ export default async function CollectionPage({
             <div id="lista-miejsc" className={panelStyles.layout}>
               <div className={panelStyles.listColumn}>
                 {counts === null ? null : (
-                  <nav className={panelStyles.filter} aria-label="Filtr miejsc">
+                  <nav className={panelStyles.chips} aria-label="Filtr miejsc">
                     {STATE_FILTERS.map((filter) => (
                       <Link
                         key={filter}
-                        className={panelStyles.filterLink}
+                        className={panelStyles.chip}
                         href={albumHref(collection.slug, { stan: filter, widok })}
                         // Filtr zmienia tylko listę poniżej: strona zostaje tam, gdzie jest (U-07).
                         scroll={false}
                         aria-current={filter === stan ? "page" : undefined}
                       >
                         {STATE_FILTER_LABELS[filter]}
-                        <span className={panelStyles.filterCount}>({counts[filter]})</span>
+                        <span className={panelStyles.chipCount}>({counts[filter]})</span>
                       </Link>
                     ))}
                   </nav>
@@ -298,18 +324,7 @@ export default async function CollectionPage({
                 ) : (
                   <ol className={panelStyles.grid}>
                     {shown.map((place) => (
-                      <li key={place.id} className={styles.item}>
-                        <Link className={styles.itemLink} href={`/places/${place.id}`}>
-                          <PlaceThumb thumb={place.thumb} />
-                          <span className={styles.itemTitle}>
-                            <span className={styles.itemNumber}>{place.position}.</span>{" "}
-                            {place.name}
-                          </span>
-                          {place.address === "" ? null : (
-                            <span className={styles.itemMeta}>{place.address}</span>
-                          )}
-                        </Link>
-                      </li>
+                      <PlaceTile key={place.id} place={place} state={null} />
                     ))}
                   </ol>
                 )}

@@ -22,6 +22,9 @@
   /* Okładka kolekcji bez zdjęcia: gradient z obu kolorów */
   --color-image-placeholder: #1d2434;
   --color-image-placeholder-alt: #141925;
+  /* Tekst na zdjęciu: przyciemnienie i biały tekst, takie same w obu motywach (D-57) */
+  --color-image-scrim: #0b0d12;
+  --color-text-on-image: #ffffff;
 
   /* Linie i fokus */
   --color-border-subtle: #1d2130;
@@ -90,6 +93,8 @@
 
   --color-image-placeholder: #e6e1d6;
   --color-image-placeholder-alt: #d8d2c5;
+  --color-image-scrim: #0b0d12;
+  --color-text-on-image: #ffffff;
 
   --color-border-subtle: #e3dfd5;
   --color-border-default: #d3cec3;
