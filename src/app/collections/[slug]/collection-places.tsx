@@ -167,17 +167,21 @@ export function CollectionPlaces({ places }: { places: Place[] }) {
             <li key={place.id} className={styles.item}>
               {picking && place.kind === null ? (
                 <label className={pastStyles.pickLabel}>
+                  {place.thumb === null ? null : (
+                    <span className={pastStyles.pickThumb}>
+                      <PlaceThumb thumb={place.thumb} />
+                    </span>
+                  )}
                   <input
                     type="checkbox"
                     checked={chosen.includes(place.id)}
                     disabled={full && !chosen.includes(place.id)}
                     onChange={(event) => toggle(place.id, event.target.checked)}
                   />
-                  <span>
-                    <PlaceThumb thumb={place.thumb} />
+                  <span className={pastStyles.pickBody}>
                     {title}
                     {place.address === "" ? null : (
-                      <span className={styles.itemMeta}> {place.address}</span>
+                      <span className={styles.itemMeta}>{place.address}</span>
                     )}
                   </span>
                 </label>
