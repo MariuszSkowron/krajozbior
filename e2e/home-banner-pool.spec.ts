@@ -9,7 +9,7 @@ import sharp from "sharp";
 import { HOME_BANNER_POOL } from "../src/features/catalog/domain/home-banner-pool";
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
-import { contrastOver } from "./contrast-support";
+import { buttonContrast, contrastOver } from "./contrast-support";
 import { waitForEntrance } from "./scroll-support";
 
 // R3 / D-57 (PR 4): the banner of a guest is drawn from the pool of chosen places on the server,
@@ -269,6 +269,20 @@ test.describe("home page: the drawn banner of a guest", () => {
         main.getByText("Autor: Fikcyjny Autor Puli 1"),
       ]) {
         expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
+      }
+
+      // The buttons on the white photo: text 4.5:1 on the fill, the boundary 3:1 on the photo.
+      for (const part of [
+        main.getByRole("link", { name: "Zaloguj się" }),
+        main.getByRole("link", { name: "Zobacz kolekcje" }),
+      ]) {
+        const { text, boundary } = await buttonContrast(page, part);
+        // The text over what is really drawn under it (fill, blur and photo together).
+        const drawnUnder = await contrastOver(page, part, 3);
+
+        expect(text).toBeGreaterThanOrEqual(4.5);
+        expect(drawnUnder).toBeGreaterThanOrEqual(4.5);
+        expect(boundary).toBeGreaterThanOrEqual(3);
       }
 
       await context.close();

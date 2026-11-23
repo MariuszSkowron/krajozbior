@@ -220,14 +220,18 @@ describe("home banner pool", () => {
     const { placeId } = await ready("Q123");
 
     await admin$(`update public.organizations set status = 'suspended' where id = $1`, [orgB]);
-    const other = await place(orgB, "Q124");
 
-    await photo(other, orgB);
-    await collection(orgB, [other], true);
+    try {
+      const other = await place(orgB, "Q124");
 
-    expect(await getHomeBanner(deps, () => 0, pool("Q124"))).toBeNull();
-    expect(await getHomeBanner(deps, () => 0, pool("Q123"))).toMatchObject({ placeId });
-    await admin$(`update public.organizations set status = 'approved' where id = $1`, [orgB]);
+      await photo(other, orgB);
+      await collection(orgB, [other], true);
+
+      expect(await getHomeBanner(deps, () => 0, pool("Q124"))).toBeNull();
+      expect(await getHomeBanner(deps, () => 0, pool("Q123"))).toMatchObject({ placeId });
+    } finally {
+      await admin$(`update public.organizations set status = 'approved' where id = $1`, [orgB]);
+    }
   });
 
   it("gives one place for a Wikidata id used twice (the oldest id), so none is likelier", async () => {

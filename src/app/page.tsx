@@ -151,13 +151,15 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   // Only a signal for the message after deleting the account (E9-5).
   const accountDeleted = first(params.konto) === "usuniete";
   const savedRead = actor === null ? Promise.resolve(null) : loadSavedSlugs(actor);
-  const [allDiscover, allNearby, album, firstName, saved] = await Promise.all([
+  const [allDiscover, allNearby, album, firstName, saved, guestDrawn] = await Promise.all([
     // The saved ones are known first, so the list can read that many more than it shows.
     savedRead.then((slugs) => loadDiscover(slugs?.size ?? 0)),
     loadNearby(),
     actor === null ? Promise.resolve(null) : loadAlbum(actor),
     actor === null ? Promise.resolve(null) : loadFirstName(actor),
     savedRead,
+    // A guest always gets the draw, so its read starts with the others, not after them.
+    actor === null ? loadDrawnBanner() : Promise.resolve(null),
   ]);
   // A saved collection is not "to discover": it has its place in "Moje kolekcje". The list is
   // trimmed to twelve only after the filter, so it does not shrink with every save.
@@ -183,7 +185,11 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   // A guest and an explorer without a saved collection first get a drawn photo from the pool
   // (R3, PR 4); with no photo in the pool (or a failed read) the fixed photo stays as the fallback.
   const drawn =
-    favorites.length === 0 && (actor === null || album !== null) ? await loadDrawnBanner() : null;
+    actor === null
+      ? guestDrawn
+      : favorites.length === 0 && album !== null
+        ? await loadDrawnBanner()
+        : null;
   const banner = drawn ?? (await loadBanner(actor !== null && album === null ? null : bannerSlug));
 
   return (

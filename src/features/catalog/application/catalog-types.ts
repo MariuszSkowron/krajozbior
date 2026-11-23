@@ -341,7 +341,7 @@ export interface CatalogRepository {
   /**
    * Places with the given Wikidata ids that are in a published collection of an approved
    * organization and have a ready, visible photo (at least 1100 px wide, at most 16:9): one place
-   * per id (the oldest `id`), with that photo. Guest context.
+   * per id (the smallest `id`, a stable choice), with that photo. Guest context.
    */
   findHomeBannerCandidates(
     tx: TransactionContext,
