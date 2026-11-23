@@ -87,7 +87,7 @@ describe("PlacePhoto", () => {
   });
 
   describe("the slot above the photo (R3)", () => {
-    const withState = (props: { number?: number; state?: "undiscovered" | "visited" }) =>
+    const withState = (props: { number?: number; state?: "undiscovered" | "visited" | "past" }) =>
       renderToStaticMarkup(
         createElement(PlacePhoto, { cover, placeName: "Malbork, zamek", ...props }),
       );
@@ -104,6 +104,14 @@ describe("PlacePhoto", () => {
 
       expect(html).toContain(">12<");
       expect(html).toContain("Odwiedzone");
+      expect(html).not.toContain("Do odkrycia");
+    });
+
+    it("names 'Z przeszłości' for a place with only a past visit, and hides the number from a screen reader", () => {
+      const html = withState({ number: 3, state: "past" });
+
+      expect(html).toContain("Z przeszłości");
+      expect(html).toContain('aria-hidden="true">03<');
       expect(html).not.toContain("Do odkrycia");
     });
 

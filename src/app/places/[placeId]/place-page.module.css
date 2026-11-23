@@ -10,8 +10,6 @@
   padding-block: var(--space-md) var(--space-xl);
   /* Szerokość etykiety w wierszu faktów (88 px z makiety), wspólna dla faktów i źródeł. */
   --place-fact-label: 5.5rem;
-  /* Sekcja zmieniająca wysokość pod przyklejonym zdjęciem nie ma przesuwać strony. */
-  overflow-anchor: none;
 }
 
 .top {
@@ -58,9 +56,11 @@
   color: var(--color-text-meta);
 }
 
-/* Na telefonie zdjęcie sięga krawędzi ekranu (margines ujemny równy bocznemu marginesowi strony). */
+/* Na telefonie zdjęcie sięga krawędzi ekranu (margines ujemny równy bocznemu marginesowi strony).
+   Przyklejone zdjęcie nie bywa kotwicą przewijania: sekcja obok zmienia wysokość i strona nie skacze. */
 .photo {
   margin-inline: calc(-1 * var(--space-page-inline));
+  overflow-anchor: none;
 }
 
 .rest {

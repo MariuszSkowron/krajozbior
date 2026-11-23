@@ -303,6 +303,117 @@ describe("public read of collections and places (guest context)", () => {
     }
   });
 
+  describe("the cover and the number on the card of a collection of a place", () => {
+    const addPhoto = async (placeId: string, position = 1) =>
+      (
+        await admin$<{ id: string }>(
+          `insert into public.place_photos
+             (organization_id, place_id, position, file_state, storage_key, width, height, alt_text,
+              source_kind, title, author_text, source_url, license_code, license_url, license_label,
+              rights_statement, commons_file)
+           values ($1, $2, $3, 'ready', $4, 1280, 853, 'Opis zdjęcia', 'commons_import', 'Tytuł',
+                   'Autor', 'https://commons.wikimedia.org/wiki/File:X.jpg', 'cc-by-sa-4.0',
+                   'https://creativecommons.org/licenses/by-sa/4.0/', 'CC BY-SA 4.0',
+                   'commons-import/1', 'Plik.jpg')
+           returning id`,
+          [orgA, placeId, position, randomUUID()],
+        )
+      )[0]!.id;
+
+    const coverOf = async (placeId: string) => {
+      const result = await getPublishedPlace(placeId, deps);
+
+      if (result.status !== "ok") {
+        throw new Error("place not readable");
+      }
+
+      return result.value.collections[0]!.cover?.photoId ?? null;
+    };
+
+    it("skips a hidden photo of the first place and takes the photo of the second", async () => {
+      const collection = await newCollection(curA, orgA, "Okładka z ukrytym");
+      const first = await newPlace(curA, orgA, "Pierwsze z ukrytym");
+      const second = await newPlace(curA, orgA, "Drugie ze zdjęciem");
+
+      await link(curA, collection.id, first, orgA, 1);
+      await link(curA, collection.id, second, orgA, 2);
+      await publish(curA, collection.id);
+
+      const hidden = await addPhoto(first);
+      const visible = await addPhoto(second);
+
+      await admin$(`update public.place_photos set hidden_at = now() where id = $1`, [hidden]);
+
+      expect(await coverOf(second)).toBe(visible);
+    });
+
+    it("does not take the cover from a place that is in another collection only", async () => {
+      const collection = await newCollection(curA, orgA, "Okładka własna");
+      const other = await newCollection(curA, orgA, "Inna kolekcja");
+      const mine = await newPlace(curA, orgA, "Moje miejsce");
+      const foreign = await newPlace(curA, orgA, "Miejsce z innej kolekcji");
+
+      await link(curA, collection.id, mine, orgA, 5);
+      await link(curA, other.id, foreign, orgA, 1);
+      await publish(curA, collection.id);
+      await publish(curA, other.id);
+      await addPhoto(foreign);
+
+      expect(await coverOf(mine)).toBeNull();
+
+      const own = await addPhoto(mine);
+
+      expect(await coverOf(mine)).toBe(own);
+    });
+
+    it("takes the photo the curator chose instead of the first one", async () => {
+      const collection = await newCollection(curA, orgA, "Okładka wybrana");
+      const first = await newPlace(curA, orgA, "Pierwsze wybrane");
+      const second = await newPlace(curA, orgA, "Drugie wybrane");
+
+      await link(curA, collection.id, first, orgA, 1);
+      await link(curA, collection.id, second, orgA, 2);
+      await publish(curA, collection.id);
+      await addPhoto(first);
+
+      const chosen = await addPhoto(second);
+
+      await admin$(`update public.collections set cover_place_photo_id = $1 where id = $2`, [
+        chosen,
+        collection.id,
+      ]);
+
+      expect(await coverOf(first)).toBe(chosen);
+    });
+
+    // Today a hidden choice of the curator gives no cover at all; it should fall back to the
+    // automatic photo. Fixed after #129 (the shared collectionCoverLateral).
+    it.todo("falls back to the automatic photo when the chosen one is hidden (after #129)");
+
+    it("numbers the place in its collection in sequence, also after a gap in positions", async () => {
+      const collection = await newCollection(curA, orgA, "Z dziurą w pozycjach");
+      const a = await newPlace(curA, orgA, "Miejsce A");
+      const b = await newPlace(curA, orgA, "Miejsce B");
+      const c = await newPlace(curA, orgA, "Miejsce C");
+
+      // Positions 1, 4 and 9: the places in between were removed.
+      await link(curA, collection.id, a, orgA, 1);
+      await link(curA, collection.id, b, orgA, 4);
+      await link(curA, collection.id, c, orgA, 9);
+      await publish(curA, collection.id);
+
+      for (const [place, number] of [
+        [a, 1],
+        [b, 2],
+        [c, 3],
+      ] as const) {
+        expect(await getPublishedPlace(place, deps)).toMatchObject({
+          value: { collections: [{ position: number, placeCount: 3 }] },
+        });
+      }
+    });
+  });
+
   it("hides a withdrawn collection and shows it again after it is published once more", async () => {
     const collection = await newCollection(curA, orgA, "Wycofywana");
     const place = await newPlace(curA, orgA, "Miejsce wycofywanej");

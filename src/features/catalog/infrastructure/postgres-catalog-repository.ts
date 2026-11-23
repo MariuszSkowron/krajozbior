@@ -649,7 +649,9 @@ export const postgresCatalogRepository: CatalogRepository = {
         coverAltText: string | null;
       })[]
     >(
-      `select c.id, c.slug, c.title, c.region, cp.position,
+      `select c.id, c.slug, c.title, c.region,
+              (select count(*)::int from public.collection_places x
+                where x.collection_id = c.id and x.position <= cp.position) as position,
               (select count(*)::int from public.collection_places x
                  join public.places xp on xp.id = x.place_id
                 where x.collection_id = c.id) as "placeCount",

@@ -453,7 +453,7 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Nr 2 z 13 · Wieże Tczewa");
+      expect(html).toContain("Miejsce 2 z 13 · Wieże Tczewa");
       expect(html).toContain("Do odkrycia");
       expect(html).toContain("Kolekcja · Pomorskie");
       expect(html).toContain("13 miejsc · aktualizacja 22.11.2026");

@@ -645,18 +645,12 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
         bottom: dock.getBoundingClientRect().bottom,
         innerHeight: window.innerHeight,
         // The entrance animates the child of the page frame that holds the dock (since R3 the
-        // two-column block, not the visit section), so count every ancestor of the dock.
-        sectionAnimations: (() => {
-          let count = 0;
-
-          for (let node: Element | null = dock.parentElement; node; node = node.parentElement) {
-            count += node
-              .getAnimations()
-              .filter((animation) => animation.playState === "running").length;
-          }
-
-          return count;
-        })(),
+        // two-column block, not the visit section): look at exactly that element.
+        sectionAnimations:
+          dock
+            .closest(".content-width-wide > *, .content-width > *")
+            ?.getAnimations()
+            .filter((animation) => animation.playState === "running").length ?? 0,
       };
     }, DOCK);
 

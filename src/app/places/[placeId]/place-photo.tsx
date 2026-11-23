@@ -6,11 +6,13 @@ import styles from "./place-photo.module.css";
 
 // Stan miejsca dla odkrywcy: jeszcze nieodwiedzone (ramka przerywana, „Do odkrycia”) albo
 // odwiedzone (ramka ciągła, „Odwiedzone”). Gość nie ma stanu: ramka ciągła i brak etykiety.
-export type PlacePhotoState = "undiscovered" | "visited";
+// Wizyta z przeszłości też liczy się do postępu (D-10) i strona kolekcji pisze „Z przeszłości”.
+export type PlacePhotoState = "undiscovered" | "visited" | "past";
 
 const STATE_LABELS: Readonly<Record<PlacePhotoState, string>> = {
   undiscovered: "Do odkrycia",
   visited: "Odwiedzone",
+  past: "Z przeszłości",
 };
 
 // Zdjęcie miejsca (E4-2b, D-E4-7; wygląd R3, D-57): w ramce „slotu” z numerem miejsca i stanem nad
@@ -44,7 +46,10 @@ export function PlacePhoto({
       >
         {showRow ? (
           <p className={styles.row}>
-            <span>{number === undefined ? "" : String(number).padStart(2, "0")}</span>
+            {/* Numer jest już w nagłówku strony („Miejsce 2 z 5”): czytnik go tu pomija. */}
+            <span aria-hidden="true">
+              {number === undefined ? "" : String(number).padStart(2, "0")}
+            </span>
             <span>{state === undefined ? "" : STATE_LABELS[state]}</span>
           </p>
         ) : null}

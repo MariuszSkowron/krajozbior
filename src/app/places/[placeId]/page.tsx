@@ -138,10 +138,17 @@ export default async function PlacePage({ params }: { params: Params }) {
     (await params).placeId,
     place.collections.map((collection) => collection.id),
   );
-  // The first collection (alphabetically) names the place number in the head: "Nr 1 z 13 · …".
+  // The first collection (alphabetically) names the place number in the head: "Miejsce 1 z 13 · …".
   const first = place.collections[0];
+  // A past visit counts as visited (D-10, same as the progress and the collection page).
   const photoState =
-    visit.kind === "explorer" ? (visit.visited ? "visited" : "undiscovered") : undefined;
+    visit.kind === "explorer"
+      ? visit.visited
+        ? "visited"
+        : visit.past === null
+          ? "undiscovered"
+          : "past"
+      : undefined;
 
   return (
     <div className={`content-width-wide ${styles.page}`}>
@@ -149,7 +156,7 @@ export default async function PlacePage({ params }: { params: Params }) {
         <header className={styles.head}>
           {first === undefined ? null : (
             <p className={styles.number}>
-              Nr {first.position} z {first.placeCount} · {first.title}
+              Miejsce {first.position} z {first.placeCount} · {first.title}
             </p>
           )}
           <h1 className={styles.title}>{place.name}</h1>
