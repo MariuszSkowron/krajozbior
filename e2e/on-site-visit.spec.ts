@@ -123,7 +123,7 @@ test.describe("confirming a visit on site", () => {
 
     const placePath = new URL(page.url()).pathname;
 
-    await page.getByRole("link", { name: "Zaloguj się, aby potwierdzić wizytę" }).click();
+    await page.getByRole("main").getByRole("link", { name: "Zaloguj się", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/login\\?returnTo=${encodeURIComponent(placePath)}$`));
   });
 

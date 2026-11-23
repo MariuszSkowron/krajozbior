@@ -28,7 +28,7 @@ export default function CuratorLayout({ children }: Readonly<{ children: ReactNo
             </li>
           </ul>
           <Link className={`${styles.menuLink} ${styles.menuProfile}`} href="/my">
-            Profil prywatny
+            Mój album
           </Link>
         </nav>
         <div className={styles.panel}>{children}</div>

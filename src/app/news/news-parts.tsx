@@ -12,7 +12,10 @@ import {
 
 import styles from "./news.module.css";
 
-/** Napis przy organizacji (Q4): zespół Krajozbioru nie jest „zweryfikowaną organizacją”. */
+/**
+ * Napis przy organizacji (Q4): zespół Krajozbioru nie jest „zweryfikowaną organizacją”. Przy
+ * redakcji karta pokazuje samą nazwę, bez drugiego napisu o tym samym autorze.
+ */
 export function verificationLabel(verification: PublicNewsCard["verification"]): string {
   return verification === "editorial" ? "Zespół Krajozbioru" : "Zweryfikowana organizacja";
 }
@@ -28,7 +31,8 @@ export function NewsOrganization({
         {organizationInitial(name)}
       </span>
       <span>
-        <span className={styles.organizationName}>{name}</span> · {verificationLabel(verification)}
+        <span className={styles.organizationName}>{name}</span>
+        {verification === "editorial" ? null : ` · ${verificationLabel(verification)}`}
       </span>
     </p>
   );

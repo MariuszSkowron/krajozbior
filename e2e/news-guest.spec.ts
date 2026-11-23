@@ -119,7 +119,8 @@ test.describe("aktualności dla gościa", () => {
 
     await expect(card.getByRole("link")).toHaveCount(1);
     await expect(card).toContainText("Krajozbiór — redakcja");
-    await expect(card).toContainText("Zespół Krajozbioru");
+    await expect(card).not.toContainText("Zespół Krajozbioru");
+    await expect(card).not.toContainText("Zweryfikowana organizacja");
     await expect(card.locator("time")).toHaveCount(1);
     // Bez „Zgłoś treść” i bez „Nowe” w wersji redakcji.
     await expect(main).not.toContainText("Zgłoś treść");

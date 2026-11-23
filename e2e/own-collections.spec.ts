@@ -94,6 +94,7 @@ async function createCollection(page: Page): Promise<string> {
   await expect(page).toHaveURL(/\/my\/collections\/own\/new$/);
   await page.getByLabel("Nazwa").fill(OWN_TITLE);
   await page.getByLabel("Krótki opis").fill("Moje ulubione widoki.");
+  await page.getByLabel("Region").selectOption({ label: "Pomorskie" });
   await page.getByRole("button", { name: "Utwórz kolekcję" }).click();
   await expect(page).toHaveURL(/\/my\/collections\/own\/[0-9a-f-]{36}$/);
 
@@ -120,7 +121,7 @@ test.describe("own collections", () => {
     const id = await createCollection(page);
 
     await expect(page.getByRole("heading", { level: 1, name: OWN_TITLE })).toBeVisible();
-    await expect(page.getByText("Postęp 0/0")).toBeVisible();
+    await expect(page.getByText("Postęp 0/0")).toHaveCount(0);
     await expect(page.getByText("Ta kolekcja nie ma jeszcze miejsc.")).toBeVisible();
 
     await page.getByLabel("Nazwa albo adres miejsca").fill("Tczew");
@@ -176,6 +177,52 @@ test.describe("own collections", () => {
     await expect(
       page.getByRole("heading", { level: 2, name: "Moje własne kolekcje (0)" }),
     ).toBeVisible();
+
+    await page.context().close();
+  });
+
+  test("adding a place waits for the refreshed list before it announces the answer", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, EXPLORER_A);
+    const id = await createCollection(page);
+
+    // The refresh of the page (a request for the React Server Components payload) is slowed down,
+    // so the time between the answer of the API and the new list can be observed.
+    await page.route("**/*", async (route) => {
+      const request = route.request();
+
+      if (request.headers()["rsc"] === "1" || request.url().includes("_rsc=")) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+      await route.continue();
+    });
+
+    await page.goto(`/my/collections/own/${id}?q=Tczew`);
+
+    const add = page.getByRole("button", { name: `Dodaj do kolekcji: ${PLACE}` });
+    const announced = page.getByRole("status").filter({ hasText: "Dodano do kolekcji." });
+
+    // The checks below must run in the window of the slowed refresh, i.e. after the write
+    // itself has been answered, not while the POST is still in flight.
+    const added = page.waitForResponse(
+      (r) => r.url().includes("/items") && r.request().method() === "POST",
+    );
+
+    await add.click();
+    await added;
+    // While the list is refreshed: the button is busy (not activatable again) and nothing is
+    // announced yet, so the answer never stands next to the old list.
+    await expect(add).toHaveText("Dodawanie…");
+    await expect(add).toHaveAttribute("aria-disabled", "true");
+    await expect(announced).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 2, name: "Miejsca (0)" })).toBeVisible();
+
+    // After the refresh: the new list, the answer in a region that stays, no second "Dodaj".
+    await expect(page.getByRole("heading", { level: 2, name: "Miejsca (1)" })).toBeVisible();
+    await expect(announced).toHaveText("Dodano do kolekcji.");
+    await expect(page.getByText("Już w kolekcji")).toBeVisible();
+    await expect(page.getByRole("button", { name: `Dodaj do kolekcji: ${PLACE}` })).toHaveCount(0);
 
     await page.context().close();
   });

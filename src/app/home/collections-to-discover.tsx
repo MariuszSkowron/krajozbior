@@ -78,9 +78,12 @@ function sortedByDistance(
 export function CollectionsToDiscover({
   collections,
   candidates,
+  allSaved = false,
 }: Readonly<{
   collections: readonly RecentCollection[] | null;
   candidates: readonly NearbyCandidate[] | null;
+  /** The explorer saved every collection of the list, so nothing is left to discover. */
+  allSaved?: boolean;
 }>) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const busy = useRef(false);
@@ -168,7 +171,11 @@ export function CollectionsToDiscover({
           Nie udało się wczytać kolekcji. Odśwież stronę.
         </p>
       ) : collections.length === 0 ? (
-        <p>Nie ma jeszcze opublikowanych kolekcji.</p>
+        <p>
+          {allSaved
+            ? "Masz zapisane wszystkie kolekcje."
+            : "Nie ma jeszcze opublikowanych kolekcji."}
+        </p>
       ) : (
         <>
           {canSort ? (

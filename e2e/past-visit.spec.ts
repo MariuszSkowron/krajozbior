@@ -148,7 +148,7 @@ test.describe("a visit from the past", () => {
     await expect(status).toBeVisible();
     await expect(status).toBeFocused();
     await expect(a.getByText("Z przeszłości · marzec 2019")).toBeVisible();
-    await expect(a.getByText("Wizyta z przeszłości zapisana")).toBeVisible();
+    await expect(a.getByText("Wizyta z przeszłości zapisana")).toHaveCount(0);
     // A visit from the past does not hide the confirmation on site (D-10).
     await expect(a.getByRole("button", { name: "Potwierdzam wizytę" })).toBeVisible();
     expect(await visitRows(EXPLORER_A)).toEqual([

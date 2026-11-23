@@ -94,7 +94,7 @@ describe("news list page", () => {
     expect(cards[0]).toContain('<time dateTime="2026-11-20">20.11.2026</time>');
     expect(cards[0]).toContain("Poradnik");
     expect(cards[0]).toContain("Krajozbiór — redakcja");
-    expect(cards[0]).toContain("Zespół Krajozbioru");
+    expect(cards[0]).not.toContain("Zespół Krajozbioru");
     expect(html).not.toContain("Zgłoś treść");
   });
 
