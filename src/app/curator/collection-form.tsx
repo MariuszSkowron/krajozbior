@@ -11,6 +11,7 @@ import {
   type Region,
 } from "@/features/catalog/domain/collection";
 
+import { useCollectionVersion } from "./collection-version";
 import { callApi } from "./curator-api";
 import { failed, Field, FeedbackRegion, type Feedback } from "./curator-ui";
 import styles from "./curator.module.css";
@@ -74,6 +75,7 @@ function CollectionFields({
 }: CollectionFormProps &
   Readonly<{ feedback: Feedback | null; onFeedback: (f: Feedback) => void }>) {
   const router = useRouter();
+  const known = useCollectionVersion(props.mode === "edit" ? props.collection.version : 0);
   const initial: CollectionValues =
     props.mode === "edit" ? props.collection : { title: "", summary: "", region: "pomorskie" };
   const [summaryLength, setSummaryLength] = useState(initial.summary.length);
@@ -143,12 +145,13 @@ function CollectionFields({
       "PATCH",
       `/api/curator/collections/${props.collection.id}`,
       "collection",
-      { version: props.collection.version, ...values },
+      { version: known.current, ...values },
     );
 
     setPending(false);
 
     if (result.ok) {
+      known.report(result.value);
       onFeedback({ kind: "success", message: "Zapisano zmiany." });
       router.refresh();
     } else {

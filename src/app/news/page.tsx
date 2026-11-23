@@ -3,7 +3,11 @@ import Link from "next/link";
 
 import { logReadFailure } from "@/app/request-actor";
 import { listPublicNews } from "@/features/news/application/public-news";
-import { parseNewsFilter, type NewsFilter } from "@/features/news/domain/news-view";
+import {
+  formatNewsCount,
+  parseNewsFilter,
+  type NewsFilter,
+} from "@/features/news/domain/news-view";
 import { getNewsReadDeps } from "@/features/news/infrastructure/news-read-deps";
 
 import { NewsCard } from "./news-parts";
@@ -30,14 +34,6 @@ async function load(filter: NewsFilter) {
 
     throw new Error("Public news list failed");
   }
-}
-
-function countText(count: number, filter: NewsFilter): string {
-  if (filter === "events") {
-    return count === 1 ? "1 wydarzenie" : `Wydarzenia: ${count}`;
-  }
-
-  return count === 1 ? "1 aktualność" : `Aktualności: ${count}`;
 }
 
 // `/news`: the newest published items; `?filtr=wydarzenia` keeps the events that are on or
@@ -76,7 +72,7 @@ export default async function NewsPage({ searchParams }: { searchParams: SearchP
           </li>
         </ul>
       </nav>
-      <p className={styles.count}>{countText(cards.length, filter)}</p>
+      <p className={styles.count}>{formatNewsCount(cards.length, filter)}</p>
       {cards.length === 0 ? (
         <div className={styles.empty}>
           <p>

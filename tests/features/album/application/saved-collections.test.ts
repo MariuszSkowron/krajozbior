@@ -4,6 +4,7 @@ import type { AlbumDeps, AlbumRepository } from "@/features/album/application/al
 import {
   getCollectionProgress,
   listMyCollectionsWithProgress,
+  listMySavedCollectionSlugs,
   saveCollection,
   unsaveCollection,
 } from "@/features/album/application/saved-collections";
@@ -156,6 +157,29 @@ describe("listMyCollectionsWithProgress", () => {
       value: [],
     });
     expect(await listMyCollectionsWithProgress(null, makeDeps().deps)).toEqual({
+      status: "unauthenticated",
+    });
+  });
+});
+
+describe("listMySavedCollectionSlugs", () => {
+  it("returns only the slugs of the saved collections, in the context of the actor", async () => {
+    const { deps, withUserContext } = makeDeps({
+      listSavedCollections: async () => [
+        { id: COLLECTION, slug: "a", title: "A", region: "pomorskie" },
+        { id: OTHER, slug: "b", title: "B", region: "pomorskie" },
+      ],
+    });
+
+    expect(await listMySavedCollectionSlugs(actor, deps)).toEqual({
+      status: "ok",
+      value: ["a", "b"],
+    });
+    expect(withUserContext).toHaveBeenCalledWith(actor, expect.any(Function));
+  });
+
+  it("refuses a guest", async () => {
+    expect(await listMySavedCollectionSlugs(null, makeDeps().deps)).toEqual({
       status: "unauthenticated",
     });
   });

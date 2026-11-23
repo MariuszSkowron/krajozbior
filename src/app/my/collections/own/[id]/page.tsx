@@ -103,7 +103,8 @@ export default async function OwnCollectionPage({ params, searchParams }: Props)
           <StatusBadge tone="neutral">Prywatna</StatusBadge>
         </div>
         <p className={catalog.meta}>
-          {OWN_REGION_LABELS[collection.region]} · Postęp {progress.visited}/{progress.total}
+          {OWN_REGION_LABELS[collection.region]}
+          {progress.total === 0 ? "" : ` · Postęp ${progress.visited}/${progress.total}`}
         </p>
         {collection.summary === "" ? null : <p className={catalog.summary}>{collection.summary}</p>}
       </header>

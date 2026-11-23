@@ -82,10 +82,14 @@
 }
 
 /* Lista miejsc kolekcji w trybie wyboru: pole wyboru stoi przed nazwą, cały wiersz jest etykietą. */
+/* Układ jak `.itemLink`: miniatura na całą szerokość karty (wiersz 1), niżej pole wyboru i obok
+   niego nazwa z adresem w osobnym wierszu; pole stoi w linii z pierwszym wierszem nazwy. */
 .pickLabel {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--space-sm);
+  row-gap: var(--space-xs);
   box-sizing: border-box;
   min-height: var(--size-row-min);
   padding: var(--space-md);
@@ -93,7 +97,21 @@
 }
 
 .pickLabel input {
-  flex: none;
+  margin: 0.2em 0 0;
+}
+
+.pickThumb {
+  grid-column: 1 / -1;
+}
+
+/* Zdjęcie, które się nie załadowało, znika; pusty wiersz nie zostawia odstępu. */
+.pickThumb:empty {
+  display: none;
+}
+
+.pickBody {
+  display: grid;
+  gap: var(--space-xs);
 }
 
 .toolbar {

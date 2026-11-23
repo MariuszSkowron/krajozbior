@@ -98,6 +98,23 @@
   border-radius: var(--radius-lg);
 }
 
+/* Miniatura zdjęcia na karcie miejsca w kolekcji: pole 16:9, zdjęcie w całości (contain), wolne
+   pasy wypełnia tło tint. Karta bez zdjęcia nie ma tego pola. */
+.thumb {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background: var(--color-surface-tint);
+  border-radius: var(--radius-md);
+}
+
+.thumbImage {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
 .itemTitle {
   color: var(--color-text-strong);
   font-weight: var(--font-weight-strong);
