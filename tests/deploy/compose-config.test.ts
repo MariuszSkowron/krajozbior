@@ -70,11 +70,36 @@ if (!composeInstalled && !requireCompose) {
 
 const dockerComposeIt = it.skipIf(!composeInstalled && !requireCompose);
 
+// Każde `docker compose config` to osobny proces (kilka sekund przy obciążonym komputerze), a te
+// same wywołania powtarzają się w wielu testach. Wynik zależy tylko od argumentów, więc liczymy
+// go raz na unikalny zestaw i oddajemy kopię.
+const composeCache = new Map<string, ComposeConfig>();
+
 function composeConfig(
   files: string[],
   extra: string[] = [],
   envFile?: string,
   variables: Record<string, string> = {},
+): ComposeConfig {
+  const key = JSON.stringify([files, extra, envFile, variables]);
+  const cached = composeCache.get(key);
+
+  if (cached !== undefined) {
+    return structuredClone(cached);
+  }
+
+  const config = runComposeConfig(files, extra, envFile, variables);
+
+  composeCache.set(key, config);
+
+  return structuredClone(config);
+}
+
+function runComposeConfig(
+  files: string[],
+  extra: string[],
+  envFile: string | undefined,
+  variables: Record<string, string>,
 ): ComposeConfig {
   const args = ["compose", ...files.flatMap((file) => ["-f", file]), ...extra];
 
@@ -91,7 +116,16 @@ function composeConfig(
   return JSON.parse(output) as ComposeConfig;
 }
 
+let dummySecrets: string | undefined;
+
+// Ten sam plik na cały przebieg, żeby wywołania `composeConfig` z tym plikiem trafiały w pamięć podręczną.
 function dummySecretsFile(): string {
+  dummySecrets ??= createDummySecretsFile();
+
+  return dummySecrets;
+}
+
+function createDummySecretsFile(): string {
   const directory = mkdtempSync(join(tmpdir(), "krajozbior-showcase-test-"));
   const file = join(directory, "secrets");
   const lines = [
