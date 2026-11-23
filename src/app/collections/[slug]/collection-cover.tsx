@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { PlaceCover } from "@/features/catalog/application/catalog-types";
+import { showsWhole } from "@/features/catalog/domain/collection-cover";
 import { THUMB_WIDTH } from "@/features/media/domain/limits";
 
 import { PhotoCredit } from "../../places/[placeId]/photo-credit";
@@ -34,8 +35,7 @@ export function CollectionCover({
   const main = `/media/p/${cover.photoId}/main`;
   const thumb = `/media/p/${cover.photoId}/w400`;
   const hasChoice = cover.width > THUMB_WIDTH;
-  const ratio = cover.width / cover.height;
-  const whole = ratio < 4 / 3 || ratio > 16 / 9;
+  const whole = showsWhole(cover.width, cover.height);
 
   return (
     <figure className={styles.figure}>

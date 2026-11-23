@@ -70,6 +70,20 @@
   color: var(--color-text-on-image);
 }
 
+/* Przyciemnienie siedzi na samym bloku tekstu, więc podąża za jego wysokością (długi tytuł,
+   powiększony tekst): pod całym tekstem, łącznie z etykietą na górze bloku, jest ≥78% koloru
+   przyciemnienia (kontrast ≥4,5:1 także na białym zdjęciu). Zanikanie zajmuje tylko
+   górny odstęp bloku (--space-lg), nad etykietą. */
+.withPhoto .text {
+  padding-block-start: var(--space-xl);
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--color-image-scrim) 96%, transparent) 0%,
+    color-mix(in srgb, var(--color-image-scrim) 78%, transparent) calc(100% - var(--space-lg)),
+    color-mix(in srgb, var(--color-image-scrim) 0%, transparent) 100%
+  );
+}
+
 .text > p,
 .text > h1 {
   margin: 0;
@@ -129,7 +143,8 @@
   text-transform: uppercase;
 }
 
-/* Pasek 3 px: tor półprzezroczysty biały, wypełnienie akcentem z poświatą. */
+/* Pasek 3 px (z makiety; w tokenach rozmiarów nie ma tak cienkiej wartości): tor
+   półprzezroczysty biały, wypełnienie akcentem z poświatą. */
 .bar {
   appearance: none;
   display: block;
@@ -138,7 +153,7 @@
   overflow: hidden;
   background: color-mix(in srgb, var(--color-text-on-image) 22%, transparent);
   border: 0;
-  border-radius: 3px;
+  border-radius: var(--radius-pill);
 }
 
 .bar::-webkit-progress-bar {
@@ -147,13 +162,13 @@
 
 .bar::-webkit-progress-value {
   background: var(--color-brand-accent);
-  border-radius: 3px;
+  border-radius: var(--radius-pill);
   box-shadow: var(--shadow-accent-glow);
 }
 
 .bar::-moz-progress-bar {
   background: var(--color-brand-accent);
-  border-radius: 3px;
+  border-radius: var(--radius-pill);
 }
 
 .srOnly {

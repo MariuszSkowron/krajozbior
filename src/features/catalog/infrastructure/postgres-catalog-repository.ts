@@ -127,15 +127,39 @@ const collectionCardColumns = `c.id, c.slug, c.title, c.region, o.name as "organ
 // otherwise the first ready photo of the first place (by position in the collection) that has
 // one. Both are only photos of the collection's own places. The columns are listed (never
 // `ph.*`): the application role has no grant on the `hidden_*` columns.
+//
+// Two branches joined with `union all` (the chosen photo by its key, the places of the collection
+// by `collection_places`, then the first ready photo of each place through the index
+// `(place_id, position)`), so no branch scans the whole table of photos: the sort key `k` puts
+// the chosen photo first.
 const collectionCoverLateral = (alias: string) => `left join lateral (
-      select ph.id, ph.width, ph.height, ph.alt_text, ph.title, ph.author_text, ph.author_url,
-             ph.source_url, ph.source_kind, ph.license_code, ph.license_url, ph.license_label
-        from public.place_photos ph
-        left join public.collection_places cp
-          on cp.place_id = ph.place_id and cp.collection_id = c.id
-       where ph.file_state = 'ready' and ph.storage_key is not null
-         and (ph.id = c.cover_place_photo_id or cp.collection_id is not null)
-       order by (ph.id = c.cover_place_photo_id) desc, cp.position, ph.position
+      select u.id, u.width, u.height, u.alt_text, u.title, u.author_text, u.author_url,
+             u.source_url, u.source_kind, u.license_code, u.license_url, u.license_label
+        from (
+          (select ph.id, ph.width, ph.height, ph.alt_text, ph.title, ph.author_text, ph.author_url,
+                  ph.source_url, ph.source_kind, ph.license_code, ph.license_url, ph.license_label,
+                  0 as k, 0 as place_pos, ph.position as photo_pos
+             from public.place_photos ph
+            where ph.id = c.cover_place_photo_id
+              and ph.file_state = 'ready' and ph.storage_key is not null)
+          union all
+          (select ph.id, ph.width, ph.height, ph.alt_text, ph.title, ph.author_text, ph.author_url,
+                  ph.source_url, ph.source_kind, ph.license_code, ph.license_url, ph.license_label,
+                  1 as k, cp.position as place_pos, ph.position as photo_pos
+             from public.collection_places cp
+             cross join lateral (
+               select p.id, p.width, p.height, p.alt_text, p.title, p.author_text, p.author_url,
+                      p.source_url, p.source_kind, p.license_code, p.license_url, p.license_label,
+                      p.position
+                 from public.place_photos p
+                where p.place_id = cp.place_id
+                  and p.file_state = 'ready' and p.storage_key is not null
+                order by p.position
+                limit 1
+             ) ph
+            where cp.collection_id = c.id)
+        ) u
+       order by u.k, u.place_pos, u.photo_pos
        limit 1
     ) ${alias} on true`;
 

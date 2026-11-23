@@ -645,6 +645,10 @@ describe("collection cover", () => {
 
       const collection = await newCollection(orgA, [inside], true);
 
+      // The place is in another published collection, so the guest may see its photo (RLS lets
+      // it through): only the condition on the collection in the query keeps it off this cover.
+      await newCollection(orgA, [outside], true);
+
       expect(await pageCover(collection.slug)).toBeNull();
       expect((await cardCover(collection.id)) ?? null).toBeNull();
     });

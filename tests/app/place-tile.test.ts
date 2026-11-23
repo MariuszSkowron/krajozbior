@@ -32,8 +32,9 @@ describe("PlaceTile (kafelek miejsca w kolekcji)", () => {
 
     expect(html).not.toContain("Odwiedzone");
     expect(html).not.toContain("Do odwiedzenia");
-    expect(html).not.toMatch(/_badge_/);
-    expect(html).not.toMatch(/_todo_/);
+    expect(html).not.toContain("Z przeszłości");
+    expect(html).not.toContain("<svg");
+    expect(html).not.toContain('aria-hidden="true"');
   });
 
   it("marks a visited place with the word and a decorative tick", () => {
@@ -44,9 +45,9 @@ describe("PlaceTile (kafelek miejsca w kolekcji)", () => {
       const html = render({ state });
 
       expect(html).toContain(`>${word}</span>`);
-      expect(html).toMatch(/_badge_\w+" aria-hidden="true"/);
-      expect(html).toMatch(/_visited_/);
-      expect(html).not.toMatch(/_todo_/);
+      // The tick is decorative (hidden from a screen reader): the state is in the word.
+      expect(html).toMatch(/<span[^>]*aria-hidden="true"[^>]*><svg/);
+      expect(html).not.toContain("Do odwiedzenia");
     }
   });
 
@@ -54,15 +55,15 @@ describe("PlaceTile (kafelek miejsca w kolekcji)", () => {
     const html = render({ state: "todo" });
 
     expect(html).toContain("Do odwiedzenia");
-    expect(html).toMatch(/_todo_/);
-    expect(html).not.toMatch(/_badge_/);
+    expect(html).not.toContain("<svg");
+    expect(html).not.toContain('aria-hidden="true"');
   });
 
   it("keeps a tile without a photo and without an address whole", () => {
     const html = render({ place: { ...place, thumb: null, address: "" } });
 
     expect(html).not.toContain("<img");
-    expect(html).not.toMatch(/_tileAddress_/);
+    expect(html).not.toContain("Pęzino");
     expect(html).toContain(">Zamek w Pęzinie<");
   });
 

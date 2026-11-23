@@ -94,3 +94,13 @@ export function ogImageUrl(
 
   return `${origin}/media/p/${cover.photoId}/og`;
 }
+
+/**
+ * Czy zdjęcie pokazać w całości (bez przycinania): panoramy i zdjęcia pionowe, czyli proporcje
+ * poza zakresem 4:3–16:9 (Q4). Jedna reguła dla okładki kolekcji i miniatury kafelka miejsca.
+ */
+export function showsWhole(width: number, height: number): boolean {
+  const ratio = width / height;
+
+  return ratio < 4 / 3 || ratio > 16 / 9;
+}

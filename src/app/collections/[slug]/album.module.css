@@ -104,7 +104,12 @@
 }
 
 :global(html):has(.chips) {
-  scroll-padding-top: 5rem;
+  /* Wysokość paska filtrów: jedna wartość dla odstępu przewijania i marginesu samego paska.
+     Na wąskim ekranie filtry mogą zawinąć się do dwóch wierszy (2 x 44 px + odstępy), więc
+     zapas jest większy (WCAG 2.4.11: fokus nie chowa się pod paskiem). */
+  --chips-height: 5rem;
+
+  scroll-padding-top: var(--chips-height);
 }
 
 /* Sam wiersz filtrów i jego pigułki są wyjęte spod tego odstępu: stoją przyklejone przy samej
@@ -112,7 +117,7 @@
    albo kliknięciu filtra (strona „skakała”, U-07). */
 .chips,
 .chip {
-  scroll-margin-block-start: -5rem;
+  scroll-margin-block-start: calc(-1 * var(--chips-height));
 }
 
 .chip {
@@ -479,19 +484,24 @@
     justify-items: stretch;
   }
 
+  :global(html):has(.chips) {
+    --chips-height: 8rem;
+  }
+
   .chips {
-    gap: 6px;
-    padding-block: 12px;
+    gap: var(--space-xs);
+    padding-block: var(--space-sm);
   }
 
   /* Trzy filtry mają się zmieścić w jednym wierszu przy 390 px (VERIFY-R3); przy węższym oknie
-     ostatni zawija się do drugiego wiersza zamiast się ucinać. */
+     ostatni zawija się do drugiego wiersza zamiast się ucinać. Rozmiar 0.75rem nie ma tokenu
+     (najbliższy, --font-size-xs, to 0.6875rem i byłby za drobny dla etykiety filtra). */
   .chip {
-    padding-inline: 8px;
+    padding-inline: var(--space-sm);
     font-size: 0.75rem;
   }
 
   .chipCount {
-    margin-inline-start: 2px;
+    margin-inline-start: var(--space-xs);
   }
 }

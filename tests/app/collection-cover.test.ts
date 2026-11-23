@@ -37,14 +37,18 @@ describe("CollectionCover (nagłówek kolekcji, E4-3, R3)", () => {
     expect(html.indexOf("<h1>")).toBeLessThan(html.indexOf("<figcaption"));
   });
 
-  it("crops a photo of ordinary proportions and shows a panorama or a portrait whole", () => {
-    const render = (width: number, height: number) =>
-      renderToStaticMarkup(show({ ...cover, width, height }));
+  it("gives a panorama and a portrait the same alt text and size as any photo", () => {
+    // Cropping or showing whole is a style choice (rule: showsWhole, tested in the domain).
+    for (const [width, height] of [
+      [2400, 600],
+      [600, 900],
+    ] as const) {
+      const html = renderToStaticMarkup(show({ ...cover, width, height }));
 
-    expect(render(1280, 853)).toMatch(/class="_photo_\w+"/);
-    expect(render(1600, 900)).toMatch(/class="_photo_\w+"/);
-    expect(render(2400, 600)).toMatch(/class="_photoWhole_\w+"/);
-    expect(render(600, 900)).toMatch(/class="_photoWhole_\w+"/);
+      expect(html).toContain('alt="Zamek nad rzeką"');
+      expect(html).toContain(`width="${width}"`);
+      expect(html).toContain(`height="${height}"`);
+    }
   });
 
   it("keeps the title readable without a photo: a placeholder cover, no figure, no credit", () => {
@@ -52,7 +56,6 @@ describe("CollectionCover (nagłówek kolekcji, E4-3, R3)", () => {
 
     expect(html).not.toContain("<figure");
     expect(html).not.toContain("<img");
-    expect(html).toMatch(/_plain_\w+/);
     expect(html).toContain("<h1>Zamki</h1>");
   });
 

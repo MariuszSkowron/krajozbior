@@ -275,6 +275,58 @@ test.describe("the collection as an album", () => {
     await page.context().close();
   });
 
+  for (const width of [1280, 390]) {
+    test(`an explorer: Tab from the filters to a tile never hides the tile under the filter bar (${width} px)`, async ({
+      browser,
+    }) => {
+      const page = await signedInPage(browser, EXPLORER);
+
+      // A low window, so that the page scrolls; the bar is sticky, a tile under it would be hidden.
+      await page.setViewportSize({ width, height: 240 });
+      await page.goto(COLLECTION);
+      await waitForHydration(page);
+
+      const nav = page.getByRole("navigation", { name: "Filtr miejsc" });
+      const lastFilter = nav.getByRole("link").last();
+      const firstTile = card(page, /./).first();
+
+      // The first tile 10 px under the top edge of the window, so under the sticky bar (visible,
+      // so the browser scrolls only when the scroll padding says the tile is hidden).
+      await page.evaluate(() => {
+        const tile = document.querySelector("main ol a");
+
+        if (tile) {
+          window.scrollTo(0, tile.getBoundingClientRect().top + window.scrollY - 10);
+        }
+      });
+      expect(
+        await firstTile.evaluate((element) => element.getBoundingClientRect().top),
+      ).toBeLessThan(40);
+      await lastFilter.evaluate((element) =>
+        (element as HTMLElement).focus({ preventScroll: true }),
+      );
+      // Between the filters and the first tile there may be a button (picking visited places).
+      for (let step = 0; step < 4; step += 1) {
+        await page.keyboard.press("Tab");
+
+        if (await firstTile.evaluate((element) => element === document.activeElement)) {
+          break;
+        }
+      }
+
+      await expect(firstTile).toBeFocused();
+      await page.waitForTimeout(300);
+
+      const navBox = await nav.boundingBox();
+      const tileBox = await firstTile.boundingBox();
+
+      expect(navBox).not.toBeNull();
+      expect(tileBox).not.toBeNull();
+      expect(tileBox!.y).toBeGreaterThanOrEqual(navBox!.y + navBox!.height - 1);
+      await page.context().close();
+    });
+  }
+
   test("accessibility: the album, as a guest and as an explorer, in both themes", async ({
     browser,
     page,

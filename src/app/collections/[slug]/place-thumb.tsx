@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import type { PlaceThumb as Thumb } from "@/features/catalog/application/catalog-types";
+import { showsWhole } from "@/features/catalog/domain/collection-cover";
 
 import styles from "./album.module.css";
 
@@ -21,8 +22,7 @@ export function PlaceThumb({ thumb }: Readonly<{ thumb: Thumb | null }>) {
     return null;
   }
 
-  const ratio = thumb.width / thumb.height;
-  const whole = ratio < 4 / 3 || ratio > 16 / 9;
+  const whole = showsWhole(thumb.width, thumb.height);
 
   return (
     <span className={styles.thumb}>
