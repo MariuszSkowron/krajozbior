@@ -27,7 +27,14 @@ vi.mock("react", async (importOriginal) => ({
     ];
   },
   useRef: () => ({ current: null }),
-  useContext: () => ({ dirty: store.dirty, setDirty: () => undefined }),
+  // One stand-in for every context the component reads: the unsaved-changes one
+  // (dirty, setDirty) and the collection-version one (current, report).
+  useContext: () => ({
+    dirty: store.dirty,
+    setDirty: () => undefined,
+    current: 3,
+    report: () => undefined,
+  }),
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: store.refresh, push: vi.fn() }),
