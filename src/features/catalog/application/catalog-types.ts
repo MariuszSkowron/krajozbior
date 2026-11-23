@@ -71,12 +71,11 @@ export type PublishedPlaceSummary = Readonly<{
   thumb: PlaceThumb | null;
 }>;
 
-/** What a card of a place needs to show its photo: id, size and the description (public fields). */
+/** What a card of a place needs to show its photo: id and size (public fields). */
 export type PlaceThumb = Readonly<{
   photoId: string;
   width: number;
   height: number;
-  altText: string;
 }>;
 
 export type PublishedCollection = Readonly<{

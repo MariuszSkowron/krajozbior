@@ -535,16 +535,14 @@ export const postgresCatalogRepository: CatalogRepository = {
         photoId: string | null;
         photoWidth: number | null;
         photoHeight: number | null;
-        photoAltText: string | null;
       })[]
     >(
       `select p.id, p.name, p.address, cp.position, p.latitude, p.longitude,
-              ph.id as "photoId", ph.width as "photoWidth", ph.height as "photoHeight",
-              ph.alt_text as "photoAltText"
+              ph.id as "photoId", ph.width as "photoWidth", ph.height as "photoHeight"
          from public.collection_places cp
          join public.places p on p.id = cp.place_id
          left join lateral (
-           select id, width, height, alt_text
+           select id, width, height
              from public.place_photos
             where place_id = p.id and file_state = 'ready' and storage_key is not null
             order by position
@@ -554,15 +552,13 @@ export const postgresCatalogRepository: CatalogRepository = {
         order by cp.position`,
       [collection.id],
     );
-    const places = placeRows.map(
-      ({ photoId, photoWidth, photoHeight, photoAltText, ...place }) => ({
-        ...place,
-        thumb:
-          photoId === null || photoWidth === null || photoHeight === null || photoAltText === null
-            ? null
-            : { photoId, width: photoWidth, height: photoHeight, altText: photoAltText },
-      }),
-    );
+    const places = placeRows.map(({ photoId, photoWidth, photoHeight, ...place }) => ({
+      ...place,
+      thumb:
+        photoId === null || photoWidth === null || photoHeight === null
+          ? null
+          : { photoId, width: photoWidth, height: photoHeight },
+    }));
     // The cover with its credit. The guest context leaves only a photo everyone may see; the
     // application role has no grant on the `hidden_*` columns, so the query does not read them.
     const cover = first(

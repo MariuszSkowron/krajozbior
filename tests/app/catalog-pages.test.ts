@@ -127,7 +127,7 @@ describe("public catalog pages", () => {
     const photoId = "0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b";
     const withPhoto = {
       ...collection.places[0],
-      thumb: { photoId, width: 1280, height: 853, altText: "Most nad rzeką" },
+      thumb: { photoId, width: 1280, height: 853 },
     };
 
     mocks.collection.mockResolvedValue({
@@ -599,7 +599,6 @@ describe("public catalog pages", () => {
         photoId: "0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b",
         width: 1280,
         height: 853,
-        altText: "x",
       },
     };
     const third = {
@@ -722,6 +721,19 @@ describe("public catalog pages", () => {
         const html = await render();
 
         expect(html).toContain("Zaznacz odwiedzone");
+      });
+
+      it("shows the thumbnail on the card of a place with a photo, and none on a card without", async () => {
+        const html = await render();
+        const card = (placeId: string) => {
+          const from = html.indexOf(`href="/places/${placeId}"`);
+
+          return html.slice(from, html.indexOf("</li>", from));
+        };
+
+        expect(card(second.id)).toContain("<img");
+        expect(card(second.id)).toContain(`src="/media/p/${second.thumb.photoId}/w400"`);
+        expect(card(third.id)).not.toContain("<img");
       });
 
       it("has no filter when the read of the kinds fails, and a plain list", async () => {
