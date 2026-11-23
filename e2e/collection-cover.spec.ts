@@ -203,7 +203,7 @@ async function signedInCurator(browser: Browser, theme: "light" | "dark"): Promi
   await form.getByLabel("E-mail").fill(emailOf("curator-a"));
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(/\/curator$/);
 
   return page;
 }
@@ -438,7 +438,7 @@ test.describe("collection cover", () => {
     await form.getByLabel("E-mail").fill(emailOf("curator-b"));
     await form.getByLabel("Hasło").fill(password ?? "");
     await form.getByRole("button", { name: "Zaloguj się" }).click();
-    await expect(page).toHaveURL(/\/my$/);
+    await expect(page).toHaveURL(/\/curator$/);
 
     const response = await page.request.put(
       `/api/curator/collections/${published!.collectionId}/cover`,

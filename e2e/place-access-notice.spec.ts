@@ -90,7 +90,7 @@ test.describe("access notice of a place", () => {
     await form.getByLabel("E-mail").fill("curator-a@demo.krajozbior.local");
     await form.getByLabel("Hasło").fill(password ?? "");
     await form.getByRole("button", { name: "Zaloguj się" }).click();
-    await expect(page).toHaveURL(/\/my$/);
+    await expect(page).toHaveURL(/\/curator$/);
 
     const draft = await created(
       await page.request.post("/api/curator/collections", {

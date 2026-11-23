@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     await provider.signOut(request.headers);
 
     // The address kept between the two steps (login-email-cookie.ts) is no longer needed.
-    return signedIn(request, result, returnTo, [
+    return await signedIn(request, result, returnTo, [
       ...(await accountThemeCookies(result.actor)),
       loginEmailClearCookieHeader(),
     ]);
