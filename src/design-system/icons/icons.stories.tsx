@@ -1,7 +1,20 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import styles from "../foundation/foundation.module.css";
-import { BookmarkIcon, CardsIcon, HomeIcon, NewsIcon, PinIcon, ProfileIcon } from "./icons";
+import {
+  BookmarkIcon,
+  CardsIcon,
+  ColumnCapitalIcon,
+  CompassRoseIcon,
+  HomeIcon,
+  LeafIcon,
+  MoonStarIcon,
+  NewsIcon,
+  PinIcon,
+  ProfileIcon,
+  RosetteIcon,
+  SignetIcon,
+} from "./icons";
 
 const meta = { title: "Foundation/Ikony" } satisfies Meta;
 export default meta;
@@ -15,6 +28,12 @@ const icons = [
   ["Profil", ProfileIcon],
   ["Aktualności", NewsIcon],
   ["Miejsce", PinIcon],
+  ["Noc kultury", MoonStarIcon],
+  ["Dziedzictwo", ColumnCapitalIcon],
+  ["Święto narodowe", RosetteIcon],
+  ["Przyroda i niebo", LeafIcon],
+  ["Szlak i wspólnota", CompassRoseIcon],
+  ["Krajozbiór", SignetIcon],
 ] as const;
 
 export const Set: Story = {

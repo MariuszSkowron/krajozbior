@@ -54,7 +54,7 @@ Wysokość dolnego paska nawigacji (`--shell-bottom-bar-height`) to zmienna ukł
 
 ## Tokeny
 
-Pełna lista: `src/design-system/tokens/tokens.ts` (73 tokeny po E3-2b; limit 90). Kolor i cienie zależą od motywu; odstępy, promienie, rozmiary, krój, fokus i ruch są wspólne. Krój: `font.family.{base,display,mono}` (Geist, Instrument Serif, Geist Mono z `src/design-system/fonts/`, z zapasem systemowym), wagi 400 i 600 (Instrument Serif ma tylko 400).
+Pełna lista: `src/design-system/tokens/tokens.ts` (86 tokenów po E6-4a; limit 90). E6-4a (D-52) dodało dwanaście barw `color.legendary.<kategoria>.start` i `.end` (kategorie: `culture-night`, `heritage`, `national-holiday`, `nature-sky`, `trail-community`, `krajozbior`; opalizacja ramki i połysku karty legendarnej, w obu blokach motywu, środek gradientu liczy `color-mix(in oklch, start, end)` w module komponentu) oraz `motion.duration.reveal` (1200 ms, `0ms` przy `prefers-reduced-motion`). Tekst i symbol karty nigdy nie stoją na barwach `color.legendary.*`; mają stały kolor z tokenów tekstu. Kolor i cienie zależą od motywu; odstępy, promienie, rozmiary, krój, fokus i ruch są wspólne. Krój: `font.family.{base,display,mono}` (Geist, Instrument Serif, Geist Mono z `src/design-system/fonts/`, z zapasem systemowym), wagi 400 i 600 (Instrument Serif ma tylko 400).
 
 ## Implementacja
 
@@ -72,7 +72,7 @@ Pełna lista: `src/design-system/tokens/tokens.ts` (73 tokeny po E3-2b; limit 90
 
 ## Dostępność i kontrast
 
-Kontrast tekstu spełnia WCAG 2.2 AA (4,5:1 dla tekstu zwykłego, 3:1 dla dużego i elementów nietekstowych); tekst główny celuje wyżej (7:1). Test `tests/design-system/tokens.test.ts` czyta `tokens.css` i sprawdza w obu motywach kontrast par dozwolonych (tekst 4,5:1, elementy nietekstowe 3:1, odznaki stanu z nałożonym tłem), prawdziwość listy par niedozwolonych (reguła tła, `accessibility.md`), jednakowe nazwy w obu motywach, porządek skal, zgodność listy `tokens.ts` z `tokens.css`, limit tokenów, wyzerowanie ruchu przy `prefers-reduced-motion` i brak literałów koloru w `src/` poza `tokens.css` (wyjątki: stała `themeColor` w `src/app/shell/theme.ts` i pierścienie `color-mix(in srgb, var(--…) N%, transparent)`). Pomiar kontrastu nie dowodzi czytelności w słońcu.
+Kontrast tekstu spełnia WCAG 2.2 AA (4,5:1 dla tekstu zwykłego, 3:1 dla dużego i elementów nietekstowych); tekst główny celuje wyżej (7:1). Test `tests/design-system/tokens.test.ts` czyta `tokens.css` i sprawdza w obu motywach kontrast par dozwolonych (tekst 4,5:1, elementy nietekstowe 3:1, odznaki stanu z nałożonym tłem), prawdziwość listy par niedozwolonych (reguła tła, `accessibility.md`), jednakowe nazwy w obu motywach, porządek skal, zgodność listy `tokens.ts` z `tokens.css`, limit tokenów, wyzerowanie ruchu przy `prefers-reduced-motion` i brak literałów koloru w `src/` poza `tokens.css` (wyjątki: stała `themeColor` w `src/app/shell/theme.ts`, pierścienie `color-mix(in srgb, var(--…) N%, transparent)` i środek gradientu karty legendarnej `color-mix(in oklch, var(--color-legendary-<k>-start), var(--color-legendary-<k>-end))` tej samej kategorii). Pomiar kontrastu nie dowodzi czytelności w słońcu.
 
 ## Zmiana wyglądu projektu
 
