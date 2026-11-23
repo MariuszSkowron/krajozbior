@@ -228,7 +228,7 @@ describe("public catalog pages", () => {
 
     // getRequestActor is not mocked here, so the personal read throws.
     expect(html).toContain("Nie udało się sprawdzić, czy ta kolekcja jest zapisana.");
-    expect(html).not.toContain("Zapisuję kolekcję");
+    expect(html).not.toContain("Zapisz kolekcję");
     expect(html).toContain("Miejsca w kolekcji (1)");
   });
 

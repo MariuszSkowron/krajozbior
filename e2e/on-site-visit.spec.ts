@@ -134,7 +134,7 @@ test.describe("confirming a visit on site", () => {
     const b = await signedInPage(browser, EXPLORER_B);
 
     await a.goto(`/collections/${DEMO_SLUG}`);
-    await a.getByRole("button", { name: "Zapisuję kolekcję" }).click();
+    await a.getByRole("button", { name: "Zapisz kolekcję" }).click();
     await expect(a.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
     await openBridge(a);
     await expectNoAccessibilityViolations(a);

@@ -38,13 +38,14 @@ describe("CollectionProgress", () => {
     expect(html).toMatch(/<span class="[^"]*">9\/24<\/span> odwiedzone/);
   });
 
-  it("kolekcja bez miejsc to stan 0/0 bez paska", () => {
+  it("kolekcja bez miejsc to stan „Bez miejsc” bez paska i bez 0/0", () => {
     const html = render(
       createElement(CollectionProgress, { visited: 0, total: 0, label: "Postęp" }),
     );
 
     expect(html).not.toContain("<progress");
-    expect(html).toMatch(/>0\/0<\/span> — ta kolekcja nie ma jeszcze miejsc/);
+    expect(html).toContain("Bez miejsc");
+    expect(html).not.toContain("0/0");
   });
 });
 

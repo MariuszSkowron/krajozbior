@@ -176,7 +176,7 @@ test.describe("the competition path", () => {
 
     await explorer.goto(`/collections/${slug}`);
     await waitForHydration(explorer);
-    await explorer.getByRole("button", { name: "Zapisuję kolekcję" }).click();
+    await explorer.getByRole("button", { name: "Zapisz kolekcję" }).click();
     await expect(explorer.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
     await explorer.goto("/my/collections");
     await expect(explorer.getByRole("link", { name: title })).toContainText("0/1 odwiedzone");

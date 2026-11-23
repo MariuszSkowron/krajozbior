@@ -94,6 +94,7 @@ async function createCollection(page: Page): Promise<string> {
   await expect(page).toHaveURL(/\/my\/collections\/own\/new$/);
   await page.getByLabel("Nazwa").fill(OWN_TITLE);
   await page.getByLabel("Krótki opis").fill("Moje ulubione widoki.");
+  await page.getByLabel("Region").selectOption({ label: "Pomorskie" });
   await page.getByRole("button", { name: "Utwórz kolekcję" }).click();
   await expect(page).toHaveURL(/\/my\/collections\/own\/[0-9a-f-]{36}$/);
 
@@ -120,7 +121,7 @@ test.describe("own collections", () => {
     const id = await createCollection(page);
 
     await expect(page.getByRole("heading", { level: 1, name: OWN_TITLE })).toBeVisible();
-    await expect(page.getByText("Postęp 0/0")).toBeVisible();
+    await expect(page.getByText("Postęp 0/0")).toHaveCount(0);
     await expect(page.getByText("Ta kolekcja nie ma jeszcze miejsc.")).toBeVisible();
 
     await page.getByLabel("Nazwa albo adres miejsca").fill("Tczew");
