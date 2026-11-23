@@ -26,6 +26,11 @@ describe("pickHomeBanner", () => {
     expect(pickHomeBanner(list, () => Number.NaN)).toBe("a");
   });
 
+  it("gives null when the drawn slot holds no value", () => {
+    expect(pickHomeBanner<string | undefined>([undefined], () => 0)).toBeNull();
+    expect(pickHomeBanner<string | undefined>(["a", undefined], () => 0.9)).toBeNull();
+  });
+
   it("draws with Math.random by default", () => {
     expect(["a", "b"]).toContain(pickHomeBanner(["a", "b"]));
   });
