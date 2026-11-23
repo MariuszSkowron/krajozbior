@@ -495,6 +495,7 @@ test.describe("home page: the R3 look", () => {
     { name: "1440", width: 1440, height: 900 },
     { name: "1024", width: 1024, height: 768 },
     { name: "834", width: 834, height: 1112 },
+    { name: "768", width: 768, height: 1024 },
     { name: "390", width: 390, height: 844 },
   ]) {
     for (const theme of ["dark", "light"] as const) {
@@ -518,6 +519,12 @@ test.describe("home page: the R3 look", () => {
         expect(emptyBox.y + emptyBox.height).toBeLessThanOrEqual(photoBox.y + photoBox.height);
         // One sentence on a low banner; no second link to the list of all collections.
         expect(photoBox.height).toBeLessThanOrEqual(300);
+        // Every text on the white photo (the paragraph and the credit) keeps 4.5:1.
+        const bannerBox = photo.locator("xpath=..");
+
+        for (const part of [empty, bannerBox.locator("p", { hasText: "Autor:" })]) {
+          expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
+        }
         await expect(main.getByRole("link", { name: "Przeglądaj wszystkie kolekcje" })).toHaveCount(
           0,
         );
