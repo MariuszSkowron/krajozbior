@@ -418,6 +418,19 @@
   }
 }
 
+/* Stan pusty odkrywcy (niski baner): akapit i podpis stoją w przepływie i sięgają połowy wysokości,
+   gdzie gradient od dołu jest słaby, więc blok tekstu ma własne przyciemnienie >= 78% jak na
+   telefonie (>= 4,5:1 na białym zdjęciu). */
+.short.withPhoto .body {
+  padding-block-start: var(--space-xl);
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--color-image-scrim) 96%, transparent) 0%,
+    color-mix(in srgb, var(--color-image-scrim) 78%, transparent) calc(100% - var(--space-lg)),
+    color-mix(in srgb, var(--color-image-scrim) 0%, transparent) 100%
+  );
+}
+
 /* 768–1100 px: baner odkrywcy układa tytuł nad liczbą (jak na telefonie) i ma przyciemnienie pod
    blokiem tekstu, bo długi tytuł zawija się w kilku wierszach i sięga słabej części gradientu. */
 @media (min-width: 48rem) and (max-width: 68.74rem) {

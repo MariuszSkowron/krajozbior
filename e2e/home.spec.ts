@@ -19,10 +19,23 @@ const EXPLORER_B = "user2@demo.krajozbior.local";
 const THEME_COOKIE = "krajozbior-theme";
 
 async function expectNoAccessibilityViolations(page: Page) {
-  // Wejście sekcji przygasza treść; axe liczy kontrast dopiero po końcu animacji.
-  await page.evaluate(() =>
-    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+  // Wejście sekcji przygasza treść; axe liczy kontrast dopiero po końcu animacji. Kończymy je
+  // od razu (`finish()` nie zależy od zegara animacji), zamiast czekać na `finished`: ta obietnica
+  // nie spełni się, gdy strona nie rysuje klatek (karta w tle, obciążony komputer), a wszystkie
+  // animacje strony głównej są skończone (jedno przejście). Animacja nieskończona to błąd:
+  // `finish()` jej nie kończy, więc test ją wypisuje i pada.
+  const infinite = await page.evaluate(() =>
+    document.getAnimations().flatMap((a) => {
+      try {
+        a.finish();
+        return [];
+      } catch {
+        return [a instanceof CSSAnimation ? a.animationName : String(a.id || "animation")];
+      }
+    }),
   );
+
+  expect(infinite).toEqual([]);
   await page.addScriptTag({ content: axe.source });
 
   const violations = await page.evaluate(async () => {

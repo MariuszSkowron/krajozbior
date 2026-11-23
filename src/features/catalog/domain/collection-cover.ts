@@ -42,7 +42,7 @@ export function cardCoverImage(cover: CardCoverInput | null): CardCoverImage | n
     srcSet: hasChoice
       ? `${thumb} ${CARD_WIDTH}w, /media/p/${cover.photoId}/main ${cover.width}w`
       : undefined,
-    sizes: hasChoice ? "(min-width: 48rem) 25rem, 100vw" : undefined,
+    sizes: hasChoice ? "(min-width: 48rem) 25rem, calc(100vw - 2rem)" : undefined,
     whole: showsWhole(cover.width, cover.height),
     width,
     height: Math.max(1, Math.round((cover.height * width) / cover.width)),

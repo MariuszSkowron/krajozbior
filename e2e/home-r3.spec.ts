@@ -9,7 +9,7 @@ import sharp from "sharp";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
-import { contrastOver } from "./contrast-support";
+import { buttonContrast, contrastOver } from "./contrast-support";
 import { waitForEntrance } from "./scroll-support";
 
 // R3 / D-57 (PR 3): the new home page. A guest sees the banner with the photo of the first
@@ -314,6 +314,17 @@ test.describe("home page: the R3 look", () => {
           }
         }
 
+        // The buttons on the white photo: text 4.5:1 on the fill, the boundary 3:1 on the photo.
+        for (const part of [login, collections]) {
+          const { text, boundary } = await buttonContrast(page, part);
+          // The text over what is really drawn under it (fill, blur and photo together).
+          const drawn = await contrastOver(page, part, 3);
+
+          expect(text).toBeGreaterThanOrEqual(4.5);
+          expect(drawn).toBeGreaterThanOrEqual(4.5);
+          expect(boundary).toBeGreaterThanOrEqual(3);
+        }
+
         const search = main.getByRole("search");
         const searchBox = (await search.boundingBox())!;
 
@@ -416,6 +427,7 @@ test.describe("home page: the R3 look", () => {
     { name: "1440", width: 1440, height: 900 },
     { name: "1024", width: 1024, height: 768 },
     { name: "834", width: 834, height: 1112 },
+    { name: "768", width: 768, height: 1024 },
     { name: "390", width: 390, height: 844 },
   ]) {
     for (const theme of ["dark", "light"] as const) {
@@ -439,6 +451,12 @@ test.describe("home page: the R3 look", () => {
         expect(emptyBox.y + emptyBox.height).toBeLessThanOrEqual(photoBox.y + photoBox.height);
         // One sentence on a low banner; no second link to the list of all collections.
         expect(photoBox.height).toBeLessThanOrEqual(300);
+        // Every text on the white photo (the paragraph and the credit) keeps 4.5:1.
+        const bannerBox = photo.locator("xpath=..");
+
+        for (const part of [empty, bannerBox.locator("p", { hasText: "Autor:" })]) {
+          expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
+        }
         await expect(main.getByRole("link", { name: "Przeglądaj wszystkie kolekcje" })).toHaveCount(
           0,
         );
