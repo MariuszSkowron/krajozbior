@@ -32,12 +32,24 @@
   transform: scale(0.97);
 }
 
-/* Pole okładki 16:7, tło tint (to samo, które wypełnia wolne pasy przy zdjęciu). */
+/* Pole okładki 2:1 na telefonie, 5:2 od 48 rem (R3), tło tint. */
 .cover {
   display: block;
   overflow: hidden;
-  aspect-ratio: 16 / 7;
+  aspect-ratio: 2 / 1;
   background: var(--color-surface-tint);
+}
+
+@media (min-width: 48rem) {
+  .cover {
+    aspect-ratio: 5 / 2;
+  }
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
 }
 
 /*
@@ -54,18 +66,19 @@
 
 .coverPin {
   flex: none;
-  width: 2rem;
-  height: 2rem;
+  width: 4rem; /* 64 px, cienka kreska */
+  height: 4rem;
   opacity: 0.6;
 }
 
-/* Zdjęcie okładki w polu 16:7 w całości, bez przycinania (contain): podpis mówi, że zdjęcie tylko
-   zmniejszamy. Wolne pasy po bokach lub u góry i dołu wypełnia tło tinta. */
+/* Zdjęcie okładki przycięte stylami (cover, Q4/D-57): plik się nie zmienia, więc podpis
+   „zmniejszone i skompresowane” zostaje prawdziwy. */
 .coverImage {
   display: block;
   inline-size: 100%;
   block-size: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center 40%;
   background: var(--color-surface-tint);
 }
 

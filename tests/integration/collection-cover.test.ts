@@ -8,6 +8,7 @@ import type { CatalogDeps } from "@/features/catalog/application/catalog-types";
 import { getCuratorCollection } from "@/features/catalog/application/curator-queries";
 import { setCollectionCover } from "@/features/catalog/application/curator-cover";
 import {
+  getCollectionBanner,
   getPublishedCollection,
   listRecentlyPublishedCollections,
 } from "@/features/catalog/application/public-catalog";
@@ -605,6 +606,42 @@ describe("collection cover", () => {
         height: 853,
         altText: "Opis zdjęcia",
       });
+    });
+
+    it("gives the banner of the home page the cover with its credit and the place of the photo", async () => {
+      const bare = await newPlace(orgA);
+      const first = await newPlace(orgA);
+      const firstPhoto = await photo(first, orgA);
+      const collection = await newCollection(orgA, [bare, first], true);
+      const draft = await newCollection(orgA, [first], false);
+      const [{ name }] = await admin$<{ name: string }>(
+        `select name from public.places where id = $1`,
+        [first],
+      );
+
+      expect(await getCollectionBanner(collection.slug, deps)).toMatchObject({
+        photoId: firstPhoto,
+        placeId: first,
+        placeName: name,
+        authorText: "Autor",
+        licenseLabel: "CC BY-SA 4.0",
+      });
+      // A draft, a malformed slug and a collection without photos give nothing.
+      expect(await getCollectionBanner(draft.slug, deps)).toBeNull();
+      expect(await getCollectionBanner("Nie-slug!", deps)).toBeNull();
+      expect(
+        await getCollectionBanner((await newCollection(orgA, [bare], true)).slug, deps),
+      ).toBeNull();
+    });
+
+    it("never gives the banner a hidden photo", async () => {
+      const only = await newPlace(orgA);
+      const hidden = await photo(only, orgA);
+      const collection = await newCollection(orgA, [only], true);
+
+      await admin$(`update public.place_photos set hidden_at = now() where id = $1`, [hidden]);
+
+      expect(await getCollectionBanner(collection.slug, deps)).toBeNull();
     });
 
     it("skips a hidden or not ready photo and takes the next one", async () => {

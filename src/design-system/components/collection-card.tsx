@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { PinIcon } from "../icons/icons";
 import { CollectionProgress } from "./collection-progress";
@@ -19,7 +20,10 @@ export function CollectionCard({
   progress,
   cover,
   headingLevel = 3,
+  note,
 }: Readonly<{
+  /** Drobna notatka pod nazwą (np. „13 miejsc · kurator”), wewnątrz karty, czyli wewnątrz linku. */
+  note?: ReactNode;
   href: string;
   title: string;
   regionLabel: string;
@@ -56,6 +60,7 @@ export function CollectionCard({
           {regionLabel}
         </span>
         <Heading className={styles.title}>{title}</Heading>
+        {note === undefined ? null : <p className={styles.note}>{note}</p>}
         {progress === undefined ? null : (
           <CollectionProgress {...progress} label={`Postęp w kolekcji ${title}`} />
         )}

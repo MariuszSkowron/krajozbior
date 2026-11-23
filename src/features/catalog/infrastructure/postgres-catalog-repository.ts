@@ -11,6 +11,7 @@ import type {
   CuratorOwnPlace,
   CuratorPlaceItem,
   PlaceRow,
+  CollectionBanner,
   PublishedCollection,
   PublishedPlace,
   RecentCollection,
@@ -133,22 +134,22 @@ const collectionCardColumns = `c.id, c.slug, c.title, c.region, o.name as "organ
 // `(place_id, position)`), so no branch scans the whole table of photos: the sort key `k` puts
 // the chosen photo first.
 const collectionCoverLateral = (alias: string) => `left join lateral (
-      select u.id, u.width, u.height, u.alt_text, u.title, u.author_text, u.author_url,
+      select u.id, u.place_id, u.width, u.height, u.alt_text, u.title, u.author_text, u.author_url,
              u.source_url, u.source_kind, u.license_code, u.license_url, u.license_label
         from (
-          (select ph.id, ph.width, ph.height, ph.alt_text, ph.title, ph.author_text, ph.author_url,
+          (select ph.id, ph.place_id, ph.width, ph.height, ph.alt_text, ph.title, ph.author_text, ph.author_url,
                   ph.source_url, ph.source_kind, ph.license_code, ph.license_url, ph.license_label,
                   0 as k, 0 as place_pos, ph.position as photo_pos
              from public.place_photos ph
             where ph.id = c.cover_place_photo_id
               and ph.file_state = 'ready' and ph.storage_key is not null)
           union all
-          (select ph.id, ph.width, ph.height, ph.alt_text, ph.title, ph.author_text, ph.author_url,
+          (select ph.id, ph.place_id, ph.width, ph.height, ph.alt_text, ph.title, ph.author_text, ph.author_url,
                   ph.source_url, ph.source_kind, ph.license_code, ph.license_url, ph.license_label,
                   1 as k, cp.position as place_pos, ph.position as photo_pos
              from public.collection_places cp
              cross join lateral (
-               select p.id, p.width, p.height, p.alt_text, p.title, p.author_text, p.author_url,
+               select p.id, p.place_id, p.width, p.height, p.alt_text, p.title, p.author_text, p.author_url,
                       p.source_url, p.source_kind, p.license_code, p.license_url, p.license_label,
                       p.position
                  from public.place_photos p
@@ -638,6 +639,28 @@ export const postgresCatalogRepository: CatalogRepository = {
     );
 
     return rows.map(toRecentCollection);
+  },
+
+  async findCollectionBanner(tx: TransactionContext, slug) {
+    // Okładka opublikowanej kolekcji z pełnym podpisem i miejscem zdjęcia (baner strony głównej).
+    // Kontekst gościa zostawia tylko zdjęcie, które wolno zobaczyć każdemu.
+    return first(
+      await tx.em.execute<CollectionBanner[]>(
+        `select ph.id as "photoId", ph.width, ph.height, ph.alt_text as "altText", ph.title,
+                ph.author_text as "authorText", ph.author_url as "authorUrl",
+                ph.source_url as "sourceUrl", ph.source_kind as "sourceKind",
+                ph.license_code as "licenseCode", ph.license_url as "licenseUrl",
+                ph.license_label as "licenseLabel",
+                ph.place_id as "placeId", pl.name as "placeName"
+           from public.collections c
+           join public.organizations o on o.id = c.organization_id
+           ${collectionCoverLateral("ph")}
+           join public.places pl on pl.id = ph.place_id
+          where c.slug = ? and c.status = 'published' and o.status = 'approved'
+            and ph.id is not null`,
+        [slug],
+      ),
+    );
   },
 
   async findPublishedPlace(tx: TransactionContext, id) {

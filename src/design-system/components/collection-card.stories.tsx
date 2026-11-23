@@ -32,7 +32,12 @@ export const States: Story = {
           regionLabel="Mazowieckie"
           progress={{ visited: 0, total: 0 }}
         />
-        <CollectionCard href="/collections/zamki" title="Zamki" regionLabel="Śląskie" />
+        <CollectionCard
+          href="/collections/zamki"
+          title="Zamki"
+          regionLabel="Śląskie"
+          note="13 miejsc · Gmina A"
+        />
         <CollectionCard
           href="/collections/mosty"
           title="Mosty nad Wisłą"
