@@ -92,6 +92,13 @@
   color: var(--color-text-accent);
 }
 
+/* Tylko telefon: od progu komputera (48 rem) element znika także dla czytnika ekranu. */
+@media (min-width: 48rem) {
+  .phoneOnly {
+    display: none;
+  }
+}
+
 .page nav,
 .section {
   align-self: stretch;

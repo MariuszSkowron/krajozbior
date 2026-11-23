@@ -109,8 +109,9 @@ export default async function MyPage() {
             </ul>
             <Link className={styles.curatorLink} href="/curator">
               Przejdź do panelu kuratora
+              {/* D-54 (P21): panel jest na komputerze; dopisek znika od progu komputera (display:none, więc także dla czytnika). */}
+              <span className={styles.phoneOnly}>&nbsp;(na komputerze)</span>
             </Link>
-            <p className={styles.role}>Tu są Twoje wizyty i liczby jako odkrywcy.</p>
           </div>
         )}
       </header>
@@ -152,7 +153,10 @@ export default async function MyPage() {
           </li>
         </ul>
       </nav>
-      <LogoutForm className="button button--outline">Wyloguj</LogoutForm>
+      {/* D-54 (P20): na komputerze „Wyloguj” jest tylko w nagłówku; ten przycisk jest dla telefonu. */}
+      <div className={styles.phoneOnly}>
+        <LogoutForm className="button button--outline">Wyloguj</LogoutForm>
+      </div>
     </div>
   );
 }

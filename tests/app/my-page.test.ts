@@ -77,14 +77,16 @@ describe("profile page", () => {
     expect(html).not.toContain("Twoja rola");
   });
 
-  it("describes a curator with the organization, the link to the panel and the explorer sentence", async () => {
+  it("describes a curator with the organization, the link to the panel with the phone note", async () => {
     mocks.getApprovedOrganizations.mockResolvedValue([{ id: "o1", name: "Gmina Wilcza" }]);
 
     const html = renderToStaticMarkup(await MyPage());
 
     expect(html).toContain("Kurator · Gmina Wilcza");
-    expect(html).toMatch(/href="\/curator">Przejdź do panelu kuratora<\/a>/);
-    expect(html).toContain("Tu są Twoje wizyty i liczby jako odkrywcy.");
+    expect(html).toMatch(
+      /href="\/curator">Przejdź do panelu kuratora<span class="[^"]*"> \(na komputerze\)<\/span><\/a>/,
+    );
+    expect(html).not.toContain("Tu są Twoje wizyty i liczby jako odkrywcy.");
   });
 
   it("lists every approved organization of a curator", async () => {

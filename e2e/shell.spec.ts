@@ -362,7 +362,12 @@ test.describe("nagłówek konta", () => {
       "href",
       "/curator",
     );
-    await expect(main).toContainText("Tu są Twoje wizyty i liczby jako odkrywcy.");
+    await expect(main).not.toContainText("Tu są Twoje wizyty i liczby jako odkrywcy.");
+    // Na komputerze dopisek „(na komputerze)” i przycisk „Wyloguj” w treści są ukryte (D-54).
+    await expect(
+      main.getByRole("link", { name: "Przejdź do panelu kuratora" }),
+    ).toHaveAccessibleName("Przejdź do panelu kuratora");
+    await expect(main.getByRole("button", { name: "Wyloguj" })).toHaveCount(0);
     // Bez imienia kurator nie jest „Odkrywcą” nad własną rolą.
     await expect(main.getByTestId("profile-name")).toHaveText("Bez imienia");
     await expect(main.getByTestId("profile-name")).not.toContainText("Odkrywca");
