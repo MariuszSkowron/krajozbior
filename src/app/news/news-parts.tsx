@@ -38,11 +38,20 @@ export function NewsOrganization({
   );
 }
 
-/** Rodzaj i data publikacji nad tytułem; data w `<time>`. */
+/** Sam rodzaj nad tytułem: data publikacji nie stoi w nadtytule, żeby nie wyglądała na termin wydarzenia. */
 export function NewsKicker({ card }: Readonly<{ card: PublicNewsCard }>) {
   return (
     <p className={styles.kicker}>
       <span>{NEWS_KIND_LABELS[card.kind]}</span>
+    </p>
+  );
+}
+
+/** „Dodano 22.11.2026”: data publikacji z opisem, w linii z autorem. */
+export function NewsPublished({ card }: Readonly<{ card: PublicNewsCard }>) {
+  return (
+    <p className={styles.published}>
+      Dodano{" "}
       <time dateTime={newsDateTime(card.publishedAt)}>{formatNewsDate(card.publishedAt)}</time>
     </p>
   );
@@ -75,6 +84,7 @@ export function NewsCard({
       <NewsEventDays card={card} />
       <p className={styles.lead}>{card.lead}</p>
       <NewsOrganization name={card.organization.name} verification={card.verification} />
+      <NewsPublished card={card} />
     </article>
   );
 }

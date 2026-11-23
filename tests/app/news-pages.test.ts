@@ -74,7 +74,7 @@ describe("news list page", () => {
     expect(html).toContain('aria-label="Filtr aktualności"');
     expect(html).toMatch(/aria-current="true" href="\/news">Wszystkie</);
     expect(html).toContain('href="/news?filtr=wydarzenia">Wydarzenia</a>');
-    expect(html).toMatch(/<p class="[^"]+">Aktualności: 2</);
+    expect(html).toMatch(/<p class="[^"]+">2 aktualności</);
     expect(mocks.list).toHaveBeenCalledWith(null, {});
   });
 
@@ -129,13 +129,33 @@ describe("news list page", () => {
     expect(html).not.toMatch(/class="[^"]*featured/);
   });
 
+  it("keeps the publication date out of the kicker of an event and labels it 'Dodano'", async () => {
+    mocks.list.mockResolvedValue([
+      card({
+        kind: "event",
+        publishedAt: new Date("2026-11-22T10:00:00Z"),
+        eventStartsOn: "2027-04-17",
+        eventEndsOn: "2027-04-18",
+      }),
+    ]);
+
+    const html = await list({ filtr: "wydarzenia" });
+    const kicker = html.match(/<p class="[^"]*kicker[^"]*">[\s\S]*?<\/p>/)?.[0] ?? "";
+
+    expect(kicker).toContain("Wydarzenie");
+    expect(kicker).not.toContain("<time");
+    expect(kicker).not.toContain("22.11.2026");
+    expect(html).toContain('Dodano <time dateTime="2026-11-22">22.11.2026</time>');
+    expect(html).toContain('Termin: <time dateTime="2027-04-17">17–18.04.2027</time>');
+  });
+
   it("says that nothing is published yet, without a link to everything", async () => {
     mocks.list.mockResolvedValue([]);
 
     const html = await list();
 
     expect(html).toContain("Zespół Krajozbioru nie opublikował jeszcze aktualności.");
-    expect(html).toContain("Aktualności: 0");
+    expect(html).toContain("0 aktualności");
     expect(html).not.toContain("Pokaż wszystkie aktualności");
   });
 
@@ -176,7 +196,8 @@ describe("news item page", () => {
     expect(html).toContain("<h1>Jak zbierać &lt;miejsca&gt;</h1>");
     expect(html).toContain("Krótki tekst.");
     expect(html).toContain("Krajozbiór — redakcja");
-    expect(html).toContain('<time dateTime="2026-11-20">20.11.2026</time>');
+    expect(html).toContain('Dodano <time dateTime="2026-11-20">20.11.2026</time>');
+    expect(html.match(/<p class="[^"]*kicker[^"]*">[\s\S]*?<\/p>/)?.[0]).not.toContain("<time");
     expect(html).toContain("<p><span>Pierwszy akapit.</span></p>");
     expect(html).toMatch(
       /<a href="https:\/\/example\.org\/a" rel="nofollow ugc noopener noreferrer">https:\/\/example\.org\/a<\/a>/,

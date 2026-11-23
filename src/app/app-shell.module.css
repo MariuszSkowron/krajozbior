@@ -219,6 +219,8 @@
 }
 
 .role {
+  display: flex;
+  align-items: center;
   margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
@@ -248,6 +250,70 @@
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-pill);
   cursor: pointer;
+}
+
+/* Imię (albo „Profil”) jako odnośnik do profilu; długie imię jest ucinane wielokropkiem. */
+.profileLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--size-touch-min);
+  min-height: var(--size-touch-min);
+  padding-inline: var(--space-sm);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-strong);
+  text-decoration: none;
+  border-radius: var(--radius-pill);
+}
+
+.profileLink:hover,
+.profileLink[aria-current="page"] {
+  background: var(--color-surface-hover);
+}
+
+.profileName {
+  max-width: 10ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* „Wyloguj” to akcja drugorzędna: bez wypełnienia i akcentu, obrys dopiero po najechaniu. */
+.logoutAction {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: var(--size-touch-min);
+  padding-inline: var(--space-md);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-weight: var(--font-weight-strong);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.logoutAction:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-default);
+}
+
+/* „Kurator · organizacja”: tylko na komputerze (telefon ma nagłówek w jednym wierszu, QN-2). */
+.curatorLink {
+  max-width: 20rem;
+}
+
+.curatorText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 47.99rem) {
+  .curatorLink {
+    display: none;
+  }
 }
 
 /*
@@ -548,6 +614,35 @@
   flex: none;
   width: 1.5rem;
   height: 1.5rem;
+}
+
+/*
+ * Telefon (do ok. 430 px): gość ma w nagłówku cztery elementy (nazwa, motyw, „Aktualności”,
+ * „Zaloguj się”). Mniejsze odstępy i nazwa o stopień mniejsza trzymają je w jednym rzędzie od
+ * 360 px; wysokość celów zostaje 44 px, szerokość też (ikona motywu ma min-width 44 px).
+ */
+@media (max-width: 26.8rem) {
+  .header {
+    column-gap: var(--space-xs);
+    padding-inline: var(--space-sm);
+  }
+
+  .brand {
+    font-size: var(--font-size-md);
+  }
+
+  .headerEnd,
+  .account {
+    gap: var(--space-xs);
+  }
+
+  .headerLink {
+    padding-inline: var(--space-xs);
+  }
+
+  .accountAction {
+    padding-inline: var(--space-sm);
+  }
 }
 
 /* Najwęższe nagłówki: sama ikona, napis zostaje w DOM jako nazwa dostępna (ukryty wizualnie). */

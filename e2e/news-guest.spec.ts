@@ -207,7 +207,7 @@ test.describe("aktualności dla gościa", () => {
       "aria-current",
       "true",
     );
-    await expect(main.getByText(/Wydarzenia: \d+|1 wydarzenie/)).toBeVisible();
+    await expect(main.getByText(/^\d+ (wydarzenie|wydarzenia|wydarzeń)$/)).toBeVisible();
     await expect(main.locator("article", { hasText: FUTURE.title })).toContainText("1–2.05.2099");
 
     await main.getByRole("link", { name: "Wszystkie", exact: true }).click();
@@ -226,6 +226,9 @@ test.describe("aktualności dla gościa", () => {
 
       expect(response?.status(), slug).toBe(404);
       await expect(page.getByRole("heading", { level: 1, name: "Nie znaleziono" })).toBeVisible();
+      await expect(
+        page.getByRole("main").getByRole("link", { name: "Zobacz aktualności" }),
+      ).toHaveAttribute("href", "/news");
       await expect(page.locator("body")).not.toContainText("Szkic aktualności demo");
       await expect(page.locator("body")).not.toContainText(WITHDRAWN.title);
     }
