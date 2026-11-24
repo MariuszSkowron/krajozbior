@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { PastVisitDateFields } from "@/app/past-visit-date-fields";
 import { PastVisitMessage } from "@/app/past-visit-message";
 import styles from "@/app/past-visit.module.css";
+import { useHydrated } from "@/app/use-hydrated";
 import { VisitMark } from "@/design-system/components/visit-mark";
 
 import { revealResult } from "./reveal-result";
@@ -39,6 +40,7 @@ type Props = {
 // disappears.
 export function PastVisit({ placeId, existing, showMark = true, onSaved }: Props) {
   const router = useRouter();
+  const hydrated = useHydrated();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<PastVisitDateForm>(EMPTY_PAST_VISIT_DATE);
   const [pending, setPending] = useState(false);
@@ -127,7 +129,7 @@ export function PastVisit({ placeId, existing, showMark = true, onSaved }: Props
             className="button button--outline"
             aria-expanded={open}
             aria-controls={open ? "wizyta-z-przeszlosci" : undefined}
-            disabled={pending}
+            disabled={pending || !hydrated}
             onClick={() => setOpen(!open)}
           >
             Zaznaczam wcześniejszą wizytę
@@ -173,7 +175,7 @@ export function PastVisit({ placeId, existing, showMark = true, onSaved }: Props
           <button
             type="button"
             className="button button--outline"
-            disabled={pending}
+            disabled={pending || !hydrated}
             aria-busy={pending}
             onClick={() => void remove()}
           >

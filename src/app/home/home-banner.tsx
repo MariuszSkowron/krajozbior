@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 
+import { CollectionComplete } from "@/design-system/components/collection-progress";
 import type { CollectionBanner } from "@/features/catalog/application/catalog-types";
 import { showsWhole } from "@/features/catalog/domain/collection-cover";
 import { THUMB_WIDTH } from "@/features/media/domain/limits";
@@ -171,7 +172,7 @@ export function SavedCollectionBanner({
                 <span className={styles.countOf}>/{progress.total}</span>
               </span>
               <span className={styles.eyebrow} aria-hidden="true">
-                {progress.visited >= progress.total ? "kolekcja kompletna" : "odwiedzone"}
+                {progress.visited >= progress.total ? <CollectionComplete /> : "odwiedzone"}
               </span>
               <span className={styles.bar} aria-hidden="true">
                 <span

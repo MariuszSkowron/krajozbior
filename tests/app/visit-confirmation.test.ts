@@ -41,6 +41,10 @@ vi.mock("react", async (importOriginal) => ({
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined }) }));
+// The hook needs a React render; in these tests the page is already hydrated.
+const hydration = vi.hoisted(() => ({ hydrated: true }));
+
+vi.mock("@/app/use-hydrated", () => ({ useHydrated: () => hydration.hydrated }));
 
 const { VisitConfirmation } = await import("@/app/places/[placeId]/visit-confirmation");
 
@@ -77,6 +81,42 @@ describe("VisitConfirmation after a saved visit", () => {
     expect(focused).toBe(1);
     // A detached element (unmount) must not throw.
     expect(() => message.props.ref?.(null)).not.toThrow();
+  });
+
+  it("hands React the same ref function on every render, so the focus moves only once", () => {
+    store.values = [{ kind: "recorded", collections: [] }];
+
+    const refOf = () => {
+      store.cursor = 0;
+      store.refCursor = 0;
+
+      const root = VisitConfirmation({ placeId: "p1", initialWanted: false }) as ReactElement<{
+        children: Node[];
+      }>;
+
+      return (root.props.children as unknown as Node[])[0]!.props.ref;
+    };
+    const first = refOf();
+
+    // A refresh of the page and a click on "Chcę zobaczyć" render the component again.
+    expect(refOf()).toBe(first);
+    expect(refOf()).toBe(first);
+  });
+
+  it("keeps the main button disabled until the page is hydrated, enabled afterwards", () => {
+    store.values = [{ kind: "idle" }];
+    hydration.hydrated = false;
+
+    const before = buttonOf(VisitConfirmation({ placeId: "p1", initialWanted: false }));
+
+    store.cursor = 0;
+    store.refCursor = 0;
+    hydration.hydrated = true;
+
+    const after = buttonOf(VisitConfirmation({ placeId: "p1", initialWanted: false }));
+
+    expect((before.props as { disabled?: boolean }).disabled).toBe(true);
+    expect((after.props as { disabled?: boolean }).disabled).toBe(false);
   });
 
   it("keeps the focus on the button before the visit is saved", () => {

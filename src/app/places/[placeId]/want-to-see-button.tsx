@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { useHydrated } from "@/app/use-hydrated";
 import { safeReturnTo } from "@/features/identity/domain/return-to";
 import { MAX_WANT_TO_SEE_LISTED } from "@/features/want-to-see/domain/limits";
 
@@ -23,6 +24,7 @@ const MESSAGES: Record<number, string> = {
 // also there under the message "poza promieniem" (spec R-02). The list is
 // idempotent, so a repeated click never fails.
 export function WantToSeeButton({ placeId, initialWanted, onChange }: Props) {
+  const hydrated = useHydrated();
   const [wanted, setWanted] = useState(initialWanted);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export function WantToSeeButton({ placeId, initialWanted, onChange }: Props) {
       <button
         type="button"
         className="button button--outline"
-        disabled={pending}
+        disabled={pending || !hydrated}
         aria-busy={pending}
         onClick={() => void toggle()}
       >

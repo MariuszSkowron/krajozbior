@@ -171,15 +171,6 @@
   border-radius: var(--radius-pill);
 }
 
-/* Stan „Kolekcja kompletna”: spokojny napis pod paskiem, bez animacji. */
-.complete {
-  margin: 0;
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-xs);
-  letter-spacing: var(--font-tracking-label);
-  text-transform: uppercase;
-}
-
 .srOnly {
   position: absolute;
   width: 1px;

@@ -60,6 +60,10 @@ async function cleanUp() {
     users,
   );
   await adminQuery(
+    `delete from public.want_to_see_places where user_id in (select id from auth.users where email = any($1::text[]))`,
+    users,
+  );
+  await adminQuery(
     `delete from public.saved_collections where user_id in (select id from auth.users where email = any($1::text[]))`,
     users,
   );
@@ -98,17 +102,13 @@ async function savePastVisitOfBridge(page: Page) {
   await page.getByRole("button", { name: "Zapisz wizytę z przeszłości" }).click();
 }
 
-// A click right after the page opens may come before the button reacts (the page is hydrated
-// in parts); it is repeated until the button gives way to the saved state.
+// The button is disabled until the page is hydrated, so one click after it is enabled is enough.
 async function confirmOnSite(page: Page) {
   const button = page.getByRole("button", { name: "Potwierdzam wizytę" });
 
-  await expect(async () => {
-    if ((await button.count()) > 0) {
-      await button.click({ timeout: 3_000 });
-    }
-    await expect(button).toHaveCount(0, { timeout: 5_000 });
-  }).toPass({ timeout: 30_000 });
+  await expect(button).toBeEnabled({ timeout: 30_000 });
+  await button.click();
+  await expect(button).toHaveCount(0, { timeout: 15_000 });
 }
 
 // The element lies whole in the window and above the pinned bar at the bottom (the page scrolls
@@ -141,6 +141,74 @@ test.describe("the result of a visit is visible", () => {
 
   test.beforeEach(cleanUp);
   test.afterEach(cleanUp);
+
+  test("scripts of the page delayed: the buttons stay disabled until hydration, then one click saves the visit", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, VIEWPORTS[0]);
+
+    await saveCollection(page);
+
+    // The scripts of the page come late (a slow phone in the field); released by hand below.
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+
+    await page.route("**/_next/static/**/*.js", async (route) => {
+      await gate;
+      await route.continue();
+    });
+
+    await page.goto(`/collections/${DEMO_SLUG}`, { waitUntil: "domcontentloaded" });
+    await page.goto(
+      (await page.getByRole("link", { name: /Most Tczewski/ }).getAttribute("href")) ?? "",
+      { waitUntil: "domcontentloaded" },
+    );
+
+    const confirm = page.getByRole("button", { name: "Potwierdzam wizytę" });
+
+    await expect(confirm).toBeVisible();
+    await expect(confirm).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Zaznaczam wcześniejszą wizytę" }),
+    ).toBeDisabled();
+
+    release();
+    await expect(confirm).toBeEnabled({ timeout: 30_000 });
+    await confirm.click();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Most Tczewski jest w Twoim albumie." }),
+    ).toBeVisible({ timeout: 15_000 });
+    await page.context().close();
+  });
+
+  test("after the visit the focus stays on the clicked element, not on the message", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, VIEWPORTS[1]);
+
+    await saveCollection(page);
+    await openBridge(page);
+
+    // On the list before the visit, so the button stays under the message after it.
+    const want = page.getByRole("button", { name: "Chcę zobaczyć" });
+
+    await expect(want).toBeEnabled();
+    await want.click();
+    await expect(page.getByRole("button", { name: /Usuń z „Chcę zobaczyć”/ })).toBeVisible();
+    await confirmOnSite(page);
+
+    const message = page
+      .getByRole("status")
+      .filter({ hasText: "Most Tczewski jest w Twoim albumie." });
+
+    await expect(message).toBeFocused();
+
+    // Another render of the component (the list changes) must not pull the focus back.
+    await page.getByRole("button", { name: /Usuń z „Chcę zobaczyć”/ }).click();
+    await expect(page.getByRole("button", { name: "Chcę zobaczyć" })).toBeVisible();
+    await expect(message).not.toBeFocused();
+    await page.context().close();
+  });
 
   for (const viewport of VIEWPORTS) {
     const size = `${viewport.width}x${viewport.height}`;

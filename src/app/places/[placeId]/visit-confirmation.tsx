@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { useHydrated } from "@/app/use-hydrated";
 import { VisitMark } from "@/design-system/components/visit-mark";
 import { remainingInCollectionText, visitRecordedText } from "@/features/album/domain/next-place";
 import { progressCounts, type Progress } from "@/features/album/domain/progress";
@@ -120,6 +121,14 @@ function feedbackText(state: State, radiusM: number | undefined): string {
 // „Co dalej” po wizycie: postęp w każdej kolekcji miejsca i najbliższe nieodwiedzone miejsce;
 // przy komplecie zdanie o ukończeniu (to samo po wizycie na miejscu i z przeszłości).
 const WHAT_NEXT_ID = "co-dalej";
+const MESSAGE_ID = "wizyta-zapisana";
+
+// Stały ref (funkcja modułu): komunikat bierze fokus raz, gdy się pojawia. Nowa funkcja w każdym
+// renderze kazałaby Reactowi odpiąć i podpiąć ref, więc fokus wracałby na komunikat po każdym
+// odświeżeniu strony i kliknięciu „Chcę zobaczyć”.
+function focusOnMount(element: HTMLElement | null) {
+  element?.focus({ preventScroll: true });
+}
 
 function whatNext(items: readonly AfterVisit[]) {
   if (items.length === 0) {
@@ -176,13 +185,10 @@ export function VisitConfirmation({
   };
   const attempt = useRef<Attempt | null>(null);
   const feedback = useRef<HTMLParagraphElement | null>(null);
-  const message = useRef<HTMLElement | null>(null);
-
-  // Przewijanie robi osobny efekt (łagodnie, z `prefers-reduced-motion`, nad przypiętym paskiem).
-  const focusMessage = (element: HTMLElement | null) => {
-    message.current = element;
-    element?.focus({ preventScroll: true });
-  };
+  const hydrated = useHydrated();
+  // Wynik wizyty wjechał już w okno (raz): późniejsze odświeżenie strony nie przesuwa jej znowu.
+  const revealed = useRef(false);
+  const pastRevealed = useRef(false);
   // Wizyta z przeszłości zapisana w tej sesji: dopiero wtedy pod przyciskiem stoi „Co dalej”.
   const [pastSaved, setPastSaved] = useState(false);
 
@@ -211,14 +217,22 @@ export function VisitConfirmation({
   const summaryKey = summary.map((item) => `${item.slug}:${item.visited}:${item.next?.id}`).join();
 
   useEffect(() => {
-    if (state.kind === "recorded") {
-      // Lista stoi pod komunikatem: gdy jest w oknie, komunikat nad nią też.
-      revealResult(document.getElementById(WHAT_NEXT_ID) ?? message.current);
+    if (state.kind !== "recorded" || revealed.current) {
+      return;
     }
+
+    const list = document.getElementById(WHAT_NEXT_ID);
+
+    // Widoczny ma być komunikat i lista pod nim razem (przy kilku kolekcjach mogą się nie zmieścić:
+    // wtedy na górze stoi komunikat). Lista z odpowiedzi wizyty jest od razu; gdy jej nie ma,
+    // zakres przewija się raz, gdy strona ją dostarczy.
+    revealResult(document.getElementById(MESSAGE_ID), list);
+    revealed.current = list !== null;
   }, [state.kind, summaryKey]);
 
   useEffect(() => {
-    if (pastSaved && summaryKey !== "") {
+    if (pastSaved && summaryKey !== "" && !pastRevealed.current) {
+      pastRevealed.current = true;
       revealResult(document.getElementById(WHAT_NEXT_ID));
     }
   }, [pastSaved, summaryKey]);
@@ -325,7 +339,13 @@ export function VisitConfirmation({
     return (
       <div className={styles.box}>
         {state.kind === "recorded" ? (
-          <p className={styles.success} role="status" tabIndex={-1} ref={focusMessage}>
+          <p
+            className={styles.success}
+            role="status"
+            tabIndex={-1}
+            id={MESSAGE_ID}
+            ref={focusOnMount}
+          >
             {visitRecordedText(placeName)}
           </p>
         ) : null}
@@ -366,7 +386,7 @@ export function VisitConfirmation({
         <button
           type="button"
           className={`button ${past === null ? "button--primary" : "button--outline"} ${styles.action}`}
-          disabled={busy}
+          disabled={busy || !hydrated}
           aria-busy={busy}
           onClick={() => void (lost ? retry() : check())}
         >

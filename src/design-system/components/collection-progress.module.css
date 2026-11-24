@@ -1,4 +1,5 @@
 .progress {
+  color: var(--color-text-strong);
   display: grid;
   gap: var(--space-sm);
 }
@@ -39,8 +40,9 @@
 
 /* Stan „Kolekcja kompletna”: spokojny napis z akcentem, bez animacji i ozdobników. */
 .complete {
+  display: block;
   margin: 0;
-  color: var(--color-text-strong);
+  color: inherit;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-strong);
 }
