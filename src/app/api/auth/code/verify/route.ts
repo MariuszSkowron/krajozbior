@@ -88,6 +88,7 @@ export async function POST(request: Request) {
       returnTo,
       [...(await accountThemeCookies(result.actor)), loginEmailClearCookieHeader()],
       input.entry === "login",
+      input.entry === "signup",
     );
   } catch (error) {
     logFailure("Sign-in with code", error);

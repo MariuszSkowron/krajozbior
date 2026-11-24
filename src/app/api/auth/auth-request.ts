@@ -3,6 +3,7 @@ import { isDemoEmail } from "@/features/identity/domain/demo-account-list";
 import type { SignInResult } from "@/features/identity/domain/identity-provider";
 import {
   entryPath,
+  FIRST_SIGN_IN_EXISTING_ACCOUNT,
   type LoginEntry,
   withFirstSignInNotice,
 } from "@/features/identity/domain/login-entry";
@@ -232,6 +233,8 @@ export async function signedIn(
   extraCookies: readonly string[] = [],
   /** The form came from the "Zaloguj się" entrance: explain it if the account was just created. */
   explainNewAccount = false,
+  /** The form came from "Załóż konto": say so (after the code) if the account already existed. */
+  explainExistingAccount = false,
 ) {
   const headers = new Headers(NO_STORE);
   // An explicit returnTo wins, so the membership is read only when it is needed.
@@ -245,10 +248,13 @@ export async function signedIn(
   // Someone who chose "Zaloguj się" but had no account gets told on the next screen that an
   // account was created (after the code, so nothing is revealed before it). Decided by the
   // provider's fact that this very sign-in created the account, not by the terms state.
+  // The opposite: "Załóż konto" for an address that already had one. Also only after the code.
   const destination =
     explainNewAccount && result.accountCreated === true
       ? withFirstSignInNotice(baseDestination)
-      : baseDestination;
+      : explainExistingAccount && result.accountCreated === false
+        ? withFirstSignInNotice(baseDestination, FIRST_SIGN_IN_EXISTING_ACCOUNT)
+        : baseDestination;
 
   for (const cookie of [...result.setCookies, ...extraCookies]) {
     headers.append("Set-Cookie", cookie);

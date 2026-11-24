@@ -342,6 +342,44 @@ describe("the two entrances to the code sign-in", () => {
     expect(await json.json()).toEqual({ role: "user", returnTo: "/" });
   });
 
+  it("says an existing account was signed in only after the code, only for the signup entrance", async () => {
+    provider.signInWithCode.mockResolvedValue({
+      actor: user,
+      setCookies: [],
+      accountCreated: false,
+    });
+    provider.signOut.mockResolvedValue([]);
+    album.summary.mockResolvedValue({ discoveredPlaces: 0, regions: 0, savedCollections: 0 });
+
+    const fromSignup = await verifyCode(
+      form("/api/auth/code/verify", { email: "anna@example.com", code: "123456", entry: "signup" }),
+    );
+    const fromLogin = await verifyCode(
+      form("/api/auth/code/verify", { email: "anna@example.com", code: "123456", entry: "login" }),
+    );
+
+    expect(fromSignup.headers.get("location")).toBe("/?wejscie=istnieje");
+    expect(fromLogin.headers.get("location")).toBe("/");
+
+    // An account with data lands on its profile; the mark goes there, next to a returnTo too.
+    album.summary.mockResolvedValue({ discoveredPlaces: 2, regions: 1, savedCollections: 1 });
+
+    const withData = await verifyCode(
+      form("/api/auth/code/verify", { email: "anna@example.com", code: "123456", entry: "signup" }),
+    );
+
+    expect(withData.headers.get("location")).toBe("/my?wejscie=istnieje");
+
+    // A wrong code reveals nothing: the failure is the same for every address.
+    provider.signInWithCode.mockResolvedValue(null);
+
+    const wrong = await verifyCode(
+      form("/api/auth/code/verify", { email: "anna@example.com", code: "000000", entry: "signup" }),
+    );
+
+    expect(wrong.headers.get("location")).toBe("/login/zaloz-konto?error=invalid_code");
+  });
+
   it("keeps the mark next to a returnTo with a query", async () => {
     provider.signInWithCode.mockResolvedValue({
       actor: user,

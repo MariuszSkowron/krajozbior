@@ -294,6 +294,21 @@ describe("home page of a guest", () => {
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
   });
 
+  it("says an existing account was signed in, only for a signed-in person and the exact mark", async () => {
+    mocks.getActor.mockResolvedValue({ id, role: "user" });
+    mocks.getHomeAlbum.mockResolvedValue({ status: "forbidden" });
+    mocks.listSaved.mockResolvedValue({ status: "forbidden" });
+
+    expect(await render({ wejscie: "istnieje" })).toContain(
+      "Masz już konto z tym adresem — zalogowaliśmy Cię.",
+    );
+    expect(await render({ wejscie: "logowanie" })).not.toContain("Masz już konto z tym adresem");
+
+    // A guest sees nothing (the mark in a link must not tell anything about an address).
+    mocks.getActor.mockResolvedValue(null);
+    expect(await render({ wejscie: "istnieje" })).not.toContain("zalogowaliśmy Cię");
+  });
+
   it("confirms a deleted account (E9-5) only for the exact signal", async () => {
     expect(await render({ konto: "usuniete" })).toMatch(
       /role="status"[^>]*>Twoje konto zostało usunięte\./,

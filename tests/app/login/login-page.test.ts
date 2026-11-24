@@ -116,7 +116,7 @@ describe("login page, step 2", () => {
     const html = await render({ kod: "wyslany" });
 
     expect(html).toContain("<h1>Wpisz kod z wiadomości</h1>");
-    expect(html).toContain("Kod wysłaliśmy na adres <strong>a…@example.com</strong>");
+    expect(html).toMatch(/Kod wysłaliśmy na adres <strong[^>]*>a…@example\.com<\/strong>/);
     expect(html).toContain('action="/api/auth/code/verify"');
     expect(html).toContain('id="code-verify-code"');
     expect(html).toContain("autofocus");

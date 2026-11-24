@@ -1,7 +1,7 @@
 import { mkdir, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 // Pierwszy kontakt: nowa osoba zakłada konto przez „Załóż konto” (ten sam mechanizm kodu z
 // e-maila co „Zaloguj się”), akceptuje regulamin i ląduje na Starcie z przyciskiem do kolekcji,
@@ -62,8 +62,26 @@ async function shot(page: Page, name: string) {
 const overflowOf = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
+// The main call to action must be whole on the first screen, above the bottom bar of a phone (or
+// above the window's lower edge where there is no bar), without scrolling.
+async function expectOnFirstScreen(page: Page, button: Locator) {
+  await expect(button).toBeVisible();
+
+  const box = (await button.boundingBox())!;
+  const bar = page.getByRole("navigation", { name: "Główna" });
+  const barBox = (await bar.isVisible()) ? await bar.boundingBox() : null;
+  const windowHeight = page.viewportSize()?.height ?? Infinity;
+  // On a computer the menu is at the top; only a bar in the lower half is the bottom bar.
+  const limit = barBox !== null && barBox.y > windowHeight / 2 ? barBox.y : windowHeight;
+
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(limit);
+}
+
 for (const size of [
   { name: "390", width: 390, height: 844 },
+  { name: "390x667", width: 390, height: 667 },
   { name: "1440", width: 1440, height: 900 },
 ]) {
   test.describe(`pierwszy kontakt, ${size.name} px`, () => {
@@ -81,7 +99,8 @@ for (const size of [
       // The banner of a guest: the main button, the second one and the way in for an owner.
       const main = page.getByRole("main");
 
-      await expect(main.getByRole("link", { name: "Załóż konto" })).toBeVisible();
+      await expectOnFirstScreen(page, main.getByRole("link", { name: "Załóż konto" }));
+      await shot(page, `start-goscia-${size.name}`);
       await expect(main.getByRole("link", { name: "Zobacz kolekcje" })).toBeVisible();
       await expect(main.getByText("Masz już konto?")).toBeVisible();
       await expect(main.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
@@ -103,6 +122,8 @@ for (const size of [
       await main.getByRole("link", { name: "Załóż konto" }).click();
       await expect(page).toHaveURL(/\/login\/zaloz-konto$/);
       await expect(page).toHaveTitle("Załóż konto — Krajozbiór");
+      // Nothing of an existing account is said before the code.
+      await expect(page.getByText("Masz już konto z tym adresem")).toHaveCount(0);
       await expect(page.getByRole("heading", { level: 1, name: "Załóż konto" })).toBeVisible();
       await expect(page.getByText("Hasła nie potrzebujesz.")).toBeVisible();
       await expect(page.getByRole("main").getByText(/regulamin/i)).toHaveCount(0);
@@ -171,7 +192,7 @@ for (const size of [
 
       const collections = start.getByRole("link", { name: "Zobacz kolekcje" }).first();
 
-      await expect(collections).toBeVisible();
+      await expectOnFirstScreen(page, collections);
       await expect(collections).toHaveAttribute("href", "#do-odkrycia");
       expect(await overflowOf(page)).toBeLessThanOrEqual(0);
       await shot(page, `start-nowej-osoby-${size.name}`);
@@ -205,3 +226,50 @@ for (const size of [
     });
   });
 }
+
+test.describe("„Załóż konto” adresem, który ma już konto", () => {
+  test.skip(!password, "DEMO_ACCOUNT_PASSWORD and a migrated, seeded database are required");
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  async function signUpWith(page: Page, email: string) {
+    const known = new Set(await outboxFiles());
+
+    await page.goto("/login/zaloz-konto");
+    await page.locator("#code-request-email").fill(email);
+    await page.getByRole("button", { name: "Wyślij kod" }).click();
+    await page.locator("#code-verify-code").fill(await codeFor(email, known));
+    await page.getByRole("button", { name: "Załóż konto", exact: true }).click();
+  }
+
+  test("po kodzie mówi, że konto już jest; nowe konto dostaje tylko ekran regulaminu", async ({
+    page,
+    context,
+  }) => {
+    const email = newAddress("existing");
+
+    await signUpWith(page, email);
+    await expect(page.getByRole("heading", { level: 1, name: "Zanim zaczniesz" })).toBeVisible();
+    await expect(page.getByText("Masz już konto z tym adresem")).toHaveCount(0);
+    await page.getByLabel(/Akceptuję Regulamin/).check();
+    await page.getByRole("button", { name: "Akceptuję", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Wybierz pierwszą kolekcję" }),
+    ).toBeVisible();
+    await expect(page.getByText("Masz już konto z tym adresem")).toHaveCount(0);
+
+    // The same address again through "Załóż konto": the message comes only after the code.
+    await context.clearCookies();
+    await signUpWith(page, email);
+
+    const notice = page
+      .getByRole("main")
+      .getByRole("status")
+      .filter({ hasText: "Masz już konto z tym adresem — zalogowaliśmy Cię." });
+
+    await expect(notice).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Wybierz pierwszą kolekcję" }),
+    ).toBeVisible();
+    await shot(page, "istniejace-konto-390");
+  });
+});

@@ -13,7 +13,13 @@ import {
 } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import type { Actor } from "@/features/identity/domain/actor";
-import { LOGIN_PATH, SIGNUP_PATH } from "@/features/identity/domain/login-entry";
+import {
+  EXISTING_ACCOUNT_NOTICE,
+  FIRST_SIGN_IN_EXISTING_ACCOUNT,
+  FIRST_SIGN_IN_PARAM,
+  LOGIN_PATH,
+  SIGNUP_PATH,
+} from "@/features/identity/domain/login-entry";
 import { isNewExplorerAccount } from "@/features/identity/domain/role-home";
 import { CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
 import { getMyProfile } from "@/features/profile/application/profile";
@@ -152,6 +158,9 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const signOutFailed = first(params.wylogowanie) === "blad";
   // Only a signal for the message after deleting the account (E9-5).
   const accountDeleted = first(params.konto) === "usuniete";
+  // "Załóż konto" with an address that already had an account (said only after the code).
+  const existingAccount =
+    actor !== null && first(params[FIRST_SIGN_IN_PARAM]) === FIRST_SIGN_IN_EXISTING_ACCOUNT;
   const savedRead = actor === null ? Promise.resolve(null) : loadSavedSlugs(actor);
   const [allDiscover, allNearby, album, firstName, saved, guestDrawn] = await Promise.all([
     // The saved ones are known first, so the list can read that many more than it shows.
@@ -202,6 +211,11 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
       {accountDeleted ? (
         <p role="status" className={styles.status}>
           Twoje konto zostało usunięte.
+        </p>
+      ) : null}
+      {existingAccount ? (
+        <p role="status" className={styles.status}>
+          {EXISTING_ACCOUNT_NOTICE}
         </p>
       ) : null}
       {signedOut ? (

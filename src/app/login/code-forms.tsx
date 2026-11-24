@@ -107,7 +107,7 @@ export function CodeForms({
     <>
       {error}
       <p id="code-hint">
-        Kod wysłaliśmy na adres <strong>{maskEmail(email)}</strong>.
+        Kod wysłaliśmy na adres <strong className={styles.address}>{maskEmail(email)}</strong>.
       </p>
       {codeSent ? (
         <p id="code-status" role="status" className={styles.status}>

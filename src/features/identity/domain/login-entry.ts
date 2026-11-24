@@ -14,6 +14,12 @@ export const SIGNUP_PATH = "/login/zaloz-konto";
 // code was accepted.
 export const FIRST_SIGN_IN_PARAM = "wejscie";
 export const FIRST_SIGN_IN_FROM_LOGIN = "logowanie";
+// The same parameter after "Załóż konto" for an address that already had an account: the start
+// page then says so (after the code, so nothing is revealed before it).
+export const FIRST_SIGN_IN_EXISTING_ACCOUNT = "istnieje";
+
+/** The calm message after "Załóż konto" for an address that already had an account. */
+export const EXISTING_ACCOUNT_NOTICE = "Masz już konto z tym adresem — zalogowaliśmy Cię.";
 
 /** Only the exact value `signup` selects the signup entrance; anything else is the login. */
 export function loginEntry(value: unknown): LoginEntry {
@@ -28,10 +34,13 @@ export function entryPath(entry: LoginEntry, returnTo: string | null = null): st
 }
 
 /** The destination with the mark that the account was created by the "Zaloguj się" entrance. */
-export function withFirstSignInNotice(destination: string): string {
+export function withFirstSignInNotice(
+  destination: string,
+  mark: string = FIRST_SIGN_IN_FROM_LOGIN,
+): string {
   const url = new URL(destination, "http://destination.invalid");
 
-  url.searchParams.set(FIRST_SIGN_IN_PARAM, FIRST_SIGN_IN_FROM_LOGIN);
+  url.searchParams.set(FIRST_SIGN_IN_PARAM, mark);
 
   return safeReturnTo(`${url.pathname}${url.search}${url.hash}`);
 }

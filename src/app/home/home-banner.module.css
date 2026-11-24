@@ -513,6 +513,13 @@
 }
 
 @media (max-width: 47.99rem) {
+  /* Telefon: tekst i przyciski stoją na górze banera, a zdjęcie ciągnie się pod nimi. Główny
+     przycisk jest więc w całości na pierwszym ekranie, nad dolnym paskiem menu (także na
+     667 px wysokości), niezależnie od wysokości banera i paska „Wersja testowa”. */
+  .tall {
+    align-content: start;
+  }
+
   /* Telefon: przyciski jeden pod drugim, na całą szerokość, bez zawijania tekstu. */
   .actions {
     flex-direction: column;

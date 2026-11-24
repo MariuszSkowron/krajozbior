@@ -127,6 +127,11 @@
   box-shadow: var(--shadow-card);
 }
 
+/* Adres w kroku 2 nie łamie się w środku (długi adres może zawinąć się dopiero w całości). */
+.address {
+  white-space: nowrap;
+}
+
 .status {
   margin: 0;
   padding: var(--space-md);

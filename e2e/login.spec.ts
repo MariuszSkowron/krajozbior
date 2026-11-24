@@ -83,7 +83,7 @@ test.describe("sign-in with a code in two steps", () => {
     await page.locator("#code-request-email").fill(email);
     await page.getByRole("button", { name: "Wyślij kod" }).click();
 
-    await expect(page.getByText("Kod wysłaliśmy na adres")).toContainText("l…@example.com");
+    await expect(page.getByText("Kod wysłaliśmy na adres")).toContainText(/l-…\w@example\.com/);
     await expect(page.getByRole("main").getByRole("status")).toContainText("kod jest już w drodze");
     await expect(page.getByLabel("Kod z wiadomości (6 cyfr)")).toBeFocused();
     await expect(page.locator("#code-request-email")).toHaveCount(0);
