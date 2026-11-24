@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   url: "/",
 }));
 
+vi.mock("@/app/auth-photo-loader", () => ({ loadAuthPhoto: async () => null }));
 vi.mock("@/app/shell/terms-state", () => ({ shellTermsAccepted: async () => mocks.termsAccepted }));
 vi.mock("next/headers", () => ({
   // The address of the first request, as the proxy passed it before the fix of the client
@@ -234,6 +235,7 @@ describe("app shell", () => {
     const html = await shell();
 
     expect(header(html)).toContain('href="/login?returnTo=%2Fmy">Zaloguj się</a>');
+    expect(header(html)).toContain('href="/login/zaloz-konto?returnTo=%2Fmy">Załóż konto</a>');
     expect(html).not.toContain("Wyloguj");
   });
 
@@ -445,7 +447,7 @@ describe("app shell", () => {
       [...fragment.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => m[1]);
 
     it("links the header of a guest to the start page, the news and the login", async () => {
-      expect(hrefs(header(await shell()))).toEqual(["/", "/news", "/login"]);
+      expect(hrefs(header(await shell()))).toEqual(["/", "/news", "/login", "/login/zaloz-konto"]);
     });
 
     it.each([

@@ -151,6 +151,33 @@
   flex: 1;
 }
 
+/* Powitanie nad nagłówkiem nowego odkrywcy: mały krój jak etykieta. */
+.greeting {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-label);
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+/* „Masz już konto? Zaloguj się” pod przyciskami gościa; odnośnik ma cel dotyku 44 px. */
+.haveAccount {
+  color: color-mix(in srgb, var(--color-text-on-image) 92%, transparent);
+}
+
+.plain .haveAccount {
+  color: var(--color-text-secondary);
+}
+
+.haveAccountLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-min);
+  color: inherit;
+  font-weight: var(--font-weight-strong);
+  text-underline-offset: 3px;
+}
+
 /* „Zobacz kolekcje” na zdjęciu: półprzezroczyste tło ze scrimem i jasny obrys. */
 .onPhoto {
   background: color-mix(in srgb, var(--color-image-scrim) 50%, transparent);
@@ -426,6 +453,14 @@
   }
 }
 
+/* 768–1100 px: tytuł nowego odkrywcy („Wybierz pierwszą kolekcję”) zawija się do trzech krótkich
+   wierszy, żeby cały mieścił się w mocnej części lewego gradientu (>= 4,5:1 na białym zdjęciu). */
+@media (min-width: 48rem) and (max-width: 68.74rem) {
+  .tall .body h1.narrowTitle {
+    max-width: 9ch;
+  }
+}
+
 /* Od 1100 px podpis zdjęcia w prawym dolnym rogu, jak w makiecie (miejsce na niego robi dolny
    odstęp bloku treści), a baner odkrywcy ma tytuł z lewej i liczbę z prawej. */
 @media (min-width: 68.75rem) {
@@ -459,6 +494,13 @@
 }
 
 @media (max-width: 47.99rem) {
+  /* Telefon: tekst i przyciski stoją na górze banera, a zdjęcie ciągnie się pod nimi. Główny
+     przycisk jest więc w całości na pierwszym ekranie, nad dolnym paskiem menu (także na
+     667 px wysokości), niezależnie od wysokości banera i paska „Wersja testowa”. */
+  .tall {
+    align-content: start;
+  }
+
   /* Telefon: przyciski jeden pod drugim, na całą szerokość, bez zawijania tekstu. */
   .actions {
     flex-direction: column;
@@ -479,6 +521,35 @@
       to top,
       color-mix(in srgb, var(--color-image-scrim) 96%, transparent) 0%,
       color-mix(in srgb, var(--color-image-scrim) 78%, transparent) calc(100% - var(--space-lg)),
+      color-mix(in srgb, var(--color-image-scrim) 0%, transparent) 100%
+    );
+  }
+
+  /* Telefon, baner gościa i nowej osoby (tekst na górze): przyciemnienie jest pod tekstem u góry
+     i zanika ku dołowi, więc dolna część zdjęcia (ostatnia trzecia wysokości) jest widoczna
+     (przyciemnienie <= 50%). Sam tekst ma własne przyciemnienie na bloku `.body` (niżej). */
+  .tall.withPhoto {
+    /* Wolny pas zdjęcia pod blokiem tekstu (ok. 1/3 wysokości banera), bez przyciemnienia. */
+    padding-block-end: 18rem;
+  }
+
+  .tall.withPhoto::before {
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-image-scrim) 80%, transparent) 0%,
+      color-mix(in srgb, var(--color-image-scrim) 55%, transparent) 45%,
+      color-mix(in srgb, var(--color-image-scrim) 12%, transparent) 66%,
+      color-mix(in srgb, var(--color-image-scrim) 0%, transparent) 100%
+    );
+  }
+
+  /* Blok tekstu na górze: mocne przyciemnienie od góry, zanik w dolnym odstępie bloku. */
+  .tall.withPhoto .body {
+    padding-block: var(--space-lg);
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-image-scrim) 94%, transparent) 0%,
+      color-mix(in srgb, var(--color-image-scrim) 80%, transparent) calc(100% - var(--space-lg)),
       color-mix(in srgb, var(--color-image-scrim) 0%, transparent) 100%
     );
   }

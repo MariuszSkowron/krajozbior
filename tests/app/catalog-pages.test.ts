@@ -21,6 +21,7 @@ vi.mock("@/app/request-actor", () => ({
   logReadFailure: vi.fn(),
   getRequestActor: mocks.actor,
   loginHref: (path: string) => `/login?returnTo=${encodeURIComponent(path)}`,
+  signupHref: (path: string) => `/login/zaloz-konto?returnTo=${encodeURIComponent(path)}`,
 }));
 vi.mock("@/features/visits/application/mark-past-visits", () => ({
   getMyVisitOfPlace: mocks.visited,
@@ -414,15 +415,18 @@ describe("public catalog pages", () => {
       mocks.actor.mockResolvedValue(explorer);
     });
 
-    it("gives a guest one sign-in link with the note about coming back", async () => {
+    it("gives a guest both entrances with the note about the reason and coming back", async () => {
       mocks.actor.mockResolvedValue(null);
 
       const html = await render();
 
+      expect(html.match(/Załóż konto/g)).toHaveLength(1);
       expect(html.match(/Zaloguj się/g)).toHaveLength(1);
+      expect(html).toContain(">Załóż konto</a>");
       expect(html).toContain(">Zaloguj się</a>");
+      expect(html).toContain('href="/login/zaloz-konto?returnTo=%2Fplaces%2F');
       expect(html).toContain(
-        "Po zalogowaniu potwierdzisz wizytę albo zapiszesz miejsce na „Chcę zobaczyć”. Wrócisz na tę stronę.",
+        "Z kontem potwierdzisz wizytę albo zapiszesz miejsce na „Chcę zobaczyć”. Wrócisz na tę stronę.",
       );
     });
 
@@ -838,7 +842,11 @@ describe("public catalog pages", () => {
         expect(html).not.toContain("Filtr miejsc");
         expect(html).toContain(`href="/places/${second.id}"`);
         expect(html).toContain("Brama");
-        expect(html).toContain("Zaloguj się, aby zapisać kolekcję");
+        expect(html).toContain(">Załóż konto</a>");
+        expect(html).toContain(">Zaloguj się</a>");
+        expect(html).toContain(
+          "Z kontem zapiszesz tę kolekcję i zobaczysz swój postęp. Wrócisz na tę stronę.",
+        );
       });
     });
   });

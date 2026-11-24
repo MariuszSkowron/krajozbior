@@ -252,6 +252,47 @@
   cursor: pointer;
 }
 
+/* „Załóż konto” w nagłówku gościa: przycisk główny; na telefonie niesie je baner, więc tu go nie ma. */
+.account .signupAction {
+  display: none;
+  min-height: var(--size-touch-min);
+  padding-inline: var(--space-md);
+  text-decoration: none;
+  border-radius: var(--radius-pill);
+}
+
+@media (min-width: 40rem) {
+  .account .signupAction {
+    display: inline-flex;
+  }
+}
+
+/* Imię (albo „Profil”) jako odnośnik do profilu; długie imię jest ucinane wielokropkiem. */
+.profileLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--size-touch-min);
+  min-height: var(--size-touch-min);
+  padding-inline: var(--space-sm);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-strong);
+  text-decoration: none;
+  border-radius: var(--radius-pill);
+}
+
+.profileLink:hover,
+.profileLink[aria-current="page"] {
+  background: var(--color-surface-hover);
+}
+
+.profileName {
+  max-width: 10ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* „Wyloguj” to akcja drugorzędna: bez wypełnienia i akcentu, obrys dopiero po najechaniu. */
 .logoutAction {
   display: inline-flex;

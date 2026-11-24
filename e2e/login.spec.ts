@@ -54,8 +54,8 @@ test("a guest opening a private page is sent to login", async ({ page }) => {
   await page.goto("/my");
 
   await expect(page).toHaveURL(/\/login\?returnTo=%2Fmy$/);
-  await expect(page).toHaveTitle("Logowanie — Krajozbiór");
-  await expect(page.getByRole("heading", { level: 1, name: "Logowanie" })).toBeVisible();
+  await expect(page).toHaveTitle("Zaloguj się — Krajozbiór");
+  await expect(page.getByRole("heading", { level: 1, name: "Zaloguj się" })).toBeVisible();
   await expect(page.getByLabel("E-mail").first()).toBeVisible();
 });
 
@@ -83,7 +83,7 @@ test.describe("sign-in with a code in two steps", () => {
     await page.locator("#code-request-email").fill(email);
     await page.getByRole("button", { name: "Wyślij kod" }).click();
 
-    await expect(page.getByText("Wpisz kod wysłany na adres")).toContainText("l…@example.com");
+    await expect(page.getByText("Kod wysłaliśmy na adres")).toContainText(/l-…\w@example\.com/);
     await expect(page.getByRole("main").getByRole("status")).toContainText("kod jest już w drodze");
     await expect(page.getByLabel("Kod z wiadomości (6 cyfr)")).toBeFocused();
     await expect(page.locator("#code-request-email")).toHaveCount(0);
@@ -100,6 +100,26 @@ test.describe("sign-in with a code in two steps", () => {
     expect(cookies.some((cookie) => cookie.name === "krajozbior_login_email")).toBe(false);
   });
 
+  test("a very long domain in step 2 wraps instead of scrolling the page sideways at 320 px", async ({
+    page,
+  }) => {
+    const longDomain = `${"d".repeat(60)}.${"e".repeat(60)}.example.com`;
+    const email = `l-long-${Date.now().toString(36)}@${longDomain}`;
+
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.goto("/login");
+    await page.locator("#code-request-email").fill(email);
+    await page.getByRole("button", { name: "Wyślij kod" }).click();
+
+    await expect(page.getByLabel("Kod z wiadomości (6 cyfr)")).toBeVisible();
+    await expect(page.getByText("Kod wysłaliśmy na adres")).toContainText(longDomain);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      ),
+    ).toBeLessThanOrEqual(0);
+  });
+
   test("a wrong code keeps step 2 and 'Zmień adres' goes back to step 1", async ({ page }) => {
     const email = newAddress("change");
 
@@ -110,7 +130,7 @@ test.describe("sign-in with a code in two steps", () => {
     await page.getByRole("button", { name: "Zaloguj się", exact: true }).click();
 
     await expect(page.locator("main [role=alert]")).toContainText("Kod jest nieprawidłowy");
-    await expect(page.getByText("Wpisz kod wysłany na adres")).toBeVisible();
+    await expect(page.getByText("Kod wysłaliśmy na adres")).toBeVisible();
     // The error takes the focus and the code field is described by it.
     await expect(page.locator("#code-error")).toBeFocused();
     await expect(page.locator("#code-verify-code")).toHaveAttribute("aria-invalid", "true");
@@ -191,7 +211,8 @@ test.describe("with seeded demo accounts", () => {
     await page.goto("/login");
     await logIn(page, "admin@demo.krajozbior.local", password ?? "");
 
-    await expect(page).toHaveURL(/\/my$/);
+    // No visit and no saved collection: the administrator lands on the start page.
+    await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
     const response = await page.request.get("/api/admin");
     expect(response.status()).toBe(200);
     expect((await response.json()).role).toBe("admin");
@@ -210,7 +231,7 @@ test.describe("with seeded demo accounts", () => {
   test("a signed-in user can log out", async ({ page }) => {
     await page.goto("/login");
     await logIn(page, "user@demo.krajozbior.local", password ?? "");
-    await expect(page).toHaveURL(/\/my$/);
+    await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
 
     // Na komputerze „Wyloguj” jest w nagłówku (D-54 P20 B); na telefonie na profilu.
     await page.getByRole("banner").getByRole("button", { name: "Wyloguj" }).click();

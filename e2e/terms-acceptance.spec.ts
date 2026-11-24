@@ -88,16 +88,18 @@ async function codeFor(email: string, known: ReadonlySet<string>): Promise<strin
 
 // Asks for a code on /login, reads it from the outbox and signs in; the first sign-in with an
 // address creates the account. It does NOT accept the terms: the tests do that or refuse it.
-async function signInWithCode(page: Page, email: string) {
+async function signInWithCode(page: Page, email: string, entry: "login" | "signup" = "login") {
   const known = new Set(await outboxFiles());
 
-  await page.goto("/login");
+  await page.goto(entry === "signup" ? "/login/zaloz-konto" : "/login");
   await page.locator("#code-request-email").fill(email);
   await page.getByRole("button", { name: "Wyślij kod" }).click();
   await expect(page.getByRole("main").getByRole("status")).toContainText("kod jest już w drodze");
 
   await page.locator("#code-verify-code").fill(await codeFor(email, known));
-  await page.getByRole("button", { name: "Zaloguj się", exact: true }).click();
+  await page
+    .getByRole("button", { name: entry === "signup" ? "Załóż konto" : "Zaloguj się", exact: true })
+    .click();
   await expect(page).not.toHaveURL(/\/login/);
 }
 
@@ -159,20 +161,18 @@ test.describe("strony prawne, stopka i pasek", () => {
     });
   }
 
-  test("ekran logowania odsyła do regulaminu i polityki i nie ma pola akceptacji", async ({
+  test("ekrany logowania i zakładania konta nie mówią o regulaminie i nie mają pola akceptacji", async ({
     page,
   }) => {
-    await page.goto("/login");
+    for (const address of ["/login", "/login/zaloz-konto"]) {
+      await page.goto(address);
 
-    await expect(page.getByRole("main").getByRole("link", { name: "Regulamin" })).toHaveAttribute(
-      "href",
-      "/regulamin",
-    );
-    await expect(
-      page.getByRole("main").getByRole("link", { name: "Polityka prywatności" }),
-    ).toHaveAttribute("href", "/polityka-prywatnosci");
-    // Not telling a new address from a known one: no checkbox on the login screen (E11-Q4 A).
-    await expect(page.getByRole("checkbox")).toHaveCount(0);
+      // The terms are accepted in the next step, on the screen "Zanim zaczniesz".
+      await expect(page.getByRole("main").getByRole("link", { name: "Regulamin" })).toHaveCount(0);
+      await expect(page.getByRole("main").getByText(/regulamin/i)).toHaveCount(0);
+      // Not telling a new address from a known one: no checkbox on these screens (E11-Q4 A).
+      await expect(page.getByRole("checkbox")).toHaveCount(0);
+    }
   });
 
   test("pasek „Wersja testowa” prowadzi do zasad i zamyka się na czas sesji", async ({ page }) => {
@@ -242,9 +242,15 @@ test.describe("ekran „Zanim zaczniesz”", () => {
     await page.goto("/my");
     await expect(gateHeading(page)).toBeVisible();
 
-    // The native checkbox is required: the form is not sent without it.
+    // The checkbox is required: the form is not sent without it, and the message is in Polish
+    // (not the browser's own bubble), tied to the field (UX-12).
     await page.getByRole("button", { name: "Akceptuję", exact: true }).click();
     await expect(gateHeading(page)).toBeVisible();
+    await expect(page.getByRole("alert").filter({ hasText: "Zaznacz pole" })).toContainText(
+      "Zaznacz pole „Akceptuję Regulamin”.",
+    );
+    await expect(page.getByLabel(/Akceptuję Regulamin/)).toBeFocused();
+    await expect(page.getByLabel(/Akceptuję Regulamin/)).toHaveAttribute("aria-invalid", "true");
     expect(await acceptances(email)).toEqual([]);
 
     await page.getByLabel(/Akceptuję Regulamin/).check();
@@ -259,6 +265,33 @@ test.describe("ekran „Zanim zaczniesz”", () => {
     // The next visit does not ask again.
     await page.goto("/my/settings");
     await expect(gateHeading(page)).toHaveCount(0);
+  });
+
+  test("po „Zaloguj się” z nowym adresem ekran wyjaśnia, że założono konto; po „Załóż konto” nie", async ({
+    page,
+  }) => {
+    const notice = page.getByText("Dla tego adresu nie było jeszcze konta, więc je założyliśmy.");
+
+    await signInWithCode(page, newAddress("first-login"), "login");
+    await expect(gateHeading(page)).toBeVisible();
+    await expect(notice).toBeVisible();
+    await expect(notice).toContainText(
+      "Masz konto założone na inny adres? Wyloguj się i zaloguj tamtym.",
+    );
+
+    // The explanation does not stay in the address after the acceptance.
+    await page.getByLabel(/Akceptuję Regulamin/).check();
+    await page.getByRole("button", { name: "Akceptuję", exact: true }).click();
+    await expect(gateHeading(page)).toHaveCount(0);
+    expect(page.url()).not.toContain("wejscie");
+
+    const other = await page.context().browser()!.newContext();
+    const signup = await other.newPage();
+
+    await signInWithCode(signup, newAddress("signup"), "signup");
+    await expect(gateHeading(signup)).toBeVisible();
+    await expect(signup.getByText("Dla tego adresu nie było jeszcze konta")).toHaveCount(0);
+    await other.close();
   });
 
   test("strony prawne dają się czytać przed akceptacją, a ekran wraca po powrocie", async ({

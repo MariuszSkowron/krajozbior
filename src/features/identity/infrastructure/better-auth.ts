@@ -11,11 +11,11 @@ import { getEmailSender } from "@/lib/email/create-email-sender";
 import { SIGN_IN_CODE_VALIDITY_MINUTES } from "@/lib/email/sign-in-code-email";
 
 import { isRole, type Actor } from "../domain/actor";
-import type {
-  CodeCredentials,
-  Credentials,
-  IdentityProvider,
-  SignInResult,
+import {
+  type CodeCredentials,
+  type Credentials,
+  type IdentityProvider,
+  type SignInResult,
 } from "../domain/identity-provider";
 import { SESSION_LIMIT_MS } from "../domain/session-policy";
 import { createDatabaseHooks, createSendSignInCode } from "./auth-hooks";
@@ -220,8 +220,22 @@ async function toSignInResult(response: Response): Promise<SignInResult | null> 
   return { actor, setCookies: response.headers.getSetCookie() };
 }
 
+// Whether an account with the address exists. Read before a code sign-in only to tell, after
+// the code was accepted, whether that sign-in created the account; the answer is never used
+// before the code is verified and the read runs for every attempt alike.
+async function accountExistsForAddress(email: string): Promise<boolean> {
+  const { rows } = await (
+    await getAuthPool()
+  ).query(`select 1 from auth.users where lower(email) = lower($1) limit 1`, [email]);
+
+  return rows.length > 0;
+}
+
 export class BetterAuthIdentityProvider implements IdentityProvider {
-  constructor(private readonly auth: () => Auth = getAuth) {}
+  constructor(
+    private readonly auth: () => Auth = getAuth,
+    private readonly accountExists: (email: string) => Promise<boolean> = accountExistsForAddress,
+  ) {}
 
   async getActor(headers: Headers): Promise<Actor | null> {
     const session = await this.auth().api.getSession({ headers });
@@ -247,13 +261,17 @@ export class BetterAuthIdentityProvider implements IdentityProvider {
     credentials: CodeCredentials,
     headers: Headers,
   ): Promise<SignInResult | null> {
+    // A failed lookup counts as "existed": nothing is explained rather than something false.
+    const existed = await this.accountExists(credentials.email).catch(() => true);
     const response = await this.auth().api.signInEmailOTP({
       body: { email: credentials.email, otp: credentials.code },
       headers,
       asResponse: true,
     });
 
-    return toSignInResult(response);
+    const result = await toSignInResult(response);
+
+    return result === null ? null : { ...result, accountCreated: !existed };
   }
 
   async getSessionCreatedAt(headers: Headers): Promise<Date | null> {
