@@ -1,5 +1,5 @@
 import { HOME_BANNER_POOL, type HomeBannerPoolEntry } from "../domain/home-banner-pool";
-import { pickHomeBanner } from "../domain/home-banner";
+import { bannerRandom, pickHomeBanner } from "../domain/home-banner";
 import { warsawToday } from "@/features/visits/domain/past-visit-request";
 
 import { MAX_COLLECTIONS_PER_LIST } from "../domain/limits";
@@ -50,7 +50,7 @@ export async function getCollectionBanner(
  */
 export async function getHomeBanner(
   deps: CatalogDeps,
-  random: () => number = Math.random,
+  random: () => number = bannerRandom,
   pool: readonly HomeBannerPoolEntry[] = HOME_BANNER_POOL,
 ): Promise<HomeBannerPick | null> {
   const candidates = await deps.withGuestContext((tx) =>
