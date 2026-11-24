@@ -42,6 +42,14 @@ const foreignKeys: Record<string, { behaviour: Behaviour; why: string }> = {
     behaviour: "set null",
     why: "who of the team filed the rights statement of an official photo; the photo and its signature stay without the person (E4-2a, spec 5.1)",
   },
+  "public.place_reports.author_id": {
+    behaviour: "set null",
+    why: "who reported a problem with a place; an open report goes with the account and a decided one stays without the person and without the text (P4b, spec 5.1 and DT-P4b-5)",
+  },
+  "public.place_reports.decided_by": {
+    behaviour: "set null",
+    why: "which curator decided; never read by the author, and the report stays when the curator leaves (P4b, spec 5.1)",
+  },
   "public.organization_members.user_id": {
     behaviour: "cascade",
     why: "the membership goes; the organization and its content stay (Q8)",

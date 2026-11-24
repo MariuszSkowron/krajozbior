@@ -6,9 +6,13 @@ import { listCuratorCollections } from "@/features/catalog/application/curator-q
 import { COLLECTION_STATUS_LABELS, REGION_LABELS } from "@/features/catalog/domain/collection";
 import { formatCollectionCount } from "@/features/catalog/domain/search";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
+import { countOpenReports } from "@/features/reports/application/curator-reports";
+import { formatOpenReportsCounter } from "@/features/reports/domain/report";
+import { getReportsDeps } from "@/features/reports/infrastructure/reports-deps";
 
 import styles from "./curator.module.css";
 import { firstParam, formatDate, pageValue, requireCurator } from "./curator-session";
+import reports from "./reports/reports.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +33,10 @@ export default async function CuratorHome({
     await listCuratorCollections(actor, organization.id, getCatalogDeps()),
     "/curator",
   );
+  // The number of reports waiting for this organization (the same condition as the list of the
+  // queue). When the count is not available the section is left out, the collections still show.
+  const reportCount = await countOpenReports(actor, organization.id, getReportsDeps());
+  const openReports = reportCount.status === "ok" ? reportCount.value : null;
 
   return (
     <>
@@ -65,6 +73,32 @@ export default async function CuratorHome({
           </button>
         </form>
       ) : null}
+
+      {openReports === null ? null : (
+        <section aria-labelledby="attention-heading" className={reports.attention}>
+          <h2 id="attention-heading">Wymaga uwagi</h2>
+          <div className={reports.attentionRow}>
+            {openReports > 0 ? (
+              <Link
+                className={reports.counter}
+                href={`/curator/reports?organization=${organization.id}`}
+              >
+                {formatOpenReportsCounter(openReports)}
+              </Link>
+            ) : (
+              <>
+                <p>{formatOpenReportsCounter(openReports)}</p>
+                <Link
+                  className={reports.quietLink}
+                  href={`/curator/reports?organization=${organization.id}&state=decided`}
+                >
+                  Rozpatrzone
+                </Link>
+              </>
+            )}
+          </div>
+        </section>
+      )}
 
       {collections.length === 0 ? (
         <p className={styles.empty}>
