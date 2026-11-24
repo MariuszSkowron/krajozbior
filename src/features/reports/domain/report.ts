@@ -61,6 +61,8 @@ export const MAX_OPEN_REPORTS_SHOWN = 200;
 /** "Rozpatrzone" shows the latest decisions of the organization. */
 export const MAX_DECIDED_REPORTS_SHOWN = 50;
 export const DECISION_NOTE_MAX_LENGTH = 500;
+/** The version column is a PostgreSQL integer; a larger number is a bad request, not a failure. */
+export const MAX_REPORT_VERSION = 2_147_483_647;
 
 /** Largest body of the decision route; bigger gets 413. */
 export const DECISION_BODY_MAX_BYTES = 4 * 1024;
@@ -68,7 +70,8 @@ export const DECISION_BODY_MAX_BYTES = 4 * 1024;
 // Control characters other than a line feed, zero-width characters and the controls of the
 // text direction: the same set as the CHECK of the migration (a text must not be made to look
 // different to the curator).
-const FORBIDDEN_TEXT = /[\u0001-\u0009\u000b-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/;
+const FORBIDDEN_TEXT =
+  /[\u0001-\u0009\u000b-\u001f\u007f-\u009f\u{200b}-\u{200f}\u{202a}-\u{202e}\u{2066}-\u{2069}]/u;
 
 /** CRLF and lone CR become LF, so a form's line breaks count once. */
 export function normalizeLineBreaks(text: string): string {
@@ -133,7 +136,11 @@ export function validateDecisionInput(input: {
     }
   }
 
-  if (!Number.isSafeInteger(input.version) || (input.version as number) < 1) {
+  if (
+    !Number.isSafeInteger(input.version) ||
+    (input.version as number) < 1 ||
+    (input.version as number) > MAX_REPORT_VERSION
+  ) {
     errors.push("version");
   }
 

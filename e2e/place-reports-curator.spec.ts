@@ -198,6 +198,34 @@ test.describe("queue of reports of the curator", () => {
     await curatorB.context().close();
   });
 
+  test("a failed rejection says so inside the open dialog and moves the focus there", async ({
+    browser,
+  }) => {
+    const curator = await signedInPage(browser, "curator-a");
+
+    await curator.goto("/curator/reports");
+    await waitForHydration(curator);
+    // The answer is stubbed, so nothing changes in the seeded queue.
+    await curator.route("**/api/curator/reports/*/decision", (route) =>
+      route.fulfill({ status: 503, contentType: "application/json", body: "{}" }),
+    );
+    await curator.getByRole("article").first().getByRole("button", { name: "Odrzuć" }).click();
+
+    const dialog = curator.getByRole("dialog");
+
+    await dialog.getByLabel("Powód").selectOption({ label: "Zgłoszenie się powtarza" });
+    await dialog.getByRole("button", { name: "Odrzuć zgłoszenie" }).click();
+
+    const alert = dialog.getByRole("alert");
+
+    await expect(alert).toBeVisible();
+    await expect(alert).toContainText("Nie udało się zapisać decyzji");
+    await expect(alert).toBeFocused();
+    await expect(dialog).toBeVisible();
+    await expectNoAccessibilityViolations(curator);
+    await curator.context().close();
+  });
+
   test("a guest and an explorer have no way in; the phone shows the notice", async ({
     page,
     browser,

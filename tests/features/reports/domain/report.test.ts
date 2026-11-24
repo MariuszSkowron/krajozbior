@@ -117,7 +117,8 @@ describe("validateDecisionInput", () => {
   });
 
   it("requires a positive whole version", () => {
-    for (const version of [0, -1, 1.5, "1", undefined, Number.NaN]) {
+    // 2^31 does not fit the integer column: a bad request (422), not a failure (503)
+    for (const version of [0, -1, 1.5, "1", undefined, Number.NaN, 2_147_483_648]) {
       expect(validateDecisionInput({ action: "accept", version })).toEqual({
         ok: false,
         errors: ["version"],

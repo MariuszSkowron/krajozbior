@@ -106,6 +106,8 @@ export function ReportsQueue({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const reasonRef = useRef<HTMLSelectElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
+  const dialogErrorRef = useRef<HTMLParagraphElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
   const focusAfter = useRef<string | null | undefined>(undefined);
   // A decided report is hidden by its id and version: when it comes back (undo, a refreshed
   // list) its version is higher, so it shows again.
@@ -117,6 +119,13 @@ export function ReportsQueue({
       dialogRef.current?.showModal();
     }
   }, [rejecting]);
+
+  // A failed rejection is shown inside the open dialog; the focus goes to the message.
+  useEffect(() => {
+    if (rejecting !== null && notice !== null && notice.kind === "error") {
+      dialogErrorRef.current?.focus();
+    }
+  }, [rejecting, notice]);
 
   // Focus goes to the next heading (or to the message of an empty list) once the DOM is updated.
   useEffect(() => {
@@ -238,11 +247,13 @@ export function ReportsQueue({
       text: `Cofnięto decyzję dla ${last.placeName}. Zgłoszenie wróciło do sprawdzenia.`,
     });
     router.refresh();
+    // The "Cofnij" button that had the focus is gone: the focus goes to the message.
+    requestAnimationFrame(() => statusRef.current?.focus());
   }
 
   return (
     <>
-      <div role="status" aria-live="polite">
+      <div ref={statusRef} tabIndex={-1} role="status" aria-live="polite">
         {notice !== null && notice.kind === "info" ? (
           <div className={`${styles.notice} ${styles.noticeRow}`}>
             <p className={curator.muted}>{notice.text}</p>
@@ -259,7 +270,7 @@ export function ReportsQueue({
           </div>
         ) : null}
       </div>
-      {notice !== null && notice.kind === "error" ? (
+      {notice !== null && notice.kind === "error" && rejecting === null ? (
         <p role="alert" className={styles.notice}>
           {notice.text}
         </p>
@@ -339,6 +350,7 @@ export function ReportsQueue({
                         className="button button--outline"
                         onClick={() => {
                           setReasonMissing(false);
+                          setNotice(null);
                           setRejecting(row);
                         }}
                       >
@@ -427,6 +439,20 @@ export function ReportsQueue({
                 {DECISION_NOTE_MAX_LENGTH} znaków.
               </p>
             </div>
+            {/* The dialog is modal: a message outside of it would be inert, so a failed
+                rejection says so here, where the curator is (and the focus moves to it). */}
+            {notice !== null && notice.kind === "error" ? (
+              <p
+                ref={dialogErrorRef}
+                role="alert"
+                tabIndex={-1}
+                className={curator.fieldError}
+                id="reject-error"
+              >
+                <span className={curator.errorPrefix}>Błąd: </span>
+                {notice.text}
+              </p>
+            ) : null}
             <div className={curator.actions}>
               <button
                 type="submit"

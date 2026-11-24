@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { getReportQueue } from "@/features/reports/application/curator-reports";
 import type { ReportsDeps } from "@/features/reports/application/report-types";
+import { formatDisplayName } from "@/features/profile/domain/display-name";
 import { REJECT_REASONS, REPORT_CATEGORIES } from "@/features/reports/domain/report";
 import { handleDecision } from "@/features/reports/http/decision-http";
 import { postgresReportsRepository } from "@/features/reports/infrastructure/postgres-reports-repository";
@@ -26,6 +27,7 @@ let app: MikroORM;
 
 const author = { ...newUser("rep-author"), role: "user" as const };
 const explorerB = { ...newUser("rep-explorer-b"), role: "user" as const };
+const firstNameOnly = { ...newUser("rep-first-name-only"), role: "user" as const };
 const leaver = { ...newUser("rep-leaver"), role: "user" as const };
 const joiner = { ...newUser("rep-joiner"), role: "user" as const };
 const curA = { ...newUser("rep-cur-a"), role: "user" as const };
@@ -114,6 +116,7 @@ describe("place_reports: access of the author and the curator (P4b)", () => {
     await f.insertUsers([
       author,
       explorerB,
+      firstNameOnly,
       leaver,
       joiner,
       curA,
@@ -144,6 +147,10 @@ describe("place_reports: access of the author and the curator (P4b)", () => {
     await f.as(
       author,
       `insert into public.profiles (first_name, family_initial) values ('Anna', 'K')`,
+    );
+    await f.as(
+      firstNameOnly,
+      `insert into public.profiles (first_name, family_initial) values ('Anna', null)`,
     );
   }, 90_000);
 
@@ -422,6 +429,15 @@ describe("place_reports: access of the author and the curator (P4b)", () => {
 
     expect(byId.get(named)!.author_label).toBe("Anna K.");
     expect(byId.get(anonymous)!.author_label).toBe("Odkrywca");
+    // the same rule as the application's: a name without the family initial is the bare name
+    expect(byId.get(named)!.author_label).toBe(formatDisplayName("Anna", "K"));
+    expect(byId.get(anonymous)!.author_label).toBe(formatDisplayName(null, null));
+
+    const nameOnly = await report(firstNameOnly, places[2]!, "wrong_info", "tylko imię");
+    const withNameOnly = (await queue(curA, orgA)).find((row) => row.id === nameOnly)!;
+
+    expect(withNameOnly.author_label).toBe("Anna");
+    expect(withNameOnly.author_label).toBe(formatDisplayName("Anna", null));
     expect(byId.get(named)).toMatchObject({
       author_gone: false,
       place_deleted: false,

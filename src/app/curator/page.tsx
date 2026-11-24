@@ -9,6 +9,7 @@ import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import { countOpenReports } from "@/features/reports/application/curator-reports";
 import { formatOpenReportsCounter } from "@/features/reports/domain/report";
 import { getReportsDeps } from "@/features/reports/infrastructure/reports-deps";
+import { logFailure } from "@/lib/log-failure";
 
 import styles from "./curator.module.css";
 import { firstParam, formatDate, pageValue, requireCurator } from "./curator-session";
@@ -34,9 +35,20 @@ export default async function CuratorHome({
     "/curator",
   );
   // The number of reports waiting for this organization (the same condition as the list of the
-  // queue). When the count is not available the section is left out, the collections still show.
-  const reportCount = await countOpenReports(actor, organization.id, getReportsDeps());
-  const openReports = reportCount.status === "ok" ? reportCount.value : null;
+  // queue). When the count fails the section says so and the collections still show.
+  let openReports: number | null = null;
+  let reportsUnavailable = false;
+
+  try {
+    const reportCount = await countOpenReports(actor, organization.id, getReportsDeps());
+
+    if (reportCount.status === "ok") {
+      openReports = reportCount.value;
+    }
+  } catch (error) {
+    logFailure("Open reports count", error);
+    reportsUnavailable = true;
+  }
 
   return (
     <>
@@ -74,7 +86,12 @@ export default async function CuratorHome({
         </form>
       ) : null}
 
-      {openReports === null ? null : (
+      {reportsUnavailable ? (
+        <section aria-labelledby="attention-heading" className={reports.attention}>
+          <h2 id="attention-heading">Wymaga uwagi</h2>
+          <p role="status">Nie udało się sprawdzić zgłoszeń. Odśwież stronę za chwilę.</p>
+        </section>
+      ) : openReports === null ? null : (
         <section aria-labelledby="attention-heading" className={reports.attention}>
           <h2 id="attention-heading">Wymaga uwagi</h2>
           <div className={reports.attentionRow}>
