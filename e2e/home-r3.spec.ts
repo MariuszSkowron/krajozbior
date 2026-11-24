@@ -388,7 +388,7 @@ test.describe("home page: the R3 look", () => {
           heading,
           main.getByText(/Gotowe kolekcje miejsc/),
           main.getByText("Masz już konto?"),
-          main.getByText("Autor: Fikcyjny Autor R3"),
+          main.getByText("fot. Fikcyjny Autor R3"),
         ]) {
           expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
         }

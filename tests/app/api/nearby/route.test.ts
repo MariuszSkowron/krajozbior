@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { NearbyCandidate } from "@/features/catalog/domain/nearby";
 
@@ -31,9 +31,33 @@ const candidates = (collections: number, places: number): NearbyCandidate[] =>
   }));
 
 describe("GET /api/nearby", () => {
+  // The list is kept in the memory of the server for five minutes; every test starts past that.
+  let clock = Date.parse("2026-11-24T10:00:00Z");
+
   beforeEach(() => {
     mocks.list.mockReset();
     mocks.log.mockReset();
+    clock += 20 * 60 * 1000;
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(clock);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("reads the database once for repeated requests inside the five minutes", async () => {
+    mocks.list.mockResolvedValue(candidates(1, 2));
+
+    await GET();
+    await GET();
+
+    expect(mocks.list).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(clock + 5 * 60 * 1000 + 1);
+    await GET();
+
+    expect(mocks.list).toHaveBeenCalledTimes(2);
   });
 
   it("returns the public list for anyone, cacheable, with no request parameter read", async () => {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { logReadFailure } from "@/app/request-actor";
+import { createNearbyList } from "@/features/catalog/application/nearby-list";
 import { listNearbyCandidates } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 
@@ -10,9 +11,15 @@ import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 // no position of the device: the distance is counted in the browser (D-14, E12-3).
 export const dynamic = "force-dynamic";
 
+// One list for everyone, kept in the memory of the server for five minutes.
+const readNearbyList = createNearbyList({
+  read: () => listNearbyCandidates(getCatalogDeps()),
+  now: () => Date.now(),
+});
+
 export async function GET() {
   try {
-    const candidates = await listNearbyCandidates(getCatalogDeps());
+    const candidates = await readNearbyList();
 
     return NextResponse.json(
       { candidates },

@@ -266,7 +266,10 @@ test.describe("collection cover", () => {
 
     await expect(image).toBeVisible();
     await expect(image).toHaveAttribute("src", `/media/p/${photoId}/w400`);
-    expect(await image.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    // The card image is lazy: wait until the file is decoded instead of reading it at once.
+    await expect
+      .poll(() => image.evaluate((img: HTMLImageElement) => img.naturalWidth))
+      .toBeGreaterThan(0);
     await expect(card).toHaveAttribute("href", `/collections/${slug}`);
 
     // Demo collection: no cover, so the card has no photo (the decorative placeholder stays).
