@@ -164,13 +164,14 @@ export function SavedCollectionBanner({
             <span className={styles.count}>
               <span className={styles.srOnly}>
                 {progress.visited}/{progress.total} odwiedzone
+                {progress.visited >= progress.total ? ". Kolekcja kompletna" : ""}
               </span>
               <span className={styles.countNumber} aria-hidden="true">
                 <span className={styles.countBig}>{progress.visited}</span>
                 <span className={styles.countOf}>/{progress.total}</span>
               </span>
               <span className={styles.eyebrow} aria-hidden="true">
-                odwiedzone
+                {progress.visited >= progress.total ? "kolekcja kompletna" : "odwiedzone"}
               </span>
               <span className={styles.bar} aria-hidden="true">
                 <span

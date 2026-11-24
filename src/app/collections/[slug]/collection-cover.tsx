@@ -91,6 +91,7 @@ export function CoverProgress({
       <progress className={styles.bar} value={visited} max={total} aria-label={label}>
         {visited}/{total}
       </progress>
+      {visited >= total ? <p className={styles.complete}>Kolekcja kompletna</p> : null}
     </div>
   );
 }

@@ -108,7 +108,8 @@ async function loadVisit(place: PublishedPlace) {
     // nearest one not visited yet, counted from this place). A failed read leaves out only that line.
     const summary: AfterVisit[] = [];
 
-    if (state.value.onSite) {
+    // Wizyta z przeszłości też pokazuje „Co dalej” (liczy się jak na miejscu, D-10).
+    if (state.value.onSite || past !== null) {
       await Promise.all(
         place.collections.map(async (collection) => {
           // Zapisana kolekcja ma postęp z albumu; w niezapisanej liczymy go z wizyt i miejsc

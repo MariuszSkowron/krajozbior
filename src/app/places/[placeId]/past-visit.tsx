@@ -1,12 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { PastVisitDateFields } from "@/app/past-visit-date-fields";
 import { PastVisitMessage } from "@/app/past-visit-message";
 import styles from "@/app/past-visit.module.css";
 import { VisitMark } from "@/design-system/components/visit-mark";
+
+import { revealResult } from "./reveal-result";
 import {
   EMPTY_PAST_VISIT_DATE,
   INCOMPLETE_DATE_MESSAGE,
@@ -20,7 +22,13 @@ import {
 // `existing` is the text of the explorer's visit from the past ("Z przeszłości ·
 // marzec 2019"), or null when there is none.
 // `showMark` is false when the mark stands above the photo (one mark per place).
-type Props = { placeId: string; existing: string | null; showMark?: boolean };
+// `onSaved` tells the page that a visit from the past was saved (it then shows "Co dalej").
+type Props = {
+  placeId: string;
+  existing: string | null;
+  showMark?: boolean;
+  onSaved?: () => void;
+};
 
 // "Zaznaczam wcześniejszą wizytę" (E2-S6): the secondary action of the place page, in the
 // content, never in the pinned bar (spec decision P5). One visit from the past
@@ -29,7 +37,7 @@ type Props = { placeId: string; existing: string | null; showMark?: boolean };
 // The page is rendered again after a change (`router.refresh()`); the message
 // stays in this component and gets the focus, because the button that had it
 // disappears.
-export function PastVisit({ placeId, existing, showMark = true }: Props) {
+export function PastVisit({ placeId, existing, showMark = true, onSaved }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<PastVisitDateForm>(EMPTY_PAST_VISIT_DATE);
@@ -39,13 +47,23 @@ export function PastVisit({ placeId, existing, showMark = true }: Props) {
   const statusRef = useRef<HTMLParagraphElement>(null);
   const alertRef = useRef<HTMLParagraphElement>(null);
 
+  // The answer of a save or a removal comes into view once its text is in the page (above the
+  // pinned bar), not only gets the focus.
+  useEffect(() => {
+    if (message !== "") {
+      revealResult((failed ? alertRef : statusRef).current);
+    }
+  }, [message, failed]);
+
   function finish(text: string, isFailure: boolean) {
     setMessage(text);
     setFailed(isFailure);
     setPending(false);
     // Both regions are in the page all the time, so the focus does not have to wait
     // for the render that puts the text in (it comes after this microtask).
-    queueMicrotask(() => (isFailure ? alertRef : statusRef).current?.focus());
+    queueMicrotask(() =>
+      (isFailure ? alertRef : statusRef).current?.focus({ preventScroll: true }),
+    );
   }
 
   async function save() {
@@ -72,6 +90,7 @@ export function PastVisit({ placeId, existing, showMark = true }: Props) {
 
         setOpen(false);
         finish(pastVisitSavedMessage(answer.recorded, answer.alreadyVisited), false);
+        onSaved?.();
         router.refresh();
       } else {
         finish(pastVisitFailureMessage(response.status, false), true);

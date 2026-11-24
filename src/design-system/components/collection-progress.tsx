@@ -25,6 +25,7 @@ export function CollectionProgress({
           <span className={styles.count}>{counts}</span> odwiedzone
         </p>
       )}
+      {total > 0 && visited >= total ? <p className={styles.complete}>Kolekcja kompletna</p> : null}
     </div>
   );
 }

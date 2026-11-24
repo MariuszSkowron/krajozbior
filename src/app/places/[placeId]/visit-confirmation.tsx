@@ -15,6 +15,7 @@ import {
 
 import { PastVisit } from "./past-visit";
 import { PinnedAction } from "./pinned-action";
+import { revealResult } from "./reveal-result";
 import styles from "./visit-confirmation.module.css";
 import { WantToSeeButton } from "./want-to-see-button";
 
@@ -97,10 +98,6 @@ function readPosition(): Promise<Reading> {
 // The button with the focus disappears after a saved visit; the focus moves to
 // the success message, so that a screen reader reads it and the keyboard user
 // does not fall back to the top of the page (docs/design/accessibility.md).
-function focusOnMount(element: HTMLElement | null): void {
-  element?.focus();
-}
-
 function feedbackText(state: State, radiusM: number | undefined): string {
   switch (state.kind) {
     case "locating":
@@ -118,6 +115,35 @@ function feedbackText(state: State, radiusM: number | undefined): string {
     default:
       return "";
   }
+}
+
+// „Co dalej” po wizycie: postęp w każdej kolekcji miejsca i najbliższe nieodwiedzone miejsce;
+// przy komplecie zdanie o ukończeniu (to samo po wizycie na miejscu i z przeszłości).
+const WHAT_NEXT_ID = "co-dalej";
+
+function whatNext(items: readonly AfterVisit[]) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <ul className={styles.progress} aria-label="Co dalej" id={WHAT_NEXT_ID}>
+      {items.map((item) => (
+        <li key={item.slug}>
+          <span>{remainingInCollectionText(item, item.title)}</span>
+          {item.next === null ? null : (
+            <>
+              {" "}
+              <span>
+                Najbliższe nieodwiedzone:{" "}
+                <Link href={`/places/${item.next.id}`}>{item.next.name}</Link>.
+              </span>
+            </>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 // "Potwierdzam wizytę" of an explorer (E2-S2, E2-S3). The browser gives the
@@ -150,6 +176,15 @@ export function VisitConfirmation({
   };
   const attempt = useRef<Attempt | null>(null);
   const feedback = useRef<HTMLParagraphElement | null>(null);
+  const message = useRef<HTMLElement | null>(null);
+
+  // Przewijanie robi osobny efekt (łagodnie, z `prefers-reduced-motion`, nad przypiętym paskiem).
+  const focusMessage = (element: HTMLElement | null) => {
+    message.current = element;
+    element?.focus({ preventScroll: true });
+  };
+  // Wizyta z przeszłości zapisana w tej sesji: dopiero wtedy pod przyciskiem stoi „Co dalej”.
+  const [pastSaved, setPastSaved] = useState(false);
 
   // A visit from the past saved in the box below makes an old refusal of the location stale
   // ("Nie mamy zgody…", "Sprawdź ponownie"): the screen starts again from the state of the page.
@@ -168,10 +203,25 @@ export function VisitConfirmation({
       return;
     }
 
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    feedback.current?.scrollIntoView({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
+    revealResult(feedback.current);
   }, [state.kind]);
+
+  // Po zapisie wizyty (na miejscu albo z przeszłości) wynik i „Co dalej” wjeżdżają w okno; lista
+  // dostaje następne miejsce dopiero po odczytaniu strony, więc efekt biegnie też wtedy.
+  const summaryKey = summary.map((item) => `${item.slug}:${item.visited}:${item.next?.id}`).join();
+
+  useEffect(() => {
+    if (state.kind === "recorded") {
+      // Lista stoi pod komunikatem: gdy jest w oknie, komunikat nad nią też.
+      revealResult(document.getElementById(WHAT_NEXT_ID) ?? message.current);
+    }
+  }, [state.kind, summaryKey]);
+
+  useEffect(() => {
+    if (pastSaved && summaryKey !== "") {
+      revealResult(document.getElementById(WHAT_NEXT_ID));
+    }
+  }, [pastSaved, summaryKey]);
 
   async function send(current: Attempt) {
     setState({ kind: "sending" });
@@ -275,28 +325,11 @@ export function VisitConfirmation({
     return (
       <div className={styles.box}>
         {state.kind === "recorded" ? (
-          <p className={styles.success} role="status" tabIndex={-1} ref={focusOnMount}>
+          <p className={styles.success} role="status" tabIndex={-1} ref={focusMessage}>
             {visitRecordedText(placeName)}
           </p>
         ) : null}
-        {items.length === 0 ? null : (
-          <ul className={styles.progress} aria-label="Co dalej">
-            {items.map((item) => (
-              <li key={item.slug}>
-                <span>{remainingInCollectionText(item, item.title)}</span>
-                {item.next === null ? null : (
-                  <>
-                    {" "}
-                    <span>
-                      Najbliższe nieodwiedzone:{" "}
-                      <Link href={`/places/${item.next.id}`}>{item.next.name}</Link>.
-                    </span>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+        {whatNext(items)}
         {/* Przypięty stan „Odwiedzone” (telefon); na komputerze `order` stawia go na górze karty. */}
         <PinnedAction>
           <p className={styles.visitedMark}>
@@ -363,7 +396,12 @@ export function VisitConfirmation({
       {/* Drugorzędne akcje zostają w treści, nie w przypiętym pasku: „Zaznaczam wcześniejszą wizytę”
           (wizyta z przeszłości, decyzja P5) i „Chcę zobaczyć”. */}
       <div className={styles.secondaryActions}>
-        <PastVisit placeId={placeId} existing={past} showMark={showPastMark} />
+        <PastVisit
+          placeId={placeId}
+          existing={past}
+          showMark={showPastMark}
+          onSaved={() => setPastSaved(true)}
+        />
         {past !== null && initialWanted !== true ? null : initialWanted === null ? (
           <p className={styles.feedback}>Lista „Chcę zobaczyć” jest chwilowo niedostępna.</p>
         ) : (
@@ -374,6 +412,7 @@ export function VisitConfirmation({
           />
         )}
       </div>
+      {pastSaved && past !== null ? whatNext(summary) : null}
     </div>
   );
 }

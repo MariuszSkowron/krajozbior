@@ -194,6 +194,7 @@
 }
 
 .progress {
+  scroll-margin-block-end: var(--space-md);
   display: grid;
   gap: var(--space-xs);
   padding: 0;
