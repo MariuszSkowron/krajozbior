@@ -187,7 +187,7 @@ function CollectionFields({
       <Field
         id={FIELDS.summary[0]}
         label="Krótki opis"
-        help={`${summaryLength} / ${COLLECTION_SUMMARY_MAX_LENGTH} znaków. Liczby miejsc nie wpisuj: strona pokazuje ją sama.`}
+        help={`${summaryLength} / ${COLLECTION_SUMMARY_MAX_LENGTH} znaków. Nie wpisuj liczby miejsc: strona pokaże ją sama.`}
         invalidHint={hint("summary")}
       >
         {(aria) => (

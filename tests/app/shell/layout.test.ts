@@ -95,7 +95,7 @@ describe("app shell", () => {
     const html = await shell();
 
     expect(html).toMatch(
-      /role="region" aria-label="Wersja testowa"><p><strong>Wersja testowa\.<\/strong> Regulamin jest jeszcze roboczy\. <a href="\/zasady">Najważniejsze zasady<\/a><\/p><button type="button"[^>]*>Zamknij<\/button>/,
+      /role="region" aria-label="Wersja testowa"><p><strong>Wersja testowa<\/strong> — dokumenty prawne w wersji roboczej\. <a href="\/zasady">Najważniejsze zasady<\/a><\/p><button type="button"[^>]*>Zamknij<\/button>/,
     );
   });
 
@@ -209,6 +209,8 @@ describe("app shell", () => {
       expect(html).not.toContain("Kurator ·");
       // No menu here, so the header keeps the way out (and no "Profil").
       expect(header(html)).toContain("Wyloguj");
+      // Without a menu the logout is not hidden on a phone.
+      expect(header(html)).not.toContain("logoutDesktopOnly");
       expect(header(html)).not.toContain("Profil");
     });
 
@@ -258,8 +260,9 @@ describe("app shell", () => {
       expect(header(html)).not.toContain("Profil");
       expect(header(html)).not.toContain("Anna");
       expect(html).toMatch(/aria-label="Główna"[^>]*>.*Profil/);
-      // The logout is on the profile (and the profile is in the menu), not in the header.
-      expect(header(html)).not.toContain("Wyloguj");
+      // D-54 P20 B: the logout is in the header on a computer (hidden by CSS on a phone, where
+      // it is on the profile), and the profile is in the menu.
+      expect(header(html)).toMatch(/<button class="[^"]*logoutDesktopOnly[^"]*"[^>]*>Wyloguj</);
       expect(mocks.getMyProfile).not.toHaveBeenCalled();
     },
   );

@@ -91,7 +91,7 @@ describe("ProfileForm", () => {
     // The radio group has no single field to mark; the other three are marked.
     expect((html.match(/aria-invalid="true"/g) ?? []).length).toBe(3);
     expect(html).toContain("Imię może mieć do 40 liter, także spację");
-    expect(html).toContain("Pierwsza litera nazwiska: wpisz jedną literę.");
+    expect(html).toContain("Pierwsza litera nazwiska to jedna litera.");
     expect(html).toContain("Region: wybierz województwo z listy.");
     expect(html).toContain("Widoczność: wybierz jedną z opcji.");
     expect(html).not.toContain("nonsense");

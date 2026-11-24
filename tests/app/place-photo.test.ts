@@ -65,8 +65,11 @@ describe("PlacePhoto", () => {
     expect(html).toContain(">Wikimedia Commons</a>");
     expect(html).toContain('<a href="https://creativecommons.org/licenses/by-sa/3.0/pl/"');
     expect(html).toContain(">CC BY-SA 3.0 PL</a>");
-    expect(html).toContain("Zdjęcie zmniejszone i skompresowane, zapisane w formacie WebP.");
-    expect(html).toContain("Ta kopia jest dostępna na licencji CC BY-SA 3.0 PL.");
+    expect(html).toContain("Zdjęcie zmniejszyliśmy i zapisaliśmy w formacie WebP.");
+    expect(html).toContain("Tę kopię udostępniamy na tej samej licencji.");
+    // The full credit names the file; the title is plain text, not a bold or separate element.
+    expect(html).toContain("Tytuł pliku: „Zamek w Malborku”. Autor: ");
+    expect(html).not.toContain("<strong");
     expect(html).toContain("<figcaption");
   });
 

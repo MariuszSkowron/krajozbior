@@ -273,6 +273,13 @@
   border-color: var(--color-border-default);
 }
 
+/* „Wyloguj” w nagłówku tylko na komputerze (D-54 P20 B); telefon ma go na profilu. Znika też dla czytnika. */
+@media (max-width: 47.99rem) {
+  .account form:has(> .logoutDesktopOnly) {
+    display: none;
+  }
+}
+
 /* „Kurator · organizacja”: tylko na komputerze (telefon ma nagłówek w jednym wierszu, QN-2). */
 .curatorLink {
   max-width: 20rem;

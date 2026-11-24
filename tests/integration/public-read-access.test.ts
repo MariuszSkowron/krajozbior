@@ -758,6 +758,13 @@ describe("public read of collections and places (guest context)", () => {
 
       await link(curB, open.id, await placeAt(curB, orgB, "Okolica 1", 54, 18), orgB, 1);
       await link(curB, open.id, await placeAt(curB, orgB, "Okolica 2", 54.2, 18.4), orgB, 2);
+      await link(
+        curB,
+        open.id,
+        await placeAt(curB, orgB, "Okolica 3", 54.123456, 18.987654),
+        orgB,
+        3,
+      );
       await publish(curB, open.id);
 
       const found = (await listNearbyCandidates(deps)).find((entry) => entry.slug === open.slug);
@@ -766,12 +773,14 @@ describe("public read of collections and places (guest context)", () => {
         slug: open.slug,
         title: "W okolicy: publiczna",
         region: "pomorskie",
-        placeCount: 2,
+        placeCount: 3,
       });
-      // Each place by its position in the collection (R-067: the browser measures to the nearest).
+      // Each place by its position in the collection (R-067: the browser measures to the nearest),
+      // rounded to 3 decimals (about 100 m), not the exact position of the place.
       expect(found!.points).toEqual([
         [54, 18],
         [54.2, 18.4],
+        [54.123, 18.988],
       ]);
       expect(typeof found!.firstPublishedAt).toBe("string");
       expect(Object.keys(found!).sort()).toEqual([

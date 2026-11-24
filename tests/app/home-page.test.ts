@@ -131,6 +131,7 @@ beforeEach(() => {
   mocks.getActor.mockReset().mockResolvedValue(null);
   mocks.listRecent.mockReset().mockResolvedValue(discover);
   mocks.listNearby.mockReset().mockResolvedValue(nearby);
+  // (Not called by the page any more; kept to prove it.)
   mocks.getBanner.mockReset().mockResolvedValue(null);
   mocks.getHomeBanner.mockReset().mockResolvedValue(null);
   mocks.connection.mockReset().mockResolvedValue(undefined);
@@ -277,15 +278,14 @@ describe("home page of a guest", () => {
     );
   });
 
-  it("keeps the list, without the button, when the read of positions fails, and the rest works", async () => {
-    mocks.listNearby.mockRejectedValue(new Error("db down: secret-host"));
-
+  // Paczka 3 fix: the places of the collections are fetched after a click, never sent with the
+  // page (neither in the HTML nor in the props of the client component).
+  it("does not read or send the coordinates of the places on the home page", async () => {
     const html = await render();
 
-    expect(html).not.toContain("Pokaż najbliższe");
+    expect(mocks.listNearby).not.toHaveBeenCalled();
     expect(html).toContain("Mosty i zamki");
-    expect(console.error).toHaveBeenCalledWith("Home nearby read failed:", "Error");
-    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
+    expect(html).not.toMatch(/54\.1|18\.8|"points"|latitude|longitude/);
   });
 
   it("confirms a deleted account (E9-5) only for the exact signal", async () => {

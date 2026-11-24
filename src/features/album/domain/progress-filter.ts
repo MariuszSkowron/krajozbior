@@ -22,7 +22,7 @@ export function noMatchingCollectionsMessage(filter: ProgressFilter): string {
     case "ukonczone":
       return "Nie masz jeszcze ukończonych kolekcji.";
     case "w-trakcie":
-      return "Żadnej zapisanej kolekcji nie masz w trakcie.";
+      return "Nie masz kolekcji w trakcie.";
     case "nierozpoczete":
       return "Każdą zapisaną kolekcję masz już zaczętą.";
     case "wszystkie":

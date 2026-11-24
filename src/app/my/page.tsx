@@ -94,7 +94,7 @@ export default async function MyPage() {
                 {email}
               </p>
             )}
-            <p className={styles.visibility}>Profil widzisz tylko Ty.</p>
+            <p className={styles.visibility}>Tylko Ty widzisz swój profil.</p>
           </div>
         </div>
         {actor.role === "admin" ? (
@@ -157,8 +157,8 @@ export default async function MyPage() {
           </li>
         </ul>
       </nav>
-      {/* UX-06: „Wyloguj” jest tylko tutaj (na telefonie i na komputerze); nagłówek go nie ma. */}
-      <div>
+      {/* D-54 (P20 B): na komputerze „Wyloguj” jest w nagłówku; ten przycisk jest dla telefonu. */}
+      <div className={styles.phoneOnly}>
         <LogoutForm className="button button--outline">Wyloguj</LogoutForm>
       </div>
     </div>

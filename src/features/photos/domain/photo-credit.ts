@@ -25,7 +25,8 @@ export type PhotoCredit = Readonly<{
   notices: readonly string[];
 }>;
 
-export const CHANGES_NOTICE = "Zdjęcie zmniejszone i skompresowane, zapisane w formacie WebP.";
+export const CHANGES_NOTICE = "Zdjęcie zmniejszyliśmy i zapisaliśmy w formacie WebP.";
+export const SAME_LICENCE_NOTICE = "Tę kopię udostępniamy na tej samej licencji.";
 
 export function buildPhotoCredit(photo: PhotoCreditInput): PhotoCredit {
   const notices: string[] = [];
@@ -37,7 +38,7 @@ export function buildPhotoCredit(photo: PhotoCreditInput): PhotoCredit {
   }
 
   if (photo.licenseCode.startsWith("cc-by-sa")) {
-    notices.push(`Ta kopia jest dostępna na licencji ${photo.licenseLabel}.`);
+    notices.push(SAME_LICENCE_NOTICE);
   }
 
   return {

@@ -122,7 +122,7 @@ describe("profile page", () => {
 
     expect(html).toContain(">Odkrywca<");
     expect(html).toMatch(/aria-hidden="true">O<\/span>/);
-    expect(html).toContain("Profil widzisz tylko Ty.");
+    expect(html).toContain("Tylko Ty widzisz swój profil.");
     expect(html).not.toContain("Profil niewidoczny");
     expect(html).not.toContain("Profil widoczny");
   });
@@ -162,7 +162,7 @@ describe("profile page", () => {
     expect(html).toContain(">Anna K.<");
     expect(html).toMatch(/aria-hidden="true">A<\/span>/);
     expect(html).toContain("Pomorskie");
-    expect(html).toContain("Profil widzisz tylko Ty.");
+    expect(html).toContain("Tylko Ty widzisz swój profil.");
     expect(html).not.toContain("Profil widoczny");
   });
 

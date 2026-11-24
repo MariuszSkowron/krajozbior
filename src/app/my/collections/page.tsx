@@ -113,7 +113,7 @@ export default async function MyCollectionsPage({ searchParams }: { searchParams
       {collections.length === 0 ? (
         <section className={styles.empty} aria-labelledby="pusto">
           <h2 id="pusto">Nie masz jeszcze zapisanych kolekcji</h2>
-          <p>Zapisz kolekcję, a zobaczysz tu swój postęp w niej.</p>
+          <p>Zapisz kolekcję, a zobaczysz tu swój postęp.</p>
           <Link className="button button--primary" href="/">
             Zobacz kolekcje
           </Link>

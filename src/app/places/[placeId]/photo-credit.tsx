@@ -75,7 +75,7 @@ export function PhotoCredit({ photo }: Readonly<{ photo: PhotoCreditInput }>) {
   return (
     <figcaption className={styles.credit}>
       <p>
-        {credit.title === null ? null : <span className={styles.title}>{credit.title}. </span>}
+        {credit.title === null ? null : `Tytuł pliku: „${credit.title}”. `}
         Autor:{" "}
         {credit.author.url === null ? (
           credit.author.text

@@ -837,8 +837,9 @@ export const postgresCatalogRepository: CatalogRepository = {
   async listNearbyCandidates(tx, limit) {
     // Public data only: the guest context, the collection published by an approved organization,
     // and only the places that lie in a public collection (the same fragments as the album).
-    // A collection without such a place does not come back. The coordinates of each place (to
-    // about a metre) go to the browser, which counts the distance to the nearest one (R-067).
+    // A collection without such a place does not come back. The coordinates of each place, rounded
+    // to 3 decimals (about 100 m: enough for a distance in km), go to the browser only on request
+    // ("Pokaż najbliższe", /api/nearby), which counts the distance to the nearest one (R-067).
     const rows = await tx.em.execute<
       {
         slug: string;
@@ -850,8 +851,8 @@ export const postgresCatalogRepository: CatalogRepository = {
       }[]
     >(
       `select c.slug, c.title, c.region, count(*)::int as "placeCount",
-              json_agg(json_build_array(round(p.latitude::numeric, 5)::float8,
-                                        round(p.longitude::numeric, 5)::float8)
+              json_agg(json_build_array(round(p.latitude::numeric, 3)::float8,
+                                        round(p.longitude::numeric, 3)::float8)
                        order by cp.position, p.id) as "points",
               c.first_published_at as "firstPublishedAt"
          from public.collections c

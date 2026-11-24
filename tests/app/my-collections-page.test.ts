@@ -86,7 +86,7 @@ describe("Moje kolekcje", () => {
 
     const markup = await render("w-trakcie");
 
-    expect(markup).toContain("Żadnej zapisanej kolekcji nie masz w trakcie.");
+    expect(markup).toContain("Nie masz kolekcji w trakcie.");
     expect(markup).not.toContain("ze stanem „W trakcie”.");
   });
 

@@ -80,7 +80,8 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
             Twoje wizyty, zapisane kolekcje, lista „Chcę zobaczyć” oraz profil (imię, region i
             ustawienia profilu).
           </li>
-          <li>Twój adres e-mail i dane logowania; wylogujemy Cię na wszystkich urządzeniach.</li>
+          <li>Twój adres e-mail i dane logowania.</li>
+          <li>Sesje na wszystkich urządzeniach: wylogujemy Cię wszędzie.</li>
         </ul>
       </section>
 

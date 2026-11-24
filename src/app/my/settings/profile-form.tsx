@@ -33,7 +33,7 @@ const fieldHints: Record<ProfileField, string> = {
 const fieldMessages: Record<ProfileField, string> = {
   firstName:
     "Imię może mieć do 40 liter, także spację, myślnik lub apostrof. Pierwszą literę nazwiska podaj tylko razem z imieniem.",
-  familyInitial: "Pierwsza litera nazwiska: wpisz jedną literę.",
+  familyInitial: "Pierwsza litera nazwiska to jedna litera.",
   region: "Region: wybierz województwo z listy.",
   visibility: "Widoczność: wybierz jedną z opcji.",
 };

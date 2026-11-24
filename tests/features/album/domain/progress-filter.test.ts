@@ -21,9 +21,7 @@ describe("noMatchingCollectionsMessage", () => {
     expect(noMatchingCollectionsMessage("ukonczone")).toBe(
       "Nie masz jeszcze ukończonych kolekcji.",
     );
-    expect(noMatchingCollectionsMessage("w-trakcie")).toBe(
-      "Żadnej zapisanej kolekcji nie masz w trakcie.",
-    );
+    expect(noMatchingCollectionsMessage("w-trakcie")).toBe("Nie masz kolekcji w trakcie.");
     expect(noMatchingCollectionsMessage("nierozpoczete")).toBe(
       "Każdą zapisaną kolekcję masz już zaczętą.",
     );

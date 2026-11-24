@@ -19,10 +19,6 @@
   color: var(--color-text-accent);
 }
 
-.title {
-  color: var(--color-text-primary);
-}
-
 /* Krótki podpis (jedna linia, zawija się na wąskich ekranach). */
 .line {
   margin: 0;

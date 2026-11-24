@@ -212,8 +212,8 @@ test.describe("with seeded demo accounts", () => {
     await logIn(page, "user@demo.krajozbior.local", password ?? "");
     await expect(page).toHaveURL(/\/my$/);
 
-    // „Wyloguj” jest na profilu, nie w nagłówku (UX-06).
-    await page.getByRole("main").getByRole("button", { name: "Wyloguj" }).click();
+    // Na komputerze „Wyloguj” jest w nagłówku (D-54 P20 B); na telefonie na profilu.
+    await page.getByRole("banner").getByRole("button", { name: "Wyloguj" }).click();
 
     await expect(page).toHaveURL(/\/\?wylogowano=1$/);
     expect((await page.request.get("/api/me")).status()).toBe(401);

@@ -10,6 +10,7 @@ import { HOME_BANNER_POOL } from "../src/features/catalog/domain/home-banner-poo
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
 import { buttonContrast, contrastOver } from "./contrast-support";
+import { expectCreditLinksUsable } from "./credit-support";
 import { waitForEntrance } from "./scroll-support";
 
 // R3 / D-57 (PR 4): the banner of a guest is drawn from the pool of chosen places on the server,
@@ -261,6 +262,9 @@ test.describe("home page: the drawn banner of a guest", () => {
       const placeLink = main.getByRole("link", { name: white.name });
 
       await expect(placeLink).toHaveAttribute("href", `/places/${white.id}`);
+      // Links in the sentence of the credit: exempt from the target size (WCAG 2.5.8, see
+      // docs/design/accessibility.md), but named, focusable and not squeezed.
+      await expectCreditLinksUsable(main.locator("p", { hasText: "fot. Fikcyjny Autor Puli 1" }));
 
       for (const part of [
         main.getByRole("heading", { level: 1, name: /Odkrywaj miejsca/ }),

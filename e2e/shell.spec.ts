@@ -371,7 +371,10 @@ test.describe("nagłówek konta", () => {
       const banner = page.getByRole("banner");
 
       await expect(banner.getByRole("link", { name: /^Profil/ })).toHaveCount(0);
-      await expect(banner.getByRole("button", { name: "Wyloguj" })).toHaveCount(0);
+      // D-54 P20 B: „Wyloguj” w nagłówku tylko na komputerze (na telefonie jest ukryty).
+      await expect(banner.getByRole("button", { name: "Wyloguj" })).toHaveCount(
+        viewport === DESKTOP ? 1 : 0,
+      );
       await expect(banner).not.toContainText("Użytkownik");
       await expect(banner).not.toContainText("Twoja rola");
       await expect(banner.getByRole("link", { name: /^Kurator ·/ })).toHaveCount(0);
@@ -381,7 +384,14 @@ test.describe("nagłówek konta", () => {
 
       await page.getByRole("link", { name: "Profil", exact: true }).click();
       await expect(page).toHaveURL(/\/my$/);
-      await expect(page.getByRole("main").getByRole("button", { name: "Wyloguj" })).toBeVisible();
+      // Wylogowanie jest osiągalne z profilu na telefonie, a na komputerze z nagłówka (ten sam ekran).
+      await expect(
+        (viewport === DESKTOP ? page.getByRole("banner") : page.getByRole("main")).getByRole(
+          "button",
+          { name: "Wyloguj" },
+        ),
+      ).toBeVisible();
+      await expect(page.getByRole("button", { name: "Wyloguj" })).toHaveCount(1);
       await page.context().close();
     }
   });
@@ -419,11 +429,12 @@ test.describe("nagłówek konta", () => {
       "/curator",
     );
     await expect(main).not.toContainText("Tu są Twoje wizyty i liczby jako odkrywcy.");
-    // Na komputerze dopisek „(na komputerze)” jest ukryty (D-54); „Wyloguj” jest na profilu (UX-06).
+    // Na komputerze dopisek „(na komputerze)” jest ukryty (D-54); „Wyloguj” jest w nagłówku, nie w treści.
     await expect(
       main.getByRole("link", { name: "Przejdź do panelu kuratora" }),
     ).toHaveAccessibleName("Przejdź do panelu kuratora");
-    await expect(main.getByRole("button", { name: "Wyloguj" })).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("button", { name: "Wyloguj" })).toBeVisible();
+    await expect(main.getByRole("button", { name: "Wyloguj" })).toHaveCount(0);
     // Bez imienia kurator nie jest „Odkrywcą” nad własną rolą.
     await expect(main.getByTestId("profile-name")).toHaveText("Bez imienia");
     await expect(main.getByTestId("profile-name")).not.toContainText("Odkrywca");

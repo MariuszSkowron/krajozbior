@@ -8,7 +8,6 @@ import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import {
   getCollectionBanner,
   getHomeBanner,
-  listNearbyCandidates,
   listRecentlyPublishedCollections,
 } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
@@ -46,18 +45,6 @@ async function loadDiscover(extra: number) {
     return await listRecentlyPublishedCollections(DISCOVER_LIMIT + extra, getCatalogDeps());
   } catch (error) {
     logReadFailure("Home collections read", error);
-
-    return null;
-  }
-}
-
-// The list behind "Pokaż najbliższe": public, the same for everyone. The distance is counted in
-// the browser, so the position of the device never comes here (E12-3).
-async function loadNearby() {
-  try {
-    return await listNearbyCandidates(getCatalogDeps());
-  } catch (error) {
-    logReadFailure("Home nearby read", error);
 
     return null;
   }
@@ -151,10 +138,9 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   // Only a signal for the message after deleting the account (E9-5).
   const accountDeleted = first(params.konto) === "usuniete";
   const savedRead = actor === null ? Promise.resolve(null) : loadSavedSlugs(actor);
-  const [allDiscover, allNearby, album, firstName, saved, guestDrawn] = await Promise.all([
+  const [allDiscover, album, firstName, saved, guestDrawn] = await Promise.all([
     // The saved ones are known first, so the list can read that many more than it shows.
     savedRead.then((slugs) => loadDiscover(slugs?.size ?? 0)),
-    loadNearby(),
     actor === null ? Promise.resolve(null) : loadAlbum(actor),
     actor === null ? Promise.resolve(null) : loadFirstName(actor),
     savedRead,
@@ -167,10 +153,6 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
     allDiscover === null || saved === null
       ? allDiscover
       : allDiscover.filter(({ slug }) => !saved.has(slug)).slice(0, DISCOVER_LIMIT);
-  const nearby =
-    allNearby === null || saved === null
-      ? allNearby
-      : allNearby.filter(({ slug }) => !saved.has(slug));
   const allSaved =
     discover !== null && allDiscover !== null && allDiscover.length > 0 && discover.length === 0;
 
@@ -270,7 +252,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         </>
       )}
       {album === null ? null : <RecentVisits visits={album.recentVisits} />}
-      <CollectionsToDiscover collections={discover} candidates={nearby} allSaved={allSaved} />
+      <CollectionsToDiscover collections={discover} allSaved={allSaved} />
     </div>
   );
 }

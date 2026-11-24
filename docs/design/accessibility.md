@@ -55,6 +55,7 @@ Natywny element lub biblioteka dostarcza mechanikę (rola, stany, część klawi
 - **Czytnik ekranu:** zmiany stanu ogłaszane regionem live (`role="status"`/`alert` oszczędnie); stan ładowania nie zostawia pustej strony.
 - **Kontrast:** WCAG AA; status nigdy tylko kolorem, zawsze tekst oraz ikona lub kształt.
 - **Cele dotykowe:** co najmniej 44×44 px (token `size.touch.min`), główna akcja ekranu większa (`size.touch.primary`); powiększaj strefę trafienia, nie samą ikonę; brak funkcji wymagającej precyzyjnego gestu lub hover.
+  - **Wyjątek: link w zdaniu.** Link wewnątrz zdania lub podpisu (np. autor, źródło i licencja w krótkim podpisie zdjęcia, nazwa miejsca w tej samej linii) może zostać zwykłym linkiem w tekście, bez celu 44 px: WCAG 2.5.8 (Target Size Minimum, poziom AA) zwalnia linki w zdaniu z wymiaru 24 px. W zamian link ma dostępną nazwę, jest osiągalny klawiaturą, ma widoczny fokus i nie jest mniejszy niż wiersz tekstu; sprawdza to `expectCreditLinksUsable` w `e2e/credit-support.ts`. Samodzielny link lub przycisk poza zdaniem zachowuje 44 px.
 - **Zdjęcia:** informacyjne mają tekst alternatywny opisujący treść, dekoracyjne pusty `alt`; autor zdjęcia prywatnego jest jedynym, który widzi jego opis.
 - **Stany ładowania, pusty i błędu:** każdy ekran danych je ma; stan pusty mówi, co zrobić dalej; błąd nie ujawnia szczegółów technicznych.
 - **Dialogi i popovery:** `<dialog>` modalny z pułapką fokusu w obrębie dialogu, `Esc`, nazwa dostępna; tooltip nigdy jako jedyne źródło ważnej informacji.

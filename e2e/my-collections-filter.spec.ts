@@ -153,7 +153,7 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     // Nothing visited yet: "Nierozpoczęte" only.
     await choose("W trakcie");
     await expect(page).toHaveURL(/\/my\/collections\?stan=w-trakcie$/);
-    await expect(page.getByText("Żadnej zapisanej kolekcji nie masz w trakcie.")).toBeVisible();
+    await expect(page.getByText("Nie masz kolekcji w trakcie.")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Zapisane kolekcje (0 z 1)" })).toBeVisible();
     await expect(current("W trakcie")).toHaveAttribute("aria-current", "page");
     // A shorter list may clamp scrollY to the new maximum, but never to the top.

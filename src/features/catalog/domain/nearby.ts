@@ -149,7 +149,7 @@ export function formatNearbyDistance(distanceKm: number): string {
 }
 
 /** Why the browser gave no position. */
-export type NearbyProblem = "denied" | "unavailable" | "timeout" | "unsupported";
+export type NearbyProblem = "denied" | "unavailable" | "timeout" | "unsupported" | "list";
 
 export function nearbyProblemMessage(problem: NearbyProblem): string {
   switch (problem) {
@@ -161,6 +161,8 @@ export function nearbyProblemMessage(problem: NearbyProblem): string {
       return "Ustalanie położenia trwało zbyt długo. Spróbuj ponownie.";
     case "unsupported":
       return "Ta przeglądarka nie obsługuje lokalizacji.";
+    case "list":
+      return "Nie udało się wczytać miejsc kolekcji. Spróbuj ponownie.";
   }
 }
 

@@ -10,6 +10,7 @@ import sharp from "sharp";
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
 import { buttonContrast, contrastOver } from "./contrast-support";
+import { expectCreditLinksUsable } from "./credit-support";
 import { waitForEntrance } from "./scroll-support";
 
 // R3 / D-57 (PR 3): the new home page. A guest sees the banner with the photo of the first
@@ -300,8 +301,12 @@ test.describe("home page: the R3 look", () => {
           expect(box.y + box.height).toBeLessThanOrEqual(photoBox.y + photoBox.height + 1);
         }
 
-        // The short credit is one paragraph with inline links (WCAG 2.5.8 exempts them).
-        expect(await main.locator("p", { hasText: "fot. Fikcyjny Autor R3" }).count()).toBe(1);
+        // The short credit is one paragraph with inline links (WCAG 2.5.8 exempts them, see
+        // docs/design/accessibility.md); each link is still named, focusable and not squeezed.
+        const credit = main.locator("p", { hasText: "fot. Fikcyjny Autor R3" });
+
+        expect(await credit.count()).toBe(1);
+        await expectCreditLinksUsable(credit);
         expect(await overflowOf(page)).toBeLessThanOrEqual(0);
 
         // Dark text on a calm placeholder is not under test here: the photo is white, the

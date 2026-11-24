@@ -33,7 +33,7 @@ describe("buildPhotoCredit", () => {
         label: "CC BY-SA 3.0 PL",
         url: "https://creativecommons.org/licenses/by-sa/3.0/pl/",
       },
-      notices: [CHANGES_NOTICE, "Ta kopia jest dostępna na licencji CC BY-SA 3.0 PL."],
+      notices: [CHANGES_NOTICE, "Tę kopię udostępniamy na tej samej licencji."],
     });
   });
 
