@@ -2,7 +2,7 @@ import type { Actor } from "@/features/identity/domain/actor";
 
 import { HOME_FAVORITES_LIMIT, HOME_RECENT_VISITS_LIMIT } from "../domain/home-album";
 import type { Progress } from "../domain/progress";
-import type { AlbumDeps, AlbumOutcome, HomeAlbum } from "./album-types";
+import type { AlbumDeps, AlbumOutcome, HomeAlbum, HomeSummary } from "./album-types";
 
 // The personal part of the home page (E12-1): the summary, the favourite
 // collections and the latest visits of the signed-in explorer, in one
@@ -14,6 +14,24 @@ import type { AlbumDeps, AlbumOutcome, HomeAlbum } from "./album-types";
 
 function progressOf(visited: number, total: number): Progress {
   return total === 0 ? { kind: "empty" } : { kind: "progress", visited, total };
+}
+
+/**
+ * Only the three counts of the home page, in one light query. Used where just the question
+ * "has the account anything yet" is needed (the page chosen right after signing in).
+ */
+export async function getAlbumSummary(
+  actor: Actor | null,
+  deps: AlbumDeps,
+): Promise<AlbumOutcome<HomeSummary>> {
+  if (actor === null) {
+    return { status: "unauthenticated" };
+  }
+
+  return deps.withUserContext(actor, async (tx) => ({
+    status: "ok",
+    value: await deps.repository.homeSummary(tx),
+  }));
 }
 
 export async function getHomeAlbum(

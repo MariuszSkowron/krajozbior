@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { entryPath, loginEntry } from "@/features/identity/domain/login-entry";
 import { requestedReturnTo } from "@/features/identity/domain/return-to";
 
 import { LOGIN_EMAIL_COOKIE, LOGIN_EMAIL_PATH } from "./login-email-cookie";
@@ -17,5 +18,5 @@ export async function changeLoginAddress(formData: FormData): Promise<void> {
 
   const returnTo = requestedReturnTo(formData.get("returnTo")?.toString());
 
-  redirect(returnTo === null ? "/login" : `/login?${new URLSearchParams({ returnTo })}`);
+  redirect(entryPath(loginEntry(formData.get("entry")?.toString()), returnTo));
 }

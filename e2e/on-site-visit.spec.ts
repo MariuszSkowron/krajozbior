@@ -53,7 +53,7 @@ async function signedInPage(browser: Browser, email: string, geolocation = true)
   await form.getByLabel("E-mail").fill(email);
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
 
   return page;
 }
@@ -136,16 +136,33 @@ test.describe("confirming a visit on site", () => {
     await a.goto(`/collections/${DEMO_SLUG}`);
     await a.getByRole("button", { name: "Zapisuję kolekcję" }).click();
     await expect(a.getByRole("button", { name: "Usuń z zapisanych" })).toBeVisible();
+    // The nearest place not visited yet, counted from the bridge: the castle in Malbork (about 17 km;
+    // Gniew is about 29 km). Its address is read from the collection page.
+    const malborkHref =
+      (await a.getByRole("link", { name: /Zamek w Malborku/ }).getAttribute("href")) ?? "";
+
+    expect(malborkHref).toMatch(/^\/places\/[0-9a-f-]{36}$/);
     await openBridge(a);
     await expectNoAccessibilityViolations(a);
 
     await a.getByRole("button", { name: "Potwierdzam wizytę" }).click();
-    await expect(a.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
-    // The focus is on the success message (a status region), not lost with the button.
-    await expect(
-      a.getByRole("status").filter({ hasText: "To miejsce jest w Twoim albumie." }),
-    ).toBeFocused();
-    await expect(a.getByRole("list", { name: "Twój postęp po tej wizycie" })).toContainText("1/3");
+    await expect(a.getByText("Most Tczewski jest w Twoim albumie.")).toBeVisible();
+
+    const message = a
+      .getByRole("status")
+      .filter({ hasText: "Most Tczewski jest w Twoim albumie." });
+    const next = a.getByRole("list", { name: "Co dalej" });
+
+    // The page is read again after the visit: only then the list names the next place. The focus
+    // is checked after that, so it proves the message survived the refresh.
+    await expect(next.getByRole("link", { name: "Zamek w Malborku" })).toHaveAttribute(
+      "href",
+      malborkHref,
+    );
+    await expect(next).toContainText("Zostały Ci 2 miejsca w kolekcji");
+    await expect(next).toContainText("Najbliższe nieodwiedzone:");
+    await expect(next.getByRole("link", { name: "Zamek w Gniewie" })).toHaveCount(0);
+    await expect(message).toBeFocused();
     await expectNoAccessibilityViolations(a);
     expect(await visitCount(EXPLORER_A)).toBe(1);
 
@@ -180,7 +197,7 @@ test.describe("confirming a visit on site", () => {
     // Walking to the bridge and checking again records the visit.
     await page.context().setGeolocation({ ...BRIDGE, accuracy: 20 });
     await page.getByRole("button", { name: "Sprawdź ponownie" }).click();
-    await expect(page.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
+    await expect(page.getByText("Most Tczewski jest w Twoim albumie.")).toBeVisible();
     expect(await visitCount(EXPLORER_A)).toBe(1);
     await page.context().close();
   });
@@ -251,12 +268,49 @@ test.describe("confirming a visit on site", () => {
     await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Brak połączenia." })).toBeVisible();
     await page.getByRole("button", { name: "Spróbuj ponownie" }).click();
-    await expect(page.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
+    await expect(page.getByText("Most Tczewski jest w Twoim albumie.")).toBeVisible();
 
     expect(bodies).toHaveLength(2);
     expect(bodies[1]).toBe(bodies[0]);
     expect(await visitCount(EXPLORER_A)).toBe(1);
     await page.context().close();
+  });
+
+  test("a long name of the next place fits a 320 px screen", async ({ browser }) => {
+    const longName =
+      "Zespół zamkowy Zakonu Krzyżackiego w Malborku wraz z Przedzamczem, Fosą i Murami Obronnymi";
+
+    await adminQuery(`update public.places set name = $1 where name = 'Zamek w Malborku'`, [
+      longName,
+    ]);
+
+    try {
+      const page = await signedInPage(browser, EXPLORER_A);
+
+      await page.setViewportSize({ width: 320, height: 640 });
+      await openBridge(page);
+      await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
+
+      const link = page.getByRole("list", { name: "Co dalej" }).getByRole("link", {
+        name: longName,
+      });
+
+      await expect(link).toBeVisible();
+
+      const box = await link.boundingBox();
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+
+      expect(overflow).toBeLessThanOrEqual(0);
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+      await page.context().close();
+    } finally {
+      await adminQuery(`update public.places set name = 'Zamek w Malborku' where name = $1`, [
+        longName,
+      ]);
+    }
   });
 
   test("the place page fits a phone screen", async ({ browser }) => {

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
-import { getRequestActor, logReadFailure, loginHref } from "@/app/request-actor";
+import { getRequestActor, logReadFailure, loginHref, signupHref } from "@/app/request-actor";
 import { getCollectionProgress } from "@/features/album/application/saved-collections";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import { progressCounts } from "@/features/album/domain/progress";
@@ -66,7 +66,11 @@ async function loadAlbum(collectionId: string, slug: string) {
     const actor = await getRequestActor();
 
     if (actor === null) {
-      return { kind: "guest", loginHref: loginHref(`/collections/${slug}`) } as const;
+      return {
+        kind: "guest",
+        loginHref: loginHref(`/collections/${slug}`),
+        signupHref: signupHref(`/collections/${slug}`),
+      } as const;
     }
 
     const view = await getCollectionProgress(actor, collectionId, getAlbumDeps());
@@ -212,10 +216,15 @@ export default async function CollectionPage({
         </div>
         {album.kind === "guest" ? (
           <div className={`${albumStyles.guestAction} ${panelStyles.introAction}`}>
-            <Link className="button button--primary" href={album.loginHref}>
-              Zaloguj się, aby zapisać kolekcję
+            <Link className="button button--primary" href={album.signupHref}>
+              Załóż konto
             </Link>
-            <p className={albumStyles.feedback}>Po zalogowaniu wrócisz tutaj.</p>
+            <Link className="button button--outline" href={album.loginHref}>
+              Zaloguj się
+            </Link>
+            <p className={albumStyles.feedback}>
+              Z kontem zapiszesz tę kolekcję i zobaczysz swój postęp. Wrócisz na tę stronę.
+            </p>
           </div>
         ) : album.kind === "explorer" ? (
           <div className={panelStyles.introAction}>

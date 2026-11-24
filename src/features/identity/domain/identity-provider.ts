@@ -4,7 +4,16 @@ export type Credentials = { email: string; password: string };
 
 export type CodeCredentials = { email: string; code: string };
 
-export type SignInResult = { actor: Actor; setCookies: string[] };
+export type SignInResult = {
+  actor: Actor;
+  setCookies: string[];
+  /**
+   * True when this very sign-in with a code created the account (no account with the address
+   * existed just before it). Absent or false for everyone else, so nothing is explained to a
+   * returning person. Only set by `signInWithCode`.
+   */
+  accountCreated?: boolean;
+};
 
 // Server-side boundary around the session mechanism. Domains depend on this
 // contract only; the adapter in `infrastructure` knows the concrete provider.

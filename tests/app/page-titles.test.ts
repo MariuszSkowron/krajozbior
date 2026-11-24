@@ -18,6 +18,7 @@ vi.mock("@/app/shell/terms-state", () => ({ shellTermsAccepted: async () => true
 vi.mock("@/app/request-actor", () => ({
   getRequestActor: async () => null,
   loginHref: () => "/login",
+  signupHref: () => "/login/zaloz-konto",
 }));
 
 vi.mock("@/app/request-organizations", () => ({ getApprovedOrganizations: async () => [] }));

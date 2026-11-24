@@ -254,7 +254,9 @@ async function signIn(browser: Browser, name: string): Promise<StorageState> {
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
   // A curator lands in the panel, everyone else on the profile (paczka N, faza 2).
-  await expect(page).toHaveURL(name.startsWith("curator") ? /\/curator$/ : /\/my$/);
+  await expect(page).toHaveURL(
+    name.startsWith("curator") ? /\/curator$/ : /^https?:\/\/[^/]+\/(my)?$/,
+  );
   const state = await context.storageState();
 
   await context.close();
@@ -794,7 +796,7 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
   }) => {
     const { context, page } = await placeWithLocation(browser, BRIDGE);
 
-    await expect(page.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
+    await expect(page.getByText("Most Tczewski jest w Twoim albumie.")).toBeVisible();
     expect(await axeViolations(page)).toEqual([]);
 
     await page.reload();

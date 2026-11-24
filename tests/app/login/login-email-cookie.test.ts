@@ -14,7 +14,17 @@ afterEach(() => {
 describe("maskEmail", () => {
   it("keeps the first character and the domain", () => {
     expect(maskEmail("anna@example.com")).toBe("a…@example.com");
-    expect(maskEmail("łukasz@example.pl")).toBe("ł…@example.pl");
+    expect(maskEmail("łuk@example.pl")).toBe("ł…@example.pl");
+  });
+
+  it("keeps two first and the last character of a longer name", () => {
+    expect(maskEmail("łukasz@example.pl")).toBe("łu…z@example.pl");
+    expect(maskEmail("magdalena@example.com")).toBe("ma…a@example.com");
+  });
+
+  it("switches from one to two visible characters between 5 and 6 characters", () => {
+    expect(maskEmail("abcde@example.com")).toBe("a…@example.com");
+    expect(maskEmail("abcdef@example.com")).toBe("ab…f@example.com");
   });
 
   it("masks by the last at sign and returns a malformed value as it is", () => {
