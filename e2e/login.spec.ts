@@ -100,6 +100,26 @@ test.describe("sign-in with a code in two steps", () => {
     expect(cookies.some((cookie) => cookie.name === "krajozbior_login_email")).toBe(false);
   });
 
+  test("a very long domain in step 2 wraps instead of scrolling the page sideways at 320 px", async ({
+    page,
+  }) => {
+    const longDomain = `${"d".repeat(60)}.${"e".repeat(60)}.example.com`;
+    const email = `l-long-${Date.now().toString(36)}@${longDomain}`;
+
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.goto("/login");
+    await page.locator("#code-request-email").fill(email);
+    await page.getByRole("button", { name: "Wyślij kod" }).click();
+
+    await expect(page.getByLabel("Kod z wiadomości (6 cyfr)")).toBeVisible();
+    await expect(page.getByText("Kod wysłaliśmy na adres")).toContainText(longDomain);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      ),
+    ).toBeLessThanOrEqual(0);
+  });
+
   test("a wrong code keeps step 2 and 'Zmień adres' goes back to step 1", async ({ page }) => {
     const email = newAddress("change");
 

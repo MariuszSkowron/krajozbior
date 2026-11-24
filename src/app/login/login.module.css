@@ -127,9 +127,10 @@
   box-shadow: var(--shadow-card);
 }
 
-/* Adres w kroku 2 nie łamie się w środku (długi adres może zawinąć się dopiero w całości). */
+/* Adres w kroku 2 nie łamie się w środku, a bardzo długa domena zawija się dopiero w ostateczności
+   (bez przewijania w poziomie). */
 .address {
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .status {

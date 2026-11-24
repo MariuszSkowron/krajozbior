@@ -346,6 +346,99 @@ test.describe("home page: the R3 look", () => {
     }
   }
 
+  // The text sits at the top of the phone banner; the photo (white here) must stay visible below:
+  // the lower third of the banner is darkened by at most 50%, and the text holds 4.5:1 on it.
+  for (const size of [
+    { name: "390x667", width: 390, height: 667 },
+    { name: "390x844", width: 390, height: 844 },
+  ]) {
+    for (const theme of ["dark", "light"] as const) {
+      test(`a guest at ${size.name} px (${theme}): the lower third of the photo stays visible, the text holds contrast`, async ({
+        browser,
+      }) => {
+        const context = await browser.newContext({
+          viewport: { width: size.width, height: size.height },
+        });
+
+        await context.addCookies([{ name: THEME_COOKIE, value: theme, url: "http://127.0.0.1" }]);
+
+        const page = await context.newPage();
+
+        await page.goto("/");
+        await waitForHydration(page);
+        await waitForEntrance(page);
+
+        const main = page.getByRole("main");
+        const photo = main.locator('img[fetchpriority="high"]');
+        const heading = main.getByRole("heading", { level: 1, name: /Odkrywaj miejsca/ });
+        const login = main.getByRole("link", { name: "Załóż konto" });
+        const collections = main.getByRole("link", { name: "Zobacz kolekcje" });
+
+        await expect(photo).toBeVisible();
+        await expect(login).toBeVisible();
+
+        for (const part of [
+          heading,
+          main.getByText(/Gotowe kolekcje miejsc/),
+          main.getByText("Masz już konto?"),
+          main.getByText("Autor: Fikcyjny Autor R3"),
+        ]) {
+          expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
+        }
+
+        for (const part of [login, collections]) {
+          const { text, boundary } = await buttonContrast(page, part);
+
+          expect(text).toBeGreaterThanOrEqual(4.5);
+          expect(await contrastOver(page, part, 3)).toBeGreaterThanOrEqual(4.5);
+          expect(boundary).toBeGreaterThanOrEqual(3);
+        }
+
+        await shot(page, `telefon-gosc-${size.name}-${theme}`);
+
+        // Hide the content of the text block (not its own darkening) and measure the white photo.
+        await heading.evaluate((node) => {
+          for (const child of node.parentElement!.querySelectorAll<HTMLElement>("*")) {
+            child.style.visibility = "hidden";
+          }
+        });
+
+        const box = (await photo.boundingBox())!;
+        const scrollY = await page.evaluate(() => window.scrollY);
+        const top = Math.ceil(scrollY + box.y + (box.height * 2) / 3);
+        // Full page: the lower third of a tall banner lies below the first screen.
+        const png = await page.screenshot({
+          fullPage: true,
+          clip: {
+            x: box.x,
+            y: top,
+            width: box.width,
+            height: scrollY + box.y + box.height - top,
+          },
+        });
+        const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
+        let darkestRow = 255;
+
+        for (let row = 0; row < info.height; row += 1) {
+          let sum = 0;
+
+          for (let col = 0; col < info.width; col += 1) {
+            sum += data[(row * info.width + col) * info.channels]!;
+          }
+
+          darkestRow = Math.min(darkestRow, sum / info.width);
+        }
+
+        // A white photo under a scrim of 0.5 is about 133 (the scrim is near black): <= 50%.
+        console.log(
+          `${size.name} ${theme}: darkest row of the lower third = ${darkestRow.toFixed(1)}`,
+        );
+        expect(darkestRow).toBeGreaterThanOrEqual(127);
+        await context.close();
+      });
+    }
+  }
+
   test("a guest: the photo settles once and prefers-reduced-motion switches it off", async ({
     browser,
   }) => {

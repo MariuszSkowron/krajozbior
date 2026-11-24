@@ -22,6 +22,11 @@ describe("maskEmail", () => {
     expect(maskEmail("magdalena@example.com")).toBe("ma…a@example.com");
   });
 
+  it("switches from one to two visible characters between 5 and 6 characters", () => {
+    expect(maskEmail("abcde@example.com")).toBe("a…@example.com");
+    expect(maskEmail("abcdef@example.com")).toBe("ab…f@example.com");
+  });
+
   it("masks by the last at sign and returns a malformed value as it is", () => {
     expect(maskEmail("a@b@example.com")).toBe("a…@example.com");
     expect(maskEmail("@example.com")).toBe("@example.com");
