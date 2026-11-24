@@ -150,7 +150,7 @@ for (const size of [
       const gate = page.getByRole("heading", { level: 1, name: "Zanim zaczniesz" });
 
       await expect(gate).toBeVisible();
-      await expect(page.getByText("To pierwsze logowanie tym adresem")).toHaveCount(0);
+      await expect(page.getByText("Dla tego adresu nie było jeszcze konta")).toHaveCount(0);
       await expect(page.getByRole("figure", { name: "Zdjęcie miejsca" })).toBeVisible();
       await page.getByRole("button", { name: "Akceptuję", exact: true }).click();
       await expect(page.getByRole("alert").filter({ hasText: "Zaznacz pole" })).toBeVisible();
@@ -188,10 +188,10 @@ for (const size of [
 
       await expect(page.getByRole("heading", { level: 1, name: "Zaloguj się" })).toBeVisible();
       await expect(page.getByText("Podaj adres e-mail konta. Wyślemy na niego kod.")).toBeVisible();
-      await expect(page.getByRole("link", { name: "Załóż je" })).toHaveAttribute(
-        "href",
-        "/login/zaloz-konto",
-      );
+      // The header has the same link; this one sits in the form column of the page.
+      await expect(
+        page.getByRole("main").getByRole("link", { name: "Załóż konto" }),
+      ).toHaveAttribute("href", "/login/zaloz-konto");
       await expect(page.getByRole("figure", { name: "Zdjęcie miejsca" })).toBeVisible();
       expect(await overflowOf(page)).toBeLessThanOrEqual(0);
       await shot(page, `logowanie-${size.name}`);

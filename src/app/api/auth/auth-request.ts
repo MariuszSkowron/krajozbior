@@ -9,10 +9,8 @@ import {
 import { isNewExplorerAccount, signInDestination } from "@/features/identity/domain/role-home";
 import type { SignInThrottle, ThrottleSubject } from "@/features/identity/domain/sign-in-throttle";
 import { getClientIpHeader } from "@/features/identity/infrastructure";
-import { getHomeAlbum } from "@/features/album/application/home-album";
+import { getAlbumSummary } from "@/features/album/application/home-album";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
-import { hasAcceptedCurrentTerms } from "@/features/terms/application/terms";
-import { getTermsDeps } from "@/features/terms/infrastructure/terms-deps";
 import { getMyTheme } from "@/features/settings/application/settings";
 import type { SettingsDeps } from "@/features/settings/application/settings-types";
 import { getSettingsDeps } from "@/features/settings/infrastructure/settings-deps";
@@ -216,28 +214,11 @@ async function isCuratorAfterSignIn(actor: SignInResult["actor"]): Promise<boole
  */
 async function isNewExplorerAfterSignIn(actor: SignInResult["actor"]): Promise<boolean> {
   try {
-    const result = await getHomeAlbum(actor, getAlbumDeps());
+    const result = await getAlbumSummary(actor, getAlbumDeps());
 
-    return result.status === "ok" && isNewExplorerAccount(result.value.summary);
+    return result.status === "ok" && isNewExplorerAccount(result.value);
   } catch (error) {
     logFailure("Sign-in destination (album)", error);
-
-    return false;
-  }
-}
-
-/**
- * Whether the account has not accepted the current terms yet, which for a sign-in means it was
- * just created. Only used to explain, on the next screen, why an account was created after
- * the "Zaloguj się" entrance; a failed read means no explanation.
- */
-async function isUnacceptedAfterSignIn(actor: SignInResult["actor"]): Promise<boolean> {
-  try {
-    const outcome = await hasAcceptedCurrentTerms(actor, getTermsDeps());
-
-    return outcome.status === "ok" && !outcome.value;
-  } catch (error) {
-    logFailure("Sign-in destination (terms)", error);
 
     return false;
   }
@@ -262,9 +243,10 @@ export async function signedIn(
       returnTo === null && !isCurator && (await isNewExplorerAfterSignIn(result.actor)),
   });
   // Someone who chose "Zaloguj się" but had no account gets told on the next screen that an
-  // account was created (after the code, so nothing is revealed before it).
+  // account was created (after the code, so nothing is revealed before it). Decided by the
+  // provider's fact that this very sign-in created the account, not by the terms state.
   const destination =
-    explainNewAccount && (await isUnacceptedAfterSignIn(result.actor))
+    explainNewAccount && result.accountCreated === true
       ? withFirstSignInNotice(baseDestination)
       : baseDestination;
 

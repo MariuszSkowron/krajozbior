@@ -270,12 +270,14 @@ test.describe("ekran „Zanim zaczniesz”", () => {
   test("po „Zaloguj się” z nowym adresem ekran wyjaśnia, że założono konto; po „Załóż konto” nie", async ({
     page,
   }) => {
-    const notice = page.getByText("To pierwsze logowanie tym adresem, więc zakładamy nowe konto.");
+    const notice = page.getByText("Dla tego adresu nie było jeszcze konta, więc je założyliśmy.");
 
     await signInWithCode(page, newAddress("first-login"), "login");
     await expect(gateHeading(page)).toBeVisible();
     await expect(notice).toBeVisible();
-    await expect(notice).toContainText("Masz już konto na inny adres? Wyloguj się i podaj tamten.");
+    await expect(notice).toContainText(
+      "Masz konto założone na inny adres? Wyloguj się i zaloguj tamtym.",
+    );
 
     // The explanation does not stay in the address after the acceptance.
     await page.getByLabel(/Akceptuję Regulamin/).check();
@@ -288,7 +290,7 @@ test.describe("ekran „Zanim zaczniesz”", () => {
 
     await signInWithCode(signup, newAddress("signup"), "signup");
     await expect(gateHeading(signup)).toBeVisible();
-    await expect(signup.getByText("To pierwsze logowanie tym adresem")).toHaveCount(0);
+    await expect(signup.getByText("Dla tego adresu nie było jeszcze konta")).toHaveCount(0);
     await other.close();
   });
 

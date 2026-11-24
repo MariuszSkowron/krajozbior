@@ -19,12 +19,15 @@ export function FavoriteCollections({
   collections,
   banner,
   fallbackBanner,
+  hasVisits = false,
 }: Readonly<{
   collections: readonly SavedCollectionSummary[];
   /** Okładka pierwszej zapisanej kolekcji (`null`: brak zdjęcia albo nieudany odczyt). */
   banner: CollectionBanner | null;
   /** Zdjęcie banera, gdy odkrywca nie ma zapisanej kolekcji. */
   fallbackBanner: CollectionBanner | null;
+  /** Odkrywca ma już wizytę: pusty stan nie twierdzi, że nie ma nic, tylko zachęca do zapisu. */
+  hasVisits?: boolean;
 }>) {
   const [first] = collections;
 
@@ -41,7 +44,9 @@ export function FavoriteCollections({
       {first === undefined ? (
         <HomeBanner cover={fallbackBanner} size="short">
           <p className={bannerStyles.lead}>
-            Nie masz jeszcze zapisanych kolekcji. Zapisz pierwszą, a pojawi się tutaj.
+            {hasVisits
+              ? "Zapisz kolekcję, a pokażemy tu Twój postęp w niej."
+              : "Nie masz jeszcze zapisanych kolekcji. Zapisz pierwszą, a pojawi się tutaj."}
           </p>
           <div className={bannerStyles.actions}>
             <Link className="button button--primary" href="#do-odkrycia">

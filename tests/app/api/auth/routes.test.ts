@@ -51,26 +51,18 @@ vi.mock("@/features/organizations/infrastructure/postgres-organization-reader", 
 }));
 
 // What the account that just signed in already has (the start page has nothing of theirs yet for
-// an account without a visit and a saved collection) and whether it accepted the terms: the real
+// an account without a visit and a saved collection) : the real
 // use cases over fake repositories.
-const album = vi.hoisted(() => ({ summary: vi.fn() }));
-const terms = vi.hoisted(() => ({ hasAccepted: vi.fn() }));
+const album = vi.hoisted(() => ({ summary: vi.fn(), favorites: vi.fn(), recent: vi.fn() }));
 
 vi.mock("@/features/album/infrastructure/album-deps", () => ({
   getAlbumDeps: () => ({
     withUserContext: async (_actor: unknown, work: (tx: unknown) => Promise<unknown>) => work({}),
     repository: {
       homeSummary: album.summary,
-      homeFavorites: async () => [],
-      homeRecentVisits: async () => [],
+      homeFavorites: album.favorites,
+      homeRecentVisits: album.recent,
     },
-  }),
-}));
-
-vi.mock("@/features/terms/infrastructure/terms-deps", () => ({
-  getTermsDeps: () => ({
-    withUserContext: async (_actor: unknown, work: (tx: unknown) => Promise<unknown>) => work({}),
-    repository: { hasAccepted: terms.hasAccepted },
   }),
 }));
 
@@ -152,7 +144,8 @@ beforeEach(() => {
   album.summary
     .mockReset()
     .mockResolvedValue({ discoveredPlaces: 1, regions: 1, savedCollections: 1 });
-  terms.hasAccepted.mockReset().mockResolvedValue(true);
+  album.favorites.mockReset().mockResolvedValue([]);
+  album.recent.mockReset().mockResolvedValue([]);
 });
 
 // The address kept for the code sign-in is dropped by every sign-in and by sign-out (S-3).
@@ -326,10 +319,13 @@ describe("the two entrances to the code sign-in", () => {
   });
 
   it("explains the new account only after the code, only for the login entrance", async () => {
-    provider.signInWithCode.mockResolvedValue({ actor: user, setCookies: [] });
+    provider.signInWithCode.mockResolvedValue({
+      actor: user,
+      setCookies: [],
+      accountCreated: true,
+    });
     provider.signOut.mockResolvedValue([]);
     album.summary.mockResolvedValue({ discoveredPlaces: 0, regions: 0, savedCollections: 0 });
-    terms.hasAccepted.mockResolvedValue(false);
 
     const fromLogin = await verifyCode(
       form("/api/auth/code/verify", { email: "anna@example.com", code: "123456", entry: "login" }),
@@ -346,10 +342,13 @@ describe("the two entrances to the code sign-in", () => {
     expect(await json.json()).toEqual({ role: "user", returnTo: "/" });
   });
 
-  it("keeps the mark next to a returnTo with a query, and says nothing to an account with terms accepted", async () => {
-    provider.signInWithCode.mockResolvedValue({ actor: user, setCookies: [] });
+  it("keeps the mark next to a returnTo with a query", async () => {
+    provider.signInWithCode.mockResolvedValue({
+      actor: user,
+      setCookies: [],
+      accountCreated: true,
+    });
     provider.signOut.mockResolvedValue([]);
-    terms.hasAccepted.mockResolvedValue(false);
 
     const created = await verifyCode(
       form("/api/auth/code/verify", {
@@ -360,28 +359,27 @@ describe("the two entrances to the code sign-in", () => {
       }),
     );
 
-    terms.hasAccepted.mockResolvedValue(true);
-
-    const existing = await verifyCode(
-      form("/api/auth/code/verify", { email: "anna@example.com", code: "123456", entry: "login" }),
-    );
-
     expect(created.headers.get("location")).toBe("/places/1?a=b&wejscie=logowanie");
-    expect(existing.headers.get("location")).toBe("/my");
   });
 
-  it("signs in without the explanation when the terms cannot be read, and logs it", async () => {
-    provider.signInWithCode.mockResolvedValue({ actor: user, setCookies: ["s=1"] });
+  it("says nothing to an existing account, whatever terms it accepted (S-1)", async () => {
     provider.signOut.mockResolvedValue([]);
-    terms.hasAccepted.mockRejectedValue(new Error("db down"));
 
-    const response = await verifyCode(
-      form("/api/auth/code/verify", { email: "anna@example.com", code: "123456", entry: "login" }),
-    );
+    // An existing account (not created by this sign-in), also when it has not accepted the
+    // current terms (declined earlier or the terms changed): no "we created an account".
+    for (const accountCreated of [false, undefined]) {
+      provider.signInWithCode.mockResolvedValue({ actor: user, setCookies: [], accountCreated });
 
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("/my");
-    expect(failures.log).toHaveBeenCalledWith("Sign-in destination (terms)", expect.any(Error));
+      const existing = await verifyCode(
+        form("/api/auth/code/verify", {
+          email: "anna@example.com",
+          code: "123456",
+          entry: "login",
+        }),
+      );
+
+      expect(existing.headers.get("location")).toBe("/my");
+    }
   });
 });
 
@@ -789,6 +787,10 @@ describe("POST /api/auth/login", () => {
       );
 
       expect(await response.json()).toEqual({ role: "user", returnTo: "/" });
+      // S-2: the page after signing in needs the counts only, not the favourites and visits.
+      expect(album.summary).toHaveBeenCalledTimes(1);
+      expect(album.favorites).not.toHaveBeenCalled();
+      expect(album.recent).not.toHaveBeenCalled();
     });
   });
 

@@ -55,10 +55,10 @@ describe("the terms guard of an account without the acceptance (F-K3)", () => {
 
   it("explains the new account only for the `wejscie=logowanie` mark", () => {
     mocks.search = "wejscie=logowanie";
-    expect(render()).toContain("To pierwsze logowanie tym adresem");
+    expect(render()).toContain("Dla tego adresu nie było jeszcze konta");
 
     mocks.search = "wejscie=cokolwiek";
-    expect(render()).not.toContain("To pierwsze logowanie tym adresem");
+    expect(render()).not.toContain("Dla tego adresu nie było jeszcze konta");
   });
 
   it("shows the message for a known `zgoda` code only", () => {

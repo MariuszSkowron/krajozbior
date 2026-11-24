@@ -87,7 +87,7 @@ export function CodeForms({
         <p className={styles.switchEntry}>
           {entry === "signup" ? "Masz już konto? " : "Nie masz konta? "}
           <Link href={entryPath(otherEntry, returnTo ?? null)} className={styles.textLink}>
-            {entry === "signup" ? "Zaloguj się" : "Załóż je"}
+            {entry === "signup" ? "Zaloguj się" : "Załóż konto"}
           </Link>
         </p>
       </>

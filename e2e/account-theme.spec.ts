@@ -55,7 +55,7 @@ async function signIn(page: Page) {
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
   // An account with no visit and no saved collection lands on the start page, others on /my.
-  await expect(page).toHaveURL(/\/(my)?$/);
+  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
 }
 
 async function newPage(browser: Browser) {

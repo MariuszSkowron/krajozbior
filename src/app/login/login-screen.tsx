@@ -117,7 +117,7 @@ export async function LoginScreen({
         <h1>{email === null ? texts.title : "Wpisz kod z wiadomości"}</h1>
         {email === null ? <p>{texts.intro}</p> : null}
 
-        <section aria-label="Logowanie kodem z e-maila" className={styles.section}>
+        <section aria-label="Kod z e-maila" className={styles.section}>
           <CodeForms
             entry={entry}
             returnTo={returnTo}
@@ -134,7 +134,7 @@ export async function LoginScreen({
             open={passwordError !== undefined && !isCodeError(errorCode) ? true : undefined}
           >
             <summary>Logowanie hasłem</summary>
-            <p>Dla kont administratorów i kont demonstracyjnych.</p>
+            <p>Dla administratorów.</p>
             <LoginForm
               returnTo={returnTo}
               errorMessage={isCodeError(errorCode) ? undefined : passwordError}

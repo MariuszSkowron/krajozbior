@@ -266,7 +266,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
                 Wybierz pierwszą kolekcję
               </h1>
               <p className={bannerStyles.lead}>
-                Zapisz kolekcję, a pokażemy tu Twój postęp: ile miejsc masz i ile zostało.
+                Zapisz kolekcję, a pokażemy tu Twój postęp: ile miejsc odwiedzono i ile zostało.
               </p>
               <div className={bannerStyles.actions}>
                 <Link className="button button--primary" href="#do-odkrycia">
@@ -299,6 +299,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
             collections={album.favorites}
             banner={favorites.length > 0 ? banner : null}
             fallbackBanner={favorites.length > 0 ? null : banner}
+            hasVisits={album.summary.discoveredPlaces > 0}
           />
           <AlbumSummary summary={album.summary} />
           <MoreFavoriteCollections collections={album.favorites} />

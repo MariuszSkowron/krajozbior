@@ -422,7 +422,12 @@ describe("home page of a signed-in explorer", () => {
     mocks.getBanner.mockResolvedValue(banner);
     mocks.getHomeAlbum.mockResolvedValue({
       status: "ok",
-      value: { ...album, favorites: [], recentVisits: [] },
+      value: {
+        ...album,
+        summary: { discoveredPlaces: 0, regions: 0, savedCollections: 1 },
+        favorites: [],
+        recentVisits: [],
+      },
     });
     const html = await render();
 
@@ -443,9 +448,10 @@ describe("home page of a signed-in explorer", () => {
 
     const html = await render();
 
-    expect(html).toContain("Nie masz jeszcze zapisanych kolekcji");
+    // A visit exists, so the page never says "you have nothing" (the golden path, scenario D).
+    expect(html).not.toContain("Nie masz jeszcze zapisanych kolekcji");
     expect(html).toMatch(
-      /Zapisz pierwszą, a pojawi się tutaj\.<\/p><div[^>]*><a [^>]*href="#do-odkrycia"[^>]*>Zobacz kolekcje<\/a>/,
+      /Zapisz kolekcję, a pokażemy tu Twój postęp w niej\.<\/p><div[^>]*><a [^>]*href="#do-odkrycia"[^>]*>Zobacz kolekcje<\/a>/,
     );
     // The album block stays: there is a visit to show.
     expect(html).toContain("Twój album");
@@ -470,7 +476,7 @@ describe("home page of a signed-in explorer", () => {
     expect(html).toMatch(/<h1[^>]*>Wybierz pierwszą kolekcję<\/h1>/);
     expect(html).toContain("Dzień dobry, Anna");
     expect(html).toContain(
-      "Zapisz kolekcję, a pokażemy tu Twój postęp: ile miejsc masz i ile zostało.",
+      "Zapisz kolekcję, a pokażemy tu Twój postęp: ile miejsc odwiedzono i ile zostało.",
     );
     expect(html).toMatch(/<a [^>]*href="#do-odkrycia"[^>]*>Zobacz kolekcje<\/a>/);
     expect(html).toMatch(/<img [^>]*src="\/media\/p\/ph1\/main"/);
@@ -484,7 +490,12 @@ describe("home page of a signed-in explorer", () => {
   it("leaves the empty favourites with one sentence; the list of all collections is in the next heading row", async () => {
     mocks.getHomeAlbum.mockResolvedValue({
       status: "ok",
-      value: { ...album, favorites: [], recentVisits: [] },
+      value: {
+        ...album,
+        summary: { discoveredPlaces: 0, regions: 0, savedCollections: 1 },
+        favorites: [],
+        recentVisits: [],
+      },
     });
 
     const html = await render();

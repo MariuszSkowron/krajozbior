@@ -178,9 +178,6 @@ test.describe("golden path of a new explorer on a phone", () => {
   test.afterEach(cleanUp);
 
   test("new-explorer-first-screen", async ({ browser }) => {
-    // Known bug, fixed by package 1 (docs plan 2026-11-23): a new account lands on "Profil" with zeros.
-    test.fail();
-
     const page = await newExplorer(browser, "first", { geolocation: false });
     const main = page.getByRole("main");
 
@@ -288,9 +285,6 @@ test.describe("golden path of a new explorer on a phone", () => {
   });
 
   test("visited-without-saved-collection", async ({ browser }) => {
-    // Known bug, fixed by package 1 (docs plan 2026-11-23): Start of an explorer with a visit says "no saved collections" and has no button.
-    test.fail();
-
     const page = await newExplorer(browser, "unsaved", { geolocation: true });
 
     // The collection is NOT saved: the visit alone is enough.

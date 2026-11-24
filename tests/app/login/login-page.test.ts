@@ -73,7 +73,7 @@ describe("login page, step 1", () => {
 
   it("links to the other entrance and keeps the return path in that link", async () => {
     expect(await render()).toMatch(
-      /Nie masz konta\? <a class="[^"]*" href="\/login\/zaloz-konto">Załóż je<\/a>/,
+      /Nie masz konta\? <a class="[^"]*" href="\/login\/zaloz-konto">Załóż konto<\/a>/,
     );
     expect(await render({ returnTo: "/places/1" })).toContain(
       'href="/login/zaloz-konto?returnTo=%2Fplaces%2F1"',

@@ -54,14 +54,14 @@ describe("the screen „Zanim zaczniesz” (E11-Q4 A)", () => {
   });
 
   it("explains the new account only after a sign-in through „Zaloguj się”", () => {
-    const explanation = "To pierwsze logowanie tym adresem, więc zakładamy nowe konto.";
+    const explanation = "Dla tego adresu nie było jeszcze konta, więc je założyliśmy.";
 
     expect(html("/")).not.toContain(explanation);
     expect(
       renderToStaticMarkup(
         createElement(TermsGate, { path: "/", problemCode: null, firstSignIn: true }),
       ),
-    ).toContain(`${explanation} Masz już konto na inny adres? Wyloguj się i podaj tamten.`);
+    ).toContain(`${explanation} Masz konto założone na inny adres? Wyloguj się i zaloguj tamtym.`);
   });
 
   it("has a second column with the sentence about the album (and the photo when there is one)", () => {

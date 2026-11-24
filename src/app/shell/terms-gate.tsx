@@ -65,8 +65,8 @@ function TermsGateBody({
       <h1>Zanim zaczniesz</h1>
       {firstSignIn ? (
         <p role="status" className={styles.notice}>
-          To pierwsze logowanie tym adresem, więc zakładamy nowe konto. Masz już konto na inny
-          adres? Wyloguj się i podaj tamten.
+          Dla tego adresu nie było jeszcze konta, więc je założyliśmy. Masz konto założone na inny
+          adres? Wyloguj się i zaloguj tamtym.
         </p>
       ) : null}
       <p>Żeby korzystać z konta, zaakceptuj regulamin. Najważniejsze zasady:</p>

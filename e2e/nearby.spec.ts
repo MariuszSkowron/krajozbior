@@ -319,7 +319,7 @@ test.describe("'Pokaż najbliższe' in 'Kolekcje do odkrycia' on the home page",
     await form.getByLabel("E-mail").fill(EXPLORER_A);
     await form.getByLabel("Hasło").fill(password ?? "");
     await form.getByRole("button", { name: "Zaloguj się" }).click();
-    await expect(page).toHaveURL(/\/(my)?$/);
+    await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
     await page.goto("/");
     await waitForHydration(page);
     await section(page).getByRole("button", { name: "Pokaż najbliższe" }).click();

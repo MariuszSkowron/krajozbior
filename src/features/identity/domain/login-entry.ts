@@ -2,6 +2,8 @@
 // (`signup`). The mechanism, the limits and the account creation are the same; the entrance only
 // chooses the headings, the texts and the page the forms return to. The signup page lives under
 // /login so that the short-lived address cookie (Path=/login) reaches both steps.
+import { safeReturnTo } from "./return-to";
+
 export type LoginEntry = "login" | "signup";
 
 export const LOGIN_PATH = "/login";
@@ -31,5 +33,5 @@ export function withFirstSignInNotice(destination: string): string {
 
   url.searchParams.set(FIRST_SIGN_IN_PARAM, FIRST_SIGN_IN_FROM_LOGIN);
 
-  return `${url.pathname}${url.search}${url.hash}`;
+  return safeReturnTo(`${url.pathname}${url.search}${url.hash}`);
 }

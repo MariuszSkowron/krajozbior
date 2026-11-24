@@ -192,7 +192,7 @@ test.describe("with seeded demo accounts", () => {
     await logIn(page, "admin@demo.krajozbior.local", password ?? "");
 
     // No visit and no saved collection: the administrator lands on the start page.
-    await expect(page).toHaveURL(/\/(my)?$/);
+    await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
     const response = await page.request.get("/api/admin");
     expect(response.status()).toBe(200);
     expect((await response.json()).role).toBe("admin");
@@ -211,7 +211,7 @@ test.describe("with seeded demo accounts", () => {
   test("a signed-in user can log out", async ({ page }) => {
     await page.goto("/login");
     await logIn(page, "user@demo.krajozbior.local", password ?? "");
-    await expect(page).toHaveURL(/\/(my)?$/);
+    await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
 
     await page.getByRole("banner").getByRole("button", { name: "Wyloguj" }).click();
 

@@ -297,7 +297,7 @@ async function signedInPage(
   await form.getByLabel("E-mail").fill(emailOf("user"));
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/(my)?$/);
+  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
 
   return page;
 }

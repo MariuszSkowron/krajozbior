@@ -49,7 +49,7 @@ async function signedInPage(browser: Browser, email: string): Promise<Page> {
 
   await page.goto("/login");
   await logIn(page, email);
-  await expect(page).toHaveURL(/\/(my)?$/);
+  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
 
   return page;
 }

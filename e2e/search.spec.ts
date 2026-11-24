@@ -131,7 +131,9 @@ async function signedInPage(browser: Browser, name: string): Promise<Page> {
   await form.getByLabel("E-mail").fill(`${name}@demo.krajozbior.local`);
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(name.startsWith("curator") ? /\/curator$/ : /\/(my)?$/);
+  await expect(page).toHaveURL(
+    name.startsWith("curator") ? /\/curator$/ : /^https?:\/\/[^/]+\/(my)?$/,
+  );
 
   return page;
 }
