@@ -61,7 +61,7 @@ export function CoverPicker({ collectionId, currentPhotoId, choices }: CoverPick
         kind: "success",
         message:
           selected === NONE
-            ? "Kolekcja jest teraz bez okładki."
+            ? "Okładka jest teraz wybierana automatycznie: to zdjęcie pierwszego miejsca."
             : "Okładka zapisana. Zobaczą ją odkrywcy po opublikowaniu kolekcji.",
       });
       router.refresh();
@@ -92,7 +92,20 @@ export function CoverPicker({ collectionId, currentPhotoId, choices }: CoverPick
                     checked={selected === NONE}
                     onChange={() => setSelected(NONE)}
                   />
-                  <span className={pickerStyles.none}>Bez okładki (stałe tło)</span>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- plik z własnej trasy, bez optymalizatora */}
+                  <img
+                    src={`/media/p/${choices[0].photoId}/w400`}
+                    alt=""
+                    width={Math.min(choices[0].width, 400)}
+                    height={Math.round(
+                      choices[0].height * (Math.min(choices[0].width, 400) / choices[0].width),
+                    )}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <span className={pickerStyles.none}>
+                    Automatycznie: zdjęcie pierwszego miejsca ({choices[0].placeName})
+                  </span>
                 </label>
               </li>
               {choices.map((choice) => (

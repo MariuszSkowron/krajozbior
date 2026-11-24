@@ -30,6 +30,8 @@ export type CuratorCollectionSummary = Readonly<{
   region: Region;
   status: CollectionStatus;
   placeCount: number;
+  /** How many explorers saved the collection: a bare number, never who (private data). */
+  saveCount: number;
   updatedAt: Date;
 }>;
 

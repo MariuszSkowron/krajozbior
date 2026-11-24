@@ -14,7 +14,6 @@ import { pageValue, requireCurator } from "../../curator-session";
 import { placeNotice } from "../../place-notice";
 import { PlaceList } from "../../place-list";
 import { PublicationControls } from "../../publication-controls";
-import { UnsavedChangesProvider } from "../../unsaved-changes";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +41,7 @@ export default async function CollectionEditorPage({
 
   return (
     <CollectionVersionProvider version={collection.version}>
-      <UnsavedChangesProvider>
+      <>
         <nav className={styles.breadcrumb} aria-label="Ścieżka">
           <ol>
             <li>
@@ -63,6 +62,18 @@ export default async function CollectionEditorPage({
               </span>{" "}
               <span className={styles.muted}>{REGION_LABELS[collection.region]}</span>
             </p>
+            {collection.status === "published" ? (
+              <p>
+                <Link href={`/collections/${collection.slug}`} target="_blank" rel="noopener">
+                  Zobacz stronę kolekcji
+                </Link>{" "}
+                <span className={styles.muted}>(otworzy się w nowej karcie)</span>
+              </p>
+            ) : (
+              <p className={styles.muted}>
+                Szkic nie ma jeszcze strony publicznej. Stronę kolekcji zobaczysz tu po publikacji.
+              </p>
+            )}
           </div>
         </header>
 
@@ -105,7 +116,7 @@ export default async function CollectionEditorPage({
             wasPublished: collection.firstPublishedAt !== null,
           }}
         />
-      </UnsavedChangesProvider>
+      </>
     </CollectionVersionProvider>
   );
 }

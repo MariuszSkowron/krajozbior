@@ -330,15 +330,20 @@ export const postgresCatalogRepository: CatalogRepository = {
     const rows = await tx.em.execute<
       (Omit<CuratorCollectionSummary, "updatedAt"> & { updatedAt: string | Date })[]
     >(
-      `select c.id, c.title, c.region, c.status,
+      // The numbers of saves come from one call of the aggregate function (never rows of
+      // `saved_collections`): it answers only for the organization of the member (private data).
+      `with saves as (select s.collection_id, s.saves from public.app_collection_saves(?) s)
+       select c.id, c.title, c.region, c.status,
               (select count(*)::int from public.collection_places cp where cp.collection_id = c.id)
                 as "placeCount",
+              coalesce(sv.saves, 0)::int as "saveCount",
               to_char(c.updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "updatedAt"
          from public.collections c
+         left join saves sv on sv.collection_id = c.id
         where c.organization_id = ? and app_org_permission(c.organization_id) = 'full_edit'
         order by c.updated_at desc, c.id
         limit ?`,
-      [organizationId, MAX_COLLECTIONS_PER_LIST],
+      [organizationId, organizationId, MAX_COLLECTIONS_PER_LIST],
     );
 
     return rows.map((row) => ({ ...row, updatedAt: new Date(row.updatedAt) }));

@@ -13,7 +13,7 @@ import { waitForHydration } from "../tests/support/e2e-hydration";
 const password = process.env.DEMO_ACCOUNT_PASSWORD;
 
 const TILE_HOST = "tile.openstreetmap.org";
-const SETTINGS = "Ustawienia potwierdzania wizyt";
+const SETTINGS = "Współrzędne i promień potwierdzania wizyty";
 const TILE_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
   "base64",
@@ -333,8 +333,10 @@ test.describe("place editor with a map", () => {
 
     await expect(missing).toBeVisible();
     await expect(missing).toBeFocused();
+    // The place to fix it is open at once: the fields and the map (UX-04).
+    await expect(page.getByLabel("Szerokość geograficzna")).toBeVisible();
+    await expect(page.getByTestId("place-map")).toBeVisible();
 
-    await page.getByText(SETTINGS, { exact: true }).click();
     await page.getByLabel("Szerokość geograficzna").fill("54,0928");
     await page.getByLabel("Długość geograficzna").fill("18,7919");
     await page.getByLabel("Promień potwierdzania wizyty (m)").fill("20");

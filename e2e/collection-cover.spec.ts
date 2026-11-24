@@ -383,14 +383,16 @@ test.describe("collection cover", () => {
 
     const section = curator.getByRole("region", { name: "Okładka kolekcji" });
     const chosen = section.getByRole("radio", { name: new RegExp(ALT) });
-    const none = section.getByRole("radio", { name: "Bez okładki (stałe tło)" });
+    const none = section.getByRole("radio", {
+      name: /Automatycznie: zdjęcie pierwszego miejsca/,
+    });
 
     // The cover set by the seed is the current choice.
     await expect(chosen).toBeChecked();
 
     await none.check();
     await section.getByRole("button", { name: "Zapisz okładkę" }).click();
-    await expect(section.getByText("Kolekcja jest teraz bez okładki.")).toBeVisible();
+    await expect(section.getByText(/Okładka jest teraz wybierana automatycznie/)).toBeVisible();
     expect(await coverOf(collectionId)).toBeNull();
 
     await chosen.check();

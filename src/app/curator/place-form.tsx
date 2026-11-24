@@ -16,6 +16,7 @@ import {
   VISIT_RADIUS_MIN_M,
 } from "@/features/catalog/domain/place";
 
+import { searchAddress } from "./address-search";
 import { callApi } from "./curator-api";
 import { failed, Field, FeedbackRegion, type Feedback } from "./curator-ui";
 import styles from "./curator.module.css";
@@ -29,6 +30,19 @@ import {
   type PinPosition,
 } from "./place-coordinates";
 import { PlaceMapLoader } from "./place-map-loader";
+import { useUnsavedChanges } from "./unsaved-changes";
+import { GEOCODE_QUERY_MAX_LENGTH, type GeocodeResult } from "@/features/catalog/domain/geocode";
+
+type SearchState =
+  | Readonly<{ kind: "idle" }>
+  | Readonly<{ kind: "busy" }>
+  | Readonly<{ kind: "results"; results: readonly GeocodeResult[] }>
+  | Readonly<{ kind: "empty" }>
+  | Readonly<{ kind: "chosen"; label: string }>
+  | Readonly<{ kind: "failed"; message: string }>;
+
+const SEARCH_FIELD_ID = "place-address-search";
+const COORDINATES_SUMMARY = "Współrzędne i promień potwierdzania wizyty";
 
 type PlaceValues = Readonly<{
   name: string;
@@ -58,7 +72,7 @@ const FIELDS = {
 } as const;
 
 // Fields of a place; the position is set with a pin on the map (K-39) or typed in the folded
-// "Ustawienia potwierdzania wizyt". Same shape as the collection form: the outer part keeps the
+// "Współrzędne i promień potwierdzania wizyty"; an address search sets the pin too (K-2). Same shape as the collection form: the outer part keeps the
 // message, the fields are keyed by the stored version.
 export function PlaceForm(props: PlaceFormProps) {
   const router = useRouter();
@@ -110,6 +124,10 @@ function PlaceFields({
   const [tilesFailed, setTilesFailed] = useState(false);
   const [positionMissing, setPositionMissing] = useState(false);
   const [typedNote, setTypedNote] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState("");
+  const [search, setSearch] = useState<SearchState>({ kind: "idle" });
+  const [focusToken, setFocusToken] = useState(0);
+  const { setDirty } = useUnsavedChanges();
   const showMapButton = useRef<HTMLButtonElement>(null);
   const missingNotice = useRef<HTMLParagraphElement>(null);
   const mapHolder = useRef<HTMLDivElement>(null);
@@ -137,7 +155,36 @@ function PlaceFields({
     }
   }, [mapShown]);
 
+  // The fields are remounted on a new version: nothing typed is left, so nothing is unsaved.
+  useEffect(() => () => setDirty(false), [setDirty]);
+
+  async function runSearch() {
+    if (search.kind === "busy") {
+      return;
+    }
+
+    setSearch({ kind: "busy" });
+
+    const found = await searchAddress(searchText);
+
+    if (!found.ok) {
+      setSearch({ kind: "failed", message: found.message });
+    } else if (found.results.length === 0) {
+      setSearch({ kind: "empty" });
+    } else {
+      setSearch({ kind: "results", results: found.results });
+    }
+  }
+
+  function choose(result: GeocodeResult) {
+    pick({ latitude: result.latitude, longitude: result.longitude });
+    setSearch({ kind: "chosen", label: result.label });
+    setMapShown(true);
+    setFocusToken((token) => token + 1);
+  }
+
   function pick(next: PinPosition) {
+    setDirty(true);
     setPosition(next);
     setLatitudeText(formatCoordinate(next.latitude));
     setLongitudeText(formatCoordinate(next.longitude));
@@ -171,6 +218,9 @@ function PlaceFields({
     // No pin and no typed coordinates: say it here (the server refuses it as well).
     if (text("latitude").trim() === "" || text("longitude").trim() === "") {
       setPositionMissing(true);
+      // The place to fix it is shown, not folded away: the fields and the map (UX-04).
+      setSettingsOpen(true);
+      setMapShown(true);
       requestAnimationFrame(() => missingNotice.current?.focus());
 
       return;
@@ -201,6 +251,8 @@ function PlaceFields({
       if (result.ok) {
         const placeId = String(result.value?.placeId ?? "");
 
+        setDirty(false);
+
         router.push(
           `/curator/collections/${props.collectionId}${
             placeId === "" ? "" : `?added=${encodeURIComponent(placeId)}`
@@ -223,6 +275,7 @@ function PlaceFields({
 
     if (result.ok) {
       // The collection shows "Zapisano zmiany miejsca" at the row (K-40).
+      setDirty(false);
       router.push(`/curator/collections/${props.collectionId}?saved=${props.place.id}`);
     } else {
       setPending(false);
@@ -231,7 +284,17 @@ function PlaceFields({
   }
 
   return (
-    <form className={styles.form} onSubmit={submit} noValidate>
+    <form
+      className={styles.form}
+      onSubmit={submit}
+      onChange={(event) => {
+        // The search field has no name and is not part of the place.
+        if ((event.target as HTMLElement).id !== SEARCH_FIELD_ID) {
+          setDirty(true);
+        }
+      }}
+      noValidate
+    >
       <Field
         id={FIELDS.name[0]}
         label="Nazwa"
@@ -320,6 +383,65 @@ function PlaceFields({
       </Field>
       <fieldset className={styles.fieldset}>
         <legend>Położenie miejsca</legend>
+        <div className={styles.addressSearch}>
+          <Field
+            id={SEARCH_FIELD_ID}
+            label="Znajdź miejsce po adresie"
+            help="Wpisz adres i wybierz „Szukaj”. Pinezkę możesz potem przesunąć na mapie."
+          >
+            {(aria) => (
+              <input
+                {...aria}
+                type="text"
+                value={searchText}
+                maxLength={GEOCODE_QUERY_MAX_LENGTH}
+                onChange={(event) => setSearchText(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void runSearch();
+                  }
+                }}
+                autoComplete="off"
+              />
+            )}
+          </Field>
+          <button
+            type="button"
+            className={`button button--outline ${styles.pending}`}
+            aria-disabled={search.kind === "busy"}
+            onClick={() => void runSearch()}
+          >
+            {search.kind === "busy" ? "Szukam…" : "Szukaj"}
+          </button>
+        </div>
+        <div role="status" className={styles.searchOutcome} data-testid="address-search-status">
+          {search.kind === "empty"
+            ? "Nic nie znaleziono. Sprawdź pisownię, dopisz miejscowość albo ustaw pinezkę na mapie."
+            : null}
+          {search.kind === "failed" ? search.message : null}
+          {search.kind === "chosen"
+            ? `Ustawiono pinezkę: ${search.label}. Sprawdź na mapie i w razie potrzeby przesuń ją.`
+            : null}
+          {search.kind === "results"
+            ? `Znaleziono ${search.results.length}. Wybierz właściwe miejsce z listy.`
+            : null}
+        </div>
+        {search.kind === "results" ? (
+          <ul className={styles.searchResults} aria-label="Wyniki wyszukiwania adresu">
+            {search.results.map((result) => (
+              <li key={`${result.latitude},${result.longitude},${result.label}`}>
+                <button
+                  type="button"
+                  className="button button--outline"
+                  onClick={() => choose(result)}
+                >
+                  {result.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <p className={styles.pinStatus} aria-live="polite" data-testid="pin-status">
           {describePin(position)}
         </p>
@@ -329,8 +451,7 @@ function PlaceFields({
         {positionMissing ? (
           <p ref={missingNotice} tabIndex={-1} className={styles.fieldError}>
             <span className={styles.errorPrefix}>Błąd: </span>
-            Ustaw położenie pinezką na mapie albo wpisz współrzędne w części „Ustawienia
-            potwierdzania wizyt”.
+            Znajdź miejsce po adresie, ustaw pinezkę na mapie albo wpisz współrzędne poniżej.
           </p>
         ) : null}
         {mapShown ? (
@@ -339,6 +460,7 @@ function PlaceFields({
               position={position}
               radiusM={readRadius(radiusText)}
               bounds={props.mode === "create" ? props.collectionPoints : []}
+              focusToken={focusToken}
               onPick={pick}
               onTilesFailed={() => {
                 setTilesFailed(true);
@@ -367,7 +489,7 @@ function PlaceFields({
         )}
         {tilesFailed ? (
           <p role="status" className={styles.help}>
-            Nie udało się wczytać mapy. Wpisz współrzędne w części „Ustawienia potwierdzania wizyt”.
+            Nie udało się wczytać mapy. Wpisz współrzędne w części „{COORDINATES_SUMMARY}”.
           </p>
         ) : null}
         <details
@@ -375,7 +497,7 @@ function PlaceFields({
           open={settingsOpen}
           onToggle={(event) => setSettingsOpen(event.currentTarget.open)}
         >
-          <summary>Ustawienia potwierdzania wizyt</summary>
+          <summary>{COORDINATES_SUMMARY}</summary>
           <div className={styles.row3}>
             <Field
               id={FIELDS.latitude[0]}
