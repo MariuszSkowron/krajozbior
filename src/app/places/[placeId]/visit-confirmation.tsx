@@ -1,30 +1,50 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { StatusBadge } from "@/design-system/components/status-badge";
-import { formatProgress, type Progress } from "@/features/album/domain/progress";
+import { useHydrated } from "@/app/use-hydrated";
+import { VisitMark } from "@/design-system/components/visit-mark";
+import { remainingInCollectionText, visitRecordedText } from "@/features/album/domain/next-place";
+import { progressCounts, type Progress } from "@/features/album/domain/progress";
 import {
   geolocationProblemMessage,
   visitOutcomeMessage,
-  VISIT_RECORDED_MESSAGE,
   type GeolocationProblem,
 } from "@/features/visits/domain/visit-outcome";
 
 import { PastVisit } from "./past-visit";
 import { PinnedAction } from "./pinned-action";
+import { revealResult } from "./reveal-result";
 import styles from "./visit-confirmation.module.css";
 import { WantToSeeButton } from "./want-to-see-button";
 
 // initialWanted is null when the list could not be read: only its button is hidden.
 // past is the text of the explorer's visit from the past ("Z przeszłości · marzec 2019"), or null.
 // radiusM is the public radius of the place: the message "za daleko" says how close to come.
+// visited: the page already knows about a visit on site (after a reload or the refresh that follows
+// a saved visit); the component then keeps showing the message and "co dalej" it started with.
+// summary: the explorer's progress in the collections of the place, with the next place of each
+// (read by the server after the visit). showPastMark is false when the mark stands above the photo.
 type Props = {
   placeId: string;
   initialWanted: boolean | null;
   past?: string | null;
   radiusM?: number;
+  visited?: boolean;
+  placeName?: string;
+  summary?: readonly AfterVisit[];
+  showPastMark?: boolean;
 };
+
+export type AfterVisit = Readonly<{
+  slug: string;
+  title: string;
+  visited: number;
+  total: number;
+  next: Readonly<{ id: string; name: string }> | null;
+}>;
 
 type Reading = { latitude: number; longitude: number; accuracy: number };
 type Attempt = { clientVisitId: string; reading: Reading };
@@ -79,10 +99,6 @@ function readPosition(): Promise<Reading> {
 // The button with the focus disappears after a saved visit; the focus moves to
 // the success message, so that a screen reader reads it and the keyboard user
 // does not fall back to the top of the page (docs/design/accessibility.md).
-function focusOnMount(element: HTMLElement | null): void {
-  element?.focus();
-}
-
 function feedbackText(state: State, radiusM: number | undefined): string {
   switch (state.kind) {
     case "locating":
@@ -102,6 +118,43 @@ function feedbackText(state: State, radiusM: number | undefined): string {
   }
 }
 
+// „Co dalej” po wizycie: postęp w każdej kolekcji miejsca i najbliższe nieodwiedzone miejsce;
+// przy komplecie zdanie o ukończeniu (to samo po wizycie na miejscu i z przeszłości).
+const WHAT_NEXT_ID = "co-dalej";
+const MESSAGE_ID = "wizyta-zapisana";
+
+// Stały ref (funkcja modułu): komunikat bierze fokus raz, gdy się pojawia. Nowa funkcja w każdym
+// renderze kazałaby Reactowi odpiąć i podpiąć ref, więc fokus wracałby na komunikat po każdym
+// odświeżeniu strony i kliknięciu „Chcę zobaczyć”.
+function focusOnMount(element: HTMLElement | null) {
+  element?.focus({ preventScroll: true });
+}
+
+function whatNext(items: readonly AfterVisit[]) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <ul className={styles.progress} aria-label="Co dalej" id={WHAT_NEXT_ID}>
+      {items.map((item) => (
+        <li key={item.slug}>
+          <span>{remainingInCollectionText(item, item.title)}</span>
+          {item.next === null ? null : (
+            <>
+              {" "}
+              <span>
+                Najbliższe nieodwiedzone:{" "}
+                <Link href={`/places/${item.next.id}`}>{item.next.name}</Link>.
+              </span>
+            </>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 // "Potwierdzam wizytę" of an explorer (E2-S2, E2-S3). The browser gives the
 // reading; the server (the database) alone decides about distance and accuracy.
 // The reading lives only in memory of this component for the one request: it is
@@ -109,10 +162,45 @@ function feedbackText(state: State, radiusM: number | undefined): string {
 // server error) sends the same client visit id and the same body, so the
 // server records one visit at most; a fresh check ("Sprawdź ponownie") reads
 // the position again and uses a new id.
-export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM }: Props) {
+export function VisitConfirmation({
+  placeId,
+  initialWanted,
+  past = null,
+  radiusM,
+  visited = false,
+  placeName,
+  summary = [],
+  showPastMark = true,
+}: Props) {
+  const router = useRouter();
   const [state, setState] = useState<State>({ kind: "idle" });
+  const [seenPast, setSeenPast] = useState(past);
+  // The state of "Chcę zobaczyć" changed in this session: the page still has the old one until it
+  // is read again, so the button (and its message) must not vanish and come back after the visit.
+  const [wantedNow, setWantedNow] = useState<boolean | null>(initialWanted);
+  const [wantedEver, setWantedEver] = useState(initialWanted === true);
+  const onWantedChange = (wanted: boolean) => {
+    setWantedNow(wanted);
+    setWantedEver((ever) => ever || wanted);
+  };
   const attempt = useRef<Attempt | null>(null);
   const feedback = useRef<HTMLParagraphElement | null>(null);
+  const hydrated = useHydrated();
+  // Wynik wizyty wjechał już w okno (raz): późniejsze odświeżenie strony nie przesuwa jej znowu.
+  const revealed = useRef(false);
+  const pastRevealed = useRef(false);
+  // Wizyta z przeszłości zapisana w tej sesji: dopiero wtedy pod przyciskiem stoi „Co dalej”.
+  const [pastSaved, setPastSaved] = useState(false);
+
+  // A visit from the past saved in the box below makes an old refusal of the location stale
+  // ("Nie mamy zgody…", "Sprawdź ponownie"): the screen starts again from the state of the page.
+  if (seenPast !== past) {
+    setSeenPast(past);
+
+    if (state.kind !== "recorded") {
+      setState({ kind: "idle" });
+    }
+  }
 
   // On a phone the button sits in the pinned bar and the message in the section, which may be
   // off screen: bring the result into view. The focus stays where it is (the button keeps it).
@@ -121,10 +209,33 @@ export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM
       return;
     }
 
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    feedback.current?.scrollIntoView({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
+    revealResult(feedback.current);
   }, [state.kind]);
+
+  // Po zapisie wizyty (na miejscu albo z przeszłości) wynik i „Co dalej” wjeżdżają w okno; lista
+  // dostaje następne miejsce dopiero po odczytaniu strony, więc efekt biegnie też wtedy.
+  const summaryKey = summary.map((item) => `${item.slug}:${item.visited}:${item.next?.id}`).join();
+
+  useEffect(() => {
+    if (state.kind !== "recorded" || revealed.current) {
+      return;
+    }
+
+    const list = document.getElementById(WHAT_NEXT_ID);
+
+    // Widoczny ma być komunikat i lista pod nim razem (przy kilku kolekcjach mogą się nie zmieścić:
+    // wtedy na górze stoi komunikat). Lista z odpowiedzi wizyty jest od razu; gdy jej nie ma,
+    // zakres przewija się raz, gdy strona ją dostarczy.
+    revealResult(document.getElementById(MESSAGE_ID), list);
+    revealed.current = list !== null;
+  }, [state.kind, summaryKey]);
+
+  useEffect(() => {
+    if (pastSaved && summaryKey !== "" && !pastRevealed.current) {
+      pastRevealed.current = true;
+      revealResult(document.getElementById(WHAT_NEXT_ID));
+    }
+  }, [pastSaved, summaryKey]);
 
   async function send(current: Attempt) {
     setState({ kind: "sending" });
@@ -145,9 +256,11 @@ export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM
         attempt.current = null;
 
         if (answer.result === "recorded") {
-          // No page refresh here: the page would replace this box with its
-          // "already visited" note and the progress would vanish.
+          // The page is read again (state of the photo, counters of the collection cards, the
+          // progress and the next place below); this component stays mounted, so the message
+          // and its focus stay too.
           setState({ kind: "recorded", collections: answer.collections });
+          router.refresh();
         } else {
           setState(
             answer.result === "out_of_range"
@@ -208,28 +321,48 @@ export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM
 
   const busy = state.kind === "locating" || state.kind === "sending";
 
-  if (state.kind === "recorded") {
+  if (visited || state.kind === "recorded") {
+    // Right after the visit the server has not answered yet: the answer of the visit gives the
+    // progress, without the next place; the refreshed page brings both.
+    const items: readonly AfterVisit[] =
+      summary.length > 0
+        ? summary
+        : state.kind === "recorded"
+          ? state.collections.map((collection) => ({
+              slug: collection.slug,
+              title: collection.title,
+              ...progressCounts(collection.progress),
+              next: null,
+            }))
+          : [];
+
     return (
       <div className={styles.box}>
-        <p className={styles.success} role="status" tabIndex={-1} ref={focusOnMount}>
-          {VISIT_RECORDED_MESSAGE}
-        </p>
-        {state.collections.length === 0 ? null : (
-          <ul className={styles.progress} aria-label="Twój postęp po tej wizycie">
-            {state.collections.map((collection) => (
-              <li key={collection.slug}>
-                <span>{collection.title}</span>{" "}
-                <strong>{formatProgress(collection.progress)}</strong>
-              </li>
-            ))}
-          </ul>
-        )}
+        {state.kind === "recorded" ? (
+          <p
+            className={styles.success}
+            role="status"
+            tabIndex={-1}
+            id={MESSAGE_ID}
+            ref={focusOnMount}
+          >
+            {visitRecordedText(placeName)}
+          </p>
+        ) : null}
+        {whatNext(items)}
         {/* Przypięty stan „Odwiedzone” (telefon); na komputerze `order` stawia go na górze karty. */}
         <PinnedAction>
           <p className={styles.visitedMark}>
-            <StatusBadge tone="success">Odwiedzone</StatusBadge>
+            <VisitMark>Odwiedzone</VisitMark>
           </p>
         </PinnedAction>
+        {wantedEver ? (
+          <WantToSeeButton
+            placeId={placeId}
+            initialWanted={wantedNow === true}
+            onChange={onWantedChange}
+          />
+        ) : null}
       </div>
     );
   }
@@ -253,7 +386,7 @@ export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM
         <button
           type="button"
           className={`button ${past === null ? "button--primary" : "button--outline"} ${styles.action}`}
-          disabled={busy}
+          disabled={busy || !hydrated}
           aria-busy={busy}
           onClick={() => void (lost ? retry() : check())}
         >
@@ -283,13 +416,23 @@ export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM
       {/* Drugorzędne akcje zostają w treści, nie w przypiętym pasku: „Zaznaczam wcześniejszą wizytę”
           (wizyta z przeszłości, decyzja P5) i „Chcę zobaczyć”. */}
       <div className={styles.secondaryActions}>
-        <PastVisit placeId={placeId} existing={past} />
-        {initialWanted === null ? (
+        <PastVisit
+          placeId={placeId}
+          existing={past}
+          showMark={showPastMark}
+          onSaved={() => setPastSaved(true)}
+        />
+        {past !== null && initialWanted !== true ? null : initialWanted === null ? (
           <p className={styles.feedback}>Lista „Chcę zobaczyć” jest chwilowo niedostępna.</p>
         ) : (
-          <WantToSeeButton placeId={placeId} initialWanted={initialWanted} />
+          <WantToSeeButton
+            placeId={placeId}
+            initialWanted={wantedNow === true}
+            onChange={onWantedChange}
+          />
         )}
       </div>
+      {pastSaved && past !== null ? whatNext(summary) : null}
     </div>
   );
 }

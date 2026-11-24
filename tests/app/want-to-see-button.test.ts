@@ -24,6 +24,9 @@ vi.mock("react", async (importOriginal) => ({
   },
 }));
 
+// The hook needs a React render; in these tests the page is already hydrated.
+vi.mock("@/app/use-hydrated", () => ({ useHydrated: () => true }));
+
 const { WantToSeeButton } = await import("@/app/places/[placeId]/want-to-see-button");
 
 type ButtonElement = { props: { onClick: () => void } };
