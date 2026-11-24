@@ -2,6 +2,7 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { PostgresActionRateLimiter } from "@/features/identity/infrastructure/postgres-action-rate-limiter";
+import { PostgresSignInThrottle } from "@/features/identity/infrastructure/postgres-sign-in-throttle";
 import {
   closePool,
   createScratchDatabase,
@@ -94,10 +95,37 @@ describe("PostgresActionRateLimiter", () => {
     expect(keys).toEqual([`action:note_save:${alice}`]);
   });
 
-  it("refuses a window longer than the sign-in cleanup keeps", async () => {
+  it("refuses a window longer than the cleanup keeps", async () => {
     await expect(
-      limiter.reserve("note_save", alice, { limit: 1, windowSeconds: 16 * 60 }),
+      limiter.reserve("note_save", alice, { limit: 1, windowSeconds: 24 * 3600 + 1 }),
     ).rejects.toThrow(RangeError);
+  });
+
+  it("keeps a 24-hour window past the sign-in cleanup and starts a new one after it", async () => {
+    const daily = { limit: 1, windowSeconds: 24 * 3600 };
+    const throttle = new PostgresSignInThrottle(async () => pool, Buffer.alloc(32, 1));
+
+    await limiter.reserve("daily_save", alice, daily);
+    await withClient(db.adminUrl, (client) =>
+      client.query(
+        `update auth.sign_in_throttle set window_started_at = now() - interval '3 hours'
+          where key = $1`,
+        [`action:daily_save:${alice}`],
+      ),
+    );
+    await throttle.reserve({ email: "x@example.com", ip: "203.0.113.1" });
+
+    expect((await limiter.reserve("daily_save", alice, daily)).allowed).toBe(false);
+
+    await withClient(db.adminUrl, (client) =>
+      client.query(
+        `update auth.sign_in_throttle set window_started_at = now() - interval '25 hours'
+          where key = $1`,
+        [`action:daily_save:${alice}`],
+      ),
+    );
+
+    expect((await limiter.reserve("daily_save", alice, daily)).allowed).toBe(true);
   });
 
   it("denies krajozbior_app any access to the counters, so it cannot reset its own limit", async () => {

@@ -18,6 +18,12 @@ describe("limits of the curator applications", () => {
     expect(() => assertValidLimit(limit)).not.toThrow();
   });
 
+  it("uses the limits accepted in D-59", () => {
+    expect(curatorApplicationSubmitLimit).toEqual({ limit: 5, windowSeconds: 86_400 });
+    expect(curatorApplicationApproveLimit).toEqual({ limit: 10, windowSeconds: 86_400 });
+    expect(curatorApplicationDecideLimit).toEqual({ limit: 20, windowSeconds: 3600 });
+  });
+
   it("keeps the approvals below all decisions of an administrator", () => {
     expect(curatorApplicationApproveLimit.limit).toBeLessThan(curatorApplicationDecideLimit.limit);
   });

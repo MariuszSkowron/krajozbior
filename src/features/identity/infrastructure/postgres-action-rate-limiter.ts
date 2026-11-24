@@ -3,6 +3,7 @@ import "server-only";
 import type { Pool } from "pg";
 
 import {
+  ACTION_KEY_PREFIX,
   assertValidLimit,
   decideAction,
   type ActionLimit,
@@ -17,7 +18,7 @@ type Row = { attempts: number; elapsed_ms: number };
 // holds only the action name and the user id (no email, no IP). The fixed
 // `action:` prefix keeps it apart from the sign-in buckets (`account_ip:`,
 // `account:`, `ip:`) whatever an action is called.
-const keyPrefix = "action:";
+const keyPrefix = ACTION_KEY_PREFIX;
 export class PostgresActionRateLimiter implements ActionRateLimiter {
   constructor(private readonly pool: () => Promise<Pool>) {}
 
