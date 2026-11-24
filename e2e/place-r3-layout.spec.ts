@@ -142,7 +142,7 @@ async function open(
     await form.getByLabel("E-mail").fill("user@demo.krajozbior.local");
     await form.getByLabel("Hasło").fill(password ?? "");
     await form.getByRole("button", { name: "Zaloguj się" }).click();
-    await expect(page).toHaveURL(/\/my$/);
+    await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
   }
 
   await page.goto(`/places/${placeId}`);

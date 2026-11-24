@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { VisitMark } from "@/design-system/components/visit-mark";
 import type { PlaceThumb as PlaceThumbData } from "@/features/catalog/application/catalog-types";
 
 import styles from "./album.module.css";
@@ -64,9 +65,11 @@ export function PlaceTile({
           {state === null ? null : (
             <>
               {" · "}
-              <span className={visited ? styles.stateVisited : undefined}>
-                {STATE_WORDS[state]}
-              </span>
+              {visited ? (
+                <VisitMark>{STATE_WORDS[state]}</VisitMark>
+              ) : (
+                <span>{STATE_WORDS[state]}</span>
+              )}
             </>
           )}
         </span>

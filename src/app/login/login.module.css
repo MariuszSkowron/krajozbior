@@ -88,6 +88,17 @@
   color: var(--color-text-accent);
 }
 
+/* „Masz już konto? Zaloguj się” / „Nie masz konta? Załóż je” pod przyciskiem. */
+.switchEntry {
+  margin: 0;
+}
+
+.switchEntry .textLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-min);
+}
+
 /* Odnośnik w zdaniu (zasady serwisu): kolor akcentu, podkreślenie z theme.css. */
 .textLink {
   color: var(--color-text-accent);
@@ -114,6 +125,12 @@
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
+}
+
+/* Adres w kroku 2 nie łamie się w środku, a bardzo długa domena zawija się dopiero w ostateczności
+   (bez przewijania w poziomie). */
+.address {
+  overflow-wrap: anywhere;
 }
 
 .status {

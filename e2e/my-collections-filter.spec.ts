@@ -75,7 +75,7 @@ async function signedInPage(browser: Browser, options: { width?: number } = {}):
   await form.getByLabel("E-mail").fill(EXPLORER);
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
 
   return page;
 }

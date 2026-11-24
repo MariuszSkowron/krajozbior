@@ -22,6 +22,8 @@ vi.mock("react", async (importOriginal) => ({
     ];
   },
 }));
+// The hook needs a React render; in these tests the page is already hydrated.
+vi.mock("@/app/use-hydrated", () => ({ useHydrated: () => true }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: store.refresh }) }));
 
 const { SaveCollectionButton } = await import("@/app/collections/[slug]/save-collection-button");

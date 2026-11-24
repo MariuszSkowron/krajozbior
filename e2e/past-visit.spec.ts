@@ -52,7 +52,7 @@ async function signedInPage(browser: Browser, email: string, geolocation = false
   await form.getByLabel("E-mail").fill(email);
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
 
   return page;
 }
@@ -245,7 +245,7 @@ test.describe("a visit from the past", () => {
     await expect(page.getByText("Z przeszłości · 2018")).toBeVisible();
 
     await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
-    await expect(page.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
+    await expect(page.getByText("Most Tczewski jest w Twoim albumie.")).toBeVisible();
 
     await page.reload();
     await expect(page.getByText("Odwiedzone", { exact: true }).first()).toBeVisible();

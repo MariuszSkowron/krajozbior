@@ -25,6 +25,13 @@ export function CollectionProgress({
           <span className={styles.count}>{counts}</span> odwiedzone
         </p>
       )}
+      {total > 0 && visited >= total ? <CollectionComplete /> : null}
     </div>
   );
+}
+
+// Jedyny zapis stanu „Kolekcja kompletna” (karta, okładka, Start): spokojny napis z ✓ w akcencie,
+// bez animacji i pochwał. Kolor dziedziczy z otoczenia (karta, zdjęcie okładki).
+export function CollectionComplete({ label = "Kolekcja kompletna" }: Readonly<{ label?: string }>) {
+  return <span className={styles.complete}>{label}</span>;
 }
