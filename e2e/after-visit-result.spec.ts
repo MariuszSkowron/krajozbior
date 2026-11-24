@@ -181,6 +181,31 @@ test.describe("the result of a visit is visible", () => {
     await page.context().close();
   });
 
+  // The sections of the page come in with a short animation (opacity, 0.8 s). A tap on the pinned
+  // button in that time must reach the button, not the section below it. The animations are
+  // stopped in the middle, so the moment of the tap does not depend on the speed of the machine.
+  test("phone: a tap on the pinned button while the page is still coming in saves the visit", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, VIEWPORTS[0]);
+
+    await saveCollection(page);
+    await page.addInitScript(() => {
+      document.addEventListener("DOMContentLoaded", () => {
+        for (const animation of document.getAnimations()) {
+          animation.pause();
+          animation.currentTime = 400;
+        }
+      });
+    });
+    await openBridge(page);
+    await confirmOnSite(page);
+    await expect(
+      page.getByRole("status").filter({ hasText: "Most Tczewski jest w Twoim albumie." }),
+    ).toBeVisible();
+    await page.context().close();
+  });
+
   test("after the visit the focus stays on the clicked element, not on the message", async ({
     browser,
   }) => {

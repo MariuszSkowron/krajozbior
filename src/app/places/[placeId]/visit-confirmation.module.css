@@ -62,9 +62,15 @@
    * na dole sekcji, nie okna, i potem przeskoczył. Sama `opacity` takiego bloku nie tworzy.
    * Specyficzność (0,2,0) wygrywa z `:where` w theme.css; opóźnienie i czas zostają z motywu,
    * a przy `prefers-reduced-motion` animacje i tak wyłącza reguła globalna.
+   *
+   * Przezroczystość w trakcie animacji tworzy jednak kontekst nakładania: `z-index` paska działa
+   * wtedy tylko wewnątrz sekcji, a następna sekcja (też w trakcie wejścia) leży nad paskiem
+   * i przejmuje dotknięcie przycisku. Sekcja z paskiem stoi więc sama nad sąsiadkami.
    */
   :global(.content-width) > :has([data-pinned-action]),
   :global(.content-width-wide) > :has([data-pinned-action]) {
+    position: relative;
+    z-index: 1;
     animation-name: pinned-section-enter;
   }
 
