@@ -94,9 +94,7 @@
   margin-block-start: var(--space-md);
 }
 
-.badgeRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-sm);
+/* Wiersz ze znacznikiem wizyty z przeszłości; wygląd znacznika daje sam VisitMark. */
+.visitMark {
+  margin: 0;
 }

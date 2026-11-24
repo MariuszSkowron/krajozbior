@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import styles from "@/app/my/collections/collections.module.css";
 import { changeSavedCollection } from "@/app/saved-collection-request";
+import { useHydrated } from "@/app/use-hydrated";
 
 type Props = { collectionId: string; initialSaved: boolean };
 
@@ -13,6 +14,7 @@ type Props = { collectionId: string; initialSaved: boolean };
 // button only changes the save and asks the server to render the page again.
 export function SaveCollectionButton({ collectionId, initialSaved }: Props) {
   const router = useRouter();
+  const hydrated = useHydrated();
   const [saved, setSaved] = useState(initialSaved);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function SaveCollectionButton({ collectionId, initialSaved }: Props) {
       <button
         type="button"
         className={saved ? "button button--outline" : "button button--primary"}
-        disabled={pending}
+        disabled={pending || !hydrated}
         aria-busy={pending}
         onClick={() => void toggle()}
       >

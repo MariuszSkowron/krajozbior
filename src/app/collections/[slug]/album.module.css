@@ -342,10 +342,6 @@
   letter-spacing: var(--font-tracking-label);
 }
 
-.stateVisited {
-  color: var(--color-feedback-success);
-}
-
 .tileName {
   color: var(--color-text-strong);
   font-family: var(--font-family-display);

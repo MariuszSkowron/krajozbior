@@ -245,7 +245,7 @@ test.describe("a visit from the past", () => {
     await expect(page.getByText("Z przeszłości · 2018")).toBeVisible();
 
     await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
-    await expect(page.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
+    await expect(page.getByText("Most Tczewski jest w Twoim albumie.")).toBeVisible();
 
     await page.reload();
     await expect(page.getByText("Odwiedzone", { exact: true }).first()).toBeVisible();
