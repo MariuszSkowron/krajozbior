@@ -1,7 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { pickHomeBanner } from "@/features/catalog/domain/home-banner";
+import { bannerRandom, pickHomeBanner } from "@/features/catalog/domain/home-banner";
 import { HOME_BANNER_POOL } from "@/features/catalog/domain/home-banner-pool";
+
+describe("bannerRandom", () => {
+  it("stays within [0, 1)", () => {
+    for (let i = 0; i < 1000; i += 1) {
+      const value = bannerRandom();
+
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThan(1);
+    }
+  });
+
+  it("is the default draw of pickHomeBanner", () => {
+    expect(["a", "b"]).toContain(pickHomeBanner(["a", "b"]));
+  });
+});
 
 describe("pickHomeBanner", () => {
   it("gives null for an empty list", () => {

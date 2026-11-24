@@ -1,5 +1,16 @@
 // Wybór miejsca na baner strony głównej gościa (R3, PR 4): jedno miejsce równomiernie spośród
-// kandydatów. Losowanie jest wstrzykiwane (domyślnie `Math.random`), żeby testy go nie zgadywały.
+// kandydatów. Losowanie jest wstrzykiwane (domyślnie `bannerRandom`), żeby testy go nie zgadywały.
+
+/**
+ * Liczba z przedziału [0, 1) z generatora kryptograficznego. Wybór zdjęcia nie jest zabezpieczeniem,
+ * ale baner stoi też obok formularza logowania, a skaner kodu (CodeQL) traktuje tam `Math.random`
+ * jako słabe losowanie — ten generator nie budzi wątpliwości i kosztuje tyle samo.
+ */
+export function bannerRandom(): number {
+  const [value = 0] = globalThis.crypto.getRandomValues(new Uint32Array(1));
+
+  return value / 2 ** 32;
+}
 
 /**
  * Wybiera jednego kandydata z jednakowym prawdopodobieństwem; pusta lista daje `null`.
@@ -7,7 +18,7 @@
  */
 export function pickHomeBanner<T>(
   candidates: readonly T[],
-  random: () => number = Math.random,
+  random: () => number = bannerRandom,
 ): T | null {
   if (candidates.length === 0) {
     return null;
