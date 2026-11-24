@@ -6,6 +6,11 @@ import { getRequestActor, loginHref } from "@/app/request-actor";
 import { getApprovedOrganizations } from "@/app/request-organizations";
 import { LogoutForm } from "@/app/shell/logout-form";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
+import {
+  EXISTING_ACCOUNT_NOTICE,
+  FIRST_SIGN_IN_EXISTING_ACCOUNT,
+  FIRST_SIGN_IN_PARAM,
+} from "@/features/identity/domain/login-entry";
 import { CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
 import { logFailure } from "@/lib/log-failure";
 import { getRequestProfile } from "@/app/request-profile";
@@ -26,7 +31,12 @@ export const metadata: Metadata = { title: "Profil — Krajozbiór" };
 // (E9-5), "Napisz do nas" with E9-6a (a mailto link to the team's address, no
 // form and no data). Logging out is a native form
 // post, so it works without JavaScript and ends the current session only.
-export default async function MyPage() {
+export default async function MyPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+} = {}) {
+  const wejscie = (await searchParams)?.[FIRST_SIGN_IN_PARAM];
   const actor = await getRequestActor();
 
   if (actor === null) {
@@ -72,6 +82,11 @@ export default async function MyPage() {
 
   return (
     <div className={`content-width ${styles.page}`}>
+      {(Array.isArray(wejscie) ? wejscie[0] : wejscie) === FIRST_SIGN_IN_EXISTING_ACCOUNT ? (
+        <p role="status" className={styles.notice}>
+          {EXISTING_ACCOUNT_NOTICE}
+        </p>
+      ) : null}
       <header className={styles.header}>
         <h1 id="profile-title">Profil</h1>
         <div className={styles.identity}>

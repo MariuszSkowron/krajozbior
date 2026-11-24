@@ -57,6 +57,18 @@ describe("profile page", () => {
     expect(mocks.getMyProfile).not.toHaveBeenCalled();
   });
 
+  it("says an existing account was signed in only for the exact mark", async () => {
+    const withMark = renderToStaticMarkup(
+      await MyPage({ searchParams: Promise.resolve({ wejscie: "istnieje" }) }),
+    );
+    const other = renderToStaticMarkup(
+      await MyPage({ searchParams: Promise.resolve({ wejscie: "x" }) }),
+    );
+
+    expect(withMark).toContain("Masz już konto z tym adresem — zalogowaliśmy Cię.");
+    expect(other).not.toContain("Masz już konto");
+  });
+
   it("shows an explorer no role at all", async () => {
     const html = renderToStaticMarkup(await MyPage());
 

@@ -292,7 +292,7 @@ test.describe("deleting the account", () => {
     await form.getByLabel("E-mail").fill("admin@demo.krajozbior.local");
     await form.getByLabel("Hasło").fill(password ?? "");
     await form.getByRole("button", { name: "Zaloguj się" }).click();
-    await expect(page).toHaveURL(/\/my$/);
+    await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
 
     await page.goto(SCREEN);
     await expect(page.getByText("Konto administratora usuwa zespół")).toBeVisible();

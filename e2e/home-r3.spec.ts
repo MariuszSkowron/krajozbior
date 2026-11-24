@@ -176,7 +176,7 @@ async function signedInPage(browser: Browser, theme: "dark" | "light" = "dark"):
   await form.getByLabel("E-mail").fill(EXPLORER);
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
 
   return page;
 }
@@ -278,7 +278,9 @@ test.describe("home page: the R3 look", () => {
         const main = page.getByRole("main");
         const photo = main.locator('img[fetchpriority="high"]');
         const heading = main.getByRole("heading", { level: 1, name: /Odkrywaj miejsca/ });
-        const login = main.getByRole("link", { name: "Zaloguj się" });
+        // "Załóż konto" is the main button; "Masz już konto? Zaloguj się" is a link under them.
+        const login = main.getByRole("link", { name: "Załóż konto" });
+        const haveAccount = main.getByText("Masz już konto?");
         const collections = main.getByRole("link", { name: "Zobacz kolekcje" });
         const placeLink = main.getByRole("link", { name: firstPlaceName });
 
@@ -292,7 +294,11 @@ test.describe("home page: the R3 look", () => {
         // Everything of the banner lies on the photo; the search is below it.
         const photoBox = (await photo.boundingBox())!;
 
-        for (const part of [heading, login, collections, placeLink]) {
+        await expect(main.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
+          "href",
+          "/login",
+        );
+        for (const part of [heading, login, collections, haveAccount, placeLink]) {
           const box = (await part.boundingBox())!;
 
           expect(box.y).toBeGreaterThanOrEqual(photoBox.y);
@@ -307,7 +313,8 @@ test.describe("home page: the R3 look", () => {
         if (theme === "dark") {
           for (const part of [
             heading,
-            main.getByText(/Krajozbiór to kolekcje/),
+            main.getByText(/Gotowe kolekcje miejsc/),
+            haveAccount,
             main.getByText("Autor: Fikcyjny Autor R3"),
           ]) {
             expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
@@ -334,6 +341,99 @@ test.describe("home page: the R3 look", () => {
 
         await expectNoAccessibilityViolations(page);
         await shot(page, `strona-gosc-${size.name}-${theme}`);
+        await context.close();
+      });
+    }
+  }
+
+  // The text sits at the top of the phone banner; the photo (white here) must stay visible below:
+  // the lower third of the banner is darkened by at most 50%, and the text holds 4.5:1 on it.
+  for (const size of [
+    { name: "390x667", width: 390, height: 667 },
+    { name: "390x844", width: 390, height: 844 },
+  ]) {
+    for (const theme of ["dark", "light"] as const) {
+      test(`a guest at ${size.name} px (${theme}): the lower third of the photo stays visible, the text holds contrast`, async ({
+        browser,
+      }) => {
+        const context = await browser.newContext({
+          viewport: { width: size.width, height: size.height },
+        });
+
+        await context.addCookies([{ name: THEME_COOKIE, value: theme, url: "http://127.0.0.1" }]);
+
+        const page = await context.newPage();
+
+        await page.goto("/");
+        await waitForHydration(page);
+        await waitForEntrance(page);
+
+        const main = page.getByRole("main");
+        const photo = main.locator('img[fetchpriority="high"]');
+        const heading = main.getByRole("heading", { level: 1, name: /Odkrywaj miejsca/ });
+        const login = main.getByRole("link", { name: "Załóż konto" });
+        const collections = main.getByRole("link", { name: "Zobacz kolekcje" });
+
+        await expect(photo).toBeVisible();
+        await expect(login).toBeVisible();
+
+        for (const part of [
+          heading,
+          main.getByText(/Gotowe kolekcje miejsc/),
+          main.getByText("Masz już konto?"),
+          main.getByText("Autor: Fikcyjny Autor R3"),
+        ]) {
+          expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
+        }
+
+        for (const part of [login, collections]) {
+          const { text, boundary } = await buttonContrast(page, part);
+
+          expect(text).toBeGreaterThanOrEqual(4.5);
+          expect(await contrastOver(page, part, 3)).toBeGreaterThanOrEqual(4.5);
+          expect(boundary).toBeGreaterThanOrEqual(3);
+        }
+
+        await shot(page, `telefon-gosc-${size.name}-${theme}`);
+
+        // Hide the content of the text block (not its own darkening) and measure the white photo.
+        await heading.evaluate((node) => {
+          for (const child of node.parentElement!.querySelectorAll<HTMLElement>("*")) {
+            child.style.visibility = "hidden";
+          }
+        });
+
+        const box = (await photo.boundingBox())!;
+        const scrollY = await page.evaluate(() => window.scrollY);
+        const top = Math.ceil(scrollY + box.y + (box.height * 2) / 3);
+        // Full page: the lower third of a tall banner lies below the first screen.
+        const png = await page.screenshot({
+          fullPage: true,
+          clip: {
+            x: box.x,
+            y: top,
+            width: box.width,
+            height: scrollY + box.y + box.height - top,
+          },
+        });
+        const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
+        let darkestRow = 255;
+
+        for (let row = 0; row < info.height; row += 1) {
+          let sum = 0;
+
+          for (let col = 0; col < info.width; col += 1) {
+            sum += data[(row * info.width + col) * info.channels]!;
+          }
+
+          darkestRow = Math.min(darkestRow, sum / info.width);
+        }
+
+        // A white photo under a scrim of 0.5 is about 133 (the scrim is near black): <= 50%.
+        console.log(
+          `${size.name} ${theme}: darkest row of the lower third = ${darkestRow.toFixed(1)}`,
+        );
+        expect(darkestRow).toBeGreaterThanOrEqual(127);
         await context.close();
       });
     }
@@ -431,7 +531,7 @@ test.describe("home page: the R3 look", () => {
     { name: "390", width: 390, height: 844 },
   ]) {
     for (const theme of ["dark", "light"] as const) {
-      test(`an explorer without a saved collection at ${size.name} px (${theme}): the empty state lies on the banner photo, the cards of collections have covers`, async ({
+      test(`a new explorer (no visit, no saved collection) at ${size.name} px (${theme}): the first step lies on the big banner photo, the cards of collections have covers`, async ({
         browser,
       }) => {
         const page = await signedInPage(browser, theme);
@@ -443,24 +543,40 @@ test.describe("home page: the R3 look", () => {
 
         const main = page.getByRole("main");
         const photo = main.locator('img[fetchpriority="high"]');
-        const empty = main.getByText("Nie masz jeszcze zapisanych kolekcji");
+        const heading = main.getByRole("heading", { level: 1, name: "Wybierz pierwszą kolekcję" });
+        const sentence = main.getByText("Zapisz kolekcję, a pokażemy tu Twój postęp");
+        const collections = main.getByRole("link", { name: "Zobacz kolekcje" }).first();
         const photoBox = (await photo.boundingBox())!;
-        const emptyBox = (await empty.boundingBox())!;
 
-        expect(emptyBox.y).toBeGreaterThanOrEqual(photoBox.y);
-        expect(emptyBox.y + emptyBox.height).toBeLessThanOrEqual(photoBox.y + photoBox.height);
-        // One sentence on a low banner; no second link to the list of all collections.
-        expect(photoBox.height).toBeLessThanOrEqual(300);
-        // Every text on the white photo (the paragraph and the credit) keeps 4.5:1.
+        // Everything of the banner lies on the photo, which is as tall as the guest's banner.
+        for (const part of [heading, sentence, collections]) {
+          const box = (await part.boundingBox())!;
+
+          expect(box.y).toBeGreaterThanOrEqual(photoBox.y);
+          expect(box.y + box.height).toBeLessThanOrEqual(photoBox.y + photoBox.height + 1);
+        }
+        expect(photoBox.height).toBeGreaterThan(400);
+        // Every text on the white photo (heading, sentence and credit) keeps 4.5:1.
         const bannerBox = photo.locator("xpath=..");
 
-        for (const part of [empty, bannerBox.locator("p", { hasText: "Autor:" })]) {
-          expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
+        for (const [label, part] of [
+          ["heading", heading],
+          ["sentence", sentence],
+          ["greeting", main.getByText("Dzień dobry", { exact: true })],
+          ["credit", bannerBox.locator("p", { hasText: "Autor:" })],
+        ] as const) {
+          // The box of the heading is as wide as its longest allowed line (14 characters), wider
+          // than the text itself, so its empty right end lies where the left gradient has already
+          // faded; the inset keeps the measure on the part the words really cover.
+          const inset = label === "heading" ? 3 : 0;
+
+          // On a phone the bar of the menu covers the credit until the page is scrolled.
+          await part.evaluate((node) => node.scrollIntoView({ block: "center" }));
+
+          expect(await contrastOver(page, part, inset), label).toBeGreaterThanOrEqual(4.5);
         }
-        await expect(main.getByRole("link", { name: "Przeglądaj wszystkie kolekcje" })).toHaveCount(
-          0,
-        );
-        await expect(main.getByRole("heading", { level: 1, name: /Dzień dobry/ })).toBeVisible();
+        await expect(main.getByRole("heading", { level: 2, name: "Twój album" })).toHaveCount(0);
+        await expect(main.getByText("Nie masz jeszcze zapisanych kolekcji")).toHaveCount(0);
         await expect(main.getByText("Odkrywaj miejsca")).toHaveCount(0);
 
         // "Kolekcje do odkrycia": cards, with a link "Wszystkie kolekcje" in the heading row.

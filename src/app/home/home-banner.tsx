@@ -15,7 +15,7 @@ type BannerCover = CollectionBanner & { focus?: Readonly<{ wide: string; narrow:
 // Zdjęcie banera: natywne <img> z `srcset` (miniatura `w400` i plik `main`), wymiary z bazy
 // rezerwują miejsce, kadr stylami (`object-fit: cover`; panoramy i zdjęcia pionowe w całości,
 // Q4). Baner jest zdjęciem nad treścią strony, więc ładuje się od razu (`fetchPriority`).
-function BannerPhoto({
+export function BannerPhoto({
   cover,
   alt,
   className,
@@ -51,7 +51,7 @@ function BannerPhoto({
 
 // Podpis zdjęcia na banerze: miejsce jako link, potem autor, źródło i licencja (wymogi licencji
 // CC), jak pod zdjęciem na stronie miejsca. Teksty z zewnątrz wstawia React jako tekst.
-function BannerCredit({
+export function BannerCredit({
   cover,
   className,
 }: Readonly<{ cover: CollectionBanner; className: string }>) {

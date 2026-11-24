@@ -10,6 +10,7 @@ import { geist, geistMono, instrumentSerif } from "./fonts";
 import { AccountArea } from "./shell/account-area";
 import { MainNav } from "./shell/main-nav";
 import { SiteFooter } from "./shell/site-footer";
+import { loadAuthPhoto } from "./auth-photo-loader";
 import { shellTermsAccepted } from "./shell/terms-state";
 import { TermsGuard } from "./shell/terms-guard";
 import { TestVersionBanner } from "./shell/test-version-banner";
@@ -53,6 +54,9 @@ export default async function RootLayout({
   // by the client TermsGuard, which renders on every navigation.
   const termsAccepted = role === null ? true : await shellTermsAccepted();
   const showNav = role !== null && termsAccepted;
+  // The photo beside the "Zanim zaczniesz" screen (the pool of the home banner); drawn only
+  // when the screen is shown.
+  const gatePhoto = termsAccepted ? null : await loadAuthPhoto();
 
   return (
     <html
@@ -81,7 +85,7 @@ export default async function RootLayout({
         </div>
         {showNav ? <MainNav /> : null}
         <main id="tresc" tabIndex={-1} className={styles.main}>
-          {termsAccepted ? children : <TermsGuard>{children}</TermsGuard>}
+          {termsAccepted ? children : <TermsGuard photo={gatePhoto}>{children}</TermsGuard>}
         </main>
         <SiteFooter />
       </body>

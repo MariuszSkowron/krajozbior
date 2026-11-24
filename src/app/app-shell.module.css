@@ -252,6 +252,21 @@
   cursor: pointer;
 }
 
+/* „Załóż konto” w nagłówku gościa: przycisk główny; na telefonie niesie je baner, więc tu go nie ma. */
+.account .signupAction {
+  display: none;
+  min-height: var(--size-touch-min);
+  padding-inline: var(--space-md);
+  text-decoration: none;
+  border-radius: var(--radius-pill);
+}
+
+@media (min-width: 40rem) {
+  .account .signupAction {
+    display: inline-flex;
+  }
+}
+
 /* Imię (albo „Profil”) jako odnośnik do profilu; długie imię jest ucinane wielokropkiem. */
 .profileLink {
   display: inline-flex;

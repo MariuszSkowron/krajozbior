@@ -145,7 +145,14 @@ describe("home page of a guest", () => {
     const html = await render();
 
     expect(html).toMatch(/<h1[^>]*>Odkrywaj miejsca/);
-    expect(html).toMatch(/<a [^>]*href="\/login"[^>]*>Zaloguj się<\/a>/);
+    // "Załóż konto" is the main button, "Zobacz kolekcje" the second; under them the way in
+    // for people who already have an account.
+    expect(html).toMatch(
+      /<a [^>]*class="button button--primary"[^>]*href="\/login\/zaloz-konto"[^>]*>Załóż konto<\/a>/,
+    );
+    expect(html).toMatch(/<a [^>]*href="#do-odkrycia"[^>]*>Zobacz kolekcje<\/a>/);
+    expect(html).toMatch(/Masz już konto\? <a [^>]*href="\/login"[^>]*>Zaloguj się<\/a>/);
+    expect(html).not.toContain("ciekawych miejsc");
     expect(html).toContain('id="do-odkrycia"');
     expect(html).toContain("Mosty i zamki");
     expect(html).toContain("3 miejsca · Gmina A");
@@ -175,7 +182,7 @@ describe("home page of a guest", () => {
     expect(html).toContain("Jan Autor");
     expect(html).toContain("CC BY-SA 4.0");
     expect(html).toContain("<em>w swoim albumie</em>");
-    // The search button is an outline button; the primary one is "Zaloguj się" on the banner.
+    // The search button is an outline button; the primary one is "Załóż konto" on the banner.
     expect(html).toMatch(/<button [^>]*class="button button--outline"[^>]*>Szukaj<\/button>/);
   });
 
@@ -285,6 +292,21 @@ describe("home page of a guest", () => {
     expect(html).toContain("Mosty i zamki");
     expect(console.error).toHaveBeenCalledWith("Home nearby read failed:", "Error");
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
+  });
+
+  it("says an existing account was signed in, only for a signed-in person and the exact mark", async () => {
+    mocks.getActor.mockResolvedValue({ id, role: "user" });
+    mocks.getHomeAlbum.mockResolvedValue({ status: "forbidden" });
+    mocks.listSaved.mockResolvedValue({ status: "forbidden" });
+
+    expect(await render({ wejscie: "istnieje" })).toContain(
+      "Masz już konto z tym adresem — zalogowaliśmy Cię.",
+    );
+    expect(await render({ wejscie: "logowanie" })).not.toContain("Masz już konto z tym adresem");
+
+    // A guest sees nothing (the mark in a link must not tell anything about an address).
+    mocks.getActor.mockResolvedValue(null);
+    expect(await render({ wejscie: "istnieje" })).not.toContain("zalogowaliśmy Cię");
   });
 
   it("confirms a deleted account (E9-5) only for the exact signal", async () => {
@@ -415,7 +437,12 @@ describe("home page of a signed-in explorer", () => {
     mocks.getBanner.mockResolvedValue(banner);
     mocks.getHomeAlbum.mockResolvedValue({
       status: "ok",
-      value: { ...album, favorites: [], recentVisits: [] },
+      value: {
+        ...album,
+        summary: { discoveredPlaces: 0, regions: 0, savedCollections: 1 },
+        favorites: [],
+        recentVisits: [],
+      },
     });
     const html = await render();
 
@@ -424,10 +451,66 @@ describe("home page of a signed-in explorer", () => {
     expect(html).not.toContain("Odkrywaj miejsca");
   });
 
+  it("gives an explorer with a visit but no saved collection a way forward under the sentence", async () => {
+    mocks.getHomeAlbum.mockResolvedValue({
+      status: "ok",
+      value: {
+        ...album,
+        summary: { discoveredPlaces: 1, regions: 1, savedCollections: 0 },
+        favorites: [],
+      },
+    });
+
+    const html = await render();
+
+    // A visit exists, so the page never says "you have nothing" (the golden path, scenario D).
+    expect(html).not.toContain("Nie masz jeszcze zapisanych kolekcji");
+    expect(html).toMatch(
+      /Zapisz kolekcję, a pokażemy tu Twój postęp w niej\.<\/p><div[^>]*><a [^>]*href="#do-odkrycia"[^>]*>Zobacz kolekcje<\/a>/,
+    );
+    // The album block stays: there is a visit to show.
+    expect(html).toContain("Twój album");
+  });
+
+  it("shows a new explorer (no visit, no saved collection) the big banner with the first step, not the zeros", async () => {
+    mocks.getHomeBanner.mockResolvedValue({
+      ...banner,
+      focus: { wide: "50% 40%", narrow: "50% 40%" },
+    });
+    mocks.getHomeAlbum.mockResolvedValue({
+      status: "ok",
+      value: {
+        summary: { discoveredPlaces: 0, regions: 0, savedCollections: 0 },
+        favorites: [],
+        recentVisits: [],
+      },
+    });
+
+    const html = await render();
+
+    expect(html).toMatch(/<h1[^>]*>Wybierz pierwszą kolekcję<\/h1>/);
+    expect(html).toContain("Dzień dobry, Anna");
+    expect(html).toContain(
+      "Zapisz kolekcję, a pokażemy tu Twój postęp: ile miejsc odwiedzono i ile zostało.",
+    );
+    expect(html).toMatch(/<a [^>]*href="#do-odkrycia"[^>]*>Zobacz kolekcje<\/a>/);
+    expect(html).toMatch(/<img [^>]*src="\/media\/p\/ph1\/main"/);
+    expect(html).not.toContain("Twój album");
+    expect(html).not.toContain("Odkryte miejsca");
+    expect(html).not.toContain("Nie masz jeszcze zapisanych kolekcji");
+    expect(html).not.toContain("Moje kolekcje");
+    expect(html).not.toContain("Odkrywaj miejsca");
+  });
+
   it("leaves the empty favourites with one sentence; the list of all collections is in the next heading row", async () => {
     mocks.getHomeAlbum.mockResolvedValue({
       status: "ok",
-      value: { ...album, favorites: [], recentVisits: [] },
+      value: {
+        ...album,
+        summary: { discoveredPlaces: 0, regions: 0, savedCollections: 1 },
+        favorites: [],
+        recentVisits: [],
+      },
     });
 
     const html = await render();
