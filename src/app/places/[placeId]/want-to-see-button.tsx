@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { useHydrated } from "@/app/use-hydrated";
 import { safeReturnTo } from "@/features/identity/domain/return-to";
 import { MAX_WANT_TO_SEE_LISTED } from "@/features/want-to-see/domain/limits";
 
 import styles from "./visit-confirmation.module.css";
 
-type Props = { placeId: string; initialWanted: boolean };
+// onChange tells the parent the new state, so it can keep it when this button is unmounted.
+type Props = { placeId: string; initialWanted: boolean; onChange?: (wanted: boolean) => void };
 
 const MESSAGES: Record<number, string> = {
   401: "Zaloguj się, żeby zmienić listę.",
@@ -21,7 +23,8 @@ const MESSAGES: Record<number, string> = {
 // (PUT / DELETE, same origin). It sits in the box of the visit button, so it is
 // also there under the message "poza promieniem" (spec R-02). The list is
 // idempotent, so a repeated click never fails.
-export function WantToSeeButton({ placeId, initialWanted }: Props) {
+export function WantToSeeButton({ placeId, initialWanted, onChange }: Props) {
+  const hydrated = useHydrated();
   const [wanted, setWanted] = useState(initialWanted);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +44,7 @@ export function WantToSeeButton({ placeId, initialWanted }: Props) {
       if (response.ok) {
         setWanted(!wanted);
         setRemoved(wanted);
+        onChange?.(!wanted);
       } else {
         setError(MESSAGES[response.status] ?? "Nie udało się zapisać zmiany. Spróbuj ponownie.");
         setExpired(response.status === 401);
@@ -57,7 +61,7 @@ export function WantToSeeButton({ placeId, initialWanted }: Props) {
       <button
         type="button"
         className="button button--outline"
-        disabled={pending}
+        disabled={pending || !hydrated}
         aria-busy={pending}
         onClick={() => void toggle()}
       >

@@ -1,0 +1,9 @@
+/* Jedyne źródło wyglądu znacznika wizyty (kafelek, zdjęcie miejsca, sekcja wizyty): kolor i krój. */
+.mark {
+  color: var(--color-feedback-success);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
+}

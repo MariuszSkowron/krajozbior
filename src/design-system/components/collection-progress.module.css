@@ -1,4 +1,5 @@
 .progress {
+  color: var(--color-text-strong);
   display: grid;
   gap: var(--space-sm);
 }
@@ -35,6 +36,20 @@
   margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
+}
+
+/* Stan „Kolekcja kompletna”: spokojny napis z akcentem, bez animacji i ozdobników. */
+.complete {
+  display: block;
+  margin: 0;
+  color: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
+}
+
+.complete::before {
+  content: "✓ " / "";
+  color: var(--color-brand-accent);
 }
 
 /* Liczby albumu: mono z cyframi tabelarycznymi. */

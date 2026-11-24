@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 
+import { CollectionComplete } from "@/design-system/components/collection-progress";
 import type { CollectionBanner } from "@/features/catalog/application/catalog-types";
 import { showsWhole } from "@/features/catalog/domain/collection-cover";
 import { THUMB_WIDTH } from "@/features/media/domain/limits";
@@ -14,7 +15,7 @@ type BannerCover = CollectionBanner & { focus?: Readonly<{ wide: string; narrow:
 // Zdjęcie banera: natywne <img> z `srcset` (miniatura `w400` i plik `main`), wymiary z bazy
 // rezerwują miejsce, kadr stylami (`object-fit: cover`; panoramy i zdjęcia pionowe w całości,
 // Q4). Baner jest zdjęciem nad treścią strony, więc ładuje się od razu (`fetchPriority`).
-function BannerPhoto({
+export function BannerPhoto({
   cover,
   alt,
   className,
@@ -50,7 +51,7 @@ function BannerPhoto({
 
 // Podpis zdjęcia na banerze: miejsce jako link, potem autor, źródło i licencja (wymogi licencji
 // CC), jak pod zdjęciem na stronie miejsca. Teksty z zewnątrz wstawia React jako tekst.
-function BannerCredit({
+export function BannerCredit({
   cover,
   className,
 }: Readonly<{ cover: CollectionBanner; className: string }>) {
@@ -164,13 +165,14 @@ export function SavedCollectionBanner({
             <span className={styles.count}>
               <span className={styles.srOnly}>
                 {progress.visited}/{progress.total} odwiedzone
+                {progress.visited >= progress.total ? ". Kolekcja kompletna" : ""}
               </span>
               <span className={styles.countNumber} aria-hidden="true">
                 <span className={styles.countBig}>{progress.visited}</span>
                 <span className={styles.countOf}>/{progress.total}</span>
               </span>
               <span className={styles.eyebrow} aria-hidden="true">
-                odwiedzone
+                {progress.visited >= progress.total ? <CollectionComplete /> : "odwiedzone"}
               </span>
               <span className={styles.bar} aria-hidden="true">
                 <span

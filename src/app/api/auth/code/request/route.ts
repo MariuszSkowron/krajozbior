@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isSameOrigin } from "@/features/identity/domain/origin";
+import { entryPath, loginEntry } from "@/features/identity/domain/login-entry";
 import { requestedReturnTo } from "@/features/identity/domain/return-to";
 import {
   cleanupExpiredSessions,
@@ -48,12 +49,15 @@ export async function POST(request: Request) {
   }
 
   const returnTo = requestedReturnTo(input.returnTo);
+  // Which entrance the forms came from ("Zaloguj się" or "Załóż konto"): only the page the
+  // person returns to and the wording differ; the mechanism is the same.
+  const entry = loginEntry(input.entry);
   const parsed = requestSchema.safeParse({
     email: typeof input.email === "string" ? input.email.trim().toLowerCase() : input.email,
   });
 
   if (!parsed.success) {
-    return failure(request, returnTo, 400, "invalid_email");
+    return failure(request, returnTo, 400, "invalid_email", {}, entry);
   }
 
   // A demo address on a production deployment: answered like any other
@@ -69,8 +73,8 @@ export async function POST(request: Request) {
         const retryAfter = { "Retry-After": String(decision.retryAfterSeconds) };
 
         return decision.reason === "global"
-          ? failure(request, returnTo, 503, "code_unavailable", retryAfter)
-          : failure(request, returnTo, 429, "code_too_many_attempts", retryAfter);
+          ? failure(request, returnTo, 503, "code_unavailable", retryAfter, entry)
+          : failure(request, returnTo, 429, "code_too_many_attempts", retryAfter, entry);
       }
 
       // Best effort and bounded; its failure never blocks the code.
@@ -78,7 +82,7 @@ export async function POST(request: Request) {
       await getIdentityProvider().requestSignInCode(parsed.data.email, request.headers);
     } catch (error) {
       logFailure("Sign-in code request", error);
-      return failure(request, returnTo, 503, "code_unavailable");
+      return failure(request, returnTo, 503, "code_unavailable", {}, entry);
     }
   }
 
@@ -91,7 +95,7 @@ export async function POST(request: Request) {
 
     // The address goes to step 2 in a cookie, never in the URL (login-email-cookie.ts). Set for
     // every well-formed address alike, so the answer still reveals nothing about accounts.
-    const headers = new Headers({ Location: `/login?${query}`, ...NO_STORE });
+    const headers = new Headers({ Location: `${entryPath(entry)}?${query}`, ...NO_STORE });
 
     headers.append("Set-Cookie", loginEmailSetCookieHeader(parsed.data.email));
 

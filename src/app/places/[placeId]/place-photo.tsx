@@ -1,3 +1,4 @@
+import { VisitMark } from "@/design-system/components/visit-mark";
 import type { PlaceCover } from "@/features/catalog/application/catalog-types";
 import { THUMB_WIDTH } from "@/features/media/domain/limits";
 
@@ -25,12 +26,15 @@ export function PlacePhoto({
   placeName,
   number,
   state,
+  stateText,
 }: Readonly<{
   cover: PlaceCover;
   placeName: string;
   /** Numer miejsca w kolekcji (pokazany jako „01”); bez numeru i stanu nie ma wiersza nad zdjęciem. */
   number?: number;
   state?: PlacePhotoState;
+  /** Pełny tekst znacznika odwiedzonego miejsca (np. „Z przeszłości · marzec 2019”) zamiast samego słowa. */
+  stateText?: string;
 }>) {
   const main = `/media/p/${cover.photoId}/main`;
   const thumb = `/media/p/${cover.photoId}/w400`;
@@ -50,7 +54,13 @@ export function PlacePhoto({
             <span aria-hidden="true">
               {number === undefined ? "" : String(number).padStart(2, "0")}
             </span>
-            <span>{state === undefined ? "" : STATE_LABELS[state]}</span>
+            <span>
+              {state === undefined ? null : state === "undiscovered" ? (
+                STATE_LABELS[state]
+              ) : (
+                <VisitMark>{stateText ?? STATE_LABELS[state]}</VisitMark>
+              )}
+            </span>
           </p>
         ) : null}
         <div className={styles.frame}>

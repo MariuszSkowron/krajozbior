@@ -30,8 +30,9 @@ describe("the screen „Zanim zaczniesz” (E11-Q4 A)", () => {
   it("asks for the acceptance of the draft terms with a required checkbox, in a native form", () => {
     const markup = html("/my");
 
+    // `noValidate`: the browser's own bubble is replaced by a Polish message (UX-12).
     expect(markup).toMatch(
-      /<form [^>]*action="\/api\/me\/terms-acceptance" method="post">.*<input type="checkbox" required="" name="accepted"\/>/,
+      /<form [^>]*noValidate=""[^>]*action="\/api\/me\/terms-acceptance" method="post">.*<input type="checkbox" required="" name="accepted"\/>/,
     );
     expect(markup).toContain(
       "Akceptuję Regulamin (wersja robocza z dnia 19 listopada 2026 r.) i potwierdzam zapoznanie się z Polityką prywatności.",
@@ -50,6 +51,21 @@ describe("the screen „Zanim zaczniesz” (E11-Q4 A)", () => {
     expect(markup).toMatch(
       /<form action="\/api\/auth\/logout" method="post"><input type="hidden" name="reason" value="terms-declined"\/><button [^>]*type="submit">Nie akceptuję — wyloguj<\/button><\/form>/,
     );
+  });
+
+  it("explains the new account only after a sign-in through „Zaloguj się”", () => {
+    const explanation = "Dla tego adresu nie było jeszcze konta, więc je założyliśmy.";
+
+    expect(html("/")).not.toContain(explanation);
+    expect(
+      renderToStaticMarkup(
+        createElement(TermsGate, { path: "/", problemCode: null, firstSignIn: true }),
+      ),
+    ).toContain(`${explanation} Masz konto założone na inny adres? Wyloguj się i zaloguj tamtym.`);
+  });
+
+  it("has a second column with the sentence about the album (and the photo when there is one)", () => {
+    expect(html("/")).toContain("Za chwilę zaczniesz zbierać miejsca w swoim albumie.");
   });
 
   it("is kept out of search results (E11-Q15 A)", () => {
