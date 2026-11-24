@@ -4,6 +4,7 @@ import {
   PROGRESS_FILTERS,
   PROGRESS_FILTER_LABELS,
   matchesProgressFilter,
+  noMatchingCollectionsMessage,
   parseProgressFilter,
 } from "@/features/album/domain/progress-filter";
 import type { Progress } from "@/features/album/domain/progress";
@@ -14,6 +15,21 @@ const progress = (visited: number, total: number): Progress => ({
   total,
 });
 const EMPTY: Progress = { kind: "empty" };
+
+describe("noMatchingCollectionsMessage", () => {
+  it("says in plain words why each state is empty, without system wording (T-21)", () => {
+    expect(noMatchingCollectionsMessage("ukonczone")).toBe(
+      "Nie masz jeszcze ukończonych kolekcji.",
+    );
+    expect(noMatchingCollectionsMessage("w-trakcie")).toBe(
+      "Żadnej zapisanej kolekcji nie masz w trakcie.",
+    );
+    expect(noMatchingCollectionsMessage("nierozpoczete")).toBe(
+      "Każdą zapisaną kolekcję masz już zaczętą.",
+    );
+    expect(noMatchingCollectionsMessage("wszystkie")).toBe("Nie masz jeszcze zapisanych kolekcji.");
+  });
+});
 
 describe("parseProgressFilter", () => {
   it("reads the known values of ?stan=", () => {
