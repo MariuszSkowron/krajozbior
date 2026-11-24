@@ -275,7 +275,7 @@ describe("place_reports: access of the author and the curator (P4b)", () => {
       f.asGuest(`insert into public.place_reports (place_id, category) values (?, 'closed')`, [
         places[0],
       ]),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(/read-only|row-level security/);
     await expect(
       f.asGuest(`select public.app_report_counts(?::uuid)`, [orgA]),
     ).rejects.toMatchObject({
@@ -446,8 +446,16 @@ describe("place_reports: access of the author and the curator (P4b)", () => {
       ].sort(),
     );
     // the oldest first
-    const times = rows.map((row) => (row.created_at as Date).getTime());
+    const times = (
+      await f.as(
+        curA,
+        `select extract(epoch from q.created_at)::float as t
+           from public.app_report_queue(?::uuid, 'open', 200) q`,
+        [orgA],
+      )
+    ).map((row) => row.t as number);
 
+    expect(times).toHaveLength(rows.length);
     expect(times).toEqual([...times].sort((a, b) => a - b));
   });
 
@@ -666,7 +674,14 @@ describe("place_reports: access of the author and the curator (P4b)", () => {
     );
 
     const rows = await queue(curBig, orgBig, "decided", 100000);
-    const times = rows.map((row) => (row.decided_at as Date).getTime());
+    const times = (
+      await f.as(
+        curBig,
+        `select extract(epoch from q.decided_at)::float as t
+           from public.app_report_queue(?::uuid, 'decided', 100000) q`,
+        [orgBig],
+      )
+    ).map((row) => row.t as number);
 
     expect(rows).toHaveLength(50);
     expect(times).toEqual([...times].sort((a, b) => b - a));

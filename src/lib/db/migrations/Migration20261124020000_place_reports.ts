@@ -66,7 +66,7 @@ export class Migration20261124020000_place_reports extends Migration {
           or char_length(btrim(message)) > 0
         ),
         constraint place_reports_decided_at_check check ((status = 'open') = (decided_at is null)),
-        constraint place_reports_reject_reason_check check (
+        constraint place_reports_reject_state_check check (
           (status = 'rejected') = (reject_reason is not null)
         ),
         constraint place_reports_open_note_check check (status <> 'open' or decision_note is null)

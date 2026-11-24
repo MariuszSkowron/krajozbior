@@ -48,10 +48,18 @@ export const postgresReportsRepository: ReportsRepository = {
   },
 
   async listQueue(tx, organizationId, state) {
-    const rows = await tx.em.execute<Omit<QueueItem, "editCollectionId">[]>(
+    // Times go out as ISO text in UTC (a raw timestamp comes back as a driver string).
+    const rows = await tx.em.execute<
+      (Omit<QueueItem, "editCollectionId" | "createdAt" | "decidedAt"> & {
+        createdAt: string;
+        decidedAt: string | null;
+      })[]
+    >(
       `select q.id, q.category, q.message, q.status, q.reject_reason as "rejectReason",
-              q.decision_note as "decisionNote", q.created_at as "createdAt",
-              q.decided_at as "decidedAt", q.version, q.place_id as "placeId",
+              q.decision_note as "decisionNote",
+              to_char(q.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "createdAt",
+              to_char(q.decided_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "decidedAt",
+              q.version, q.place_id as "placeId",
               q.place_name as "placeName", q.place_deleted as "placeDeleted",
               q.author_label as "authorLabel", q.author_gone as "authorGone"
          from public.app_report_queue(?::uuid, ?::text, null::integer) q`,
@@ -86,15 +94,21 @@ export const postgresReportsRepository: ReportsRepository = {
 
     return rows.map((row) => ({
       ...row,
+      createdAt: new Date(row.createdAt),
+      decidedAt: row.decidedAt === null ? null : new Date(row.decidedAt),
       editCollectionId: row.placeId === null ? null : (collections.get(row.placeId) ?? null),
     }));
   },
 
   async decide(tx, { reportId, action, reason, note, version }) {
     try {
-      const rows = await tx.em.execute<{ version: number }[]>(
-        `select public.app_decide_report(?::uuid, ?::text, ?::text, ?::text, ?::integer) as version`,
-        [reportId, action, reason, note, version],
+      // A savepoint: a refusal of the function is an exception, and without it the whole
+      // transaction would stay aborted after the refusal was caught.
+      const rows = await tx.em.transactional((inner) =>
+        inner.execute<{ version: number }[]>(
+          `select public.app_decide_report(?::uuid, ?::text, ?::text, ?::text, ?::integer) as version`,
+          [reportId, action, reason, note, version],
+        ),
       );
 
       return { status: "ok", version: rows[0]!.version };
