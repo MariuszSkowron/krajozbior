@@ -262,7 +262,9 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
               <p className={bannerStyles.greeting}>
                 {firstName === null ? "Dzień dobry" : `Dzień dobry, ${firstName}`}
               </p>
-              <h1 id="start-title">Wybierz pierwszą kolekcję</h1>
+              <h1 id="start-title" className={bannerStyles.narrowTitle}>
+                Wybierz pierwszą kolekcję
+              </h1>
               <p className={bannerStyles.lead}>
                 Zapisz kolekcję, a pokażemy tu Twój postęp: ile miejsc masz i ile zostało.
               </p>

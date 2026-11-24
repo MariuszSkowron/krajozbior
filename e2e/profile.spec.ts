@@ -48,6 +48,9 @@ async function signedInPage(browser: Browser, width = 390, email = EXPLORER): Pr
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
   await expect(page).toHaveURL(/\/(my)?$/);
+  // An account with no visit and no saved collection lands on the start page; these tests
+  // start on the profile.
+  await page.goto("/my");
 
   return page;
 }

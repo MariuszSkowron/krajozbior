@@ -466,8 +466,21 @@ test.describe("home page: the R3 look", () => {
         // Every text on the white photo (heading, sentence and credit) keeps 4.5:1.
         const bannerBox = photo.locator("xpath=..");
 
-        for (const part of [heading, sentence, bannerBox.locator("p", { hasText: "Autor:" })]) {
-          expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
+        for (const [label, part] of [
+          ["heading", heading],
+          ["sentence", sentence],
+          ["greeting", main.getByText("Dzień dobry", { exact: true })],
+          ["credit", bannerBox.locator("p", { hasText: "Autor:" })],
+        ] as const) {
+          // The box of the heading is as wide as its longest allowed line (14 characters), wider
+          // than the text itself, so its empty right end lies where the left gradient has already
+          // faded; the inset keeps the measure on the part the words really cover.
+          const inset = label === "heading" ? 3 : 0;
+
+          // On a phone the bar of the menu covers the credit until the page is scrolled.
+          await part.evaluate((node) => node.scrollIntoView({ block: "center" }));
+
+          expect(await contrastOver(page, part, inset), label).toBeGreaterThanOrEqual(4.5);
         }
         await expect(main.getByRole("heading", { level: 2, name: "Twój album" })).toHaveCount(0);
         await expect(main.getByText("Nie masz jeszcze zapisanych kolekcji")).toHaveCount(0);

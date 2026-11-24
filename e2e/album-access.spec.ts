@@ -102,11 +102,13 @@ test.describe("saved collections", () => {
   }) => {
     await page.goto(`/collections/${DEMO_SLUG}`);
     // Both entrances are offered; the account sits behind the second one.
-    await expect(page.getByRole("link", { name: "Załóż konto", exact: true })).toHaveAttribute(
+    const main = page.getByRole("main");
+
+    await expect(main.getByRole("link", { name: "Załóż konto", exact: true })).toHaveAttribute(
       "href",
       `/login/zaloz-konto?returnTo=${encodeURIComponent(`/collections/${DEMO_SLUG}`)}`,
     );
-    await page.getByRole("link", { name: "Zaloguj się", exact: true }).click();
+    await main.getByRole("link", { name: "Zaloguj się", exact: true }).click();
 
     await expect(page).toHaveURL(
       new RegExp(`/login\\?returnTo=${encodeURIComponent(`/collections/${DEMO_SLUG}`)}$`),

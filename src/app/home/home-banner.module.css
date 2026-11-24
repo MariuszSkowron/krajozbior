@@ -472,6 +472,14 @@
   }
 }
 
+/* 768–1100 px: tytuł nowego odkrywcy („Wybierz pierwszą kolekcję”) zawija się do trzech krótkich
+   wierszy, żeby cały mieścił się w mocnej części lewego gradientu (>= 4,5:1 na białym zdjęciu). */
+@media (min-width: 48rem) and (max-width: 68.74rem) {
+  .tall .body h1.narrowTitle {
+    max-width: 9ch;
+  }
+}
+
 /* Od 1100 px podpis zdjęcia w prawym dolnym rogu, jak w makiecie (miejsce na niego robi dolny
    odstęp bloku treści), a baner odkrywcy ma tytuł z lewej i liczbę z prawej. */
 @media (min-width: 68.75rem) {

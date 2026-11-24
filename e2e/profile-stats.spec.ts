@@ -49,6 +49,8 @@ async function signedInPage(browser: Browser, email: string, width = 390): Promi
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
   await expect(page).toHaveURL(/\/(my)?$/);
+  // An account with no visit lands on the start page; these tests start on the profile.
+  await page.goto("/my");
 
   return page;
 }
