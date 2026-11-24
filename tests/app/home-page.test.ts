@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   listNearby: vi.fn(),
   getBanner: vi.fn(),
   getHomeBanner: vi.fn(),
+  getHomePublicReads: vi.fn(),
+  listLatestNews: vi.fn(),
   connection: vi.fn(),
   getProfile: vi.fn(),
 }));
@@ -30,8 +32,15 @@ vi.mock("@/features/catalog/application/public-catalog", () => ({
   listNearbyCandidates: mocks.listNearby,
   getCollectionBanner: mocks.getBanner,
   getHomeBanner: mocks.getHomeBanner,
+  getHomePublicReads: mocks.getHomePublicReads,
+}));
+vi.mock("@/features/news/infrastructure/news-read-deps", () => ({ getNewsReadDeps: () => ({}) }));
+vi.mock("@/features/news/application/public-news", () => ({
+  listLatestNews: mocks.listLatestNews,
 }));
 vi.mock("next/server", () => ({ connection: mocks.connection }));
+// The save button of the nudge is a client component; here it only has to render.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const { default: HomePage } = await import("@/app/page");
 
@@ -85,6 +94,7 @@ const nearby = [
 
 const album = {
   summary: { discoveredPlaces: 7, regions: 2, savedCollections: 1 },
+  homeReturn: { hasSaved: true, remaining: [], saveNudge: null },
   favorites: [
     {
       id: "c2",
@@ -135,6 +145,8 @@ beforeEach(() => {
   mocks.getBanner.mockReset().mockResolvedValue(null);
   mocks.getHomeBanner.mockReset().mockResolvedValue(null);
   mocks.connection.mockReset().mockResolvedValue(undefined);
+  mocks.getHomePublicReads.mockReset().mockResolvedValue({ placeOfDay: null, newCollections: [] });
+  mocks.listLatestNews.mockReset().mockResolvedValue([]);
   mocks.getHomeAlbum.mockReset().mockResolvedValue({ status: "ok", value: album });
   mocks.listSaved.mockReset().mockResolvedValue({ status: "ok", value: [] });
   mocks.getProfile.mockReset().mockResolvedValue({ status: "ok", value: { firstName: "Anna" } });
@@ -537,5 +549,38 @@ describe("home page of a signed-in explorer", () => {
     mocks.getHomeAlbum.mockResolvedValue({ status: "unauthenticated" });
 
     expect(await render()).not.toContain("Odkryte miejsca");
+  });
+
+  it("shows the reasons to return from the album and leaves the saved out of the new ones", async () => {
+    mocks.getHomeAlbum.mockResolvedValue({
+      status: "ok",
+      value: {
+        ...album,
+        homeReturn: {
+          hasSaved: true,
+          remaining: [{ slug: "wiezyce", title: "Wieżyce", remaining: 3, names: ["Dwór"] }],
+          saveNudge: { id: "n1", slug: "nowa", title: "Nowa", visited: 1, total: 3 },
+        },
+      },
+    });
+    mocks.listSaved.mockResolvedValue({ status: "ok", value: ["wiezyce"] });
+
+    const html = await render();
+
+    expect(html).toContain("Do odkrycia w Twoich kolekcjach");
+    expect(html).toContain("do odkrycia: 3 · Dwór");
+    expect(html).toContain("Masz 1 z 3 miejsc kolekcji Nowa.");
+    expect(mocks.getHomePublicReads).toHaveBeenCalledWith(expect.anything(), new Set(["wiezyce"]));
+  });
+
+  it("leaves out only the public reasons to return when their read fails", async () => {
+    mocks.getHomePublicReads.mockRejectedValue(new Error("db down: secret-public"));
+
+    const html = await render();
+
+    expect(html).toContain("Twój album");
+    expect(html).not.toContain("Miejsce dnia");
+    expect(console.error).toHaveBeenCalledWith("Home public reads failed:", "Error");
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
   });
 });

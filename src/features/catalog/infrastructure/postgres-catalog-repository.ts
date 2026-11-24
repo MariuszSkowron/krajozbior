@@ -170,6 +170,9 @@ const collectionCardJoin = collectionCoverLateral("cph");
 
 // Kandydat na „Miejsce dnia” (miejsce `p`): opis, gotowe zdjęcie, zatwierdzona organizacja i
 // opublikowana kolekcja. Licznik i wybór używają tego samego warunku, więc numer zawsze trafia.
+// Ukryte zdjęcie (`hidden_at`) odcina polityka `place_photos_select` w kontekście gościa; warunku
+// nie da się tu wypisać, bo rola aplikacji nie ma uprawnienia do odczytu kolumn `hidden_*`
+// (`Migration20261121170000_place_photos`). Pilnuje tego test integracyjny z ukrytym zdjęciem.
 const placeOfDayCandidate = `
   p.description <> ''
   and exists (select from public.organizations po where po.id = p.organization_id and po.status = 'approved')

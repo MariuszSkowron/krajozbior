@@ -136,12 +136,7 @@ export function NewCollectionsSection({
 
   return (
     <section className={styles.section} aria-labelledby="nowe-title">
-      <div className={styles.sectionHead}>
-        <h2 id="nowe-title">Nowe kolekcje</h2>
-        <Link className={styles.sectionLink} href="/search">
-          Wszystkie nowe kolekcje
-        </Link>
-      </div>
+      <h2 id="nowe-title">Nowe kolekcje</h2>
       <ul className={styles.cards}>
         {collections.map((collection) => (
           <li key={collection.id}>

@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { NewsReadDeps, PublicNewsCard } from "@/features/news/application/news-read-types";
-import { getPublicNews, listPublicNews } from "@/features/news/application/public-news";
+import {
+  getPublicNews,
+  listLatestNews,
+  listPublicNews,
+} from "@/features/news/application/public-news";
 
 type Row = Omit<PublicNewsCard, "verification">;
 
@@ -35,6 +39,24 @@ function deps(rows: readonly Row[], item: unknown = null) {
 }
 
 const now = new Date("2026-11-22T12:00:00Z");
+
+describe("listLatestNews", () => {
+  it("asks the database for only the requested number of items, in the guest context", async () => {
+    const d = deps([
+      row({ slug: "a" }),
+      row({ slug: "b", organization: { name: "Gmina Tczew", slug: "gmina-tczew" } }),
+    ]);
+
+    const cards = await listLatestNews(3, d.value);
+
+    expect(d.withGuestContext).toHaveBeenCalledTimes(1);
+    expect(d.listPublished).toHaveBeenCalledWith(expect.anything(), null, 3);
+    expect(cards.map((card) => [card.slug, card.verification])).toEqual([
+      ["a", "editorial"],
+      ["b", "verified"],
+    ]);
+  });
+});
 
 describe("listPublicNews", () => {
   it("reads in the guest context and marks the team and other organizations", async () => {

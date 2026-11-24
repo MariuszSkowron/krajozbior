@@ -11,6 +11,7 @@ import type {
   AlbumRepository,
   CollectionPlaceLink,
   HomeFavoriteRow,
+  IncompleteSavedRow,
   SavedCollectionRow,
 } from "../application/album-types";
 import type { HomeRecentVisit } from "../domain/home-album";
@@ -237,8 +238,10 @@ export const postgresAlbumRepository: AlbumRepository = {
     );
   },
 
-  async homeStartedUnsaved(tx, limit) {
-    return tx.em.execute<StartedUnsavedCollection[]>(
+  async homeIncompleteSaved(tx, limit) {
+    // All saved public collections are counted (not only the latest six of `homeFavorites`), and
+    // the filter and the limit are in the statement, in the same order as `homeFavorites`.
+    return tx.em.execute<IncompleteSavedRow[]>(
       `select s.id, s.slug, s.title, s.total, s.visited
          from (select c.id, c.slug, c.title,
                       (select count(*)::int from public.collection_places cp
@@ -248,19 +251,45 @@ export const postgresAlbumRepository: AlbumRepository = {
                           and exists (select from public.visits v
                                        where v.user_id = app_current_user_id()
                                          and v.place_id = cp.place_id)) as visited,
-                      (select max(v.visited_at)
-                         from public.visits v
-                         join public.collection_places cp on cp.place_id = v.place_id
-                        where v.user_id = app_current_user_id()
-                          and cp.collection_id = c.id) as last_visit
-                 from public.collections c
+                      greatest(
+                        sc.saved_at,
+                        (select max(v.visited_at)
+                           from public.visits v
+                           join public.collection_places cp on cp.place_id = v.place_id
+                          where v.user_id = app_current_user_id() and cp.collection_id = c.id)
+                      ) as last_used
+                 from public.saved_collections sc
+                 join public.collections c on c.id = sc.collection_id
                  join public.organizations o on o.id = c.organization_id
-                where ${publishedCollection}
-                  and not exists (select from public.saved_collections sc
-                                   where sc.user_id = app_current_user_id()
-                                     and sc.collection_id = c.id)) s
-        where s.visited > 0
-        order by s.visited desc, s.last_visit desc, s.id
+                where sc.user_id = app_current_user_id() and ${publishedCollection}) s
+        where s.visited < s.total
+        order by s.last_used desc, s.id
+        limit ?`,
+      [limit],
+    );
+  },
+
+  async homeStartedUnsaved(tx, limit) {
+    // Starts from the visits of the actor (not from the whole catalogue): the collections that
+    // hold a visited place, then only those that are public and not saved get a total.
+    return tx.em.execute<StartedUnsavedCollection[]>(
+      `select c.id, c.slug, c.title,
+              (select count(*)::int from public.collection_places cp
+                where cp.collection_id = c.id) as total,
+              s.visited
+         from (select cp.collection_id, count(distinct cp.place_id)::int as visited,
+                      max(v.visited_at) as last_visit
+                 from public.visits v
+                 join public.collection_places cp on cp.place_id = v.place_id
+                where v.user_id = app_current_user_id()
+                group by cp.collection_id) s
+         join public.collections c on c.id = s.collection_id
+         join public.organizations o on o.id = c.organization_id
+        where ${publishedCollection}
+          and not exists (select from public.saved_collections sc
+                           where sc.user_id = app_current_user_id()
+                             and sc.collection_id = c.id)
+        order by s.visited desc, s.last_visit desc, c.id
         limit ?`,
       [limit],
     );

@@ -235,10 +235,8 @@ test.describe("home page: reasons to return", () => {
       await expect(
         fresh.getByText(/dodana \d{1,2}\.\d{2}\.\d{4} · 3 miejsca · /).first(),
       ).toBeVisible();
-      await expect(fresh.getByRole("link", { name: "Wszystkie nowe kolekcje" })).toHaveAttribute(
-        "href",
-        "/search",
-      );
+      // No link to "all new collections": there is no such view yet (search sorts by title).
+      await expect(fresh.getByRole("link", { name: "Wszystkie nowe kolekcje" })).toHaveCount(0);
 
       const news = region(page, "Aktualności i wydarzenia");
 

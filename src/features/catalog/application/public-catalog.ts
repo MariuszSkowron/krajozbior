@@ -1,7 +1,7 @@
+import { warsawToday } from "@/lib/time/warsaw-today";
+
 import { HOME_BANNER_POOL, type HomeBannerPoolEntry } from "../domain/home-banner-pool";
 import { bannerRandom, pickHomeBanner } from "../domain/home-banner";
-import { warsawToday } from "@/features/visits/domain/past-visit-request";
-
 import { MAX_COLLECTIONS_PER_LIST } from "../domain/limits";
 import type { NearbyCandidate } from "../domain/nearby";
 import {
@@ -107,40 +107,62 @@ export async function listRecentlyPublishedCollections(
   );
 }
 
-/**
- * "Nowe kolekcje" on the home page: at most three collections first published in the last 30
- * days, newest first (guest context, the same for everyone). Empty when nothing is new. The clock
- * is a parameter for tests.
- */
-export async function listNewCollections(
-  deps: CatalogDeps,
-  now: Date = new Date(),
-): Promise<readonly NewCollection[]> {
-  return deps.withGuestContext((tx) =>
-    deps.repository.listCollectionsPublishedSince(
-      tx,
-      newCollectionsSince(now),
-      NEW_COLLECTIONS_LIMIT,
-    ),
-  );
+/** How long the place of the day is kept in the memory of the process (never past its day). */
+const PLACE_OF_DAY_TTL_MS = 15 * 60 * 1000;
+
+let placeOfDayCache: { day: string; until: number; place: PlaceOfTheDay | null } | null = null;
+
+/** Forgets the place of the day kept in memory (tests start from a clean state). */
+export function resetPlaceOfDayCache(): void {
+  placeOfDayCache = null;
 }
 
 /**
- * "Miejsce dnia": one place drawn from the public places with a photo and a description, the
- * same for everyone through the whole Polish calendar day (guest context). `null` when no place
- * qualifies. The clock is a parameter for tests.
+ * The public part of "Powody do powrotu" on the home page, in one guest transaction (the same for
+ * everyone):
+ * - "Nowe kolekcje": at most three collections first published in the last 30 days, newest first,
+ *   without the collections in `exclude` (slugs, e.g. those the explorer has saved); empty when
+ *   nothing is new;
+ * - "Miejsce dnia": one place drawn from the public places with a photo and a description, the
+ *   same through the whole Polish calendar day, `null` when no place qualifies. The choice is kept
+ *   in the memory of the process for the rest of its day, but at most 15 minutes, so a place that
+ *   stops being public does not stay on the page for long.
+ * The clock is a parameter for tests.
  */
-export async function getPlaceOfTheDay(
+export async function getHomePublicReads(
   deps: CatalogDeps,
+  exclude: ReadonlySet<string> = new Set(),
   now: Date = new Date(),
-): Promise<PlaceOfTheDay | null> {
-  return deps.withGuestContext(async (tx) => {
-    const offset = placeOfDayIndex(
-      warsawToday(now),
-      await deps.repository.countPlaceOfDayCandidates(tx),
-    );
+): Promise<
+  Readonly<{ placeOfDay: PlaceOfTheDay | null; newCollections: readonly NewCollection[] }>
+> {
+  const day = warsawToday(now);
+  const cached =
+    placeOfDayCache !== null && placeOfDayCache.day === day && now.getTime() < placeOfDayCache.until
+      ? placeOfDayCache
+      : null;
 
-    return offset === null ? null : deps.repository.findPlaceOfDayAt(tx, offset);
+  return deps.withGuestContext(async (tx) => {
+    // Read as many as are left out, so the list still has three after the filter.
+    const recent = await deps.repository.listCollectionsPublishedSince(
+      tx,
+      newCollectionsSince(now),
+      NEW_COLLECTIONS_LIMIT + exclude.size,
+    );
+    const newCollections = recent
+      .filter(({ slug }) => !exclude.has(slug))
+      .slice(0, NEW_COLLECTIONS_LIMIT);
+
+    if (cached !== null) {
+      return { placeOfDay: cached.place, newCollections };
+    }
+
+    const offset = placeOfDayIndex(day, await deps.repository.countPlaceOfDayCandidates(tx));
+    const placeOfDay = offset === null ? null : await deps.repository.findPlaceOfDayAt(tx, offset);
+
+    placeOfDayCache = { day, until: now.getTime() + PLACE_OF_DAY_TTL_MS, place: placeOfDay };
+
+    return { placeOfDay, newCollections };
   });
 }
 
