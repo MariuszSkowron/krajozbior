@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { CollectionComplete } from "@/design-system/components/collection-progress";
 import type { PlaceCover } from "@/features/catalog/application/catalog-types";
 import { showsWhole } from "@/features/catalog/domain/collection-cover";
 import { THUMB_WIDTH } from "@/features/media/domain/limits";
@@ -91,6 +92,7 @@ export function CoverProgress({
       <progress className={styles.bar} value={visited} max={total} aria-label={label}>
         {visited}/{total}
       </progress>
+      {visited >= total ? <CollectionComplete /> : null}
     </div>
   );
 }

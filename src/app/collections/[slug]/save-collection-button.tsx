@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import styles from "@/app/my/collections/collections.module.css";
+import { useHydrated } from "@/app/use-hydrated";
 import { MAX_COLLECTIONS_PER_LIST } from "@/features/catalog/domain/limits";
 
 type Props = { collectionId: string; initialSaved: boolean };
@@ -20,6 +21,7 @@ const MESSAGES: Record<number, string> = {
 // button only changes the save and asks the server to render the page again.
 export function SaveCollectionButton({ collectionId, initialSaved }: Props) {
   const router = useRouter();
+  const hydrated = useHydrated();
   const [saved, setSaved] = useState(initialSaved);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export function SaveCollectionButton({ collectionId, initialSaved }: Props) {
       <button
         type="button"
         className={saved ? "button button--outline" : "button button--primary"}
-        disabled={pending}
+        disabled={pending || !hydrated}
         aria-busy={pending}
         onClick={() => void toggle()}
       >

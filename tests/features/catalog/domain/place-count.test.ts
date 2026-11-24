@@ -1,6 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { formatPlaceCount } from "@/features/catalog/domain/place-count";
+import { formatPlaceCount, polishPlural } from "@/features/catalog/domain/place-count";
+
+describe("polishPlural", () => {
+  it.each([
+    [1, "one"],
+    [2, "few"],
+    [4, "few"],
+    [5, "many"],
+    [12, "many"],
+    [14, "many"],
+    [22, "few"],
+    [25, "many"],
+  ])("picks the form for %i", (count, form) => {
+    expect(polishPlural(count, "one", "few", "many")).toBe(form);
+  });
+});
 
 describe("formatPlaceCount", () => {
   it.each([
