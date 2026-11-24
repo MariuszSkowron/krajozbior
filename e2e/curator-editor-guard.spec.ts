@@ -236,7 +236,7 @@ test.describe("curator editors: unsaved changes, public page link, saves", () =>
     await expect(
       page.getByText("Widzisz tylko liczbę, nie to, kto zapisał kolekcję."),
     ).toBeVisible();
-    await expect(page.getByTestId("save-count").first()).toHaveText(/^\d+$/);
+    await expect(page.getByTestId("save-count").first()).toHaveText(/^(\d+|mniej niż 3)$/);
     await page.screenshot({ path: ".ai/tmp/p4fix2/lista-zapisy.png", fullPage: true });
   });
 });

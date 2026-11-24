@@ -40,6 +40,38 @@ describe("createNominatimGeocoder", () => {
     expect(url.searchParams.get("limit")).toBe("5");
     expect(url.searchParams.get("countrycodes")).toBe("pl");
     expect(String((init.headers as Record<string, string>)["User-Agent"])).toMatch(/^Krajozbior\//);
+    expect(init.redirect).toBe("error");
+  });
+
+  it("leaves no unhandled rejection when a search fails, and the next one still runs", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+
+    process.on("unhandledRejection", onUnhandled);
+
+    try {
+      let calls = 0;
+      const fetchImpl = vi.fn(async () => {
+        calls += 1;
+
+        if (calls === 1) {
+          throw new Error("network down");
+        }
+
+        return Response.json(body);
+      });
+      const geocode = createNominatimGeocoder(fetchImpl as unknown as typeof fetch, clock().value);
+
+      await expect(geocode("Rumia")).rejects.toThrow("network down");
+      // Give Node the chance to report a rejected promise nobody handles.
+      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(await geocode("Gdynia")).toHaveLength(1);
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
   });
 
   it("keeps more than a second between two requests", async () => {

@@ -64,6 +64,7 @@ export function createNominatimGeocoder(
       headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
       signal: AbortSignal.timeout(TIMEOUT_MS),
       cache: "no-store",
+      redirect: "error",
     });
 
     if (!response.ok) {
@@ -80,14 +81,14 @@ export function createNominatimGeocoder(
 
     waiting += 1;
 
-    const turn = tail.then(
-      () => request(query),
-      () => request(query),
-    );
+    const turn = tail.then(() => request(query));
 
-    tail = turn.finally(() => {
-      waiting -= 1;
-    });
+    // The chain itself is never rejected: the caller handles the error of `turn`.
+    tail = turn
+      .finally(() => {
+        waiting -= 1;
+      })
+      .catch(() => {});
 
     return turn;
   };
