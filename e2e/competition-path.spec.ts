@@ -195,9 +195,21 @@ test.describe("the competition path", () => {
     await waitForHydration(explorer);
     await explorer.getByRole("button", { name: "Potwierdzam wizytę" }).click();
     await expect(explorer.getByText("Most ze ścieżki jest w Twoim albumie.")).toBeVisible();
-    await expect(explorer.getByRole("list", { name: "Co dalej" })).toContainText(
-      "Masz wszystkie miejsca z kolekcji",
+    // The count (1/1 on the collection card, after the page is read again) and the message of
+    // a complete collection with its title; a collection of 0 places or visited > total fails.
+    await expect(
+      explorer
+        .getByRole("main")
+        .getByText(/(^|\s)1\/1 odwiedzone/)
+        .first(),
+    ).toBeAttached();
+
+    const next = explorer.getByRole("list", { name: "Co dalej" });
+
+    await expect(next).toContainText(
+      `Kolekcja ${title} jest kompletna: masz wszystkie jej miejsca.`,
     );
+    await expect(next).not.toContainText("Najbliższe nieodwiedzone");
 
     await explorer.goto("/my/collections");
     await expect(explorer.getByRole("link", { name: title })).toContainText("1/1 odwiedzone");

@@ -37,17 +37,23 @@ describe("nextPlaceToVisit", () => {
 });
 
 describe("remainingInCollectionText", () => {
+  // Czasownik zgadza się z liczebnikiem: 1 „Zostało”, 2–4 (poza 12–14) „Zostały”, reszta „Zostało”.
   it.each([
-    [1, 3, "Zostało Ci 2 miejsca w kolekcji Mosty."],
-    [2, 3, "Zostało Ci 1 miejsce w kolekcji Mosty."],
-    [0, 6, "Zostało Ci 6 miejsc w kolekcji Mosty."],
-  ])("%i of %i", (visited, total, text) => {
-    expect(remainingInCollectionText({ visited, total }, "Mosty")).toBe(text);
+    [1, "Zostało Ci 1 miejsce w kolekcji Mosty."],
+    [2, "Zostały Ci 2 miejsca w kolekcji Mosty."],
+    [4, "Zostały Ci 4 miejsca w kolekcji Mosty."],
+    [5, "Zostało Ci 5 miejsc w kolekcji Mosty."],
+    [12, "Zostało Ci 12 miejsc w kolekcji Mosty."],
+    [14, "Zostało Ci 14 miejsc w kolekcji Mosty."],
+    [22, "Zostały Ci 22 miejsca w kolekcji Mosty."],
+    [25, "Zostało Ci 25 miejsc w kolekcji Mosty."],
+  ])("%i left", (remaining, text) => {
+    expect(remainingInCollectionText({ visited: 1, total: 1 + remaining }, "Mosty")).toBe(text);
   });
 
-  it("congratulates nothing, only states that all places are visited", () => {
+  it("says the collection is complete, without hype and without gender", () => {
     expect(remainingInCollectionText({ visited: 3, total: 3 }, "Mosty")).toBe(
-      "Masz wszystkie miejsca z kolekcji Mosty.",
+      "Kolekcja Mosty jest kompletna: masz wszystkie jej miejsca.",
     );
   });
 });

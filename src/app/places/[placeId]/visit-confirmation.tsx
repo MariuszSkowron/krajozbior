@@ -140,6 +140,14 @@ export function VisitConfirmation({
   const router = useRouter();
   const [state, setState] = useState<State>({ kind: "idle" });
   const [seenPast, setSeenPast] = useState(past);
+  // The state of "Chcę zobaczyć" changed in this session: the page still has the old one until it
+  // is read again, so the button (and its message) must not vanish and come back after the visit.
+  const [wantedNow, setWantedNow] = useState<boolean | null>(initialWanted);
+  const [wantedEver, setWantedEver] = useState(initialWanted === true);
+  const onWantedChange = (wanted: boolean) => {
+    setWantedNow(wanted);
+    setWantedEver((ever) => ever || wanted);
+  };
   const attempt = useRef<Attempt | null>(null);
   const feedback = useRef<HTMLParagraphElement | null>(null);
 
@@ -280,7 +288,7 @@ export function VisitConfirmation({
                   <>
                     {" "}
                     <span>
-                      Następne miejsce:{" "}
+                      Najbliższe nieodwiedzone:{" "}
                       <Link href={`/places/${item.next.id}`}>{item.next.name}</Link>.
                     </span>
                   </>
@@ -295,7 +303,13 @@ export function VisitConfirmation({
             <VisitMark>Odwiedzone</VisitMark>
           </p>
         </PinnedAction>
-        {initialWanted === true ? <WantToSeeButton placeId={placeId} initialWanted /> : null}
+        {wantedEver ? (
+          <WantToSeeButton
+            placeId={placeId}
+            initialWanted={wantedNow === true}
+            onChange={onWantedChange}
+          />
+        ) : null}
       </div>
     );
   }
@@ -350,10 +364,14 @@ export function VisitConfirmation({
           (wizyta z przeszłości, decyzja P5) i „Chcę zobaczyć”. */}
       <div className={styles.secondaryActions}>
         <PastVisit placeId={placeId} existing={past} showMark={showPastMark} />
-        {initialWanted === null ? (
+        {past !== null && initialWanted !== true ? null : initialWanted === null ? (
           <p className={styles.feedback}>Lista „Chcę zobaczyć” jest chwilowo niedostępna.</p>
-        ) : past !== null && !initialWanted ? null : (
-          <WantToSeeButton placeId={placeId} initialWanted={initialWanted} />
+        ) : (
+          <WantToSeeButton
+            placeId={placeId}
+            initialWanted={wantedNow === true}
+            onChange={onWantedChange}
+          />
         )}
       </div>
     </div>

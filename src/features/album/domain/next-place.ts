@@ -2,7 +2,7 @@
 // Czyste funkcje, bez odczytów. Miejsca i położenia są publiczne (jak na stronie kolekcji);
 // położenie urządzenia odkrywcy nie bierze w tym udziału: liczymy od miejsca właśnie odwiedzonego.
 
-import { formatPlaceCount } from "@/features/catalog/domain/place-count";
+import { formatPlaceCount, polishPlural } from "@/features/catalog/domain/place-count";
 
 export type NextPlaceCandidate = Readonly<{
   id: string;
@@ -53,16 +53,23 @@ export function nextPlaceToVisit(
   return { id: next.id, name: next.name };
 }
 
-/** Zdanie o postępie po wizycie, bez płci: „Zostało Ci 2 miejsca w kolekcji …”. */
+/**
+ * Zdanie o postępie po wizycie, bez płci: „Zostało Ci 1 miejsce…”, „Zostały Ci 2 miejsca…”,
+ * „Zostało Ci 5 miejsc…” (czasownik zgadza się z liczebnikiem).
+ */
 export function remainingInCollectionText(
   progress: Readonly<{ visited: number; total: number }>,
   collectionTitle: string,
 ): string {
   const remaining = progress.total - progress.visited;
 
-  return remaining <= 0
-    ? `Masz wszystkie miejsca z kolekcji ${collectionTitle}.`
-    : `Zostało Ci ${formatPlaceCount(remaining)} w kolekcji ${collectionTitle}.`;
+  if (remaining <= 0) {
+    return `Kolekcja ${collectionTitle} jest kompletna: masz wszystkie jej miejsca.`;
+  }
+
+  const verb = polishPlural(remaining, "Zostało", "Zostały", "Zostało");
+
+  return `${verb} Ci ${formatPlaceCount(remaining)} w kolekcji ${collectionTitle}.`;
 }
 
 /** Komunikat tuż po zapisanej wizycie: z nazwą miejsca, a bez niej zdanie ogólne. */

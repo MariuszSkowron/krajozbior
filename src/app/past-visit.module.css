@@ -94,12 +94,7 @@
   margin-block-start: var(--space-md);
 }
 
-/* Znacznik wizyty z przeszłości: krój jak stan na kafelku i nad zdjęciem, kolor z VisitMark. */
+/* Wiersz ze znacznikiem wizyty z przeszłości; wygląd znacznika daje sam VisitMark. */
 .visitMark {
   margin: 0;
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-xs);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: var(--font-tracking-label);
-  text-transform: uppercase;
 }

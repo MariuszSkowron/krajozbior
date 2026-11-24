@@ -111,12 +111,9 @@ async function loadVisit(place: PublishedPlace) {
     if (state.value.onSite) {
       await Promise.all(
         place.collections.map(async (collection) => {
-          const counts = progress.get(collection.id);
-
-          if (counts === undefined) {
-            return;
-          }
-
+          // Zapisana kolekcja ma postęp z albumu; w niezapisanej liczymy go z wizyt i miejsc
+          // kolekcji (wizyta z przeszłości liczy się jak na miejscu, D-10).
+          let counts = progress.get(collection.id);
           let next: AfterVisit["next"] = null;
 
           try {
@@ -126,17 +123,21 @@ async function loadVisit(place: PublishedPlace) {
             ]);
 
             if (published.status === "ok" && kinds.status === "ok") {
-              next = nextPlaceToVisit(
-                published.value.places,
-                new Set(kinds.value.map((kind) => kind.placeId)),
-                place,
-              );
+              const visitedIds = new Set(kinds.value.map((kind) => kind.placeId));
+
+              next = nextPlaceToVisit(published.value.places, visitedIds, place);
+              counts ??= {
+                visited: published.value.places.filter((p) => visitedIds.has(p.id)).length,
+                total: published.value.places.length,
+              };
             }
           } catch (error) {
             logReadFailure("Place next-place read", error);
           }
 
-          summary.push({ slug: collection.slug, title: collection.title, ...counts, next });
+          if (counts !== undefined) {
+            summary.push({ slug: collection.slug, title: collection.title, ...counts, next });
+          }
         }),
       );
       summary.sort((a, b) => a.title.localeCompare(b.title, "pl"));

@@ -212,8 +212,8 @@ describe("VisitConfirmation after a visit (package 2)", () => {
     const text = textOf(root);
 
     expect(text).toContain("Most Tczewski jest w Twoim albumie.");
-    expect(text).toContain("Zostało Ci 2 miejsca w kolekcji Mosty i zamki.");
-    expect(text).toContain("Następne miejsce: Zamek w Gniewie");
+    expect(text).toContain("Zostały Ci 2 miejsca w kolekcji Mosty i zamki.");
+    expect(text).toContain("Najbliższe nieodwiedzone: Zamek w Gniewie");
     expect(text).toContain("Odwiedzone");
     expect(
       flatten(root).some((node) => (node.props as { href?: string })?.href === "/places/p2"),
@@ -237,8 +237,8 @@ describe("VisitConfirmation after a visit (package 2)", () => {
     const text = textOf(VisitConfirmation({ placeId: "p1", initialWanted: false }));
 
     expect(text).toContain("To miejsce jest w Twoim albumie.");
-    expect(text).toContain("Zostało Ci 2 miejsca w kolekcji Mosty i zamki.");
-    expect(text).not.toContain("Następne miejsce");
+    expect(text).toContain("Zostały Ci 2 miejsca w kolekcji Mosty i zamki.");
+    expect(text).not.toContain("Najbliższe nieodwiedzone");
   });
 
   it("keeps the progress and the mark after a reload, without the one-time message", () => {
@@ -248,7 +248,7 @@ describe("VisitConfirmation after a visit (package 2)", () => {
     const text = textOf(root);
 
     expect(text).not.toContain("jest w Twoim albumie");
-    expect(text).toContain("Następne miejsce: Zamek w Gniewie");
+    expect(text).toContain("Najbliższe nieodwiedzone: Zamek w Gniewie");
     expect(text).toContain("Odwiedzone");
   });
 

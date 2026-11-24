@@ -52,11 +52,6 @@
 /* Na komputerze (opakowanie przezroczyste) znacznik stoi na górze karty, jak w stanie po odświeżeniu. */
 .visitedMark {
   order: -1;
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--font-tracking-label);
-  text-transform: uppercase;
 }
 
 @media (max-width: 47.99rem) {
