@@ -247,7 +247,7 @@ test.describe("collection cover", () => {
     await expect(image).toHaveAttribute("src", `/media/p/${photoId}/main`);
     await expect(image).toHaveAttribute("srcset", new RegExp(`/media/p/${photoId}/w400 400w`));
     expect(await image.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
-    await expect(figure.getByText(`Autor: ${AUTHOR}`)).toBeVisible();
+    await expect(figure.getByText(`fot. ${AUTHOR}`)).toBeVisible();
     await expect(figure.getByRole("link", { name: "CC BY-SA 3.0 PL" })).toHaveAttribute(
       "href",
       LICENSE_URL,

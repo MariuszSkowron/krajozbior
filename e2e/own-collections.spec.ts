@@ -114,7 +114,7 @@ test.describe("own collections", () => {
 
     await page.goto("/my/collections");
     await expect(
-      page.getByRole("heading", { level: 2, name: "Moje własne kolekcje (0)" }),
+      page.getByRole("heading", { level: 2, name: "Własne kolekcje (0)" }),
     ).toBeVisible();
     await inBothThemes(page, () => expectNoAccessibilityViolations(page));
 
@@ -139,7 +139,7 @@ test.describe("own collections", () => {
 
     await page.goto("/my/collections");
     await expect(
-      page.getByRole("heading", { level: 2, name: "Moje własne kolekcje (1)" }),
+      page.getByRole("heading", { level: 2, name: "Własne kolekcje (1)" }),
     ).toBeVisible();
 
     const card = page.getByRole("link", { name: OWN_TITLE });
@@ -175,7 +175,7 @@ test.describe("own collections", () => {
     await page.getByRole("button", { name: "Tak, usuń kolekcję" }).click();
     await expect(page).toHaveURL(/\/my\/collections$/);
     await expect(
-      page.getByRole("heading", { level: 2, name: "Moje własne kolekcje (0)" }),
+      page.getByRole("heading", { level: 2, name: "Własne kolekcje (0)" }),
     ).toBeVisible();
 
     await page.context().close();
@@ -236,7 +236,7 @@ test.describe("own collections", () => {
 
     await pageB.goto("/my/collections");
     await expect(
-      pageB.getByRole("heading", { level: 2, name: "Moje własne kolekcje (0)" }),
+      pageB.getByRole("heading", { level: 2, name: "Własne kolekcje (0)" }),
     ).toBeVisible();
     await expect(pageB.getByRole("link", { name: OWN_TITLE })).toHaveCount(0);
 

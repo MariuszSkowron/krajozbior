@@ -5,6 +5,7 @@ import {
   NEARBY_RADIUS_KM,
   NEW_NEARBY_DAYS,
   formatNearbyDistance,
+  distanceToNearestPlaceKm,
   haversineKm,
   isNewNearby,
   nearbyCollections,
@@ -27,8 +28,20 @@ const entry = (
   title,
   region: "pomorskie",
   placeCount: 2,
-  centerLat,
-  centerLon,
+  points: centerLat === null || centerLon === null ? [] : [[centerLat, centerLon]],
+  firstPublishedAt: null,
+});
+
+// A collection with several places (R-067).
+const several = (
+  slug: string,
+  points: readonly (readonly [number, number])[],
+): NearbyCandidate => ({
+  slug,
+  title: slug,
+  region: "pomorskie",
+  placeCount: points.length,
+  points,
   firstPublishedAt: null,
 });
 
@@ -125,6 +138,35 @@ describe("nearbyCollections", () => {
     expect(nearbyCollections(list, origin, 50, Number.NaN)).toEqual([]);
   });
 
+  it("measures to the nearest place of the collection, not to its middle (R-067)", () => {
+    // Two castles 200 km apart: the middle lies 100 km from both, but at one of them the
+    // explorer stands (about 100 m away).
+    const spread = several("zamki", [
+      [54, 18],
+      [54, 20.5],
+    ]);
+    const standingAtCastle = { latitude: 54.0009, longitude: 18 };
+    const [hit] = nearbyCollections([spread], standingAtCastle);
+
+    expect(hit?.distanceKm).toBeLessThan(1);
+    expect(distanceToNearestPlaceKm(spread, standingAtCastle)).toBeLessThan(1);
+    expect(formatNearbyDistance(hit!.distanceKm)).toBe("poniżej 1 km");
+    // The old rule (the mean of the places) said about 74 km here: out of the 50 km circle.
+    expect(haversineKm(54.0009, 18, 54, 19.25)).toBeGreaterThan(NEARBY_RADIUS_KM);
+  });
+
+  it("uses the nearest of the places that have valid coordinates and skips the others", () => {
+    const mixed = several("mieszana", [
+      [Number.NaN, 18],
+      [95, 18],
+      [54.2, 18],
+    ]);
+
+    expect(distanceToNearestPlaceKm(mixed, origin)).toBeCloseTo(haversineKm(54, 18, 54.2, 18), 9);
+    expect(distanceToNearestPlaceKm(several("brak", []), origin)).toBeNull();
+    expect(distanceToNearestPlaceKm(several("zle", [[91, 18]]), origin)).toBeNull();
+  });
+
   it("gives an empty list for an empty list of collections", () => {
     expect(nearbyCollections([], origin)).toEqual([]);
   });
@@ -165,7 +207,7 @@ describe("texts of W okolicy", () => {
 
   it("names every problem in Polish", () => {
     expect(nearbyProblemMessage("denied")).toBe(
-      "Nie mamy zgody na użycie lokalizacji. Włączysz ją w ustawieniach przeglądarki.",
+      "Nie mamy zgody na lokalizację. Zezwól na nią w ustawieniach przeglądarki.",
     );
     expect(nearbyProblemMessage("unavailable")).toContain("Nie udało się ustalić");
     expect(nearbyProblemMessage("timeout")).toContain("zbyt długo");

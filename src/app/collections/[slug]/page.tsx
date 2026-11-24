@@ -229,11 +229,7 @@ export default async function CollectionPage({
       </div>
       <section className={`${styles.section} ${panelStyles.places}`} aria-labelledby="miejsca">
         <div className={panelStyles.listHead}>
-          <h2 id="miejsca">
-            {collection.places.length === 0
-              ? "Miejsca w kolekcji"
-              : `Miejsca w kolekcji (${collection.places.length})`}
-          </h2>
+          <h2 id="miejsca">Miejsca w kolekcji</h2>
           {collection.places.length === 0 ? null : (
             <nav className={panelStyles.segment} aria-label="Widok miejsc">
               {(["karty", "mapa"] as const).map((option) => (

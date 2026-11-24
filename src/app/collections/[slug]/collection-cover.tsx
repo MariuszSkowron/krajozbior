@@ -1,15 +1,15 @@
 import type { ReactNode } from "react";
 
-import type { PlaceCover } from "@/features/catalog/application/catalog-types";
+import type { CollectionBanner } from "@/features/catalog/application/catalog-types";
 import { showsWhole } from "@/features/catalog/domain/collection-cover";
 import { THUMB_WIDTH } from "@/features/media/domain/limits";
 
-import { PhotoCredit } from "../../places/[placeId]/photo-credit";
+import { PhotoCreditLine } from "../../places/[placeId]/photo-credit";
 import styles from "./collection-cover.module.css";
 
 // Okładka w nagłówku kolekcji (E4-3, R3 / D-57): zdjęcie na całą szerokość treści, a na nim
 // etykieta, tytuł i (dla odkrywcy) postęp, przekazane jako dzieci, żeby `h1` zostało w stronie.
-// Pod zdjęciem podpis (autor, licencja, źródło, informacja o zmianach, jak na stronie miejsca).
+// Pod zdjęciem krótki podpis w jednej linii (D-58; pełny jest na stronie miejsca).
 // Natywne <img> z `srcset`: miniatura `w400` dla wąskich ekranów, plik `main` dla szerokich;
 // wymiary z bazy rezerwują miejsce. Zdjęcie jest przycinane stylami (`object-fit: cover`), sam
 // plik się nie zmienia, więc podpis „zmniejszone i skompresowane” zostaje prawdziwy. Panoramy i
@@ -20,7 +20,7 @@ export function CollectionCover({
   cover,
   eyebrow,
   children,
-}: Readonly<{ cover: PlaceCover | null; eyebrow: string; children?: ReactNode }>) {
+}: Readonly<{ cover: CollectionBanner | null; eyebrow: string; children?: ReactNode }>) {
   const text = (
     <div className={styles.text}>
       <p className={styles.eyebrow}>{eyebrow}</p>
@@ -54,7 +54,9 @@ export function CollectionCover({
         />
         {text}
       </div>
-      <PhotoCredit photo={cover} />
+      <figcaption>
+        <PhotoCreditLine photo={cover} place={{ id: cover.placeId, name: cover.placeName }} />
+      </figcaption>
     </figure>
   );
 }

@@ -262,6 +262,12 @@ export class BetterAuthIdentityProvider implements IdentityProvider {
     return session ? new Date(session.session.createdAt) : null;
   }
 
+  async getSessionEmail(headers: Headers): Promise<string | null> {
+    const session = await this.auth().api.getSession({ headers });
+
+    return session?.user.email ?? null;
+  }
+
   async deleteAccount(accountId: string): Promise<boolean> {
     return deleteAccountRows(await getAuthPool(), accountId);
   }

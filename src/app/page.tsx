@@ -206,7 +206,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
       ) : null}
       {termsDeclined ? (
         <p role="status" className={styles.status}>
-          Wylogowano. Bez akceptacji regulaminu nie korzystasz z konta. Zapisaliśmy tylko Twój adres
+          Wylogowano. Konto działa dopiero po akceptacji regulaminu. Zapisaliśmy tylko Twój adres
           e-mail; jeśli chcesz, żebyśmy go usunęli, napisz na{" "}
           <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
         </p>

@@ -77,8 +77,7 @@ const nearby = [
     title: "Mosty i zamki",
     region: "pomorskie",
     placeCount: 3,
-    centerLat: 54.1,
-    centerLon: 18.8,
+    points: [[54.1, 18.8]],
     firstPublishedAt: "2026-11-01T10:00:00.000Z",
   },
 ];
@@ -171,8 +170,10 @@ describe("home page of a guest", () => {
     expect(mocks.getBanner).toHaveBeenCalledWith("mosty-i-zamki", expect.anything());
     expect(html).toMatch(/<img [^>]*src="\/media\/p\/ph1\/main"[^>]*fetchPriority="high"/);
     expect(html).toMatch(/<a [^>]*href="\/places\/p9"[^>]*>Zamek w Płotach<\/a>/);
-    expect(html).toContain("Autor:");
-    expect(html).toContain("Jan Autor");
+    expect(html).toContain("fot. Jan Autor");
+    expect(html).not.toContain("Autor:");
+    expect(html).toContain("zdjęcie zmniejszone");
+    expect(html).not.toContain("Ta kopia");
     expect(html).toContain("CC BY-SA 4.0");
     expect(html).toContain("<em>w swoim albumie</em>");
     // The search button is an outline button; the primary one is "Zaloguj się" on the banner.

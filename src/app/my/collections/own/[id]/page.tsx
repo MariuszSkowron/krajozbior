@@ -192,7 +192,7 @@ export default async function OwnCollectionPage({ params, searchParams }: Props)
                 : `Znalezione miejsca: ${hits.length}.`}
             </p>
           ) : found.status === "invalid" ? (
-            <p className={styles.muted}>Wpisz co najmniej dwa znaki.</p>
+            <p className={styles.muted}>Wpisz co najmniej 2 znaki.</p>
           ) : found.status === "none" ? null : (
             <p className={styles.muted}>Wyszukiwanie chwilowo nie działa. Spróbuj za chwilę.</p>
           )}

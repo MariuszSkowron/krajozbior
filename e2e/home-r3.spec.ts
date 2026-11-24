@@ -287,7 +287,8 @@ test.describe("home page: the R3 look", () => {
         await expect(login).toBeVisible();
         await expect(collections).toBeVisible();
         await expect(placeLink).toHaveAttribute("href", `/places/${placeIds[0]}`);
-        await expect(main.getByText("Autor: Fikcyjny Autor R3")).toBeVisible();
+        await expect(main.getByText("fot. Fikcyjny Autor R3")).toBeVisible();
+        await expect(main.getByText("Ta kopia")).toHaveCount(0);
 
         // Everything of the banner lies on the photo; the search is below it.
         const photoBox = (await photo.boundingBox())!;
@@ -299,7 +300,8 @@ test.describe("home page: the R3 look", () => {
           expect(box.y + box.height).toBeLessThanOrEqual(photoBox.y + photoBox.height + 1);
         }
 
-        expect((await placeLink.boundingBox())!.height).toBeGreaterThanOrEqual(size.touch);
+        // The short credit is one paragraph with inline links (WCAG 2.5.8 exempts them).
+        expect(await main.locator("p", { hasText: "fot. Fikcyjny Autor R3" }).count()).toBe(1);
         expect(await overflowOf(page)).toBeLessThanOrEqual(0);
 
         // Dark text on a calm placeholder is not under test here: the photo is white, the
@@ -308,7 +310,7 @@ test.describe("home page: the R3 look", () => {
           for (const part of [
             heading,
             main.getByText(/Krajozbiór to kolekcje/),
-            main.getByText("Autor: Fikcyjny Autor R3"),
+            main.getByText("fot. Fikcyjny Autor R3"),
           ]) {
             expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
           }
@@ -392,7 +394,7 @@ test.describe("home page: the R3 look", () => {
         }
         // The credit is outside the link (links do not nest) and under the banner.
         await expect(banner.getByRole("link")).toHaveCount(0);
-        await expect(main.getByText("Autor: Fikcyjny Autor R3")).toBeVisible();
+        await expect(main.getByText("fot. Fikcyjny Autor R3")).toBeVisible();
 
         const album = main.getByRole("heading", { level: 2, name: "Twój album" });
         const albumBox = (await album.boundingBox())!;
@@ -454,7 +456,7 @@ test.describe("home page: the R3 look", () => {
         // Every text on the white photo (the paragraph and the credit) keeps 4.5:1.
         const bannerBox = photo.locator("xpath=..");
 
-        for (const part of [empty, bannerBox.locator("p", { hasText: "Autor:" })]) {
+        for (const part of [empty, bannerBox.locator("p", { hasText: "fot." })]) {
           expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
         }
         await expect(main.getByRole("link", { name: "Przeglądaj wszystkie kolekcje" })).toHaveCount(

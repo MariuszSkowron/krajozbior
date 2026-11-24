@@ -86,9 +86,9 @@ function focusOnMount(element: HTMLElement | null): void {
 function feedbackText(state: State, radiusM: number | undefined): string {
   switch (state.kind) {
     case "locating":
-      return "Ustalam Twoje położenie…";
+      return "Ustalamy Twoje położenie…";
     case "sending":
-      return "Sprawdzam odległość od miejsca…";
+      return "Sprawdzamy odległość od miejsca…";
     case "out_of_range":
       return visitOutcomeMessage({ result: "out_of_range", distanceM: state.distanceM }, radiusM);
     case "inaccurate":

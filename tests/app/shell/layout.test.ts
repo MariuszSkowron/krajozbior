@@ -95,7 +95,7 @@ describe("app shell", () => {
     const html = await shell();
 
     expect(html).toMatch(
-      /role="region" aria-label="Wersja testowa"><p><strong>Wersja testowa<\/strong> — dokumenty prawne w wersji roboczej\. <a href="\/zasady">Najważniejsze zasady<\/a><\/p><button type="button"[^>]*>Zamknij<\/button>/,
+      /role="region" aria-label="Wersja testowa"><p><strong>Wersja testowa\.<\/strong> Regulamin jest jeszcze roboczy\. <a href="\/zasady">Najważniejsze zasady<\/a><\/p><button type="button"[^>]*>Zamknij<\/button>/,
     );
   });
 
@@ -191,7 +191,7 @@ describe("app shell", () => {
       expect(html).toContain('aria-label="Główna"');
     });
 
-    it("does not show the curator label to an account that has not accepted the terms, but keeps the profile link", async () => {
+    it("does not show the curator label to an account that has not accepted the terms, but keeps the logout", async () => {
       mocks.getActor.mockResolvedValue(as("user"));
       mocks.listMemberships.mockResolvedValue([
         {
@@ -207,7 +207,9 @@ describe("app shell", () => {
       const html = await shell();
 
       expect(html).not.toContain("Kurator ·");
-      expect(header(html)).toMatch(/href="\/my">Profil<\/a>/);
+      // No menu here, so the header keeps the way out (and no "Profil").
+      expect(header(html)).toContain("Wyloguj");
+      expect(header(html)).not.toContain("Profil");
     });
 
     it("does not ask a guest for anything", async () => {
@@ -233,59 +235,34 @@ describe("app shell", () => {
     expect(html).not.toContain("Wyloguj");
   });
 
-  it.each(["user", "admin"] as const)("gives %s a logout form and no guest link", async (role) => {
+  it.each(["user", "admin"] as const)("gives %s no guest link", async (role) => {
     mocks.getActor.mockResolvedValue(as(role));
 
     const html = await shell();
 
-    expect(header(html)).toMatch(
-      /<form action="\/api\/auth\/logout" method="post"><button [^>]*type="submit">Wyloguj<\/button><\/form>/,
-    );
     expect(html).not.toContain("Zaloguj się");
     expect(html).not.toContain("Użytkownik");
     expect(html).not.toContain("Twoja rola");
   });
 
-  it("shows the first name as a link to the profile with the accessible name from the visible text", async () => {
-    mocks.getActor.mockResolvedValue(as("user"));
-    mocks.getMyProfile.mockResolvedValue({ status: "ok", value: { firstName: "Anna" } });
+  // UX-06: "Profil" is only in the menu, the header has neither the name nor the profile link.
+  it.each(["user", "admin"] as const)(
+    "does not repeat Profil or the first name in the header of %s (the menu has Profil)",
+    async (role) => {
+      mocks.getActor.mockResolvedValue(as(role));
+      mocks.getMyProfile.mockResolvedValue({ status: "ok", value: { firstName: "Anna" } });
 
-    expect(header(await shell())).toMatch(
-      /<a class="[^"]*profileLink[^"]*" href="\/my"><span class="[^"]*visuallyHidden[^"]*">Profil: <\/span><span class="[^"]*profileName[^"]*">Anna<\/span><\/a>/,
-    );
-  });
+      const html = await shell();
 
-  it("marks the profile link as the current page on /my", async () => {
-    mocks.getActor.mockResolvedValue(as("user"));
-    mocks.pathname = "/my";
-
-    expect(header(await shell())).toMatch(/aria-current="page" href="\/my">Profil<\/a>/);
-  });
-
-  it("says Profil when no first name is saved", async () => {
-    mocks.getActor.mockResolvedValue(as("user"));
-
-    expect(header(await shell())).toMatch(/href="\/my">Profil<\/a>/);
-  });
-
-  it("says Profil and logs the error class when the profile cannot be read", async () => {
-    mocks.getActor.mockResolvedValue(as("user"));
-    mocks.getMyProfile.mockRejectedValue(new Error("db down: secret"));
-
-    const html = await shell();
-
-    expect(header(html)).toMatch(/href="\/my">Profil<\/a>/);
-    expect(html).toContain("Wyloguj");
-    expect(console.error).toHaveBeenCalledWith("Shell profile lookup failed:", "Error");
-    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
-  });
-
-  it("says Profil when the profile outcome is not ok", async () => {
-    mocks.getActor.mockResolvedValue(as("user"));
-    mocks.getMyProfile.mockResolvedValue({ status: "unauthenticated" });
-
-    expect(header(await shell())).toMatch(/href="\/my">Profil<\/a>/);
-  });
+      expect(header(html)).not.toContain('href="/my"');
+      expect(header(html)).not.toContain("Profil");
+      expect(header(html)).not.toContain("Anna");
+      expect(html).toMatch(/aria-label="Główna"[^>]*>.*Profil/);
+      // The logout is on the profile (and the profile is in the menu), not in the header.
+      expect(header(html)).not.toContain("Wyloguj");
+      expect(mocks.getMyProfile).not.toHaveBeenCalled();
+    },
+  );
 
   it("does not read the profile for a guest", async () => {
     await shell();
@@ -367,7 +344,7 @@ describe("app shell", () => {
     const html = await shell();
 
     expect(html).not.toContain("Kurator ·");
-    expect(html).toContain("Wyloguj");
+    expect(html).toContain('aria-label="Główna"');
     expect(console.error).toHaveBeenCalledWith("Curator link lookup failed:", "Error");
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
   });
@@ -487,7 +464,7 @@ describe("app shell", () => {
 
       const html = await shell();
 
-      expect(hrefs(header(html))).toEqual(["/", "/my"]);
+      expect(hrefs(header(html))).toEqual(["/"]);
       expect(hrefs(nav(html)).at(-1)).toBe("/news");
       expect(nav(html)).toMatch(/aria-current="page" href="\/news"/);
     });
@@ -498,14 +475,14 @@ describe("app shell", () => {
 
       const html = await shell();
 
-      expect(hrefs(header(html))).toEqual(["/", "/my"]);
+      expect(hrefs(header(html))).toEqual(["/"]);
       expect(html).not.toContain('aria-label="Główna"');
     });
 
-    it("links the header of a signed-in explorer to the start page and the profile (the rest is a form)", async () => {
+    it("links the header of a signed-in explorer only to the start page (the profile is in the menu)", async () => {
       mocks.getActor.mockResolvedValue(as("user"));
 
-      expect(hrefs(header(await shell()))).toEqual(["/", "/my"]);
+      expect(hrefs(header(await shell()))).toEqual(["/"]);
     });
 
     it("keeps the first four items of the bar in the order of the screens", async () => {

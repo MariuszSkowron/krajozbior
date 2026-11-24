@@ -153,7 +153,7 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     // Nothing visited yet: "Nierozpoczęte" only.
     await choose("W trakcie");
     await expect(page).toHaveURL(/\/my\/collections\?stan=w-trakcie$/);
-    await expect(page.getByText("Nie ma zapisanych kolekcji ze stanem „W trakcie”.")).toBeVisible();
+    await expect(page.getByText("Żadnej zapisanej kolekcji nie masz w trakcie.")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Zapisane kolekcje (0 z 1)" })).toBeVisible();
     await expect(current("W trakcie")).toHaveAttribute("aria-current", "page");
     // A shorter list may clamp scrollY to the new maximum, but never to the top.
@@ -162,7 +162,7 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     await inBothThemes(page, () => expectNoAccessibilityViolations(page));
 
     await choose("Ukończone");
-    await expect(page.getByText("Nie ma zapisanych kolekcji ze stanem „Ukończone”.")).toBeVisible();
+    await expect(page.getByText("Nie masz jeszcze ukończonych kolekcji.")).toBeVisible();
 
     await choose("Nierozpoczęte");
     await expect(card()).toBeVisible();
@@ -171,9 +171,7 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     // One of three places visited: now "W trakcie".
     await visitFirstPlace();
     await page.goto("/my/collections?stan=nierozpoczete");
-    await expect(
-      page.getByText("Nie ma zapisanych kolekcji ze stanem „Nierozpoczęte”."),
-    ).toBeVisible();
+    await expect(page.getByText("Każdą zapisaną kolekcję masz już zaczętą.")).toBeVisible();
     await page.getByRole("link", { name: "Pokaż wszystkie" }).click();
     await expect(page).toHaveURL(/\/my\/collections$/);
     await expect(card()).toBeVisible();
@@ -231,7 +229,7 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     await expect(list(page).getByRole("link", { name: DEMO_TITLE })).toBeVisible();
     await expect(page.getByRole("button", { name: "Pokaż nowe w okolicy" })).toHaveCount(0);
     await expect(page.getByText("Nowa w okolicy", { exact: true })).toHaveCount(0);
-    await expect(page.getByText("Zapisane kolekcje i Twój postęp w nich.")).toBeVisible();
+    await expect(page.getByText("Zapisane kolekcje i Twój postęp w nich.")).toHaveCount(0);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

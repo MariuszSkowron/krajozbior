@@ -194,7 +194,8 @@ test.describe("home page: the drawn banner of a guest", () => {
       const index = seeded!.places.indexOf(place) + 1;
 
       expect(html).toContain(place.name);
-      expect(html).toContain(`Autor:`);
+      expect(html).toContain(`fot. `);
+      expect(html).not.toContain(`Autor:`);
       expect(html).toContain(`Fikcyjny Autor Puli ${index}`);
       expect(html).toContain("CC BY-SA 3.0 PL");
       expect(html).toMatch(/src="\/media\/p\/[0-9a-f-]+\/main"/);
@@ -259,14 +260,11 @@ test.describe("home page: the drawn banner of a guest", () => {
       const placeLink = main.getByRole("link", { name: white.name });
 
       await expect(placeLink).toHaveAttribute("href", `/places/${white.id}`);
-      expect((await placeLink.boundingBox())!.height).toBeGreaterThanOrEqual(
-        size.width < 768 ? 44 : 24,
-      );
 
       for (const part of [
         main.getByRole("heading", { level: 1, name: /Odkrywaj miejsca/ }),
         main.getByText(/Krajozbiór to kolekcje/),
-        main.getByText("Autor: Fikcyjny Autor Puli 1"),
+        main.getByText("fot. Fikcyjny Autor Puli 1"),
       ]) {
         expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
       }

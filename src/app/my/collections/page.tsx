@@ -80,11 +80,10 @@ export default async function MyCollectionsPage({ searchParams }: { searchParams
     <div className={`content-width-wide ${catalog.page}`}>
       <header className={catalog.header}>
         <h1>Moje kolekcje</h1>
-        <p className={catalog.summary}>Zapisane kolekcje i Twój postęp w nich.</p>
       </header>
       <section className={catalog.section} aria-labelledby="moje">
         <div className={ownStyles.sectionHead}>
-          <h2 id="moje">Moje własne kolekcje ({own.length})</h2>
+          <h2 id="moje">Własne kolekcje ({own.length})</h2>
           <Link className="button button--primary" href="/my/collections/own/new">
             Nowa kolekcja
           </Link>
@@ -114,7 +113,7 @@ export default async function MyCollectionsPage({ searchParams }: { searchParams
       {collections.length === 0 ? (
         <section className={styles.empty} aria-labelledby="pusto">
           <h2 id="pusto">Nie masz jeszcze zapisanych kolekcji</h2>
-          <p>Kolekcje zapiszesz przyciskiem na stronie kolekcji.</p>
+          <p>Zapisz kolekcję, a zobaczysz tu swój postęp w niej.</p>
           <Link className="button button--primary" href="/">
             Zobacz kolekcje
           </Link>

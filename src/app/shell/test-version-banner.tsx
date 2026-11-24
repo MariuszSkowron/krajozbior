@@ -54,7 +54,7 @@ export function TestVersionBanner() {
   return (
     <div className={styles.testBanner} role="region" aria-label="Wersja testowa">
       <p>
-        <strong>Wersja testowa</strong> — dokumenty prawne w wersji roboczej.{" "}
+        <strong>Wersja testowa.</strong> Regulamin jest jeszcze roboczy.{" "}
         <a href="/zasady">Najważniejsze zasady</a>
       </p>
       <button type="button" className={styles.testBannerClose} onClick={close}>

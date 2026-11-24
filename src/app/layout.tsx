@@ -45,7 +45,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const { role, displayName, curatorOrganizations } = await shellAccount();
+  const { role, curatorOrganizations } = await shellAccount();
   const theme = await requestTheme();
   // Until the current terms are accepted a signed-in account sees only the "Zanim zaczniesz"
   // screen and the logout button; the legal pages stay readable (F-K3, E11-Q4 A). The layout
@@ -73,8 +73,8 @@ export default async function RootLayout({
               <ThemeSwitch theme={theme} />
               <AccountArea
                 role={role}
-                displayName={displayName}
                 curatorOrganization={showNav ? (curatorOrganizations[0] ?? null) : null}
+                showLogout={!showNav}
               />
             </div>
           </header>

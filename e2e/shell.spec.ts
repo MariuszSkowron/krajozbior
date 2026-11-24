@@ -363,24 +363,27 @@ test.describe("nagłówek konta", () => {
     expect(new Set(tops).size).toBe(1);
   };
 
-  test("odkrywca widzi odnośnik do profilu zamiast nazwy roli, a „Wyloguj” jest drugorzędny", async ({
+  test("„Profil” jest raz w polu widzenia (menu), a „Wyloguj” jest na profilu — na telefonie i na komputerze (UX-06)", async ({
     browser,
   }) => {
-    const page = await signedInPage(browser, "user", PHONE);
-    const banner = page.getByRole("banner");
+    for (const viewport of [PHONE, DESKTOP]) {
+      const page = await signedInPage(browser, "user", viewport);
+      const banner = page.getByRole("banner");
 
-    await expect(banner.getByRole("link", { name: /^Profil/ })).toHaveAttribute("href", "/my");
-    await expect(banner).not.toContainText("Użytkownik");
-    await expect(banner).not.toContainText("Twoja rola");
-    await expect(banner.getByRole("link", { name: /^Kurator ·/ })).toHaveCount(0);
+      await expect(banner.getByRole("link", { name: /^Profil/ })).toHaveCount(0);
+      await expect(banner.getByRole("button", { name: "Wyloguj" })).toHaveCount(0);
+      await expect(banner).not.toContainText("Użytkownik");
+      await expect(banner).not.toContainText("Twoja rola");
+      await expect(banner.getByRole("link", { name: /^Kurator ·/ })).toHaveCount(0);
+      // Jedyny „Profil” w polu widzenia to pozycja menu.
+      await expect(page.getByRole("link", { name: "Profil", exact: true })).toHaveCount(1);
+      await oneRow(page);
 
-    const logout = banner.getByRole("button", { name: "Wyloguj" });
-    expect((await logout.boundingBox())?.height).toBeGreaterThanOrEqual(44);
-    expect(await logout.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
-      "rgba(0, 0, 0, 0)",
-    );
-    await oneRow(page);
-    await page.context().close();
+      await page.getByRole("link", { name: "Profil", exact: true }).click();
+      await expect(page).toHaveURL(/\/my$/);
+      await expect(page.getByRole("main").getByRole("button", { name: "Wyloguj" })).toBeVisible();
+      await page.context().close();
+    }
   });
 
   test("kurator na komputerze widzi „Kurator · organizacja” prowadzące do panelu, na telefonie nie", async ({
@@ -397,7 +400,7 @@ test.describe("nagłówek konta", () => {
     const phone = await signedInPage(browser, "curator-a", PHONE);
 
     await expect(phone.getByRole("banner").getByRole("link", { name: /^Kurator ·/ })).toBeHidden();
-    await expect(phone.getByRole("banner").getByRole("link", { name: /^Profil/ })).toBeVisible();
+    await expect(phone.getByRole("banner").getByRole("link", { name: /^Profil/ })).toHaveCount(0);
     await oneRow(phone);
     await phone.context().close();
   });
@@ -416,11 +419,11 @@ test.describe("nagłówek konta", () => {
       "/curator",
     );
     await expect(main).not.toContainText("Tu są Twoje wizyty i liczby jako odkrywcy.");
-    // Na komputerze dopisek „(na komputerze)” i przycisk „Wyloguj” w treści są ukryte (D-54).
+    // Na komputerze dopisek „(na komputerze)” jest ukryty (D-54); „Wyloguj” jest na profilu (UX-06).
     await expect(
       main.getByRole("link", { name: "Przejdź do panelu kuratora" }),
     ).toHaveAccessibleName("Przejdź do panelu kuratora");
-    await expect(main.getByRole("button", { name: "Wyloguj" })).toHaveCount(0);
+    await expect(main.getByRole("button", { name: "Wyloguj" })).toBeVisible();
     // Bez imienia kurator nie jest „Odkrywcą” nad własną rolą.
     await expect(main.getByTestId("profile-name")).toHaveText("Bez imienia");
     await expect(main.getByTestId("profile-name")).not.toContainText("Odkrywca");

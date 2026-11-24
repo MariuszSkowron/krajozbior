@@ -81,8 +81,7 @@ const candidates: NearbyCandidate[] = [
     title: "Blisko",
     region: "pomorskie",
     placeCount: 3,
-    centerLat: 54.1,
-    centerLon: 18,
+    points: [[54.1, 18]],
     firstPublishedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
@@ -90,8 +89,7 @@ const candidates: NearbyCandidate[] = [
     title: "Daleko",
     region: "malopolskie",
     placeCount: 1,
-    centerLat: 50,
-    centerLon: 20,
+    points: [[50, 20]],
     firstPublishedAt: null,
   },
 ];
@@ -268,7 +266,7 @@ describe("CollectionsToDiscover", () => {
   });
 
   it.each([
-    [1, "Nie mamy zgody na użycie lokalizacji. Włączysz ją w ustawieniach przeglądarki."],
+    [1, "Nie mamy zgody na lokalizację. Zezwól na nią w ustawieniach przeglądarki."],
     [2, "Nie udało się ustalić Twojego położenia. Spróbuj ponownie."],
     [3, "Ustalanie położenia trwało zbyt długo. Spróbuj ponownie."],
   ])(

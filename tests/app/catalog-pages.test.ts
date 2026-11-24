@@ -135,8 +135,11 @@ describe("public catalog pages", () => {
     expect(html).toContain("Kolekcja · Pomorskie");
     expect(html).toContain("Kurator: Gmina A");
     expect(html).toContain("1 miejsce · aktualizacja 18.11.2026");
+    // The number of places is on the screen once (UX-08): not again in the list heading.
+    expect(html).not.toMatch(/Miejsca w kolekcji \(\d+\)/);
+    expect(html.match(/1 miejsce/g)).toHaveLength(1);
     expect(html).toContain(`href="/places/${placeId}"`);
-    expect(html).toContain("Miejsca w kolekcji (1)");
+    expect(html).toContain(">Miejsca w kolekcji</h2>");
   });
 
   it("show a thumbnail on the card of a place that has a photo, and none on a card without", async () => {
@@ -283,7 +286,7 @@ describe("public catalog pages", () => {
     // getRequestActor is not mocked here, so the personal read throws.
     expect(html).toContain("Nie udało się sprawdzić, czy ta kolekcja jest zapisana.");
     expect(html).not.toContain("Zapisuję kolekcję");
-    expect(html).toContain("Miejsca w kolekcji (1)");
+    expect(html).toContain(">Miejsca w kolekcji</h2>");
   });
 
   it("show a place with address, access, description and its collections", async () => {
@@ -633,7 +636,7 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Miejsca w kolekcji (3)");
+      expect(html).toContain(">Miejsca w kolekcji</h2>");
       expect(html).not.toContain("Zaznacz odwiedzone");
     });
 
@@ -749,7 +752,7 @@ describe("public catalog pages", () => {
         expect(html).toContain("Zamek");
         expect(html).not.toContain("Brama");
         expect(html).not.toContain(">Most<");
-        expect(html).toContain("Miejsca w kolekcji (3)");
+        expect(html).toContain(">Miejsca w kolekcji</h2>");
       });
 
       it("reads an unknown state as the whole list", async () => {

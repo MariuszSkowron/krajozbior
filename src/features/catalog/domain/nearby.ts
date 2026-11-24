@@ -9,14 +9,20 @@ export const NEARBY_COARSE_ACCURACY_M = 5000;
 
 const EARTH_RADIUS_KM = 6371.0088;
 
-/** A public collection with the centre of its places; the server leaves out those without places. */
+/** A public place of a collection as `[latitude, longitude]` (the coordinates the place page shows). */
+export type NearbyPoint = readonly [number, number];
+
+/**
+ * A public collection with the places it holds; the server leaves out those without places. The
+ * distance to a collection is the distance to its nearest place (R-067), not to the middle of
+ * the collection: standing at a castle of the collection says "poniżej 1 km", not "93 km".
+ */
 export type NearbyCandidate = Readonly<{
   slug: string;
   title: string;
   region: string;
   placeCount: number;
-  centerLat: number | null;
-  centerLon: number | null;
+  points: readonly NearbyPoint[];
   /** ISO time of the first publication (used by "Nowa w okolicy", E12-6). */
   firstPublishedAt: string | null;
 }>;
@@ -45,9 +51,34 @@ const isCoordinate = (value: number | null, limit: number): value is number =>
   value !== null && Number.isFinite(value) && Math.abs(value) <= limit;
 
 /**
- * Collections whose centre lies within `radiusKm` (inclusive) of the position, nearest first
- * (ties by title, then slug), at most `limit`. An entry without valid coordinates is skipped;
- * an invalid position or a limit below 1 gives an empty list.
+ * The distance in kilometres from the position to the nearest place of the collection with valid
+ * coordinates; `null` when none of its places has any.
+ */
+export function distanceToNearestPlaceKm(
+  candidate: NearbyCandidate,
+  position: Readonly<{ latitude: number; longitude: number }>,
+): number | null {
+  let nearest: number | null = null;
+
+  for (const [latitude, longitude] of candidate.points) {
+    if (!isCoordinate(latitude, 90) || !isCoordinate(longitude, 180)) {
+      continue;
+    }
+
+    const distance = haversineKm(position.latitude, position.longitude, latitude, longitude);
+
+    if (nearest === null || distance < nearest) {
+      nearest = distance;
+    }
+  }
+
+  return nearest;
+}
+
+/**
+ * Collections whose nearest place lies within `radiusKm` (inclusive) of the position, nearest
+ * first (ties by title, then slug), at most `limit`. A collection without a place with valid
+ * coordinates is skipped; an invalid position or a limit below 1 gives an empty list.
  */
 export function nearbyCollections(
   candidates: readonly NearbyCandidate[],
@@ -66,18 +97,9 @@ export function nearbyCollections(
   const hits: NearbyHit[] = [];
 
   for (const candidate of candidates) {
-    if (!isCoordinate(candidate.centerLat, 90) || !isCoordinate(candidate.centerLon, 180)) {
-      continue;
-    }
+    const distanceKm = distanceToNearestPlaceKm(candidate, position);
 
-    const distanceKm = haversineKm(
-      position.latitude,
-      position.longitude,
-      candidate.centerLat,
-      candidate.centerLon,
-    );
-
-    if (distanceKm <= radiusKm) {
+    if (distanceKm !== null && distanceKm <= radiusKm) {
       hits.push({ candidate, distanceKm });
     }
   }
@@ -132,7 +154,7 @@ export type NearbyProblem = "denied" | "unavailable" | "timeout" | "unsupported"
 export function nearbyProblemMessage(problem: NearbyProblem): string {
   switch (problem) {
     case "denied":
-      return "Nie mamy zgody na użycie lokalizacji. Włączysz ją w ustawieniach przeglądarki.";
+      return "Nie mamy zgody na lokalizację. Zezwól na nią w ustawieniach przeglądarki.";
     case "unavailable":
       return "Nie udało się ustalić Twojego położenia. Spróbuj ponownie.";
     case "timeout":

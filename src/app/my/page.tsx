@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { getRequestActor, loginHref } from "@/app/request-actor";
+import { getRequestActor, getRequestEmail, loginHref } from "@/app/request-actor";
 import { getApprovedOrganizations } from "@/app/request-organizations";
 import { LogoutForm } from "@/app/shell/logout-form";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
@@ -68,6 +68,7 @@ export default async function MyPage() {
   const hasRole = actor.role === "admin" || organizations.length > 0;
   const showNeutralName = nameless && hasRole;
 
+  const email = await getRequestEmail();
   const statsValue = stats !== null && stats.status === "ok" ? stats.value : null;
 
   return (
@@ -88,9 +89,12 @@ export default async function MyPage() {
             {profile.region === null ? null : (
               <p className={styles.role}>{REGION_LABELS[profile.region]}</p>
             )}
-            <p className={styles.visibility}>
-              {profile.visibility === "public" ? "Profil widoczny" : "Profil niewidoczny"}
-            </p>
+            {email === null ? null : (
+              <p className={styles.visibility} data-testid="profile-email">
+                {email}
+              </p>
+            )}
+            <p className={styles.visibility}>Profil widzisz tylko Ty.</p>
           </div>
         </div>
         {actor.role === "admin" ? (
@@ -153,8 +157,8 @@ export default async function MyPage() {
           </li>
         </ul>
       </nav>
-      {/* D-54 (P20): na komputerze „Wyloguj” jest tylko w nagłówku; ten przycisk jest dla telefonu. */}
-      <div className={styles.phoneOnly}>
+      {/* UX-06: „Wyloguj” jest tylko tutaj (na telefonie i na komputerze); nagłówek go nie ma. */}
+      <div>
         <LogoutForm className="button button--outline">Wyloguj</LogoutForm>
       </div>
     </div>

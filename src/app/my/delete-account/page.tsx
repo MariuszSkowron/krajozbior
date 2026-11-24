@@ -55,7 +55,7 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
     return (
       <div className={`content-width ${styles.page}`}>
         <h1>Usuń konto</h1>
-        <p>Konto administratora usuwa zespół, nie da się tego zrobić z aplikacji.</p>
+        <p>Konto administratora usuwa zespół. Z aplikacji nie da się tego zrobić.</p>
         <Link className="button button--outline" href="/my/settings">
           Wróć do ustawień
         </Link>
@@ -78,9 +78,9 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
         <ul className={styles.list}>
           <li>
             Twoje wizyty, zapisane kolekcje, lista „Chcę zobaczyć” oraz profil (imię, region i
-            widoczność).
+            ustawienia profilu).
           </li>
-          <li>Twój adres e-mail i dane logowania, a także wszystkie sesje na urządzeniach.</li>
+          <li>Twój adres e-mail i dane logowania; wylogujemy Cię na wszystkich urządzeniach.</li>
         </ul>
       </section>
 
@@ -131,8 +131,8 @@ export default async function DeleteAccountPage({ searchParams }: { searchParams
         <section aria-labelledby="deletion-signin" className={styles.form}>
           <h2 id="deletion-signin">Zaloguj się ponownie</h2>
           <p>
-            Z bezpieczeństwa konto usuniesz tylko po świeżym logowaniu (w ciągu ostatnich 15 minut).
-            Zaloguj się kodem z e-maila, a wrócisz na ten ekran.
+            Dla bezpieczeństwa konto usuniesz tylko w ciągu 15 minut od logowania. Zaloguj się kodem
+            z e-maila, a wrócisz na ten ekran.
           </p>
           <LogoutForm className="button button--outline" returnTo={SCREEN}>
             Zaloguj się ponownie

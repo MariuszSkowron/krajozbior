@@ -16,11 +16,18 @@ export const PROGRESS_FILTER_LABELS: Readonly<Record<ProgressFilter, string>> = 
   ukonczone: "Ukończone",
 };
 
-/** The sentence for a state that matches nothing; a one-letter word never ends a line ("ze stanem", „W trakcie”). */
+/** A plain sentence per state that matches nothing (T-21): no system wording like "ze stanem". */
 export function noMatchingCollectionsMessage(filter: ProgressFilter): string {
-  const label = PROGRESS_FILTER_LABELS[filter].replace(/(^|\s)(\p{L}) /gu, "$1$2 ");
-
-  return `Nie ma zapisanych kolekcji ze stanem „${label}”.`;
+  switch (filter) {
+    case "ukonczone":
+      return "Nie masz jeszcze ukończonych kolekcji.";
+    case "w-trakcie":
+      return "Żadnej zapisanej kolekcji nie masz w trakcie.";
+    case "nierozpoczete":
+      return "Każdą zapisaną kolekcję masz już zaczętą.";
+    case "wszystkie":
+      return "Nie masz jeszcze zapisanych kolekcji.";
+  }
 }
 
 /** The value of `?stan=`; anything unknown (or repeated) means "Wszystkie". */

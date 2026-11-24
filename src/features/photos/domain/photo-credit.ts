@@ -58,3 +58,38 @@ export function buildPhotoCredit(photo: PhotoCreditInput): PhotoCredit {
     notices,
   };
 }
+
+// Krótki podpis (D-58): jedna linia pod zdjęciem poza stroną miejsca (baner, okładka kolekcji).
+// Pełny podpis (`buildPhotoCredit`) zostaje na stronie miejsca. Krótki nadal wymienia autora,
+// źródło, licencję z linkiem i fakt zmiany pliku, których wymagają licencje CC.
+export const SHORT_CHANGES_NOTICE = "zdjęcie zmniejszone";
+
+export type ShortPhotoCredit = Readonly<{
+  author: Readonly<{ text: string; url: string | null }>;
+  source: Readonly<{ label: string; url: string }> | null;
+  license: Readonly<{ label: string; url: string | null }>;
+  /** Zdanie o zmianie pliku (licencje CC), `null` dla domeny publicznej. */
+  notice: string | null;
+}>;
+
+export function buildShortPhotoCredit(photo: PhotoCreditInput): ShortPhotoCredit {
+  const full = buildPhotoCredit(photo);
+
+  return {
+    author: full.author,
+    source: full.source,
+    license: { label: full.license.label, url: full.license.url },
+    notice: full.notices.length === 0 ? null : SHORT_CHANGES_NOTICE,
+  };
+}
+
+/** Tekst krótkiego podpisu bez linków: „Miejsce · fot. Autor, Źródło · Licencja · zdjęcie zmniejszone”. */
+export function shortPhotoCreditText(placeName: string | null, credit: ShortPhotoCredit): string {
+  const photographer = [`fot. ${credit.author.text}`, credit.source?.label]
+    .filter((part) => part !== undefined)
+    .join(", ");
+
+  return [placeName, photographer, credit.license.label, credit.notice]
+    .filter((part) => part !== null)
+    .join(" · ");
+}

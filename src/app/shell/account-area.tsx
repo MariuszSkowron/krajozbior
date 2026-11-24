@@ -6,21 +6,21 @@ import styles from "../app-shell.module.css";
 import { GuestNewsLink } from "./guest-news-link";
 import { LoginLink } from "./login-link";
 import { LogoutForm } from "./logout-form";
-import { ProfileLink } from "./profile-link";
 
-// Account area next to the application name. A signed-in account sees its first name (or
-// "Profil") as a link to the profile, "Administrator" for an administrator, "Kurator ·
-// {organizacja}" as the link to the panel for a member of an approved organization (on a
-// computer; a phone keeps the one-row header) and the quiet "Wyloguj". A guest sees
+// Account area next to the application name. A signed-in account sees "Administrator" for an
+// administrator and "Kurator · {organizacja}" as the link to the panel for a member of an
+// approved organization (on a computer; a phone keeps the one-row header). "Profil" is only in
+// the menu and "Wyloguj" is on the profile (UX-06); the header keeps the quiet "Wyloguj" only
+// when there is no menu (`showLogout`: the screen before the terms are accepted). A guest sees
 // "Zaloguj się". Logging out is a native form, so it works without JavaScript.
 export function AccountArea({
   role,
-  displayName = null,
   curatorOrganization = null,
+  showLogout = false,
 }: Readonly<{
   role: Role | null;
-  displayName?: string | null;
   curatorOrganization?: string | null;
+  showLogout?: boolean;
 }>) {
   return (
     <div className={styles.account}>
@@ -31,7 +31,6 @@ export function AccountArea({
         </>
       ) : (
         <>
-          <ProfileLink name={displayName} />
           {role === "admin" ? (
             <p className={styles.role} data-role="admin">
               <svg
@@ -55,7 +54,7 @@ export function AccountArea({
               <span className={styles.curatorText}>Kurator · {curatorOrganization}</span>
             </Link>
           )}
-          <LogoutForm className={styles.logoutAction}>Wyloguj</LogoutForm>
+          {showLogout ? <LogoutForm className={styles.logoutAction}>Wyloguj</LogoutForm> : null}
         </>
       )}
     </div>
