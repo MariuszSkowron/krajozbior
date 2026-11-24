@@ -7,9 +7,9 @@
  * jako słabe losowanie — ten generator nie budzi wątpliwości i kosztuje tyle samo.
  */
 export function bannerRandom(): number {
-  const [value = 0] = globalThis.crypto.getRandomValues(new Uint32Array(1));
+  const [value] = globalThis.crypto.getRandomValues(new Uint32Array(1));
 
-  return value / 2 ** 32;
+  return Number(value) / 2 ** 32;
 }
 
 /**
