@@ -13,6 +13,7 @@ function providerFor(actor: Actor | null | Error): IdentityProvider {
 
       return actor;
     },
+    getActorWithSession: async () => null,
     signIn: async () => null,
     requestSignInCode: async () => undefined,
     signInWithCode: async () => null,

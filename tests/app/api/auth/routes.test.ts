@@ -4,6 +4,7 @@ import type { IdentityProvider } from "@/features/identity/domain/identity-provi
 
 const provider = vi.hoisted(() => ({
   getActor: vi.fn(),
+  getActorWithSession: vi.fn(),
   signIn: vi.fn(),
   requestSignInCode: vi.fn(),
   signInWithCode: vi.fn(),

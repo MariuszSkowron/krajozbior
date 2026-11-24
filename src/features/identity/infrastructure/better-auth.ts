@@ -12,6 +12,7 @@ import { SIGN_IN_CODE_VALIDITY_MINUTES } from "@/lib/email/sign-in-code-email";
 
 import { isRole, type Actor } from "../domain/actor";
 import type {
+  ActorSession,
   CodeCredentials,
   Credentials,
   IdentityProvider,
@@ -227,6 +228,17 @@ export class BetterAuthIdentityProvider implements IdentityProvider {
     const session = await this.auth().api.getSession({ headers });
 
     return toActor(session?.user);
+  }
+
+  async getActorWithSession(headers: Headers): Promise<ActorSession | null> {
+    const session = await this.auth().api.getSession({ headers });
+    const actor = toActor(session?.user);
+
+    if (session === null || actor === null) {
+      return null;
+    }
+
+    return { actor, sessionToken: session.session.token };
   }
 
   async signIn(credentials: Credentials, headers: Headers): Promise<SignInResult | null> {

@@ -50,6 +50,14 @@ const foreignKeys: Record<string, { behaviour: Behaviour; why: string }> = {
     behaviour: "cascade",
     why: "own collections of the explorer, private; their entries go with them (E8-1a, E8-Q6)",
   },
+  "public.curator_applications.applicant_user_id": {
+    behaviour: "cascade",
+    why: "the application for the curator role, with the contact of the applicant; an approved one goes with the account (P7, DT-P7-7)",
+  },
+  "public.curator_applications.decided_by": {
+    behaviour: "set null",
+    why: "which administrator decided; the decision, the reason and the audit entry stay without the person (P7, lesson E10 S5: no NOT NULL here)",
+  },
   "public.saved_collections.user_id": { behaviour: "cascade", why: "private list of the explorer" },
   "public.visits.user_id": { behaviour: "cascade", why: "private visits of the explorer" },
   "public.want_to_see_places.user_id": {

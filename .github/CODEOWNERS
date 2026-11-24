@@ -135,6 +135,15 @@
 /tests/integration/own-collections-access.test.ts @MariuszSkowron
 /e2e/own-collections.spec.ts       @MariuszSkowron
 
+# Wnioski o rolę kuratora i panel wniosków administratora (P7/P8, dane CUR: kontakt wnioskodawcy;
+# decyzje administratora funkcjami bazy z wpisem w dzienniku). Trasy w /src/app/api/, migracja
+# i kontekst bazy w /src/lib/db/, przełącznik w /src/lib/config/, testy dostępu
+# w /tests/integration/ i ekrany w /src/app/my/ mają już właściciela.
+/src/features/curator-applications/   @MariuszSkowron
+/tests/features/curator-applications/ @MariuszSkowron
+/src/app/admin/                       @MariuszSkowron
+/e2e/curator-application.spec.ts      @MariuszSkowron
+
 # Lista „Chcę zobaczyć” odkrywcy (dane PRIV) i jej testy dostępu
 /src/features/want-to-see/         @MariuszSkowron
 /tests/features/want-to-see/       @MariuszSkowron
