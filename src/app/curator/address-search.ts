@@ -13,11 +13,11 @@ export const SEARCH_UNAVAILABLE =
 export function describeSearchFailure(status: number): string {
   switch (status) {
     case 400:
-      return `Wpisz co najmniej ${GEOCODE_QUERY_MIN_LENGTH} znaki adresu.`;
+      return `Wpisz dłuższy adres (najmniej ${GEOCODE_QUERY_MIN_LENGTH} znaków).`;
     case 401:
       return "Zaloguj się ponownie.";
     case 403:
-      return "Nie masz uprawnień do wyszukiwania adresu.";
+      return "Nie masz uprawnień do wyszukiwania adresu. Ustaw pinezkę na mapie albo wpisz współrzędne.";
     case 429:
       return "Za dużo wyszukiwań w krótkim czasie. Spróbuj za chwilę albo ustaw pinezkę na mapie.";
     default:

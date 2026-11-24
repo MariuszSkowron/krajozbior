@@ -105,11 +105,13 @@ export default async function CuratorHome({
               ))}
             </tbody>
           </table>
-          <p className={styles.muted}>
-            Zapisy to liczba odkrywców, którzy dodali kolekcję do swojego albumu. Widzisz tylko
-            liczbę, nie to, kto zapisał.
-          </p>
         </div>
+      )}
+      {collections.length === 0 ? null : (
+        <p className={`${styles.muted} ${styles.tableNote}`}>
+          Zapisy to liczba odkrywców, którzy dodali kolekcję do swojego albumu. Widzisz tylko
+          liczbę, nie to, kto zapisał kolekcję.
+        </p>
       )}
     </>
   );

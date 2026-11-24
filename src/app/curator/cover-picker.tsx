@@ -113,7 +113,7 @@ export function CoverPicker({
                   )}
                   <span className={pickerStyles.none}>
                     {auto === null
-                      ? "Automatycznie: zdjęcie pierwszego miejsca, które je ma"
+                      ? "Automatycznie: zdjęcie pierwszego miejsca, które ma zdjęcie"
                       : `Automatycznie: zdjęcie pierwszego miejsca (${auto.placeName})`}
                   </span>
                 </label>

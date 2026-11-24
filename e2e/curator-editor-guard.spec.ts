@@ -233,8 +233,10 @@ test.describe("curator editors: unsaved changes, public page link, saves", () =>
     await page.goto("/curator");
 
     await expect(page.getByRole("columnheader", { name: "Zapisy" })).toBeVisible();
-    await expect(page.getByText("Widzisz tylko liczbę, nie to, kto zapisał.")).toBeVisible();
+    await expect(
+      page.getByText("Widzisz tylko liczbę, nie to, kto zapisał kolekcję."),
+    ).toBeVisible();
     await expect(page.getByTestId("save-count").first()).toHaveText(/^\d+$/);
-    await page.screenshot({ path: ".ai/tmp/p4/lista-zapisy.png", fullPage: true });
+    await page.screenshot({ path: ".ai/tmp/p4fix2/lista-zapisy.png", fullPage: true });
   });
 });

@@ -38,7 +38,7 @@ type SearchState =
   | Readonly<{ kind: "busy" }>
   | Readonly<{ kind: "results"; results: readonly GeocodeResult[] }>
   | Readonly<{ kind: "empty" }>
-  | Readonly<{ kind: "chosen"; label: string }>
+  | Readonly<{ kind: "chosen"; label: string; addressFilled: boolean }>
   | Readonly<{ kind: "failed"; message: string }>;
 
 const SEARCH_FIELD_ID = "place-address-search";
@@ -124,6 +124,7 @@ function PlaceFields({
   const [tilesFailed, setTilesFailed] = useState(false);
   const [positionMissing, setPositionMissing] = useState(false);
   const [typedNote, setTypedNote] = useState<string | null>(null);
+  const [addressText, setAddressText] = useState(stored?.address ?? "");
   const [searchText, setSearchText] = useState("");
   const [search, setSearch] = useState<SearchState>({ kind: "idle" });
   const [focusToken, setFocusToken] = useState(0);
@@ -178,7 +179,16 @@ function PlaceFields({
 
   function choose(result: GeocodeResult) {
     pick({ latitude: result.latitude, longitude: result.longitude });
-    setSearch({ kind: "chosen", label: result.label });
+    // An empty "Adres" takes the chosen label (the curator can edit it); a filled one is never
+    // overwritten, the status line says so.
+    const fillAddress =
+      addressText.trim() === "" && result.label.length <= PLACE_ADDRESS_MAX_LENGTH;
+
+    if (fillAddress) {
+      setAddressText(result.label);
+    }
+
+    setSearch({ kind: "chosen", label: result.label, addressFilled: fillAddress });
     setMapShown(true);
     setFocusToken((token) => token + 1);
   }
@@ -339,7 +349,8 @@ function PlaceFields({
               {...aria}
               name="address"
               type="text"
-              defaultValue={stored?.address ?? ""}
+              value={addressText}
+              onChange={(event) => setAddressText(event.target.value)}
               autoComplete="off"
             />
           )}
@@ -387,7 +398,7 @@ function PlaceFields({
           <Field
             id={SEARCH_FIELD_ID}
             label="Znajdź miejsce po adresie"
-            help="Wpisz adres i wybierz „Szukaj”. Pinezkę możesz potem przesunąć na mapie."
+            help="Pinezkę możesz potem przesunąć na mapie."
           >
             {(aria) => (
               <input
@@ -421,10 +432,14 @@ function PlaceFields({
             : null}
           {search.kind === "failed" ? search.message : null}
           {search.kind === "chosen"
-            ? `Ustawiono pinezkę: ${search.label}. Sprawdź na mapie i w razie potrzeby przesuń ją.`
+            ? `Ustawiono pinezkę: ${search.label}. ${
+                search.addressFilled
+                  ? "Wpisano ten adres w pole „Adres”; możesz go poprawić. "
+                  : "Pole „Adres” zostało bez zmian. "
+              }Sprawdź na mapie i w razie potrzeby przesuń pinezkę.`
             : null}
           {search.kind === "results"
-            ? `Znalezione miejsca: ${search.results.length}. Wybierz właściwe z listy.`
+            ? `Znalezione miejsca: ${search.results.length}. Wybierz właściwe miejsce.`
             : null}
         </div>
         {search.kind === "results" ? (

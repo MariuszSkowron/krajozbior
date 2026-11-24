@@ -73,7 +73,7 @@ describe("address search request", () => {
     );
 
   it("says why the search failed, by status", () => {
-    expect(describeSearchFailure(400)).toMatch(/co najmniej 3/);
+    expect(describeSearchFailure(400)).toMatch(/najmniej 3 znaków/);
     expect(describeSearchFailure(401)).toMatch(/Zaloguj/);
     expect(describeSearchFailure(403)).toMatch(/uprawnień/);
     expect(describeSearchFailure(429)).toMatch(/Za dużo/);

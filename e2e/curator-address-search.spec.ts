@@ -121,15 +121,38 @@ test.describe("address search in the place editor", () => {
     await expect(page.getByTestId("pin-status")).toHaveText("Pinezka: 54,5189, 18,5305");
     await expect(page.getByTestId("place-map")).toBeVisible();
     await expect(page.getByTestId("address-search-status")).toContainText("Ustawiono pinezkę");
+    // An empty "Adres" takes the chosen label: the curator does not type the address twice.
+    await expect(page.getByLabel("Adres", { exact: true })).toHaveValue(FOUND[1].label);
 
     // The pin can still be moved: "Ustaw pinezkę na środku mapy" takes the center of the map.
     await page.getByRole("button", { name: "Ustaw pinezkę na środku mapy" }).click();
     await expect(page.getByTestId("pin-status")).toContainText("Pinezka: 54,5");
 
-    await page.screenshot({ path: ".ai/tmp/p4/wyszukiwanie-adresu.png", fullPage: true });
+    await page.screenshot({ path: ".ai/tmp/p4fix2/wyszukiwanie-adresu.png", fullPage: true });
     await page.getByRole("button", { name: "Dodaj miejsce do kolekcji" }).click();
     await expect(page).toHaveURL(/\/curator\/collections\/[0-9a-f-]+(\?.*)?$/);
     await expect(page.getByRole("link", { name: "Miejsce z adresu" })).toBeVisible();
+  });
+
+  test("a filled address is never overwritten by a chosen result", async ({ page }) => {
+    await stubTiles(page);
+    await page.route("**/api/curator/geocode", (route) =>
+      route.fulfill({ json: { results: [FOUND[0]] } }),
+    );
+    await signInAsCurator(page);
+    await openNewPlace(page);
+    await page.getByLabel("Adres", { exact: true }).fill("ul. Dworcowa 1");
+    await page.getByLabel("Znajdź miejsce po adresie").fill("Dworcowa 1, Rumia");
+    await page.getByRole("button", { name: "Szukaj", exact: true }).click();
+    await page
+      .getByRole("list", { name: "Wyniki wyszukiwania adresu" })
+      .getByRole("button")
+      .click();
+
+    await expect(page.getByLabel("Adres", { exact: true })).toHaveValue("ul. Dworcowa 1");
+    await expect(page.getByTestId("address-search-status")).toContainText(
+      "Pole „Adres” zostało bez zmian",
+    );
   });
 
   test("Enter in the search field searches and does not send the form", async ({ page }) => {
