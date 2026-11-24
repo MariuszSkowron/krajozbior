@@ -12,6 +12,7 @@ function setup(options: {
   actor?: typeof actor | null;
   organizationIds?: string[];
   decide?: unknown;
+  limit?: { allowed: false; retryAfterSeconds: number };
 }) {
   const decide = vi.fn(async () => options.decide ?? { status: "ok", version: 2 });
   const repository = {
@@ -20,7 +21,11 @@ function setup(options: {
     listQueue: async () => [],
     decide,
   } as unknown as ReportsRepository;
-  const deps: ReportsDeps = { withUserContext: (_who, work) => work({} as never), repository };
+  const deps: ReportsDeps = {
+    limiter: { reserve: async () => options.limit ?? { allowed: true } },
+    withUserContext: (_who, work) => work({} as never),
+    repository,
+  };
 
   return {
     decide,
@@ -72,6 +77,23 @@ describe("POST /api/curator/reports/{id}/decision", () => {
     );
 
     expect(response.status).toBe(403);
+    expect(decide).not.toHaveBeenCalled();
+  });
+
+  it("answers 429 with Retry-After over the write limit, and decides nothing", async () => {
+    const { dependencies, decide } = setup({ limit: { allowed: false, retryAfterSeconds: 30 } });
+    const response = await handleDecision(
+      post({ action: "accept", version: 1 }),
+      reportId,
+      dependencies,
+    );
+
+    expect(response.headers.get("retry-after")).toBe("30");
+    expect(await answer(response)).toMatchObject({
+      status: 429,
+      body: { error: "rate_limited" },
+      cache: "private, no-store",
+    });
     expect(decide).not.toHaveBeenCalled();
   });
 

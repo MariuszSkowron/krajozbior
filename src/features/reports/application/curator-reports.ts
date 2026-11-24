@@ -5,8 +5,10 @@ import {
 } from "@/features/identity/domain/actor";
 import type { TransactionContext } from "@/lib/db/user-context";
 
+import { CURATOR_WRITE_ACTION, curatorWriteLimit } from "@/features/catalog/domain/limits";
+
 import { validateDecisionInput, type ReportQueueState } from "../domain/report";
-import type { ReportOutcome, ReportQueue, ReportsDeps } from "./report-types";
+import type { DecisionOutcome, ReportOutcome, ReportQueue, ReportsDeps } from "./report-types";
 
 // Use cases of the curator for the queue of reports (P4b). The actor comes from the session,
 // never from the caller. The caller's organization id is only a choice among the actor's own
@@ -99,11 +101,22 @@ export async function decideReport(
   reportId: string,
   body: Record<string, unknown>,
   deps: ReportsDeps,
-): Promise<ReportOutcome<{ version: number; status: "open" | "accepted" | "rejected" }>> {
+): Promise<DecisionOutcome<{ version: number; status: "open" | "accepted" | "rejected" }>> {
   const admitted = admit(actor);
 
   if ("refusal" in admitted) {
     return admitted.refusal;
+  }
+
+  // Counted before anything else is checked, like the other curator writes (a refusal reveals nothing).
+  const limit = await deps.limiter.reserve(
+    CURATOR_WRITE_ACTION,
+    admitted.actor.id,
+    curatorWriteLimit,
+  );
+
+  if (!limit.allowed) {
+    return { status: "rate_limited", retryAfterSeconds: limit.retryAfterSeconds };
   }
 
   if (!UUID.test(reportId)) {

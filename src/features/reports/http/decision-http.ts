@@ -103,6 +103,14 @@ export async function handleDecision(
       case "forbidden":
       case "not_found":
         return json(404, { error: "not_found" });
+      case "rate_limited":
+        return Response.json(
+          { error: "rate_limited", message: "Za dużo decyzji, spróbuj za chwilę." },
+          {
+            status: 429,
+            headers: { ...HEADERS, "Retry-After": String(outcome.retryAfterSeconds) },
+          },
+        );
       case "invalid":
         return json(422, { error: "invalid", fields: outcome.errors });
       case "conflict":

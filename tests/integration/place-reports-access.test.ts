@@ -49,6 +49,7 @@ let placeBig = "";
 
 const f = albumFixtures({ db: () => db, app: () => app });
 const deps = (): ReportsDeps => ({
+  limiter: { reserve: async () => ({ allowed: true }) },
   withUserContext: (actor, work) => runInUserContext(app.em, actor, work),
   repository: postgresReportsRepository,
 });

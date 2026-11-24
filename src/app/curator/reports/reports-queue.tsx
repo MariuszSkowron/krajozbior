@@ -57,6 +57,8 @@ function failureText(status: number, reason: unknown): string {
       }
 
       return "To zgłoszenie rozpatrzył już ktoś inny. Odśwież listę.";
+    case 429:
+      return "Za dużo decyzji w krótkim czasie. Spróbuj za chwilę.";
     case 413:
     case 422:
       return "Popraw powód lub notatkę i spróbuj jeszcze raz.";

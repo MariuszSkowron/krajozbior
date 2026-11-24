@@ -17,7 +17,14 @@ const actor = { id: "11111111-1111-4111-8111-111111111111", role: "user" as cons
 const organizationId = "22222222-2222-4222-8222-222222222222";
 const reportId = "33333333-3333-4333-8333-333333333333";
 
-function setup(options: { organizationIds?: string[]; decision?: DecisionResult } = {}) {
+function setup(
+  options: {
+    organizationIds?: string[];
+    decision?: DecisionResult;
+    limit?: { allowed: false; retryAfterSeconds: number };
+  } = {},
+) {
+  const reserve = vi.fn(async () => options.limit ?? { allowed: true as const });
   const repository = {
     permittedOrganizationIds: vi.fn(async () => options.organizationIds ?? [organizationId]),
     countOpen: vi.fn(async () => 7),
@@ -25,11 +32,12 @@ function setup(options: { organizationIds?: string[]; decision?: DecisionResult 
     decide: vi.fn(async () => options.decision ?? ({ status: "ok", version: 2 } as const)),
   } satisfies ReportsRepository;
   const deps: ReportsDeps = {
+    limiter: { reserve },
     withUserContext: (_who, work) => work({} as never),
     repository,
   };
 
-  return { deps, repository };
+  return { deps, repository, reserve };
 }
 
 describe("countOpenReports", () => {
@@ -100,6 +108,20 @@ describe("decideReport", () => {
     const { deps, repository } = setup();
 
     expect(await decideReport(null, reportId, accept, deps)).toEqual({ status: "unauthenticated" });
+    expect(repository.decide).not.toHaveBeenCalled();
+  });
+
+  it("counts the curator write limit first and refuses over it before touching the database", async () => {
+    const { deps, repository, reserve } = setup({
+      limit: { allowed: false, retryAfterSeconds: 42 },
+    });
+
+    expect(await decideReport(actor, reportId, accept, deps)).toEqual({
+      status: "rate_limited",
+      retryAfterSeconds: 42,
+    });
+    expect(reserve).toHaveBeenCalledWith("curator_write", actor.id, expect.anything());
+    expect(repository.permittedOrganizationIds).not.toHaveBeenCalled();
     expect(repository.decide).not.toHaveBeenCalled();
   });
 

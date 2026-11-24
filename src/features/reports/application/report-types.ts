@@ -1,4 +1,5 @@
 import type { Actor } from "@/features/identity/domain/actor";
+import type { ActionRateLimiter } from "@/features/identity/domain/action-rate-limit";
 import type { TransactionContext } from "@/lib/db/user-context";
 
 import type {
@@ -69,9 +70,15 @@ export type ReportsRepository = Readonly<{
 }>;
 
 export type ReportsDeps = Readonly<{
+  /** The same write limit as the other writes of a curator (counted per user). */
+  limiter: ActionRateLimiter;
   withUserContext: <T>(actor: Actor, work: (tx: TransactionContext) => Promise<T>) => Promise<T>;
   repository: ReportsRepository;
 }>;
+
+// A decision is a write, so besides the outcomes below it can be refused by the write limit.
+export type DecisionOutcome<T> =
+  ReportOutcome<T> | Readonly<{ status: "rate_limited"; retryAfterSeconds: number }>;
 
 // The answer of a use case of a curator; a handler or a page maps it.
 export type ReportOutcome<T> =

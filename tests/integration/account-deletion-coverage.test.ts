@@ -44,7 +44,7 @@ const foreignKeys: Record<string, { behaviour: Behaviour; why: string }> = {
   },
   "public.place_reports.author_id": {
     behaviour: "set null",
-    why: "who reported a problem with a place; an open report goes with the account and a decided one stays without the person and without the text (P4b, spec 5.1 and DT-P4b-5)",
+    why: "who reported a problem with a place; the report stays without the person; the text of the report stays too until PR B (cleanup on account deletion: an open report goes with the account, a decided one loses its text; P4b, spec 5.1 and DT-P4b-5)",
   },
   "public.place_reports.decided_by": {
     behaviour: "set null",
