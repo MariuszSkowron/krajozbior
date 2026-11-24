@@ -36,7 +36,11 @@ export function loginEmailClearCookieHeader(): string {
   return `${LOGIN_EMAIL_COOKIE}=; ${attributes(0)}`;
 }
 
-/** "anna@example.com" becomes "a…@example.com": enough to recognise it, not to read it out. */
+/**
+ * "anna@example.com" becomes "a…@example.com"; a longer name keeps its first two and last
+ * characters ("magdalena@example.com" becomes "ma…a@example.com"), so a typo is easier to spot.
+ * Enough to recognise the address, not to read it out.
+ */
 export function maskEmail(email: string): string {
   const at = email.lastIndexOf("@");
 
@@ -44,7 +48,9 @@ export function maskEmail(email: string): string {
     return email;
   }
 
-  const [first = ""] = Array.from(email.slice(0, at));
+  const name = Array.from(email.slice(0, at));
+  const shown =
+    name.length >= 6 ? `${name.slice(0, 2).join("")}…${name[name.length - 1]}` : `${name[0]}…`;
 
-  return `${first}…${email.slice(at)}`;
+  return `${shown}${email.slice(at)}`;
 }

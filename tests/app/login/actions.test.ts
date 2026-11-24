@@ -15,11 +15,15 @@ vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 
 const { changeLoginAddress } = await import("@/app/login/actions");
 
-async function change(returnTo?: string): Promise<string> {
+async function change(returnTo?: string, entry?: string): Promise<string> {
   const form = new FormData();
 
   if (returnTo !== undefined) {
     form.set("returnTo", returnTo);
+  }
+
+  if (entry !== undefined) {
+    form.set("entry", entry);
   }
 
   await expect(changeLoginAddress(form)).rejects.toThrow(/^NEXT_REDIRECT:/);
@@ -39,6 +43,12 @@ describe("changeLoginAddress", () => {
       name: "krajozbior_login_email",
       path: "/login",
     });
+  });
+
+  it("goes back to the entrance the forms came from", async () => {
+    expect(await change(undefined, "signup")).toBe("/login/zaloz-konto");
+    expect(await change("/my", "signup")).toBe("/login/zaloz-konto?returnTo=%2Fmy");
+    expect(await change(undefined, "login")).toBe("/login");
   });
 
   it("keeps a same-site returnTo", async () => {
