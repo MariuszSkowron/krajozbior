@@ -203,6 +203,9 @@
 /src/app/page.tsx                  @MariuszSkowron
 /src/app/home/                     @MariuszSkowron
 /e2e/home.spec.ts                  @MariuszSkowron
+# Powody do powrotu na Starcie: własne wizyty i zapisy odkrywcy (PRIV); test odmowy i spec E2E
+/tests/integration/home-return-access.test.ts @MariuszSkowron
+/e2e/home-return.spec.ts           @MariuszSkowron
 # „W okolicy” (E12-3): lokalizacja urządzenia jest czytana tylko po kliknięciu i nie opuszcza
 # przeglądarki; ten test pilnuje tej granicy (sam komponent leży w /src/app/home/)
 /e2e/nearby.spec.ts                @MariuszSkowron

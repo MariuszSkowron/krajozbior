@@ -1,12 +1,21 @@
 import { HOME_BANNER_POOL, type HomeBannerPoolEntry } from "../domain/home-banner-pool";
 import { pickHomeBanner } from "../domain/home-banner";
+import { warsawToday } from "@/features/visits/domain/past-visit-request";
+
 import { MAX_COLLECTIONS_PER_LIST } from "../domain/limits";
 import type { NearbyCandidate } from "../domain/nearby";
+import {
+  NEW_COLLECTIONS_LIMIT,
+  newCollectionsSince,
+  placeOfDayIndex,
+} from "../domain/place-of-day";
 import { isUuid } from "../domain/uuid";
 import type {
   CatalogDeps,
   CollectionBanner,
   HomeBannerPick,
+  NewCollection,
+  PlaceOfTheDay,
   PublishedCollection,
   PublishedPlace,
   RecentCollection,
@@ -96,6 +105,43 @@ export async function listRecentlyPublishedCollections(
   return deps.withGuestContext((tx) =>
     deps.repository.listRecentlyPublishedCollections(tx, bounded),
   );
+}
+
+/**
+ * "Nowe kolekcje" on the home page: at most three collections first published in the last 30
+ * days, newest first (guest context, the same for everyone). Empty when nothing is new. The clock
+ * is a parameter for tests.
+ */
+export async function listNewCollections(
+  deps: CatalogDeps,
+  now: Date = new Date(),
+): Promise<readonly NewCollection[]> {
+  return deps.withGuestContext((tx) =>
+    deps.repository.listCollectionsPublishedSince(
+      tx,
+      newCollectionsSince(now),
+      NEW_COLLECTIONS_LIMIT,
+    ),
+  );
+}
+
+/**
+ * "Miejsce dnia": one place drawn from the public places with a photo and a description, the
+ * same for everyone through the whole Polish calendar day (guest context). `null` when no place
+ * qualifies. The clock is a parameter for tests.
+ */
+export async function getPlaceOfTheDay(
+  deps: CatalogDeps,
+  now: Date = new Date(),
+): Promise<PlaceOfTheDay | null> {
+  return deps.withGuestContext(async (tx) => {
+    const offset = placeOfDayIndex(
+      warsawToday(now),
+      await deps.repository.countPlaceOfDayCandidates(tx),
+    );
+
+    return offset === null ? null : deps.repository.findPlaceOfDayAt(tx, offset);
+  });
 }
 
 /**

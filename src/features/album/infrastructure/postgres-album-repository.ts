@@ -14,6 +14,7 @@ import type {
   SavedCollectionRow,
 } from "../application/album-types";
 import type { HomeRecentVisit } from "../domain/home-album";
+import type { StartedUnsavedCollection, UnvisitedPlace } from "../domain/home-return";
 
 // Raw SQL on the transaction of the use case (user context). No statement takes
 // a user id: the owner of a row is app_current_user_id(), and the row policies of
@@ -204,6 +205,62 @@ export const postgresAlbumRepository: AlbumRepository = {
                       join public.collection_places cp on cp.place_id = v.place_id
                      where v.user_id = app_current_user_id() and cp.collection_id = c.id)
                  ) desc, c.id
+        limit ?`,
+      [limit],
+    );
+  },
+
+  async homeUnvisitedPlaces(tx, collectionIds, perCollection) {
+    if (collectionIds.length === 0) {
+      return [];
+    }
+
+    // The ids come from the use case, but the statement checks again that each collection is saved
+    // by the actor and public, so a foreign id gives nothing.
+    return tx.em.execute<UnvisitedPlace[]>(
+      `select x.collection_id as "collectionId", x.name, x.position
+         from (select cp.collection_id, p.name, cp.position,
+                      row_number() over (partition by cp.collection_id order by cp.position) as rn
+                 from public.saved_collections sc
+                 join public.collections c on c.id = sc.collection_id
+                 join public.organizations o on o.id = c.organization_id
+                 join public.collection_places cp on cp.collection_id = c.id
+                 join public.places p on p.id = cp.place_id
+                where sc.user_id = app_current_user_id() and ${publishedCollection}
+                  and c.id in (${collectionIds.map(() => "?").join(", ")})
+                  and not exists (select from public.visits v
+                                   where v.user_id = app_current_user_id()
+                                     and v.place_id = p.id)) x
+        where x.rn <= ?
+        order by x.collection_id, x.position`,
+      [...collectionIds, perCollection],
+    );
+  },
+
+  async homeStartedUnsaved(tx, limit) {
+    return tx.em.execute<StartedUnsavedCollection[]>(
+      `select s.id, s.slug, s.title, s.total, s.visited
+         from (select c.id, c.slug, c.title,
+                      (select count(*)::int from public.collection_places cp
+                        where cp.collection_id = c.id) as total,
+                      (select count(*)::int from public.collection_places cp
+                        where cp.collection_id = c.id
+                          and exists (select from public.visits v
+                                       where v.user_id = app_current_user_id()
+                                         and v.place_id = cp.place_id)) as visited,
+                      (select max(v.visited_at)
+                         from public.visits v
+                         join public.collection_places cp on cp.place_id = v.place_id
+                        where v.user_id = app_current_user_id()
+                          and cp.collection_id = c.id) as last_visit
+                 from public.collections c
+                 join public.organizations o on o.id = c.organization_id
+                where ${publishedCollection}
+                  and not exists (select from public.saved_collections sc
+                                   where sc.user_id = app_current_user_id()
+                                     and sc.collection_id = c.id)) s
+        where s.visited > 0
+        order by s.visited desc, s.last_visit desc, s.id
         limit ?`,
       [limit],
     );

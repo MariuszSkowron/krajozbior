@@ -4,6 +4,11 @@ import type { Actor } from "@/features/identity/domain/actor";
 import type { TransactionContext } from "@/lib/db/user-context";
 
 import type { HomeRecentVisit } from "../domain/home-album";
+import type {
+  RemainingCollection,
+  StartedUnsavedCollection,
+  UnvisitedPlace,
+} from "../domain/home-return";
 import type { Progress } from "../domain/progress";
 
 // One saved collection of the signed-in explorer, with the progress computed by
@@ -51,6 +56,16 @@ export type HomeAlbum = Readonly<{
   recentVisits: readonly HomeRecentVisit[];
 }>;
 
+// "Powody do powrotu" on the home page of the explorer: what is left in the saved collections and
+// the started collection the explorer has not saved. Public fields and own counts only.
+export type HomeReturn = Readonly<{
+  /** The explorer has at least one saved (public) collection. */
+  hasSaved: boolean;
+  /** Saved collections with something left, at most three; empty when all are complete. */
+  remaining: readonly RemainingCollection[];
+  saveNudge: StartedUnsavedCollection | null;
+}>;
+
 export type CollectionPlaceLink = Readonly<{ collectionId: string; placeId: string }>;
 
 export type CollectionProgressView = Readonly<{ saved: boolean; progress: Progress }>;
@@ -96,6 +111,23 @@ export interface AlbumRepository {
    * it is in a public collection; otherwise `place` is null.
    */
   homeRecentVisits(tx: TransactionContext, limit: number): Promise<readonly HomeRecentVisit[]>;
+  /**
+   * Places of the given collections (only those the actor has saved and that are public now)
+   * that the actor has not visited, by collection and position, at most `perCollection` each.
+   */
+  homeUnvisitedPlaces(
+    tx: TransactionContext,
+    collectionIds: readonly string[],
+    perCollection: number,
+  ): Promise<readonly UnvisitedPlace[]>;
+  /**
+   * Public collections with at least one place the actor visited that the actor has not saved,
+   * most visited places first (then the latest visit), at most `limit`.
+   */
+  homeStartedUnsaved(
+    tx: TransactionContext,
+    limit: number,
+  ): Promise<readonly StartedUnsavedCollection[]>;
   listPlaceIdsOfCollection(
     tx: TransactionContext,
     collectionId: string,

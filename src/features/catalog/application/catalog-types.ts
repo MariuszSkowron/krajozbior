@@ -97,6 +97,21 @@ export type PublishedCollection = Readonly<{
   cover: PlaceCover | null;
 }>;
 
+/** A recently published collection with its publication date ("Nowe kolekcje" on the home page). */
+export type NewCollection = RecentCollection & Readonly<{ firstPublishedAt: Date }>;
+
+/**
+ * "Miejsce dnia" (home page): a public place with a photo and a description, public fields only,
+ * with the first public collection (by title) it lies in.
+ */
+export type PlaceOfTheDay = Readonly<{
+  id: string;
+  name: string;
+  description: string;
+  collection: Readonly<{ slug: string; title: string }>;
+  photo: Readonly<{ photoId: string; width: number; height: number; altText: string }>;
+}>;
+
 /** The cover of a collection with the place it shows (the banner of the home page). */
 export type CollectionBanner = PlaceCover & Readonly<{ placeId: string; placeName: string }>;
 
@@ -352,6 +367,19 @@ export interface CatalogRepository {
     tx: TransactionContext,
     limit: number,
   ): Promise<readonly RecentCollection[]>;
+  /** Published collections of approved organizations first published at or after `since`, newest first, at most `limit`. */
+  listCollectionsPublishedSince(
+    tx: TransactionContext,
+    since: Date,
+    limit: number,
+  ): Promise<readonly NewCollection[]>;
+  /**
+   * Places that can be "Miejsce dnia": in a published collection of an approved organization,
+   * with a description and a ready photo. Guest context.
+   */
+  countPlaceOfDayCandidates(tx: TransactionContext): Promise<number>;
+  /** The candidate number `offset` (0-based) in the stable order of `id`, or `null`. */
+  findPlaceOfDayAt(tx: TransactionContext, offset: number): Promise<PlaceOfTheDay | null>;
   /**
    * "W okolicy" (E12-3): published collections of approved organizations that have at least one
    * public place, with the mean of the coordinates of those places, newest first, at most `limit`.

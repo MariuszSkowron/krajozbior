@@ -2,13 +2,15 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { getRequestActor, logActorFailure, logReadFailure } from "@/app/request-actor";
-import { getHomeAlbum } from "@/features/album/application/home-album";
+import { getHomeAlbum, getHomeReturn } from "@/features/album/application/home-album";
 import { listMySavedCollectionSlugs } from "@/features/album/application/saved-collections";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import {
   getCollectionBanner,
   getHomeBanner,
+  getPlaceOfTheDay,
   listNearbyCandidates,
+  listNewCollections,
   listRecentlyPublishedCollections,
 } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
@@ -22,6 +24,8 @@ import {
 } from "@/features/identity/domain/login-entry";
 import { isNewExplorerAccount } from "@/features/identity/domain/role-home";
 import { CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
+import { listPublicNews } from "@/features/news/application/public-news";
+import { getNewsReadDeps } from "@/features/news/infrastructure/news-read-deps";
 import { getMyProfile } from "@/features/profile/application/profile";
 import { getProfileDeps } from "@/features/profile/infrastructure/profile-deps";
 
@@ -31,6 +35,13 @@ import { FavoriteCollections, MoreFavoriteCollections } from "./home/favorite-co
 import { HomeBanner } from "./home/home-banner";
 import bannerStyles from "./home/home-banner.module.css";
 import { RecentVisits } from "./home/recent-visits";
+import {
+  NewCollectionsSection,
+  NewsHighlights,
+  PlaceOfTheDaySection,
+  RemainingInCollections,
+  SaveStartedCollection,
+} from "./home/return-sections";
 import styles from "./home.module.css";
 import { SearchForm } from "./search/search-form";
 
@@ -39,6 +50,8 @@ export const dynamic = "force-dynamic";
 // Kolekcje do odkrycia na stronie głównej. Przycisk „Pokaż najbliższe” sortuje właśnie tę listę,
 // więc jest dłuższa niż dawna lista „W okolicy” (sześć), ale mieści się w trzech–czterech rzędach.
 const DISCOVER_LIMIT = 12;
+// „Aktualności i wydarzenia” na Starcie: dwa–trzy najnowsze wpisy.
+const NEWS_ON_HOME = 3;
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -115,6 +128,52 @@ async function loadAlbum(actor: Actor) {
   }
 }
 
+// "Powody do powrotu", the personal part: what is left in the saved collections and the started
+// collection that is not saved. A failure leaves the page without these two sections.
+async function loadReturn(actor: Actor) {
+  try {
+    const result = await getHomeReturn(actor, getAlbumDeps());
+
+    return result.status === "ok" ? result.value : null;
+  } catch (error) {
+    logReadFailure("Home return read", error);
+
+    return null;
+  }
+}
+
+// "Powody do powrotu", the public part (guest context, the same for everyone): the place of the
+// day, the new collections and the newest news. A failed read leaves out only that section.
+async function loadPlaceOfDay() {
+  try {
+    return await getPlaceOfTheDay(getCatalogDeps());
+  } catch (error) {
+    logReadFailure("Home place of the day read", error);
+
+    return null;
+  }
+}
+
+async function loadNewCollections() {
+  try {
+    return await listNewCollections(getCatalogDeps());
+  } catch (error) {
+    logReadFailure("Home new collections read", error);
+
+    return null;
+  }
+}
+
+async function loadNews() {
+  try {
+    return (await listPublicNews(null, getNewsReadDeps())).slice(0, NEWS_ON_HOME);
+  } catch (error) {
+    logReadFailure("Home news read", error);
+
+    return null;
+  }
+}
+
 // Slugs of the collections the explorer saved: "Kolekcje do odkrycia" leaves them out, because
 // they are already in "Moje kolekcje". A failed read leaves the list whole (an empty set).
 async function loadSavedSlugs(actor: Actor): Promise<ReadonlySet<string>> {
@@ -162,7 +221,18 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const existingAccount =
     actor !== null && first(params[FIRST_SIGN_IN_PARAM]) === FIRST_SIGN_IN_EXISTING_ACCOUNT;
   const savedRead = actor === null ? Promise.resolve(null) : loadSavedSlugs(actor);
-  const [allDiscover, allNearby, album, firstName, saved, guestDrawn] = await Promise.all([
+  const [
+    allDiscover,
+    allNearby,
+    album,
+    firstName,
+    saved,
+    guestDrawn,
+    homeReturn,
+    placeOfDay,
+    newCollections,
+    news,
+  ] = await Promise.all([
     // The saved ones are known first, so the list can read that many more than it shows.
     savedRead.then((slugs) => loadDiscover(slugs?.size ?? 0)),
     loadNearby(),
@@ -171,6 +241,10 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
     savedRead,
     // A guest always gets the draw, so its read starts with the others, not after them.
     actor === null ? loadDrawnBanner() : Promise.resolve(null),
+    actor === null ? Promise.resolve(null) : loadReturn(actor),
+    loadPlaceOfDay(),
+    loadNewCollections(),
+    loadNews(),
   ]);
   // A saved collection is not "to discover": it has its place in "Moje kolekcje". The list is
   // trimmed to twelve only after the filter, so it does not shrink with every save.
@@ -319,7 +393,16 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           <MoreFavoriteCollections collections={album.favorites} />
         </>
       )}
+      {homeReturn === null || newExplorer ? null : (
+        <>
+          <SaveStartedCollection value={homeReturn} />
+          <RemainingInCollections value={homeReturn} />
+        </>
+      )}
       {album === null ? null : <RecentVisits visits={album.recentVisits} />}
+      <PlaceOfTheDaySection place={placeOfDay} />
+      <NewCollectionsSection collections={newCollections} />
+      <NewsHighlights cards={news} />
       <CollectionsToDiscover collections={discover} candidates={nearby} allSaved={allSaved} />
     </div>
   );
