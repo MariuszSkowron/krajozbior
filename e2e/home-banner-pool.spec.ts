@@ -194,7 +194,8 @@ test.describe("home page: the drawn banner of a guest", () => {
       const index = seeded!.places.indexOf(place) + 1;
 
       expect(html).toContain(place.name);
-      expect(html).toContain(`fot. `);
+      // React puts comment markers between the text pieces of the server HTML.
+      expect(html).toContain(`fot.`);
       expect(html).not.toContain(`Autor:`);
       expect(html).toContain(`Fikcyjny Autor Puli ${index}`);
       expect(html).toContain("CC BY-SA 3.0 PL");
