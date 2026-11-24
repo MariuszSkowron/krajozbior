@@ -289,7 +289,7 @@ test.describe("home page: the R3 look", () => {
         await expect(collections).toBeVisible();
         await expect(placeLink).toHaveAttribute("href", `/places/${placeIds[0]}`);
         await expect(main.getByText("fot. Fikcyjny Autor R3")).toBeVisible();
-        await expect(main.getByText("Ta kopia")).toHaveCount(0);
+        await expect(main.getByText("Tę kopię udostępniamy")).toHaveCount(0);
 
         // Everything of the banner lies on the photo; the search is below it.
         const photoBox = (await photo.boundingBox())!;

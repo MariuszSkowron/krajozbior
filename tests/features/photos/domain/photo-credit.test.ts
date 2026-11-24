@@ -94,7 +94,7 @@ describe("buildShortPhotoCredit", () => {
   it("drops the sentence about the licence of the copy and the WebP remark", () => {
     const text = shortPhotoCreditText(null, buildShortPhotoCredit(base));
 
-    expect(text).not.toContain("Ta kopia");
+    expect(text).not.toContain("Tę kopię udostępniamy");
     expect(text).not.toContain("WebP");
     expect(text).not.toContain("skompresowane");
     expect(text).not.toContain("Autor:");

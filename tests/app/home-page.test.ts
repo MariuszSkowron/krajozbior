@@ -174,7 +174,7 @@ describe("home page of a guest", () => {
     expect(html).toContain("fot. Jan Autor");
     expect(html).not.toContain("Autor:");
     expect(html).toContain("zdjęcie zmniejszone");
-    expect(html).not.toContain("Ta kopia");
+    expect(html).not.toContain("Tę kopię udostępniamy");
     expect(html).toContain("CC BY-SA 4.0");
     expect(html).toContain("<em>w swoim albumie</em>");
     // The search button is an outline button; the primary one is "Zaloguj się" on the banner.

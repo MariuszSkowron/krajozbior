@@ -51,7 +51,7 @@ describe("CollectionCover (nagłówek kolekcji, E4-3, R3)", () => {
     expect(caption).toContain(`href="/places/${cover.placeId}"`);
     expect(caption).toContain('href="https://creativecommons.org/licenses/by-sa/3.0/pl/"');
     expect(caption).toContain('href="https://commons.wikimedia.org/wiki/File:Zamek.jpg"');
-    expect(html).not.toContain("Ta kopia");
+    expect(html).not.toContain("Tę kopię udostępniamy");
     expect(html).not.toContain("WebP");
   });
 

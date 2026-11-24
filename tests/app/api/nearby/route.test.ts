@@ -12,10 +12,10 @@ vi.mock("@/app/request-actor", () => ({ logReadFailure: mocks.log }));
 
 const { GET } = await import("@/app/api/nearby/route");
 
-// What the server may send for "Pokaż najbliższe": at most 200 collections (D-25) with about 20
-// places each, rounded to 3 decimals. The size is bounded here so a change that adds fields or
-// precision shows up as a failing test.
-const MAX_BYTES = 400_000;
+// What the server may send for "Pokaż najbliższe": at most 200 collections with up to 500 places
+// each (D-25), rounded to 3 decimals. The size is bounded here so a change that adds fields or
+// precision shows up as a failing test. The answer is fetched only after the click.
+const MAX_BYTES = 2_500_000;
 
 const candidates = (collections: number, places: number): NearbyCandidate[] =>
   Array.from({ length: collections }, (_, index) => ({
@@ -58,8 +58,8 @@ describe("GET /api/nearby", () => {
     ]);
   });
 
-  it("keeps the answer small for the largest list the server allows (200 x 20 places)", async () => {
-    mocks.list.mockResolvedValue(candidates(200, 20));
+  it("keeps the answer small for the largest list the server allows (200 x 500 places)", async () => {
+    mocks.list.mockResolvedValue(candidates(200, 500));
 
     const text = await (await GET()).text();
 
