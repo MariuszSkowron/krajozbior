@@ -1,9 +1,18 @@
 import { clientIp } from "@/features/identity/domain/client-ip";
 import { isDemoEmail } from "@/features/identity/domain/demo-account-list";
 import type { SignInResult } from "@/features/identity/domain/identity-provider";
-import { signInDestination } from "@/features/identity/domain/role-home";
+import {
+  entryPath,
+  type LoginEntry,
+  withFirstSignInNotice,
+} from "@/features/identity/domain/login-entry";
+import { isNewExplorerAccount, signInDestination } from "@/features/identity/domain/role-home";
 import type { SignInThrottle, ThrottleSubject } from "@/features/identity/domain/sign-in-throttle";
 import { getClientIpHeader } from "@/features/identity/infrastructure";
+import { getHomeAlbum } from "@/features/album/application/home-album";
+import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
+import { hasAcceptedCurrentTerms } from "@/features/terms/application/terms";
+import { getTermsDeps } from "@/features/terms/infrastructure/terms-deps";
 import { getMyTheme } from "@/features/settings/application/settings";
 import type { SettingsDeps } from "@/features/settings/application/settings-types";
 import { getSettingsDeps } from "@/features/settings/infrastructure/settings-deps";
@@ -125,6 +134,7 @@ export function failure(
   status: number,
   code: string,
   extraHeaders: Record<string, string> = {},
+  entry: LoginEntry = "login",
 ): Response {
   if (isFormPost(request)) {
     const query = new URLSearchParams({ error: code });
@@ -135,7 +145,11 @@ export function failure(
 
     return new Response(null, {
       status: 303,
-      headers: { Location: `/login?${query}`, ...NO_STORE, ...extraHeaders },
+      headers: {
+        Location: `${entryPath(entry)}?${query}`,
+        ...NO_STORE,
+        ...extraHeaders,
+      },
     });
   }
 
@@ -153,15 +167,23 @@ export async function reserveAttempt(
   email: string,
   returnTo: string | null,
   limitCode = "too_many_attempts",
+  entry: LoginEntry = "login",
 ): Promise<{ subject: ThrottleSubject } | { response: Response }> {
   const subject = { email, ip: requestClientIp(request) };
   const decision = await throttle.reserve(subject);
 
   if (!decision.allowed) {
     return {
-      response: failure(request, returnTo, 429, limitCode, {
-        "Retry-After": String(decision.retryAfterSeconds),
-      }),
+      response: failure(
+        request,
+        returnTo,
+        429,
+        limitCode,
+        {
+          "Retry-After": String(decision.retryAfterSeconds),
+        },
+        entry,
+      ),
     };
   }
 
@@ -187,19 +209,64 @@ async function isCuratorAfterSignIn(actor: SignInResult["actor"]): Promise<boole
   }
 }
 
+/**
+ * Whether the account that just signed in has no visit and no saved collection (read in the
+ * user context, like the membership above). It only chooses the landing page, so a failed
+ * read never blocks the sign-in: the account lands on its profile and the failure is logged.
+ */
+async function isNewExplorerAfterSignIn(actor: SignInResult["actor"]): Promise<boolean> {
+  try {
+    const result = await getHomeAlbum(actor, getAlbumDeps());
+
+    return result.status === "ok" && isNewExplorerAccount(result.value.summary);
+  } catch (error) {
+    logFailure("Sign-in destination (album)", error);
+
+    return false;
+  }
+}
+
+/**
+ * Whether the account has not accepted the current terms yet, which for a sign-in means it was
+ * just created. Only used to explain, on the next screen, why an account was created after
+ * the "Zaloguj się" entrance; a failed read means no explanation.
+ */
+async function isUnacceptedAfterSignIn(actor: SignInResult["actor"]): Promise<boolean> {
+  try {
+    const outcome = await hasAcceptedCurrentTerms(actor, getTermsDeps());
+
+    return outcome.status === "ok" && !outcome.value;
+  } catch (error) {
+    logFailure("Sign-in destination (terms)", error);
+
+    return false;
+  }
+}
+
 /** The response of a successful sign-in: the session cookies and the destination. */
 export async function signedIn(
   request: Request,
   result: SignInResult,
   returnTo: string | null,
   extraCookies: readonly string[] = [],
+  /** The form came from the "Zaloguj się" entrance: explain it if the account was just created. */
+  explainNewAccount = false,
 ) {
   const headers = new Headers(NO_STORE);
   // An explicit returnTo wins, so the membership is read only when it is needed.
-  const destination = signInDestination({
+  const isCurator = returnTo === null && (await isCuratorAfterSignIn(result.actor));
+  const baseDestination = signInDestination({
     returnTo,
-    isCurator: returnTo === null && (await isCuratorAfterSignIn(result.actor)),
+    isCurator,
+    isNewExplorer:
+      returnTo === null && !isCurator && (await isNewExplorerAfterSignIn(result.actor)),
   });
+  // Someone who chose "Zaloguj się" but had no account gets told on the next screen that an
+  // account was created (after the code, so nothing is revealed before it).
+  const destination =
+    explainNewAccount && (await isUnacceptedAfterSignIn(result.actor))
+      ? withFirstSignInNotice(baseDestination)
+      : baseDestination;
 
   for (const cookie of [...result.setCookies, ...extraCookies]) {
     headers.append("Set-Cookie", cookie);

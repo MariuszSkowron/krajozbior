@@ -100,7 +100,7 @@ async function signedInPage(browser: Browser, email: string): Promise<Page> {
   await form.getByLabel("E-mail").fill(email);
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(/\/(my)?$/);
 
   return page;
 }
@@ -208,8 +208,15 @@ test.describe("home page with the catalog", () => {
     const b = await signedInPage(browser, EXPLORER_B);
 
     await a.goto("/");
-    await expect(a.getByRole("heading", { level: 1, name: "Dzień dobry" })).toBeVisible();
-    await expect(a.getByText("Nie masz jeszcze zapisanych kolekcji")).toBeVisible();
+    // No visit and no saved collection yet: the big banner with the first step, not the zeros.
+    await expect(
+      a.getByRole("heading", { level: 1, name: "Wybierz pierwszą kolekcję" }),
+    ).toBeVisible();
+    await expect(
+      a.getByRole("main").getByRole("link", { name: "Zobacz kolekcje" }),
+    ).toHaveAttribute("href", "#do-odkrycia");
+    await expect(a.getByRole("region", { name: "Twój album" })).toHaveCount(0);
+    await expect(a.getByText("Nie masz jeszcze zapisanych kolekcji")).toHaveCount(0);
     await expect(a.getByText("Nie masz jeszcze wizyt")).toBeVisible();
     // The list of all collections is one link, in the heading of "Kolekcje do odkrycia".
     await expect(a.getByRole("link", { name: "Przeglądaj wszystkie kolekcje" })).toHaveCount(0);
@@ -258,16 +265,14 @@ test.describe("home page with the catalog", () => {
     await expectEveryLinkWorks(a);
     await inBothThemes(a, () => expectNoAccessibilityViolations(a));
 
-    // Explorer B has nothing of A's: empty favourites and visits, zeros.
+    // Explorer B has nothing of A's: the start of a new explorer, no album of zeros.
     await b.goto("/");
-    await expect(b.getByText("Nie masz jeszcze zapisanych kolekcji")).toBeVisible();
-    await expect(b.getByText("Nie masz jeszcze wizyt")).toBeVisible();
     await expect(
-      b
-        .getByRole("region", { name: "Twój album" })
-        .locator("div", { hasText: "Odkryte miejsca" })
-        .first(),
-    ).toContainText("0");
+      b.getByRole("heading", { level: 1, name: "Wybierz pierwszą kolekcję" }),
+    ).toBeVisible();
+    await expect(b.getByText("Nie masz jeszcze wizyt")).toBeVisible();
+    await expect(b.getByRole("region", { name: "Twój album" })).toHaveCount(0);
+    await expect(b.getByRole("link", { name: /Mosty i zamki/ }).first()).not.toContainText("1/3");
 
     await a.context().close();
     await b.context().close();

@@ -13,6 +13,8 @@ import {
 } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 import type { Actor } from "@/features/identity/domain/actor";
+import { LOGIN_PATH, SIGNUP_PATH } from "@/features/identity/domain/login-entry";
+import { isNewExplorerAccount } from "@/features/identity/domain/role-home";
 import { CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
 import { getMyProfile } from "@/features/profile/application/profile";
 import { getProfileDeps } from "@/features/profile/infrastructure/profile-deps";
@@ -191,6 +193,9 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         ? await loadDrawnBanner()
         : null;
   const banner = drawn ?? (await loadBanner(actor !== null && album === null ? null : bannerSlug));
+  // No visit and no saved collection yet: the start page is the big banner with the first step
+  // (the album block of zeros and "Moje kolekcje" stay hidden until the first visit or save).
+  const newExplorer = album !== null && isNewExplorerAccount(album.summary);
 
   return (
     <div className={`content-width-wide ${styles.page}`}>
@@ -224,17 +229,45 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
                 Odkrywaj miejsca i zbieraj je <em>w swoim albumie</em>
               </h1>
               <p className={bannerStyles.lead}>
-                Krajozbiór to kolekcje ciekawych miejsc w Polsce. Przeglądaj je bez konta; po
-                zalogowaniu zapiszesz kolekcję i zaznaczysz miejsca już odwiedzone.
+                Gotowe kolekcje miejsc w Polsce. Na miejscu potwierdzasz wizytę telefonem i widzisz
+                swój postęp, np. 5/13. Kolekcje przeglądasz bez konta.
               </p>
               <div className={bannerStyles.actions}>
-                <Link className="button button--primary" href="/login">
-                  Zaloguj się
+                <Link className="button button--primary" href={SIGNUP_PATH}>
+                  Załóż konto
                 </Link>
                 <Link
                   className={`button button--outline ${bannerStyles.onPhoto}`}
                   href="#do-odkrycia"
                 >
+                  Zobacz kolekcje
+                </Link>
+              </div>
+              <p className={bannerStyles.haveAccount}>
+                Masz już konto?{" "}
+                <Link className={bannerStyles.haveAccountLink} href={LOGIN_PATH}>
+                  Zaloguj się
+                </Link>
+              </p>
+            </HomeBanner>
+          </section>
+          <div className={styles.guestSearch}>
+            <SearchForm id="home-search" outlineButton />
+          </div>
+        </>
+      ) : newExplorer ? (
+        <>
+          <section aria-labelledby="start-title">
+            <HomeBanner cover={banner}>
+              <p className={bannerStyles.greeting}>
+                {firstName === null ? "Dzień dobry" : `Dzień dobry, ${firstName}`}
+              </p>
+              <h1 id="start-title">Wybierz pierwszą kolekcję</h1>
+              <p className={bannerStyles.lead}>
+                Zapisz kolekcję, a pokażemy tu Twój postęp: ile miejsc masz i ile zostało.
+              </p>
+              <div className={bannerStyles.actions}>
+                <Link className="button button--primary" href="#do-odkrycia">
                   Zobacz kolekcje
                 </Link>
               </div>
@@ -258,7 +291,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           <SearchForm id="home-search" outlineButton />
         </section>
       )}
-      {album === null ? null : (
+      {album === null || newExplorer ? null : (
         <>
           <FavoriteCollections
             collections={album.favorites}

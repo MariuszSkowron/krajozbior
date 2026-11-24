@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
-import { getRequestActor, logReadFailure, loginHref } from "@/app/request-actor";
+import { getRequestActor, logReadFailure, loginHref, signupHref } from "@/app/request-actor";
 import { StatusBadge } from "@/design-system/components/status-badge";
 import { getCollectionProgress } from "@/features/album/application/saved-collections";
 import { progressCounts } from "@/features/album/domain/progress";
@@ -55,7 +55,11 @@ async function loadVisit(placeId: string, collectionIds: readonly string[]) {
     const actor = await getRequestActor();
 
     if (actor === null) {
-      return { kind: "guest", loginHref: loginHref(`/places/${placeId}`) } as const;
+      return {
+        kind: "guest",
+        loginHref: loginHref(`/places/${placeId}`),
+        signupHref: signupHref(`/places/${placeId}`),
+      } as const;
     }
 
     const state = await getMyVisitOfPlace(actor, placeId, getVisitDeps());
@@ -242,12 +246,15 @@ function VisitSection({
       </h2>
       {visit.kind === "guest" ? (
         <div className={albumStyles.guestAction}>
-          <Link className="button button--primary" href={visit.loginHref}>
+          <Link className="button button--primary" href={visit.signupHref}>
+            Załóż konto
+          </Link>
+          <Link className="button button--outline" href={visit.loginHref}>
             Zaloguj się
           </Link>
           <p className={albumStyles.feedback}>
-            Po zalogowaniu potwierdzisz wizytę albo zapiszesz miejsce na „Chcę zobaczyć”. Wrócisz na
-            tę stronę.
+            Z kontem potwierdzisz wizytę albo zapiszesz miejsce na „Chcę zobaczyć”. Wrócisz na tę
+            stronę.
           </p>
         </div>
       ) : visit.kind === "explorer" ? (

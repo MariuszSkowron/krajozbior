@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/app/request-actor", () => ({ getRequestActor: mocks.getActor }));
 vi.mock("@/app/request-organizations", () => ({ getApprovedOrganizations: mocks.organizations }));
+vi.mock("@/app/auth-photo-loader", () => ({ loadAuthPhoto: async () => null }));
 vi.mock("@/lib/log-failure", () => ({ logFailure: vi.fn() }));
 vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (name: string) => mocks.cookie(name) }),
@@ -24,9 +25,26 @@ vi.mock("@/features/identity/infrastructure/demo-accounts", () => ({
 }));
 
 const { default: LoginPage } = await import("@/app/login/page");
+const { default: SignupPage } = await import("@/app/login/zaloz-konto/page");
 
-const render = async (params: Record<string, string> = {}) =>
-  renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve(params) }));
+// The pages are thin: they return the async screen element, which is resolved here.
+type ScreenElement = {
+  type: (props: unknown) => Promise<React.ReactElement>;
+  props: unknown;
+};
+
+const renderPage = async (
+  Page: typeof LoginPage,
+  params: Record<string, string>,
+): Promise<string> => {
+  const element = Page({ searchParams: Promise.resolve(params) }) as unknown as ScreenElement;
+
+  return renderToStaticMarkup(await element.type(element.props));
+};
+
+const render = (params: Record<string, string> = {}) => renderPage(LoginPage, params);
+
+const renderSignup = (params: Record<string, string> = {}) => renderPage(SignupPage, params);
 
 beforeEach(() => {
   mocks.getActor.mockReset().mockResolvedValue(null);
@@ -38,11 +56,32 @@ describe("login page, step 1", () => {
   it("asks only for the address and says that a code will be sent", async () => {
     const html = await render();
 
-    expect(html).toContain("Podaj adres e-mail, a wyślemy Ci kod logowania.");
+    expect(html).toContain("<h1>Zaloguj się</h1>");
+    expect(html).toContain("Podaj adres e-mail konta. Wyślemy na niego kod.");
     expect(html).toContain('action="/api/auth/code/request"');
     expect(html).toContain("Wyślij kod");
-    expect(html).not.toContain("Wpisz kod wysłany");
+    expect(html).not.toContain("Kod wysłaliśmy");
     expect(html).not.toContain("code-verify-code");
+  });
+
+  it("no longer mentions the terms on the screen (they are accepted in the next step)", async () => {
+    const html = await render();
+
+    expect(html).not.toContain("regulamin");
+    expect(html).not.toContain("Regulamin");
+  });
+
+  it("links to the other entrance and keeps the return path in that link", async () => {
+    expect(await render()).toMatch(
+      /Nie masz konta\? <a class="[^"]*" href="\/login\/zaloz-konto">Załóż je<\/a>/,
+    );
+    expect(await render({ returnTo: "/places/1" })).toContain(
+      'href="/login/zaloz-konto?returnTo=%2Fplaces%2F1"',
+    );
+  });
+
+  it("tells the forms which entrance they came from", async () => {
+    expect(await render()).toContain('<input type="hidden" name="entry" value="login"/>');
   });
 
   it("keeps the password form under a closed 'Logowanie hasłem'", async () => {
@@ -76,15 +115,17 @@ describe("login page, step 2", () => {
   it("shows the masked address, the code field, resend and change of address", async () => {
     const html = await render({ kod: "wyslany" });
 
-    expect(html).toContain("Wpisz kod wysłany na adres <strong>a…@example.com</strong>");
+    expect(html).toContain("<h1>Wpisz kod z wiadomości</h1>");
+    expect(html).toContain("Kod wysłaliśmy na adres <strong>a…@example.com</strong>");
     expect(html).toContain('action="/api/auth/code/verify"');
     expect(html).toContain('id="code-verify-code"');
     expect(html).toContain("autofocus");
     expect(html).toContain("Wyślij kod ponownie");
     expect(html).toContain("Zmień adres");
     expect(html).toContain("Jeśli adres jest poprawny, kod jest już w drodze.");
-    expect(html).not.toContain("Podaj adres e-mail, a wyślemy");
+    expect(html).not.toContain("Podaj adres e-mail konta");
     expect(html).not.toContain('id="code-request-email"');
+    expect(html).toMatch(/>Zaloguj się<\/button><\/form><div/);
   });
 
   it("puts the address only in hidden fields of the forms, never in the text or a link", async () => {
@@ -148,6 +189,42 @@ describe("login page, step 2", () => {
     mocks.cookie.mockReturnValue({ value: "not an address" });
 
     expect(await render()).toContain('id="code-request-email"');
+  });
+});
+
+describe("signup page (Załóż konto): the same mechanism, its own texts", () => {
+  it("has its own heading and text, the same forms and a link back to the login", async () => {
+    const html = await renderSignup();
+
+    expect(html).toContain("<h1>Załóż konto</h1>");
+    expect(html).toContain("Hasła nie potrzebujesz.");
+    expect(html).toContain('action="/api/auth/code/request"');
+    expect(html).toContain('<input type="hidden" name="entry" value="signup"/>');
+    expect(html).toMatch(/Masz już konto\? <a class="[^"]*" href="\/login">Zaloguj się<\/a>/);
+    expect(html).not.toContain("Regulamin");
+  });
+
+  it("has no password form and no demo accounts", async () => {
+    const html = await renderSignup();
+
+    expect(html).not.toContain("Logowanie hasłem");
+    expect(html).not.toContain('action="/api/auth/login"');
+  });
+
+  it("names the second step's button after the entrance", async () => {
+    mocks.cookie.mockReturnValue({ value: "anna@example.com" });
+
+    const html = await renderSignup({ kod: "wyslany" });
+
+    expect(html).toContain("<h1>Wpisz kod z wiadomości</h1>");
+    expect(html).toMatch(/>Załóż konto<\/button><\/form><div/);
+    expect(html).toContain('<input type="hidden" name="entry" value="signup"/>');
+  });
+
+  it("keeps the return path in the link to the login", async () => {
+    expect(await renderSignup({ returnTo: "/places/1" })).toContain(
+      'href="/login?returnTo=%2Fplaces%2F1"',
+    );
   });
 });
 

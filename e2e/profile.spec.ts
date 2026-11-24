@@ -47,7 +47,7 @@ async function signedInPage(browser: Browser, width = 390, email = EXPLORER): Pr
   await form.getByLabel("E-mail").fill(email);
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(/\/(my)?$/);
 
   return page;
 }

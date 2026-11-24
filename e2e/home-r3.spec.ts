@@ -176,7 +176,7 @@ async function signedInPage(browser: Browser, theme: "dark" | "light" = "dark"):
   await form.getByLabel("E-mail").fill(EXPLORER);
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(/\/(my)?$/);
 
   return page;
 }
@@ -278,7 +278,9 @@ test.describe("home page: the R3 look", () => {
         const main = page.getByRole("main");
         const photo = main.locator('img[fetchpriority="high"]');
         const heading = main.getByRole("heading", { level: 1, name: /Odkrywaj miejsca/ });
-        const login = main.getByRole("link", { name: "Zaloguj się" });
+        // "Załóż konto" is the main button; "Masz już konto? Zaloguj się" is a link under them.
+        const login = main.getByRole("link", { name: "Załóż konto" });
+        const haveAccount = main.getByText("Masz już konto?");
         const collections = main.getByRole("link", { name: "Zobacz kolekcje" });
         const placeLink = main.getByRole("link", { name: firstPlaceName });
 
@@ -292,7 +294,11 @@ test.describe("home page: the R3 look", () => {
         // Everything of the banner lies on the photo; the search is below it.
         const photoBox = (await photo.boundingBox())!;
 
-        for (const part of [heading, login, collections, placeLink]) {
+        await expect(main.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
+          "href",
+          "/login",
+        );
+        for (const part of [heading, login, collections, haveAccount, placeLink]) {
           const box = (await part.boundingBox())!;
 
           expect(box.y).toBeGreaterThanOrEqual(photoBox.y);
@@ -307,7 +313,8 @@ test.describe("home page: the R3 look", () => {
         if (theme === "dark") {
           for (const part of [
             heading,
-            main.getByText(/Krajozbiór to kolekcje/),
+            main.getByText(/Gotowe kolekcje miejsc/),
+            haveAccount,
             main.getByText("Autor: Fikcyjny Autor R3"),
           ]) {
             expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
@@ -431,7 +438,7 @@ test.describe("home page: the R3 look", () => {
     { name: "390", width: 390, height: 844 },
   ]) {
     for (const theme of ["dark", "light"] as const) {
-      test(`an explorer without a saved collection at ${size.name} px (${theme}): the empty state lies on the banner photo, the cards of collections have covers`, async ({
+      test(`a new explorer (no visit, no saved collection) at ${size.name} px (${theme}): the first step lies on the big banner photo, the cards of collections have covers`, async ({
         browser,
       }) => {
         const page = await signedInPage(browser, theme);
@@ -443,24 +450,27 @@ test.describe("home page: the R3 look", () => {
 
         const main = page.getByRole("main");
         const photo = main.locator('img[fetchpriority="high"]');
-        const empty = main.getByText("Nie masz jeszcze zapisanych kolekcji");
+        const heading = main.getByRole("heading", { level: 1, name: "Wybierz pierwszą kolekcję" });
+        const sentence = main.getByText("Zapisz kolekcję, a pokażemy tu Twój postęp");
+        const collections = main.getByRole("link", { name: "Zobacz kolekcje" }).first();
         const photoBox = (await photo.boundingBox())!;
-        const emptyBox = (await empty.boundingBox())!;
 
-        expect(emptyBox.y).toBeGreaterThanOrEqual(photoBox.y);
-        expect(emptyBox.y + emptyBox.height).toBeLessThanOrEqual(photoBox.y + photoBox.height);
-        // One sentence on a low banner; no second link to the list of all collections.
-        expect(photoBox.height).toBeLessThanOrEqual(300);
-        // Every text on the white photo (the paragraph and the credit) keeps 4.5:1.
+        // Everything of the banner lies on the photo, which is as tall as the guest's banner.
+        for (const part of [heading, sentence, collections]) {
+          const box = (await part.boundingBox())!;
+
+          expect(box.y).toBeGreaterThanOrEqual(photoBox.y);
+          expect(box.y + box.height).toBeLessThanOrEqual(photoBox.y + photoBox.height + 1);
+        }
+        expect(photoBox.height).toBeGreaterThan(400);
+        // Every text on the white photo (heading, sentence and credit) keeps 4.5:1.
         const bannerBox = photo.locator("xpath=..");
 
-        for (const part of [empty, bannerBox.locator("p", { hasText: "Autor:" })]) {
+        for (const part of [heading, sentence, bannerBox.locator("p", { hasText: "Autor:" })]) {
           expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
         }
-        await expect(main.getByRole("link", { name: "Przeglądaj wszystkie kolekcje" })).toHaveCount(
-          0,
-        );
-        await expect(main.getByRole("heading", { level: 1, name: /Dzień dobry/ })).toBeVisible();
+        await expect(main.getByRole("heading", { level: 2, name: "Twój album" })).toHaveCount(0);
+        await expect(main.getByText("Nie masz jeszcze zapisanych kolekcji")).toHaveCount(0);
         await expect(main.getByText("Odkrywaj miejsca")).toHaveCount(0);
 
         // "Kolekcje do odkrycia": cards, with a link "Wszystkie kolekcje" in the heading row.

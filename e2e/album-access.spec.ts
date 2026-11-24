@@ -49,7 +49,7 @@ async function signedInPage(browser: Browser, email: string): Promise<Page> {
 
   await page.goto("/login");
   await logIn(page, email);
-  await expect(page).toHaveURL(/\/my$/);
+  await expect(page).toHaveURL(/\/(my)?$/);
 
   return page;
 }
@@ -101,7 +101,12 @@ test.describe("saved collections", () => {
     page,
   }) => {
     await page.goto(`/collections/${DEMO_SLUG}`);
-    await page.getByRole("link", { name: "Zaloguj się, aby zapisać kolekcję" }).click();
+    // Both entrances are offered; the account sits behind the second one.
+    await expect(page.getByRole("link", { name: "Załóż konto", exact: true })).toHaveAttribute(
+      "href",
+      `/login/zaloz-konto?returnTo=${encodeURIComponent(`/collections/${DEMO_SLUG}`)}`,
+    );
+    await page.getByRole("link", { name: "Zaloguj się", exact: true }).click();
 
     await expect(page).toHaveURL(
       new RegExp(`/login\\?returnTo=${encodeURIComponent(`/collections/${DEMO_SLUG}`)}$`),

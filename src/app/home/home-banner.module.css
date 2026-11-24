@@ -147,6 +147,33 @@
   flex: 1;
 }
 
+/* Powitanie nad nagłówkiem nowego odkrywcy: mały krój jak etykieta. */
+.greeting {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-label);
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+/* „Masz już konto? Zaloguj się” pod przyciskami gościa; odnośnik ma cel dotyku 44 px. */
+.haveAccount {
+  color: color-mix(in srgb, var(--color-text-on-image) 92%, transparent);
+}
+
+.plain .haveAccount {
+  color: var(--color-text-secondary);
+}
+
+.haveAccountLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-min);
+  color: inherit;
+  font-weight: var(--font-weight-strong);
+  text-underline-offset: 3px;
+}
+
 /* „Zobacz kolekcje” na zdjęciu: półprzezroczyste tło ze scrimem i jasny obrys. */
 .onPhoto {
   background: color-mix(in srgb, var(--color-image-scrim) 50%, transparent);

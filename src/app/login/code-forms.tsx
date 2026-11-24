@@ -1,10 +1,15 @@
+import Link from "next/link";
+
 import { ErrorIcon } from "@/design-system/patterns/error-icon";
+import { entryPath, type LoginEntry } from "@/features/identity/domain/login-entry";
 
 import { changeLoginAddress } from "./actions";
 import { maskEmail } from "./login-email-cookie";
 import styles from "./login.module.css";
 
 type CodeFormsProps = Readonly<{
+  /** The entrance ("Zaloguj się" or "Załóż konto"): the wording and the page to return to. */
+  entry: LoginEntry;
   returnTo?: string;
   /** The address typed in step 1 (from the short-lived cookie): step 2 is shown. */
   email: string | null;
@@ -20,14 +25,20 @@ type CodeFormsProps = Readonly<{
 // the address, step 2 for the code; the address is entered once and kept in a cookie between the
 // steps (login-email-cookie.ts), never in the URL. The first sign-in creates the account.
 export function CodeForms({
+  entry,
   returnTo,
   email,
   codeSent,
   errorMessage,
   codeInvalid = false,
 }: CodeFormsProps) {
-  const returnField =
-    returnTo === undefined ? null : <input type="hidden" name="returnTo" value={returnTo} />;
+  const returnField = (
+    <>
+      <input type="hidden" name="entry" value={entry} />
+      {returnTo === undefined ? null : <input type="hidden" name="returnTo" value={returnTo} />}
+    </>
+  );
+  const otherEntry = entry === "signup" ? "login" : "signup";
   // In step 2 an error takes the focus (the field is described by it), so a screen reader
   // user hears what went wrong; without an error the focus goes to the code field.
   const errorFocused = email !== null && errorMessage !== undefined;
@@ -73,6 +84,12 @@ export function CodeForms({
             Wyślij kod
           </button>
         </form>
+        <p className={styles.switchEntry}>
+          {entry === "signup" ? "Masz już konto? " : "Nie masz konta? "}
+          <Link href={entryPath(otherEntry, returnTo ?? null)} className={styles.textLink}>
+            {entry === "signup" ? "Zaloguj się" : "Załóż je"}
+          </Link>
+        </p>
       </>
     );
   }
@@ -90,7 +107,7 @@ export function CodeForms({
     <>
       {error}
       <p id="code-hint">
-        Wpisz kod wysłany na adres <strong>{maskEmail(email)}</strong>.
+        Kod wysłaliśmy na adres <strong>{maskEmail(email)}</strong>.
       </p>
       {codeSent ? (
         <p id="code-status" role="status" className={styles.status}>
@@ -117,7 +134,7 @@ export function CodeForms({
           />
         </div>
         <button type="submit" className={`button button--primary ${styles.submit}`}>
-          Zaloguj się
+          {entry === "signup" ? "Załóż konto" : "Zaloguj się"}
         </button>
       </form>
       <div className={styles.stepActions}>

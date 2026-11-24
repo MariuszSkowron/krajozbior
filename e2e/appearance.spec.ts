@@ -254,7 +254,7 @@ async function signIn(browser: Browser, name: string): Promise<StorageState> {
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
   // A curator lands in the panel, everyone else on the profile (paczka N, faza 2).
-  await expect(page).toHaveURL(name.startsWith("curator") ? /\/curator$/ : /\/my$/);
+  await expect(page).toHaveURL(name.startsWith("curator") ? /\/curator$/ : /\/(my)?$/);
   const state = await context.storageState();
 
   await context.close();

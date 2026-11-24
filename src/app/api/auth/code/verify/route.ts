@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isSameOrigin } from "@/features/identity/domain/origin";
+import { loginEntry } from "@/features/identity/domain/login-entry";
 import { requestedReturnTo } from "@/features/identity/domain/return-to";
 import { getCodeVerifyThrottle, getIdentityProvider } from "@/features/identity/infrastructure";
 import { logFailure } from "@/lib/log-failure";
@@ -43,13 +44,14 @@ export async function POST(request: Request) {
   }
 
   const returnTo = requestedReturnTo(input.returnTo);
+  const entry = loginEntry(input.entry);
   const parsed = verifySchema.safeParse({
     email: typeof input.email === "string" ? input.email.trim().toLowerCase() : input.email,
     code: typeof input.code === "string" ? input.code.trim() : input.code,
   });
 
   if (!parsed.success || isRefusedDemoAccount(parsed.data.email)) {
-    return failure(request, returnTo, 401, "invalid_code");
+    return failure(request, returnTo, 401, "invalid_code", {}, entry);
   }
 
   try {
@@ -62,6 +64,7 @@ export async function POST(request: Request) {
       parsed.data.email,
       returnTo,
       "code_too_many_attempts",
+      entry,
     );
 
     if ("response" in attempt) {
@@ -72,19 +75,22 @@ export async function POST(request: Request) {
     const result = await provider.signInWithCode(parsed.data, request.headers);
 
     if (result === null) {
-      return failure(request, returnTo, 401, "invalid_code");
+      return failure(request, returnTo, 401, "invalid_code", {}, entry);
     }
 
     await throttle.clearAccount(attempt.subject);
     await provider.signOut(request.headers);
 
     // The address kept between the two steps (login-email-cookie.ts) is no longer needed.
-    return await signedIn(request, result, returnTo, [
-      ...(await accountThemeCookies(result.actor)),
-      loginEmailClearCookieHeader(),
-    ]);
+    return await signedIn(
+      request,
+      result,
+      returnTo,
+      [...(await accountThemeCookies(result.actor)), loginEmailClearCookieHeader()],
+      input.entry === "login",
+    );
   } catch (error) {
     logFailure("Sign-in with code", error);
-    return failure(request, returnTo, 503, "code_unavailable");
+    return failure(request, returnTo, 503, "code_unavailable", {}, entry);
   }
 }

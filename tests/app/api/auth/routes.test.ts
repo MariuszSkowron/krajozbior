@@ -50,6 +50,30 @@ vi.mock("@/features/organizations/infrastructure/postgres-organization-reader", 
   },
 }));
 
+// What the account that just signed in already has (the start page has nothing of theirs yet for
+// an account without a visit and a saved collection) and whether it accepted the terms: the real
+// use cases over fake repositories.
+const album = vi.hoisted(() => ({ summary: vi.fn() }));
+const terms = vi.hoisted(() => ({ hasAccepted: vi.fn() }));
+
+vi.mock("@/features/album/infrastructure/album-deps", () => ({
+  getAlbumDeps: () => ({
+    withUserContext: async (_actor: unknown, work: (tx: unknown) => Promise<unknown>) => work({}),
+    repository: {
+      homeSummary: album.summary,
+      homeFavorites: async () => [],
+      homeRecentVisits: async () => [],
+    },
+  }),
+}));
+
+vi.mock("@/features/terms/infrastructure/terms-deps", () => ({
+  getTermsDeps: () => ({
+    withUserContext: async (_actor: unknown, work: (tx: unknown) => Promise<unknown>) => work({}),
+    repository: { hasAccepted: terms.hasAccepted },
+  }),
+}));
+
 vi.mock("@/lib/log-failure", () => ({ logFailure: failures.log }));
 
 vi.mock("@/features/identity/infrastructure", () => ({
@@ -124,6 +148,11 @@ beforeEach(() => {
       work({}),
     );
   failures.log.mockReset();
+  // By default the account has something in its album and accepted the terms.
+  album.summary
+    .mockReset()
+    .mockResolvedValue({ discoveredPlaces: 1, regions: 1, savedCollections: 1 });
+  terms.hasAccepted.mockReset().mockResolvedValue(true);
 });
 
 // The address kept for the code sign-in is dropped by every sign-in and by sign-out (S-3).
@@ -237,6 +266,122 @@ describe("the address kept between the two steps of the code sign-in (D-49)", ()
 
     expect(response.status).toBe(202);
     expect(response.headers.getSetCookie()).toEqual([]);
+  });
+});
+
+// Two entrances ("Zaloguj się", "Załóż konto") share the routes; the form says which one it came
+// from, and only the page the person returns to (and one explanation) differs.
+describe("the two entrances to the code sign-in", () => {
+  const user = { id: "22222222-2222-4222-8222-222222222222", role: "user" } as const;
+
+  function form(path: string, fields: Record<string, string>) {
+    return new Request(`http://localhost${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(fields),
+    });
+  }
+
+  it("returns step 1 to the signup page when the form came from it, with the same answer", async () => {
+    const signup = await requestCode(
+      form("/api/auth/code/request", { email: "anna@example.com", entry: "signup" }),
+    );
+    const login = await requestCode(
+      form("/api/auth/code/request", { email: "anna@example.com", entry: "login" }),
+    );
+    const none = await requestCode(form("/api/auth/code/request", { email: "anna@example.com" }));
+
+    expect(signup.headers.get("location")).toBe("/login/zaloz-konto?kod=wyslany");
+    expect(login.headers.get("location")).toBe("/login?kod=wyslany");
+    expect(none.headers.get("location")).toBe("/login?kod=wyslany");
+    expect(signup.headers.getSetCookie()).toEqual(login.headers.getSetCookie());
+  });
+
+  it("sends the errors of every step back to the entrance the form came from", async () => {
+    const malformed = await requestCode(
+      form("/api/auth/code/request", { email: "nope", entry: "signup", returnTo: "/my" }),
+    );
+
+    otpLimiter.reserve.mockResolvedValue({ allowed: false, reason: "rate", retryAfterSeconds: 5 });
+
+    const limited = await requestCode(
+      form("/api/auth/code/request", { email: "anna@example.com", entry: "signup" }),
+    );
+
+    provider.signInWithCode.mockResolvedValue(null);
+
+    const wrongCode = await verifyCode(
+      form("/api/auth/code/verify", { email: "anna@example.com", code: "123456", entry: "signup" }),
+    );
+    const wrongCodeLogin = await verifyCode(
+      form("/api/auth/code/verify", { email: "anna@example.com", code: "123456", entry: "login" }),
+    );
+
+    expect(malformed.headers.get("location")).toBe(
+      "/login/zaloz-konto?error=invalid_email&returnTo=%2Fmy",
+    );
+    expect(limited.headers.get("location")).toBe("/login/zaloz-konto?error=code_too_many_attempts");
+    expect(wrongCode.headers.get("location")).toBe("/login/zaloz-konto?error=invalid_code");
+    expect(wrongCodeLogin.headers.get("location")).toBe("/login?error=invalid_code");
+  });
+
+  it("explains the new account only after the code, only for the login entrance", async () => {
+    provider.signInWithCode.mockResolvedValue({ actor: user, setCookies: [] });
+    provider.signOut.mockResolvedValue([]);
+    album.summary.mockResolvedValue({ discoveredPlaces: 0, regions: 0, savedCollections: 0 });
+    terms.hasAccepted.mockResolvedValue(false);
+
+    const fromLogin = await verifyCode(
+      form("/api/auth/code/verify", { email: "anna@example.com", code: "123456", entry: "login" }),
+    );
+    const fromSignup = await verifyCode(
+      form("/api/auth/code/verify", { email: "anna@example.com", code: "123456", entry: "signup" }),
+    );
+    const json = await verifyCode(
+      jsonPost("/api/auth/code/verify", { email: "anna@example.com", code: "123456" }),
+    );
+
+    expect(fromLogin.headers.get("location")).toBe("/?wejscie=logowanie");
+    expect(fromSignup.headers.get("location")).toBe("/");
+    expect(await json.json()).toEqual({ role: "user", returnTo: "/" });
+  });
+
+  it("keeps the mark next to a returnTo with a query, and says nothing to an account with terms accepted", async () => {
+    provider.signInWithCode.mockResolvedValue({ actor: user, setCookies: [] });
+    provider.signOut.mockResolvedValue([]);
+    terms.hasAccepted.mockResolvedValue(false);
+
+    const created = await verifyCode(
+      form("/api/auth/code/verify", {
+        email: "anna@example.com",
+        code: "123456",
+        entry: "login",
+        returnTo: "/places/1?a=b",
+      }),
+    );
+
+    terms.hasAccepted.mockResolvedValue(true);
+
+    const existing = await verifyCode(
+      form("/api/auth/code/verify", { email: "anna@example.com", code: "123456", entry: "login" }),
+    );
+
+    expect(created.headers.get("location")).toBe("/places/1?a=b&wejscie=logowanie");
+    expect(existing.headers.get("location")).toBe("/my");
+  });
+
+  it("signs in without the explanation when the terms cannot be read, and logs it", async () => {
+    provider.signInWithCode.mockResolvedValue({ actor: user, setCookies: ["s=1"] });
+    provider.signOut.mockResolvedValue([]);
+    terms.hasAccepted.mockRejectedValue(new Error("db down"));
+
+    const response = await verifyCode(
+      form("/api/auth/code/verify", { email: "anna@example.com", code: "123456", entry: "login" }),
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/my");
+    expect(failures.log).toHaveBeenCalledWith("Sign-in destination (terms)", expect.any(Error));
   });
 });
 
@@ -563,6 +708,87 @@ describe("POST /api/auth/login", () => {
       expect(form.headers.getSetCookie()).toContain("s=1");
       expect(await json.json()).toEqual({ role: "user", returnTo: "/my" });
       expect(failures.log).toHaveBeenCalledWith("Sign-in destination", expect.any(Error));
+    });
+  });
+
+  describe("destination of an account with no visit and no saved collection (Pierwszy kontakt)", () => {
+    const user = { id: "22222222-2222-4222-8222-222222222222", role: "user" } as const;
+    const noAlbumYet = { discoveredPlaces: 0, regions: 0, savedCollections: 0 };
+
+    it("sends an explorer and an administrator to the start page, without returnTo", async () => {
+      album.summary.mockResolvedValue(noAlbumYet);
+      provider.signIn.mockResolvedValue({ actor: user, setCookies: [] });
+
+      const explorer = await login(formLogin({ email: "a@b.c", password: "pw" }));
+
+      provider.signIn.mockResolvedValue({ actor, setCookies: [] });
+
+      const admin = await login(formLogin({ email: "a@b.c", password: "pw" }));
+      const json = await login(jsonLogin('{"email":"a@b.c","password":"pw"}'));
+
+      expect(explorer.headers.get("Location")).toBe("/");
+      expect(admin.headers.get("Location")).toBe("/");
+      expect(await json.json()).toEqual({ role: "admin", returnTo: "/" });
+      expect(provider.signIn).toHaveBeenCalledTimes(3);
+    });
+
+    it("keeps everyone with a visit or a saved collection on the account view", async () => {
+      provider.signIn.mockResolvedValue({ actor: user, setCookies: [] });
+
+      for (const summary of [
+        { discoveredPlaces: 1, regions: 1, savedCollections: 0 },
+        { discoveredPlaces: 0, regions: 0, savedCollections: 1 },
+      ]) {
+        album.summary.mockResolvedValue(summary);
+
+        const response = await login(formLogin({ email: "a@b.c", password: "pw" }));
+
+        expect(response.headers.get("Location")).toBe("/my");
+      }
+    });
+
+    it("keeps an explicit returnTo and sends a curator to the panel", async () => {
+      album.summary.mockResolvedValue(noAlbumYet);
+      provider.signIn.mockResolvedValue({ actor: user, setCookies: [] });
+
+      const withReturn = await login(
+        formLogin({ email: "a@b.c", password: "pw", returnTo: "/collections/x" }),
+      );
+
+      memberships.list.mockResolvedValue([
+        { id: "3", name: "Muzeum", slug: "muzeum", kind: "museum", status: "approved" },
+      ]);
+
+      const curator = await login(formLogin({ email: "a@b.c", password: "pw" }));
+
+      expect(withReturn.headers.get("Location")).toBe("/collections/x");
+      expect(curator.headers.get("Location")).toBe("/curator");
+      // The album is read only when it decides the page.
+      expect(album.summary).toHaveBeenCalledTimes(0);
+    });
+
+    it("lands on the account view and logs when the album cannot be read", async () => {
+      album.summary.mockRejectedValue(new Error("db down"));
+      provider.signIn.mockResolvedValue({ actor: user, setCookies: ["s=1"] });
+
+      const response = await login(formLogin({ email: "a@b.c", password: "pw" }));
+
+      expect(response.status).toBe(303);
+      expect(response.headers.get("Location")).toBe("/my");
+      expect(response.headers.getSetCookie()).toContain("s=1");
+      expect(failures.log).toHaveBeenCalledWith("Sign-in destination (album)", expect.any(Error));
+    });
+
+    it("sends a new account after a code sign-in to the start page", async () => {
+      album.summary.mockResolvedValue(noAlbumYet);
+      provider.signInWithCode.mockResolvedValue({ actor: user, setCookies: [] });
+      provider.signOut.mockResolvedValue([]);
+
+      const response = await verifyCode(
+        jsonPost("/api/auth/code/verify", { email: "a@b.test", code: "123456" }),
+      );
+
+      expect(await response.json()).toEqual({ role: "user", returnTo: "/" });
     });
   });
 

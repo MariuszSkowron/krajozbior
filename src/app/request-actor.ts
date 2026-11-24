@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { cache } from "react";
 
+import { entryPath } from "@/features/identity/domain/login-entry";
 import { getIdentityProvider } from "@/features/identity/infrastructure";
 
 // One session lookup per request, shared by layouts and pages. Authorization
@@ -19,5 +20,10 @@ export function logReadFailure(what: string, error: unknown): void {
 
 /** `/login` that returns to `path` (a same-site path) after signing in. */
 export function loginHref(path: string): string {
-  return `/login?returnTo=${encodeURIComponent(path)}`;
+  return entryPath("login", path);
+}
+
+/** `/login/zaloz-konto` that returns to `path` after the account is created. */
+export function signupHref(path: string): string {
+  return entryPath("signup", path);
 }

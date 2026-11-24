@@ -265,7 +265,8 @@ test.describe("home page: the drawn banner of a guest", () => {
 
       for (const part of [
         main.getByRole("heading", { level: 1, name: /Odkrywaj miejsca/ }),
-        main.getByText(/Krajozbiór to kolekcje/),
+        main.getByText(/Gotowe kolekcje miejsc/),
+        main.getByText("Masz już konto?"),
         main.getByText("Autor: Fikcyjny Autor Puli 1"),
       ]) {
         expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
@@ -273,7 +274,7 @@ test.describe("home page: the drawn banner of a guest", () => {
 
       // The buttons on the white photo: text 4.5:1 on the fill, the boundary 3:1 on the photo.
       for (const part of [
-        main.getByRole("link", { name: "Zaloguj się" }),
+        main.getByRole("link", { name: "Załóż konto" }),
         main.getByRole("link", { name: "Zobacz kolekcje" }),
       ]) {
         const { text, boundary } = await buttonContrast(page, part);

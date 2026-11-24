@@ -43,6 +43,11 @@ export function FavoriteCollections({
           <p className={bannerStyles.lead}>
             Nie masz jeszcze zapisanych kolekcji. Zapisz pierwszą, a pojawi się tutaj.
           </p>
+          <div className={bannerStyles.actions}>
+            <Link className="button button--primary" href="#do-odkrycia">
+              Zobacz kolekcje
+            </Link>
+          </div>
         </HomeBanner>
       ) : (
         <SavedCollectionBanner

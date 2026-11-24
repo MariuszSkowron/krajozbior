@@ -53,6 +53,14 @@ describe("the terms guard of an account without the acceptance (F-K3)", () => {
     expect(render()).toContain("<h1>Zanim zaczniesz</h1>");
   });
 
+  it("explains the new account only for the `wejscie=logowanie` mark", () => {
+    mocks.search = "wejscie=logowanie";
+    expect(render()).toContain("To pierwsze logowanie tym adresem");
+
+    mocks.search = "wejscie=cokolwiek";
+    expect(render()).not.toContain("To pierwsze logowanie tym adresem");
+  });
+
   it("shows the message for a known `zgoda` code only", () => {
     mocks.search = "zgoda=niedostepny";
     expect(render()).toContain("Nie udało się zapisać akceptacji");
