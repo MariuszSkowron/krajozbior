@@ -91,6 +91,11 @@
   outline-offset: 2px;
 }
 
+/* Jeden obrys: karty, nie samego tytułu (bez domyślnego obrysu linku przeglądarki). */
+.cardLink:focus-visible {
+  outline: none;
+}
+
 .card:has(.cardLink:focus-visible) .cardLink {
   text-decoration: underline;
 }

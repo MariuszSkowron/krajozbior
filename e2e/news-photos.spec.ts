@@ -286,6 +286,23 @@ test.describe("aktualności ze zdjęciami", () => {
 
         await expect(thumb).toHaveAttribute("src", `/media/p/${photoIds[WITH_PHOTO.slug]}/w400`);
         await expect(thumb).toHaveAttribute("alt", "");
+
+        // Karta (poza wyróżnioną pierwszą na szerokim ekranie) pobiera miniaturę, nie plik główny.
+        const thumbCards = viewport.width < 768 ? cards : cards.slice(1);
+
+        for (const card of thumbCards) {
+          const image = card.locator("img");
+
+          if ((await image.count()) === 0) {
+            continue;
+          }
+
+          await image.scrollIntoViewIfNeeded();
+          await expect
+            .poll(() => image.evaluate((img: HTMLImageElement) => img.currentSrc))
+            .toMatch(/\/media\/p\/[^/]+\/w400$/);
+        }
+
         await thumb.scrollIntoViewIfNeeded();
         await expect
           .poll(() => thumb.evaluate((img: HTMLImageElement) => img.naturalWidth))
@@ -369,32 +386,55 @@ test.describe("aktualności ze zdjęciami", () => {
     });
   }
 
-  test("fokus klawiaturą: obrys całej karty, Enter otwiera wpis", async ({ browser }) => {
-    const context = await browser.newContext({ viewport: VIEWS[1440] });
-    const page = await context.newPage();
+  for (const theme of THEMES) {
+    test(`fokus klawiaturą: jeden obrys całej karty z kontrastem 3:1, Enter otwiera wpis (${theme})`, async ({
+      browser,
+    }) => {
+      const context = await browser.newContext({ viewport: VIEWS[1440] });
+      const page = await context.newPage();
 
-    await open(page, "light", "/news");
+      await open(page, theme, "/news");
 
-    const firstCard = page.getByRole("main").locator("article").first();
-    const link = firstCard.getByRole("link");
-    const href = await link.getAttribute("href");
+      const firstCard = page.getByRole("main").locator("article").first();
+      const link = firstCard.getByRole("link");
+      const href = await link.getAttribute("href");
 
-    for (let i = 0; i < 40; i += 1) {
-      await page.keyboard.press("Tab");
-      if (await link.evaluate((element) => element === document.activeElement)) {
-        break;
+      for (let i = 0; i < 40; i += 1) {
+        await page.keyboard.press("Tab");
+        if (await link.evaluate((element) => element === document.activeElement)) {
+          break;
+        }
       }
-    }
 
-    await expect(link).toBeFocused();
-    expect(await firstCard.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe(
-      "none",
-    );
-    await shot(page, "lista-fokus-1440-light");
-    await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(new RegExp(`${href}$`));
-    await context.close();
-  });
+      await expect(link).toBeFocused();
+      expect(
+        await firstCard.evaluate((element) => getComputedStyle(element).outlineStyle),
+      ).not.toBe("none");
+      // Tytuł nie rysuje własnego obrysu: jest jeden, wokół karty (K-4).
+      expect(await link.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe("none");
+
+      const { outline, background, width } = await firstCard.evaluate((element) => {
+        const style = getComputedStyle(element);
+
+        return {
+          outline: style.outlineColor,
+          width: Number.parseFloat(style.outlineWidth),
+          background: getComputedStyle(document.body).backgroundColor,
+        };
+      });
+      const rgb = (value: string) =>
+        value.match(/\d+/g)!.slice(0, 3).map(Number) as [number, number, number];
+
+      expect(width).toBeGreaterThanOrEqual(2);
+      expect(
+        contrast(luminance(...rgb(outline)), luminance(...rgb(background))),
+      ).toBeGreaterThanOrEqual(3);
+      await shot(page, `lista-fokus-1440-${theme}`);
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(new RegExp(`${href}$`));
+      await context.close();
+    });
+  }
 
   for (const theme of THEMES) {
     test(`axe bez naruszeń na liście i stronie wpisu ze zdjęciem (${theme})`, async ({

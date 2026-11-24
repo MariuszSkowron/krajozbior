@@ -59,6 +59,17 @@ describe("NewsCard", () => {
       }),
     );
 
-    expect(html).toContain("(min-width: 48rem) 42rem, 100vw");
+    expect(html).toContain("(min-width: 48rem) 36rem, 100vw");
+  });
+
+  it("lets a regular card take the thumbnail, not the main file", () => {
+    const html = renderToStaticMarkup(
+      createElement(NewsCard, {
+        card: { ...base, cover: { photoId: "abc", width: 1280, height: 853, altText: "x" } },
+        featured: false,
+      }),
+    );
+
+    expect(html).toContain("(min-width: 48rem) 25rem, calc(100vw - 2rem)");
   });
 });

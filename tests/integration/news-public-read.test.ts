@@ -430,6 +430,7 @@ describe("public reading of news (E7-R3)", () => {
       placeId: string,
       position: number,
       state: "ready" | "pending_fetch" = "ready",
+      organizationId: string = orgTeam,
     ): Promise<string> =>
       (
         await admin$<{ id: string }>(
@@ -443,7 +444,7 @@ describe("public reading of news (E7-R3)", () => {
                    'commons-import/1', $8)
            returning id`,
           [
-            orgTeam,
+            organizationId,
             placeId,
             position,
             state,
@@ -456,11 +457,19 @@ describe("public reading of news (E7-R3)", () => {
       )[0]!.id;
 
     // Publishes an item with the given links and reads it as a guest, from the list and the page.
-    const read = async (v: { collectionId?: string; placeId?: string }) => {
+    const publish = async (v: {
+      collectionId?: string;
+      placeId?: string;
+      organizationId?: string;
+    }) => {
       const slug = `okladka-${next()}`;
 
       await put({ organizationId: orgTeam, slug, title: title("okładka"), ...v });
 
+      return slug;
+    };
+
+    const readBack = async (slug: string) => {
       const page = await getPublicNews(slug, guestDeps);
       const list = (await listPublicNews(null, guestDeps)).find((card) => card.slug === slug);
 
@@ -470,6 +479,9 @@ describe("public reading of news (E7-R3)", () => {
 
       return { page: page.value.cover, card: list.cover };
     };
+
+    const read = async (v: { collectionId?: string; placeId?: string }) =>
+      readBack(await publish(v));
 
     it("takes the photo of the place before the cover of the collection, with the credit only on the page", async () => {
       const place = await newPlace(orgTeam, "Miejsce ze zdjęciem");
@@ -564,6 +576,52 @@ describe("public reading of news (E7-R3)", () => {
       expect(await read({ collectionId: draft.id })).toEqual(none);
       expect(await read({ collectionId: withdrawn.id })).toEqual(none);
       expect(await read({})).toEqual(none);
+    });
+
+    it("gives no photo while the organization of the collection and the place is suspended, and gives it back after the approval", async () => {
+      const place = await newPlace(orgOther, "Miejsce zawieszonej");
+
+      await photo(place, 1, "ready", orgOther);
+
+      const collection = await newCollection(
+        orgOther,
+        "Kolekcja zawieszonej",
+        [place],
+        "published",
+      );
+      // The items are published while the organization is approved (the database refuses a link
+      // to a collection or place of a suspended one), then the organization is suspended.
+      const byPlace = await publish({ organizationId: orgOther, placeId: place });
+      const byCollection = await publish({ organizationId: orgOther, collectionId: collection.id });
+      const byBoth = await publish({
+        organizationId: orgOther,
+        collectionId: collection.id,
+        placeId: place,
+      });
+
+      // Control: while the organization is approved the same links give a photo.
+      expect((await readBack(byPlace)).card).not.toBeNull();
+      expect((await readBack(byCollection)).card).not.toBeNull();
+
+      await admin$(`update public.organizations set status = 'suspended' where id = $1`, [
+        orgOther,
+      ]);
+
+      try {
+        // The item and its photo of a suspended organization are gone from the page and the list.
+        const list = await listPublicNews(null, guestDeps);
+
+        for (const slug of [byPlace, byCollection, byBoth]) {
+          expect((await getPublicNews(slug, guestDeps)).status).not.toBe("ok");
+          expect(list.find((card) => card.slug === slug)).toBeUndefined();
+        }
+      } finally {
+        await admin$(`update public.organizations set status = 'approved' where id = $1`, [
+          orgOther,
+        ]);
+      }
+
+      expect((await readBack(byPlace)).card).not.toBeNull();
     });
 
     it("drops the photo once its collection leaves the public list, and the item stays", async () => {

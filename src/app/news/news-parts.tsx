@@ -90,7 +90,7 @@ export function NewsCard({
             className={image.whole ? styles.imageWhole : undefined}
             src={image.src}
             srcSet={image.srcSet}
-            sizes={featured ? "(min-width: 48rem) 42rem, 100vw" : "(min-width: 48rem) 30rem, 100vw"}
+            sizes={featured ? "(min-width: 48rem) 36rem, 100vw" : image.sizes}
             width={image.width}
             height={image.height}
             alt=""
