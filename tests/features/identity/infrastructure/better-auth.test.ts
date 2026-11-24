@@ -116,6 +116,39 @@ describe("BetterAuthIdentityProvider.signIn", () => {
   });
 });
 
+describe("BetterAuthIdentityProvider.signInWithCode", () => {
+  const credentials = { email: "a@b.test", code: "123456" };
+  const body = { user: { id: userId, role: "user" } };
+
+  function withAccount(exists: () => Promise<boolean>, response: Response) {
+    const signInEmailOTP = vi.fn().mockResolvedValue(response);
+
+    return new BetterAuthIdentityProvider(
+      () => ({ api: { signInEmailOTP } }) as unknown as Auth,
+      exists,
+    );
+  }
+
+  it("reports a created account only when none existed before the code was accepted", async () => {
+    const created = withAccount(async () => false, signInResponse(200, body));
+    const existing = withAccount(async () => true, signInResponse(200, body));
+
+    expect((await created.signInWithCode(credentials, new Headers()))?.accountCreated).toBe(true);
+    expect((await existing.signInWithCode(credentials, new Headers()))?.accountCreated).toBe(false);
+  });
+
+  it("says nothing was created when the lookup fails, and returns null for a wrong code", async () => {
+    const failing = withAccount(
+      () => Promise.reject(new Error("db down")),
+      signInResponse(200, body),
+    );
+    const wrong = withAccount(async () => false, signInResponse(401, {}));
+
+    expect((await failing.signInWithCode(credentials, new Headers()))?.accountCreated).toBe(false);
+    expect(await wrong.signInWithCode(credentials, new Headers())).toBeNull();
+  });
+});
+
 describe("BetterAuthIdentityProvider.signOut", () => {
   const session = { user: { id: userId, role: "user" } };
 

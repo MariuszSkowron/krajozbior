@@ -54,7 +54,8 @@ async function signIn(page: Page) {
   await form.getByLabel("E-mail").fill(EXPLORER);
   await form.getByLabel("Hasło").fill(password ?? "");
   await form.getByRole("button", { name: "Zaloguj się" }).click();
-  await expect(page).toHaveURL(/\/my$/);
+  // An account with no visit and no saved collection lands on the start page, others on /my.
+  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/(my)?$/);
 }
 
 async function newPage(browser: Browser) {
@@ -86,6 +87,8 @@ test.describe("motyw na koncie", () => {
     await expect(first.page.locator("html")).toHaveClass(/theme-light/);
     await expect.poll(storedTheme).toBe("light");
 
+    // The start page has no logout button; the profile has.
+    await first.page.goto("/my");
     await first.page.getByRole("main").getByRole("button", { name: "Wyloguj" }).click();
     await expect(first.page).toHaveURL(/\/\?wylogowano=1$/);
     await first.context.close();
