@@ -80,7 +80,7 @@ async function addPlace(page: Page, collectionId: string, name: string) {
       accessRestriction: "none",
       latitude: 54.0928,
       longitude: 18.7919,
-      visitRadiusM: 30,
+      visitRadiusM: 100,
     },
   });
 
