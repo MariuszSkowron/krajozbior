@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { cardCoverImage } from "@/features/catalog/domain/collection-cover";
 import type { PublicNewsCard } from "@/features/news/application/news-read-types";
 import { NEWS_KIND_LABELS } from "@/features/news/domain/news";
 import { NEWS_LINK_REL, type NewsBodyParagraph } from "@/features/news/domain/news-body";
@@ -68,23 +69,48 @@ export function NewsEventDays({ card }: Readonly<{ card: PublicNewsCard }>) {
   );
 }
 
-/** Karta listy: `<article>` z jednym linkiem, tytułem. */
+/**
+ * Karta listy: pozioma, na całą szerokość listy (jak „Kolekcje z tym miejscem”): zdjęcie 1/3 i
+ * tekst 2/3, na telefonie zdjęcie 16:9 nad tekstem. `<article>` z jednym linkiem, tytułem,
+ * rozciągniętym na całą kartę. Zdjęcie jest ozdobą (pusty `alt`): tytuł stoi obok; miniatura nie
+ * ma podpisu (D-55 pkt 2). Wpis bez zdjęcia ma to samo pole z tłem zastępczym.
+ */
 export function NewsCard({
   card,
   featured,
 }: Readonly<{ card: PublicNewsCard; featured: boolean }>) {
+  const image = cardCoverImage(card.cover);
+
   return (
     <article className={featured ? `${styles.card} ${styles.featured}` : styles.card}>
-      <NewsKicker card={card} />
-      <h2 className={styles.cardTitle}>
-        <Link className={styles.cardLink} href={`/news/${card.slug}`}>
-          {card.title}
-        </Link>
-      </h2>
-      <NewsEventDays card={card} />
-      <p className={styles.lead}>{card.lead}</p>
-      <NewsOrganization name={card.organization.name} verification={card.verification} />
-      <NewsPublished card={card} />
+      <div className={styles.image} aria-hidden={image === null ? "true" : undefined}>
+        {image === null ? null : (
+          // eslint-disable-next-line @next/next/no-img-element -- plik z własnej trasy, bez optymalizatora
+          <img
+            className={image.whole ? styles.imageWhole : undefined}
+            src={image.src}
+            srcSet={image.srcSet}
+            sizes={featured ? "(min-width: 48rem) 42rem, 100vw" : "(min-width: 48rem) 30rem, 100vw"}
+            width={image.width}
+            height={image.height}
+            alt=""
+            loading="lazy"
+            decoding="async"
+          />
+        )}
+      </div>
+      <div className={styles.cardBody}>
+        <NewsKicker card={card} />
+        <h2 className={styles.cardTitle}>
+          <Link className={styles.cardLink} href={`/news/${card.slug}`}>
+            {card.title}
+          </Link>
+        </h2>
+        <NewsEventDays card={card} />
+        <p className={styles.lead}>{card.lead}</p>
+        <NewsOrganization name={card.organization.name} verification={card.verification} />
+        <NewsPublished card={card} />
+      </div>
     </article>
   );
 }

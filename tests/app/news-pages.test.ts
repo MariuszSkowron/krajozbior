@@ -28,6 +28,7 @@ const card = (overrides: Record<string, unknown> = {}) => ({
   eventEndsOn: null,
   organization: { name: "Krajozbiór — redakcja", slug: "krajozbior-redakcja" },
   verification: "editorial",
+  cover: null,
   ...overrides,
 });
 
@@ -206,6 +207,49 @@ describe("news item page", () => {
     expect(html).not.toContain("Zgłoś treść");
     expect(html).not.toContain("Powiązane");
     expect(html).not.toContain("Zaktualizowano");
+  });
+
+  it("starts with the cover when the item has a photo: kind and the one h1 on it, credit below", async () => {
+    mocks.item.mockResolvedValue({
+      status: "ok",
+      value: full({
+        cover: {
+          photoId: "ph1",
+          width: 1280,
+          height: 853,
+          altText: "Most",
+          title: null,
+          authorText: "Jan Kowalski",
+          authorUrl: null,
+          sourceUrl: null,
+          sourceKind: "own",
+          licenseCode: "cc-by-sa-4.0",
+          licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+          licenseLabel: "CC BY-SA 4.0",
+        },
+      }),
+    });
+
+    const html = await item();
+
+    expect(html).toContain('src="/media/p/ph1/main"');
+    expect(html).toContain("Poradnik");
+    expect(html.match(/<h1/g)).toHaveLength(1);
+    expect(html).toContain("Jan Kowalski");
+    expect(html).toContain("CC BY-SA 4.0");
+    expect(html.indexOf("<h1")).toBeLessThan(html.indexOf("Wszystkie aktualności"));
+    // the kind is the label on the photo, not repeated as a kicker
+    expect(html).not.toMatch(/<p class="[^"]*kicker/);
+  });
+
+  it("keeps the text heading without a photo and has no cover image", async () => {
+    mocks.item.mockResolvedValue({ status: "ok", value: full() });
+
+    const html = await item();
+
+    expect(html).not.toContain("<img");
+    expect(html).toMatch(/<p class="[^"]*kicker/);
+    expect(html.indexOf("Wszystkie aktualności")).toBeLessThan(html.indexOf("<h1"));
   });
 
   it("shows markup in the text as text and makes no link of it", async () => {

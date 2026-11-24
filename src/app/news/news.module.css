@@ -1,7 +1,7 @@
 /*
  * Aktualności (E7-R3): lista i strona jednej aktualności. Tylko tokeny. Karta jest `<article>`
- * z jednym linkiem (tytuł); pierwsza karta jest wyróżniona większym tytułem, bez zdjęcia
- * (zdjęcia wchodzą po konkursie, E7-5).
+ * z jednym linkiem (tytuł); pierwsza karta jest wyróżniona większym tytułem. Zdjęcie pochodzi z
+ * powiązanego miejsca albo kolekcji.
  */
 .page {
   display: grid;
@@ -70,32 +70,103 @@
   list-style: none;
 }
 
-/* Od 48 rem aktualności w siatce na ramie (D-53), nie w jednej długiej kolumnie. */
-@media (min-width: 48rem) {
-  .list {
-    grid-template-columns: repeat(auto-fill, minmax(min(24rem, 100%), 1fr));
-  }
-}
-
+/*
+ * Karta pozioma jak „Kolekcje z tym miejscem” (R3): zdjęcie 1/3 i tekst 2/3, na telefonie zdjęcie
+ * 16:9 nad tekstem. Cała karta jest klikalna przez rozciągnięty link tytułu (`::after`), więc w
+ * karcie jest jeden element interaktywny; fokus rysuje obrys wokół całej karty.
+ */
 .card {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-sm);
-  padding: var(--space-md);
+  overflow: hidden;
   background: var(--color-surface-card);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
 }
 
+.card:has(.cardLink:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+.card:has(.cardLink:focus-visible) .cardLink {
+  text-decoration: underline;
+}
+
 .featured {
-  padding: var(--space-lg);
   border-color: var(--color-border-strong);
+}
+
+/* Pole zdjęcia: bez zdjęcia zostaje tło zastępcze (jak karta kolekcji bez okładki). */
+.image {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: linear-gradient(
+    160deg,
+    var(--color-image-placeholder),
+    var(--color-image-placeholder-alt)
+  );
+}
+
+.image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 45%;
+}
+
+/* Panorama albo zdjęcie pionowe w całości na tle zastępczym (Q4). */
+.image img.imageWhole {
+  object-fit: contain;
+}
+
+.cardBody {
+  display: grid;
+  gap: var(--space-sm);
+  align-content: center;
+  min-width: 0;
+  padding: var(--space-md) var(--space-md) var(--space-lg);
+}
+
+@media (min-width: 48rem) {
+  .card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    min-block-size: 14rem;
+  }
+
+  .featured {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  /* Zdjęcie wypełnia pole bez wpływu na wysokość karty (pionowe zdjęcie nie rozciąga wiersza). */
+  .image {
+    position: relative;
+    aspect-ratio: auto;
+  }
+
+  .image img {
+    position: absolute;
+    inset: 0;
+  }
+
+  .cardBody {
+    padding: var(--space-lg) var(--space-xl);
+  }
 }
 
 .card h2,
 .card p {
   margin: 0;
+}
+
+/* Rozciągnięty link: cała karta jest celem kliknięcia. */
+.cardLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
 }
 
 .cardTitle {
@@ -116,8 +187,7 @@
   text-decoration: none;
 }
 
-.cardLink:hover,
-.cardLink:focus-visible {
+.cardLink:hover {
   text-decoration: underline;
 }
 
@@ -189,7 +259,11 @@
   margin: 0;
 }
 
-/* Strona aktualności. */
+/* Strona aktualności. Okładka w ramie `content-width-wide`, jak na stronie kolekcji. */
+.coverFrame {
+  padding-top: var(--space-lg);
+}
+
 .article {
   display: grid;
   gap: var(--space-md);
