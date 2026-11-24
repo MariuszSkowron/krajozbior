@@ -1,13 +1,15 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { StatusBadge } from "@/design-system/components/status-badge";
-import { formatProgress, type Progress } from "@/features/album/domain/progress";
+import { VisitMark } from "@/design-system/components/visit-mark";
+import { remainingInCollectionText, visitRecordedText } from "@/features/album/domain/next-place";
+import { progressCounts, type Progress } from "@/features/album/domain/progress";
 import {
   geolocationProblemMessage,
   visitOutcomeMessage,
-  VISIT_RECORDED_MESSAGE,
   type GeolocationProblem,
 } from "@/features/visits/domain/visit-outcome";
 
@@ -19,12 +21,28 @@ import { WantToSeeButton } from "./want-to-see-button";
 // initialWanted is null when the list could not be read: only its button is hidden.
 // past is the text of the explorer's visit from the past ("Z przeszłości · marzec 2019"), or null.
 // radiusM is the public radius of the place: the message "za daleko" says how close to come.
+// visited: the page already knows about a visit on site (after a reload or the refresh that follows
+// a saved visit); the component then keeps showing the message and "co dalej" it started with.
+// summary: the explorer's progress in the collections of the place, with the next place of each
+// (read by the server after the visit). showPastMark is false when the mark stands above the photo.
 type Props = {
   placeId: string;
   initialWanted: boolean | null;
   past?: string | null;
   radiusM?: number;
+  visited?: boolean;
+  placeName?: string;
+  summary?: readonly AfterVisit[];
+  showPastMark?: boolean;
 };
+
+export type AfterVisit = Readonly<{
+  slug: string;
+  title: string;
+  visited: number;
+  total: number;
+  next: Readonly<{ id: string; name: string }> | null;
+}>;
 
 type Reading = { latitude: number; longitude: number; accuracy: number };
 type Attempt = { clientVisitId: string; reading: Reading };
@@ -109,10 +127,31 @@ function feedbackText(state: State, radiusM: number | undefined): string {
 // server error) sends the same client visit id and the same body, so the
 // server records one visit at most; a fresh check ("Sprawdź ponownie") reads
 // the position again and uses a new id.
-export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM }: Props) {
+export function VisitConfirmation({
+  placeId,
+  initialWanted,
+  past = null,
+  radiusM,
+  visited = false,
+  placeName,
+  summary = [],
+  showPastMark = true,
+}: Props) {
+  const router = useRouter();
   const [state, setState] = useState<State>({ kind: "idle" });
+  const [seenPast, setSeenPast] = useState(past);
   const attempt = useRef<Attempt | null>(null);
   const feedback = useRef<HTMLParagraphElement | null>(null);
+
+  // A visit from the past saved in the box below makes an old refusal of the location stale
+  // ("Nie mamy zgody…", "Sprawdź ponownie"): the screen starts again from the state of the page.
+  if (seenPast !== past) {
+    setSeenPast(past);
+
+    if (state.kind !== "recorded") {
+      setState({ kind: "idle" });
+    }
+  }
 
   // On a phone the button sits in the pinned bar and the message in the section, which may be
   // off screen: bring the result into view. The focus stays where it is (the button keeps it).
@@ -145,9 +184,11 @@ export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM
         attempt.current = null;
 
         if (answer.result === "recorded") {
-          // No page refresh here: the page would replace this box with its
-          // "already visited" note and the progress would vanish.
+          // The page is read again (state of the photo, counters of the collection cards, the
+          // progress and the next place below); this component stays mounted, so the message
+          // and its focus stay too.
           setState({ kind: "recorded", collections: answer.collections });
+          router.refresh();
         } else {
           setState(
             answer.result === "out_of_range"
@@ -208,18 +249,42 @@ export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM
 
   const busy = state.kind === "locating" || state.kind === "sending";
 
-  if (state.kind === "recorded") {
+  if (visited || state.kind === "recorded") {
+    // Right after the visit the server has not answered yet: the answer of the visit gives the
+    // progress, without the next place; the refreshed page brings both.
+    const items: readonly AfterVisit[] =
+      summary.length > 0
+        ? summary
+        : state.kind === "recorded"
+          ? state.collections.map((collection) => ({
+              slug: collection.slug,
+              title: collection.title,
+              ...progressCounts(collection.progress),
+              next: null,
+            }))
+          : [];
+
     return (
       <div className={styles.box}>
-        <p className={styles.success} role="status" tabIndex={-1} ref={focusOnMount}>
-          {VISIT_RECORDED_MESSAGE}
-        </p>
-        {state.collections.length === 0 ? null : (
-          <ul className={styles.progress} aria-label="Twój postęp po tej wizycie">
-            {state.collections.map((collection) => (
-              <li key={collection.slug}>
-                <span>{collection.title}</span>{" "}
-                <strong>{formatProgress(collection.progress)}</strong>
+        {state.kind === "recorded" ? (
+          <p className={styles.success} role="status" tabIndex={-1} ref={focusOnMount}>
+            {visitRecordedText(placeName)}
+          </p>
+        ) : null}
+        {items.length === 0 ? null : (
+          <ul className={styles.progress} aria-label="Co dalej">
+            {items.map((item) => (
+              <li key={item.slug}>
+                <span>{remainingInCollectionText(item, item.title)}</span>
+                {item.next === null ? null : (
+                  <>
+                    {" "}
+                    <span>
+                      Następne miejsce:{" "}
+                      <Link href={`/places/${item.next.id}`}>{item.next.name}</Link>.
+                    </span>
+                  </>
+                )}
               </li>
             ))}
           </ul>
@@ -227,9 +292,10 @@ export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM
         {/* Przypięty stan „Odwiedzone” (telefon); na komputerze `order` stawia go na górze karty. */}
         <PinnedAction>
           <p className={styles.visitedMark}>
-            <StatusBadge tone="success">Odwiedzone</StatusBadge>
+            <VisitMark>Odwiedzone</VisitMark>
           </p>
         </PinnedAction>
+        {initialWanted === true ? <WantToSeeButton placeId={placeId} initialWanted /> : null}
       </div>
     );
   }
@@ -283,10 +349,10 @@ export function VisitConfirmation({ placeId, initialWanted, past = null, radiusM
       {/* Drugorzędne akcje zostają w treści, nie w przypiętym pasku: „Zaznaczam wcześniejszą wizytę”
           (wizyta z przeszłości, decyzja P5) i „Chcę zobaczyć”. */}
       <div className={styles.secondaryActions}>
-        <PastVisit placeId={placeId} existing={past} />
+        <PastVisit placeId={placeId} existing={past} showMark={showPastMark} />
         {initialWanted === null ? (
           <p className={styles.feedback}>Lista „Chcę zobaczyć” jest chwilowo niedostępna.</p>
-        ) : (
+        ) : past !== null && !initialWanted ? null : (
           <WantToSeeButton placeId={placeId} initialWanted={initialWanted} />
         )}
       </div>

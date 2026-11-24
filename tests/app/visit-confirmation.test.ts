@@ -40,6 +40,8 @@ vi.mock("react", async (importOriginal) => ({
   },
 }));
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined }) }));
+
 const { VisitConfirmation } = await import("@/app/places/[placeId]/visit-confirmation");
 
 type Node = {
@@ -184,6 +186,115 @@ describe("VisitConfirmation texts (D-49)", () => {
     expect(
       textOf(VisitConfirmation({ placeId: "p1", initialWanted: false, radiusM: 1000 })),
     ).toContain("w promieniu 1 km od niego.");
+  });
+});
+
+describe("VisitConfirmation after a visit (package 2)", () => {
+  const summary = [
+    {
+      slug: "mosty",
+      title: "Mosty i zamki",
+      visited: 1,
+      total: 3,
+      next: { id: "p2", name: "Zamek w Gniewie" },
+    },
+  ];
+
+  it("names the place and says what is left and which place is next, with a link", () => {
+    store.values = [{ kind: "recorded", collections: [] }];
+
+    const root = VisitConfirmation({
+      placeId: "p1",
+      initialWanted: false,
+      placeName: "Most Tczewski",
+      summary,
+    });
+    const text = textOf(root);
+
+    expect(text).toContain("Most Tczewski jest w Twoim albumie.");
+    expect(text).toContain("Zostało Ci 2 miejsca w kolekcji Mosty i zamki.");
+    expect(text).toContain("Następne miejsce: Zamek w Gniewie");
+    expect(text).toContain("Odwiedzone");
+    expect(
+      flatten(root).some((node) => (node.props as { href?: string })?.href === "/places/p2"),
+    ).toBe(true);
+  });
+
+  it("falls back to the progress of the answer before the page is read again", () => {
+    store.values = [
+      {
+        kind: "recorded",
+        collections: [
+          {
+            slug: "mosty",
+            title: "Mosty i zamki",
+            progress: { kind: "progress", visited: 1, total: 3 },
+          },
+        ],
+      },
+    ];
+
+    const text = textOf(VisitConfirmation({ placeId: "p1", initialWanted: false }));
+
+    expect(text).toContain("To miejsce jest w Twoim albumie.");
+    expect(text).toContain("Zostało Ci 2 miejsca w kolekcji Mosty i zamki.");
+    expect(text).not.toContain("Następne miejsce");
+  });
+
+  it("keeps the progress and the mark after a reload, without the one-time message", () => {
+    store.values = [{ kind: "idle" }];
+
+    const root = VisitConfirmation({ placeId: "p1", initialWanted: false, visited: true, summary });
+    const text = textOf(root);
+
+    expect(text).not.toContain("jest w Twoim albumie");
+    expect(text).toContain("Następne miejsce: Zamek w Gniewie");
+    expect(text).toContain("Odwiedzone");
+  });
+
+  it("shows a visited place with nothing to continue without a list", () => {
+    store.values = [{ kind: "idle" }];
+
+    const text = textOf(VisitConfirmation({ placeId: "p1", initialWanted: false, visited: true }));
+
+    expect(text).toBe("Odwiedzone");
+  });
+
+  it("keeps 'Chcę zobaczyć' only for a visited place that is still on the list", () => {
+    store.values = [{ kind: "idle" }];
+
+    const flat = (wanted: boolean | null, past: string | null) =>
+      flatten(
+        VisitConfirmation({ placeId: "p1", initialWanted: wanted, past, visited: false }),
+      ).some((node) => (node.type as { name?: string })?.name === "WantToSeeButton");
+
+    expect(flat(false, null)).toBe(true);
+    expect(flat(false, "Z przeszłości · 2018")).toBe(false);
+    expect(flat(true, "Z przeszłości · 2018")).toBe(true);
+  });
+
+  it("drops an old refusal of the location when a visit from the past appears", () => {
+    store.values = [{ kind: "problem", problem: "denied" }, null];
+
+    const props = { placeId: "p1", initialWanted: false, past: "Z przeszłości · 2018" };
+
+    // React renders again at once after a state change during the render.
+    VisitConfirmation(props);
+    store.cursor = 0;
+    store.refCursor = 0;
+
+    const root = VisitConfirmation(props);
+
+    expect(textOf(root)).not.toContain("Nie mamy zgody na lokalizację");
+    expect(textOf(buttonOf(root))).toBe("Potwierdzam wizytę na miejscu");
+  });
+
+  it("does not drop the message of a visit that was just recorded", () => {
+    store.values = [{ kind: "recorded", collections: [] }, null];
+
+    const root = VisitConfirmation({ placeId: "p1", initialWanted: false, past: "x" });
+
+    expect(textOf(root)).toContain("jest w Twoim albumie");
   });
 });
 

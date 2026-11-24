@@ -205,9 +205,6 @@ test.describe("golden path of a new explorer on a phone", () => {
   });
 
   test("visit-on-site-updates-screen", async ({ browser }) => {
-    // Known bug, fixed by package 2 (docs plan 2026-11-23): after confirming the visit the page is not refreshed.
-    test.fail();
-
     const page = await newExplorer(browser, "onsite", { geolocation: true });
 
     await saveDemoCollection(page);
@@ -237,9 +234,6 @@ test.describe("golden path of a new explorer on a phone", () => {
   });
 
   test("past-visit-clean-state", async ({ browser }) => {
-    // Known bug, fixed by package 2 (docs plan 2026-11-23): the place page after a visit from the past contradicts itself.
-    test.fail();
-
     const page = await newExplorer(browser, "past", { geolocation: false });
 
     await saveDemoCollection(page);
@@ -276,7 +270,6 @@ test.describe("golden path of a new explorer on a phone", () => {
       .getByText(/^(Z przeszłości|Odwiedzone)$/);
 
     await expect.soft(tileState).toHaveCount(1);
-
     const colorOnTile = await tileState
       .first()
       .evaluate((node) => getComputedStyle(node).color)

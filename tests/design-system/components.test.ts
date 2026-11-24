@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { CollectionCard } from "@/design-system/components/collection-card";
 import { CollectionProgress } from "@/design-system/components/collection-progress";
 import { StatusBadge } from "@/design-system/components/status-badge";
+import { VisitMark } from "@/design-system/components/visit-mark";
 import {
   LegendaryCard,
   imageFailedToLoad,
@@ -47,6 +48,14 @@ describe("StatusBadge", () => {
       expect(html).toMatch(new RegExp(`^<span class="[^"]*${tone}[^"]*">Opublikowana</span>$`));
     },
   );
+});
+
+describe("VisitMark", () => {
+  it("niesie stan słowem, w jednym znaczniku z jedną klasą koloru", () => {
+    const html = render(VisitMark({ children: "Z przeszłości · 2018" }));
+
+    expect(html).toMatch(/^<span class="[^"]*">Z przeszłości · 2018<\/span>$/);
+  });
 });
 
 describe("CollectionProgress", () => {

@@ -4,14 +4,20 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { getRequestActor, logReadFailure, loginHref } from "@/app/request-actor";
-import { StatusBadge } from "@/design-system/components/status-badge";
 import { getCollectionProgress } from "@/features/album/application/saved-collections";
+import { nextPlaceToVisit } from "@/features/album/domain/next-place";
 import { progressCounts } from "@/features/album/domain/progress";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import type { PublishedPlace } from "@/features/catalog/application/catalog-types";
-import { getPublishedPlace } from "@/features/catalog/application/public-catalog";
+import {
+  getPublishedCollection,
+  getPublishedPlace,
+} from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
-import { getMyVisitOfPlace } from "@/features/visits/application/mark-past-visits";
+import {
+  getMyVisitOfPlace,
+  listMyVisitKindsOfCollection,
+} from "@/features/visits/application/mark-past-visits";
 import { pastVisitBadgeText } from "@/features/visits/domain/past-visit-form";
 import { formatPastVisitDate } from "@/features/visits/domain/past-visit-request";
 import { getVisitDeps } from "@/features/visits/infrastructure/visit-deps";
@@ -20,16 +26,13 @@ import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-
 
 import albumStyles from "../../my/collections/collections.module.css";
 import { ReportContentLink } from "../../report-content-link";
-import { PinnedAction } from "./pinned-action";
 import { PlaceAccessNotice } from "./place-access-notice";
 import { PlaceCollections, type CollectionVisitProgress } from "./place-collections";
 import styles from "./place-page.module.css";
 import { PlacePhoto } from "./place-photo";
 import { PlaceSources } from "./place-sources";
 import reportStyles from "./report-link.module.css";
-import { VisitConfirmation } from "./visit-confirmation";
-import visitStyles from "./visit-confirmation.module.css";
-import { WantToSeeButton } from "./want-to-see-button";
+import { VisitConfirmation, type AfterVisit } from "./visit-confirmation";
 
 // Same rules as the collection page: dynamic, never in a shared cache (the
 // visit state of a signed-in explorer must not reach anyone else).
@@ -50,7 +53,10 @@ const load = cache(async (placeId: string) => {
 // What the page adds for the visitor: a guest is sent to sign in and back here,
 // an explorer gets the visit button (or the note that the place is visited). A
 // failure leaves the public page whole, without the personal part.
-async function loadVisit(placeId: string, collectionIds: readonly string[]) {
+async function loadVisit(place: PublishedPlace) {
+  const placeId = place.id;
+  const collectionIds = place.collections.map((collection) => collection.id);
+
   try {
     const actor = await getRequestActor();
 
@@ -98,9 +104,48 @@ async function loadVisit(placeId: string, collectionIds: readonly string[]) {
       }),
     );
 
+    // After a visit on site: what is left in each collection and the next place of it (the
+    // nearest one not visited yet, counted from this place). A failed read leaves out only that line.
+    const summary: AfterVisit[] = [];
+
+    if (state.value.onSite) {
+      await Promise.all(
+        place.collections.map(async (collection) => {
+          const counts = progress.get(collection.id);
+
+          if (counts === undefined) {
+            return;
+          }
+
+          let next: AfterVisit["next"] = null;
+
+          try {
+            const [published, kinds] = await Promise.all([
+              getPublishedCollection(collection.slug, getCatalogDeps()),
+              listMyVisitKindsOfCollection(actor, collection.id, getVisitDeps()),
+            ]);
+
+            if (published.status === "ok" && kinds.status === "ok") {
+              next = nextPlaceToVisit(
+                published.value.places,
+                new Set(kinds.value.map((kind) => kind.placeId)),
+                place,
+              );
+            }
+          } catch (error) {
+            logReadFailure("Place next-place read", error);
+          }
+
+          summary.push({ slug: collection.slug, title: collection.title, ...counts, next });
+        }),
+      );
+      summary.sort((a, b) => a.title.localeCompare(b.title, "pl"));
+    }
+
     return {
       kind: "explorer",
       progress,
+      summary,
       visited: state.value.onSite,
       past:
         past === null
@@ -134,10 +179,7 @@ export default async function PlacePage({ params }: { params: Params }) {
   }
 
   const place = result.value;
-  const visit = await loadVisit(
-    (await params).placeId,
-    place.collections.map((collection) => collection.id),
-  );
+  const visit = await loadVisit(place);
   // The first collection (alphabetically) names the place number in the head: "Miejsce 1 z 13 · …".
   const first = place.collections[0];
   // A past visit counts as visited (D-10, same as the progress and the collection page).
@@ -183,6 +225,11 @@ export default async function PlacePage({ params }: { params: Params }) {
               placeName={place.name}
               number={first?.position}
               state={photoState}
+              stateText={
+                photoState === "past" && visit.kind === "explorer"
+                  ? (visit.past ?? undefined)
+                  : undefined
+              }
             />
           </div>
         )}
@@ -251,23 +298,19 @@ function VisitSection({
           </p>
         </div>
       ) : visit.kind === "explorer" ? (
-        visit.visited ? (
-          <div className={visitStyles.box}>
-            <PinnedAction>
-              <p className={visitStyles.visitedMark}>
-                <StatusBadge tone="success">Odwiedzone</StatusBadge>
-              </p>
-            </PinnedAction>
-            {visit.wanted === true ? <WantToSeeButton placeId={place.id} initialWanted /> : null}
-          </div>
-        ) : (
-          <VisitConfirmation
-            placeId={place.id}
-            initialWanted={visit.wanted}
-            past={visit.past}
-            radiusM={place.visitRadiusM}
-          />
-        )
+        // One component for every state of the explorer's visit: it stays mounted when the page
+        // is read again after a saved visit, so the message with the focus is not lost.
+        <VisitConfirmation
+          key={place.id}
+          placeId={place.id}
+          placeName={place.name}
+          initialWanted={visit.wanted}
+          past={visit.past}
+          visited={visit.visited}
+          summary={visit.summary}
+          showPastMark={place.cover === null}
+          radiusM={place.visitRadiusM}
+        />
       ) : visit.kind === "unavailable" ? (
         <p className={albumStyles.feedback}>
           Nie udało się sprawdzić Twojej wizyty. Odśwież stronę za chwilę.

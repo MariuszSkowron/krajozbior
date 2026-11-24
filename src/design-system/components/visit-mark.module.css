@@ -1,0 +1,4 @@
+/* Jedyne źródło koloru znacznika wizyty (kafelek, zdjęcie miejsca, sekcja wizyty). */
+.mark {
+  color: var(--color-feedback-success);
+}

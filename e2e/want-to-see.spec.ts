@@ -233,7 +233,7 @@ test.describe("the want-to-see list", () => {
     createdVisitIds.push(
       ((await request).postDataJSON() as { clientVisitId: string }).clientVisitId,
     );
-    await expect(page.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
+    await expect(page.getByText("Most Tczewski jest w Twoim albumie.")).toBeVisible();
 
     // The page of the visited place still offers the removal.
     await page.reload();

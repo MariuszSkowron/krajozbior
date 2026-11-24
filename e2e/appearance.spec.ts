@@ -794,7 +794,7 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
   }) => {
     const { context, page } = await placeWithLocation(browser, BRIDGE);
 
-    await expect(page.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
+    await expect(page.getByText("Most Tczewski jest w Twoim albumie.")).toBeVisible();
     expect(await axeViolations(page)).toEqual([]);
 
     await page.reload();

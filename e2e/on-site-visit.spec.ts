@@ -140,12 +140,13 @@ test.describe("confirming a visit on site", () => {
     await expectNoAccessibilityViolations(a);
 
     await a.getByRole("button", { name: "Potwierdzam wizytę" }).click();
-    await expect(a.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
-    // The focus is on the success message (a status region), not lost with the button.
+    await expect(a.getByText("Most Tczewski jest w Twoim albumie.")).toBeVisible();
+    // The focus is on the success message (a status region), not lost with the button or the refresh.
     await expect(
-      a.getByRole("status").filter({ hasText: "To miejsce jest w Twoim albumie." }),
+      a.getByRole("status").filter({ hasText: "Most Tczewski jest w Twoim albumie." }),
     ).toBeFocused();
-    await expect(a.getByRole("list", { name: "Twój postęp po tej wizycie" })).toContainText("1/3");
+    await expect(a.getByRole("list", { name: "Co dalej" })).toContainText("Zostało Ci 2 miejsca");
+    await expect(a.getByRole("list", { name: "Co dalej" })).toContainText("Następne miejsce:");
     await expectNoAccessibilityViolations(a);
     expect(await visitCount(EXPLORER_A)).toBe(1);
 
@@ -180,7 +181,7 @@ test.describe("confirming a visit on site", () => {
     // Walking to the bridge and checking again records the visit.
     await page.context().setGeolocation({ ...BRIDGE, accuracy: 20 });
     await page.getByRole("button", { name: "Sprawdź ponownie" }).click();
-    await expect(page.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
+    await expect(page.getByText("Most Tczewski jest w Twoim albumie.")).toBeVisible();
     expect(await visitCount(EXPLORER_A)).toBe(1);
     await page.context().close();
   });
@@ -251,7 +252,7 @@ test.describe("confirming a visit on site", () => {
     await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Brak połączenia." })).toBeVisible();
     await page.getByRole("button", { name: "Spróbuj ponownie" }).click();
-    await expect(page.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
+    await expect(page.getByText("Most Tczewski jest w Twoim albumie.")).toBeVisible();
 
     expect(bodies).toHaveLength(2);
     expect(bodies[1]).toBe(bodies[0]);

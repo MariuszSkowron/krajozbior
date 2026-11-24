@@ -94,9 +94,12 @@
   margin-block-start: var(--space-md);
 }
 
-.badgeRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-sm);
+/* Znacznik wizyty z przeszłości: krój jak stan na kafelku i nad zdjęciem, kolor z VisitMark. */
+.visitMark {
+  margin: 0;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--font-tracking-label);
+  text-transform: uppercase;
 }

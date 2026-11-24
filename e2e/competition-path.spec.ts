@@ -194,9 +194,9 @@ test.describe("the competition path", () => {
     await explorer.goto(`/places/${placeId}`);
     await waitForHydration(explorer);
     await explorer.getByRole("button", { name: "Potwierdzam wizytę" }).click();
-    await expect(explorer.getByText("To miejsce jest w Twoim albumie.")).toBeVisible();
-    await expect(explorer.getByRole("list", { name: "Twój postęp po tej wizycie" })).toContainText(
-      "1/1",
+    await expect(explorer.getByText("Most ze ścieżki jest w Twoim albumie.")).toBeVisible();
+    await expect(explorer.getByRole("list", { name: "Co dalej" })).toContainText(
+      "Masz wszystkie miejsca z kolekcji",
     );
 
     await explorer.goto("/my/collections");

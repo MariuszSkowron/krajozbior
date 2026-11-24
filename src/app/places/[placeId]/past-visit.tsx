@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import { PastVisitDateFields } from "@/app/past-visit-date-fields";
 import { PastVisitMessage } from "@/app/past-visit-message";
 import styles from "@/app/past-visit.module.css";
-import { StatusBadge } from "@/design-system/components/status-badge";
+import { VisitMark } from "@/design-system/components/visit-mark";
 import {
   EMPTY_PAST_VISIT_DATE,
   INCOMPLETE_DATE_MESSAGE,
@@ -19,7 +19,8 @@ import {
 
 // `existing` is the text of the explorer's visit from the past ("Z przeszłości ·
 // marzec 2019"), or null when there is none.
-type Props = { placeId: string; existing: string | null };
+// `showMark` is false when the mark stands above the photo (one mark per place).
+type Props = { placeId: string; existing: string | null; showMark?: boolean };
 
 // "Zaznaczam wcześniejszą wizytę" (E2-S6): the secondary action of the place page, in the
 // content, never in the pinned bar (spec decision P5). One visit from the past
@@ -28,7 +29,7 @@ type Props = { placeId: string; existing: string | null };
 // The page is rendered again after a change (`router.refresh()`); the message
 // stays in this component and gets the focus, because the button that had it
 // disappears.
-export function PastVisit({ placeId, existing }: Props) {
+export function PastVisit({ placeId, existing, showMark = true }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<PastVisitDateForm>(EMPTY_PAST_VISIT_DATE);
@@ -145,9 +146,11 @@ export function PastVisit({ placeId, existing }: Props) {
         </>
       ) : (
         <>
-          <p className={styles.badgeRow}>
-            <StatusBadge tone="info">{existing}</StatusBadge>
-          </p>
+          {showMark ? (
+            <p className={styles.visitMark}>
+              <VisitMark>{existing}</VisitMark>
+            </p>
+          ) : null}
           <button
             type="button"
             className="button button--outline"
