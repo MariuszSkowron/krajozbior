@@ -7,6 +7,12 @@ import { GEOCODE_MAX_RESULTS, parseGeocodeResponse, type GeocodeResult } from ".
 // address text is sent (a public place's address, no personal data); the request comes from the
 // server, so the curator's browser and address never reach the service.
 
+// The 1 request per second is kept per server process (a chain of promises below); the limit per
+// curator lives in PostgreSQL and holds across instances. With N instances the service could get
+// up to N requests per second, which its policy forbids: before scaling out, move the clock to the
+// database (an advisory lock plus the time of the last request) or use an own Nominatim server (D-60).
+// The User-Agent names the application only; a contact address of the owner is an owner's decision.
+
 const ENDPOINT = "https://nominatim.openstreetmap.org/search";
 const USER_AGENT = "Krajozbior/1.0 (address search in the place editor)";
 const MIN_GAP_MS = 1100;

@@ -79,6 +79,30 @@ describe("searchAddress", () => {
     expect(reserve).toHaveBeenCalledWith("curator_geocode", actor.id, expect.anything());
   });
 
+  it("asks the service only after the database transaction has closed", async () => {
+    const { deps, reserve } = setup();
+    const events: string[] = [];
+    const tracked = {
+      ...deps,
+      withUserContext: async (_who: unknown, work: (tx: unknown) => Promise<unknown>) => {
+        events.push("open");
+        try {
+          return await work({});
+        } finally {
+          events.push("closed");
+        }
+      },
+    } as unknown as CatalogDeps;
+
+    await searchAddress(actor, { query: "Rumia" }, tracked, async () => {
+      events.push("geocode");
+      return found;
+    });
+
+    expect(reserve).toHaveBeenCalled();
+    expect(events).toEqual(["open", "closed", "geocode"]);
+  });
+
   it("lets a failure of the service reach the route (503)", async () => {
     const { deps } = setup();
 

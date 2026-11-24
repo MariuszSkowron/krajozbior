@@ -43,13 +43,22 @@ export async function searchAddress(
     return { status: "rate_limited", retryAfterSeconds: decision.retryAfterSeconds };
   }
 
-  return inCuratorContext(signedIn, deps, async () => {
+  // The database transaction only checks access and the query shape, then closes: the call to
+  // the service (a queue of up to a few seconds plus the answer) must not hold a pooled
+  // connection open.
+  const checked = await inCuratorContext(signedIn, deps, async () => {
     const query = normalizeGeocodeQuery(body.query);
 
     if (query === null) {
       return { status: "invalid", errors: ["query"] } as const;
     }
 
-    return { status: "ok", value: { results: await geocode(query) } } as const;
+    return { status: "ok", value: { query } } as const;
   });
+
+  if (checked.status !== "ok") {
+    return checked;
+  }
+
+  return { status: "ok", value: { results: await geocode(checked.value.query) } };
 }

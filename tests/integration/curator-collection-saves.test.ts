@@ -207,6 +207,56 @@ describe("the number of saves of a collection for its curator", () => {
     expect(rows).toEqual([]);
   });
 
+  // The owner role runs the security definer function; its own read access is bound to the
+  // organizations of the actor of the session, so a future owner function cannot read more.
+  const asOwner = async <T>(actorId: string | null, sql: string) => {
+    return withClient(db.adminUrl, async (client) => {
+      await client.query("begin");
+      try {
+        await client.query("set local role krajozbior_owner");
+        if (actorId !== null) {
+          await client.query(`select set_config('app.user_id', $1, true)`, [actorId]);
+        }
+        return (await client.query(sql)).rows as T[];
+      } finally {
+        await client.query("rollback");
+      }
+    });
+  };
+
+  it("lets the owner role read no saves and no collections without an actor", async () => {
+    expect(await asOwner(null, `select user_id from public.saved_collections`)).toEqual([]);
+    // Published collections of approved organizations stay visible through the older policy;
+    // the withdrawn one (ever published) must not widen it.
+    expect(
+      await asOwner(null, `select id from public.collections where status <> 'published'`),
+    ).toEqual([]);
+  });
+
+  it("lets the owner role read no saves for an explorer, and no identities at all for a curator of another organization", async () => {
+    expect(await asOwner(explorer1.id, `select user_id from public.saved_collections`)).toEqual([]);
+    expect(
+      await asOwner(explorer1.id, `select id from public.collections where status <> 'published'`),
+    ).toEqual([]);
+
+    // Curator B sees the saves of the collection of B only, never the ones of A (and the
+    // withdrawn collection of A is not visible to B, while curator A does see it).
+    const saves = await asOwner<{ collection_id: string }>(
+      curB.id,
+      `select collection_id from public.saved_collections`,
+    );
+
+    expect(saves.map((row) => row.collection_id)).toEqual([publishedB]);
+    const draftsOf = (actorId: string) =>
+      asOwner<{ id: string }>(
+        actorId,
+        `select id from public.collections where status <> 'published'`,
+      ).then((rows) => rows.map((row) => row.id));
+
+    expect(await draftsOf(curB.id)).toEqual([]);
+    expect(await draftsOf(curA.id)).toEqual([withdrawnA]);
+  });
+
   it("lets only krajozbior_app run the function", async () => {
     const privileges = await admin$<{ role: string; allowed: boolean }>(
       `select r as role, has_function_privilege(r, 'public.app_collection_saves(uuid)', 'execute') as allowed

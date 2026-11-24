@@ -424,7 +424,7 @@ function PlaceFields({
             ? `Ustawiono pinezkę: ${search.label}. Sprawdź na mapie i w razie potrzeby przesuń ją.`
             : null}
           {search.kind === "results"
-            ? `Znaleziono ${search.results.length}. Wybierz właściwe miejsce z listy.`
+            ? `Znalezione miejsca: ${search.results.length}. Wybierz właściwe z listy.`
             : null}
         </div>
         {search.kind === "results" ? (
@@ -441,6 +441,14 @@ function PlaceFields({
               </li>
             ))}
           </ul>
+        ) : null}
+        {search.kind === "results" ? (
+          <p className={styles.searchCredit}>
+            Wyniki wyszukiwania:{" "}
+            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">
+              © OpenStreetMap contributors
+            </a>
+          </p>
         ) : null}
         <p className={styles.pinStatus} aria-live="polite" data-testid="pin-status">
           {describePin(position)}

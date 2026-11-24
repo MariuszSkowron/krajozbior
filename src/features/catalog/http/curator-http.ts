@@ -90,7 +90,7 @@ export function respond<T>(outcome: CuratorOutcome<T>, successStatus: number): R
     case "rate_limited":
       return json(
         429,
-        { error: "rate_limited", message: "Za dużo zapisów, spróbuj za chwilę." },
+        { error: "rate_limited", message: "Za dużo prób w krótkim czasie, spróbuj za chwilę." },
         { "Retry-After": String(outcome.retryAfterSeconds) },
       );
     case "invalid":

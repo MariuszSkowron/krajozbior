@@ -254,6 +254,12 @@
   text-align: start;
 }
 
+.searchCredit {
+  margin-block: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
 /* Położenie miejsca: linia stanu pinezki i zwinięte ustawienia potwierdzania wizyt. */
 .pinStatus {
   margin-block: 0 var(--space-md);

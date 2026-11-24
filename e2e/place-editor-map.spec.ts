@@ -329,7 +329,7 @@ test.describe("place editor with a map", () => {
     await openNewPlace(page, collectionId, "Miejsce z błędem");
     await page.getByRole("button", { name: "Dodaj miejsce do kolekcji" }).click();
     // No role="alert": the focus moves to the notice, so a reader says it once.
-    const missing = page.getByText("Ustaw położenie pinezką na mapie");
+    const missing = page.getByText("Znajdź miejsce po adresie, ustaw pinezkę na mapie");
 
     await expect(missing).toBeVisible();
     await expect(missing).toBeFocused();

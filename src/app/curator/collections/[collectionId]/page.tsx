@@ -34,10 +34,8 @@ export default async function CollectionEditorPage({
   const query = await searchParams;
   const path = `/curator/collections/${collectionId}`;
   const { actor } = await requireCurator(path);
-  const { collection, places, otherPlaces, coverPlacePhotoId, coverCandidates } = pageValue(
-    await getCuratorCollection(actor, collectionId, getCatalogDeps()),
-    path,
-  );
+  const { collection, places, otherPlaces, coverPlacePhotoId, coverCandidates, autoCoverPhotoId } =
+    pageValue(await getCuratorCollection(actor, collectionId, getCatalogDeps()), path);
 
   return (
     <CollectionVersionProvider version={collection.version}>
@@ -105,6 +103,7 @@ export default async function CollectionEditorPage({
           collectionId={collection.id}
           currentPhotoId={coverPlacePhotoId}
           choices={coverCandidates}
+          autoPhotoId={autoCoverPhotoId}
         />
 
         <PublicationControls

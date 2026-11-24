@@ -10,18 +10,35 @@ import { Migration } from "@mikro-orm/migrations";
 //   organizacji i dla gościa zwraca zero wierszy.
 // - Właściciel potrzebuje odczytu przez wąskie polityki (tabele mają FORCE): `saved_collections`
 //   (funkcja agreguje, nie zwraca wierszy) i kolekcje, które kiedykolwiek były opublikowane
-//   (tylko takie mogą być zapisane; szkic bez publikacji nie ma zapisów). Wycofana kolekcja
+//   (tylko takie mogą być zapisane; szkic bez publikacji nie ma zapisów). Obie polityki
+//   obejmują wyłącznie organizacje, których członkiem jest aktor z sesji. Wycofana kolekcja
 //   zachowuje zapisy (D-15), więc jej liczba też jest widoczna.
+// - Warunek członkostwa powtarza `app_org_permission` (członek = `full_edit`; tabela członków nie
+//   ma poziomów). Gdy pojawią się poziomy uprawnień, zmień tę funkcję razem z `app_org_permission`.
 
 export class Migration20261124040000_collection_saves_for_curator extends Migration {
   override async up(): Promise<void> {
+    // Both policies are bound to the organizations of the actor of the session
+    // (`app_current_user_id()`): without an actor, or for another organization, the owner role
+    // sees no row, so a future function of the owner cannot read other organizations' saves.
     this.addSql(`
       create policy saved_collections_owner_count on saved_collections
-        for select to krajozbior_owner using (true);
+        for select to krajozbior_owner using (exists (
+          select
+            from public.collections c
+            join public.organization_members m on m.organization_id = c.organization_id
+           where c.id = saved_collections.collection_id
+             and m.user_id = (select public.app_current_user_id())
+        ));
     `);
     this.addSql(`
       create policy collections_owner_saves_select on collections
-        for select to krajozbior_owner using (first_published_at is not null);
+        for select to krajozbior_owner using (first_published_at is not null and exists (
+          select
+            from public.organization_members m
+           where m.organization_id = collections.organization_id
+             and m.user_id = (select public.app_current_user_id())
+        ));
     `);
     this.addSql(`
       create function app_collection_saves(p_organization_id uuid)

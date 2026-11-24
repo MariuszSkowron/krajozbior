@@ -298,6 +298,27 @@ export const postgresCatalogRepository: CatalogRepository = {
     );
   },
 
+  async findPublicAutoCoverPhotoId(tx, collectionId) {
+    // Guest context: the policy of `place_photos` leaves only photos everybody may see.
+    const rows = await tx.em.execute<{ id: string }[]>(
+      `select ph.id
+         from public.collection_places cp
+         cross join lateral (
+           select p.id, p.position
+             from public.place_photos p
+            where p.place_id = cp.place_id and p.file_state = 'ready' and p.storage_key is not null
+            order by p.position
+            limit 1
+         ) ph
+        where cp.collection_id = ?
+        order by cp.position
+        limit 1`,
+      [collectionId],
+    );
+
+    return rows[0]?.id ?? null;
+  },
+
   async setCollectionCover(tx, collectionId, photoId) {
     // A savepoint keeps the transaction usable when the guard refuses the photo (23514).
     await tx.em.execute(`savepoint collection_cover`);
