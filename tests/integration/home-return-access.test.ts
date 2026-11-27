@@ -329,10 +329,17 @@ describe("home page: reasons to return", () => {
     const draft = await f.draftCollection(curA, orgA, 1);
     const old = await f.publishedCollection(curA, orgA, 1);
 
-    await admin$(
-      `update public.collections set first_published_at = now() - interval '45 days' where id = $1`,
-      [old.collectionId],
-    );
+    // The trigger of publication is the only writer of first_published_at (it restores the old
+    // value on every update), so it is switched off for the one backdating update.
+    await admin$(`alter table public.collections disable trigger zz_collections_publication`);
+    try {
+      await admin$(
+        `update public.collections set first_published_at = now() - interval '45 days' where id = $1`,
+        [old.collectionId],
+      );
+    } finally {
+      await admin$(`alter table public.collections enable trigger zz_collections_publication`);
+    }
 
     const ids = (
       await getHomePublicReads(catalogDeps(), new Set([await slugOf(excluded.collectionId)]))

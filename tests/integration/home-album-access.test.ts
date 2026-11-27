@@ -123,6 +123,7 @@ describe("home page: personal album and public collections", () => {
       summary: { discoveredPlaces: 0, regions: 0, savedCollections: 0 },
       favorites: [],
       recentVisits: [],
+      homeReturn: { hasSaved: false, remaining: [], saveNudge: null },
     });
   });
 
@@ -143,10 +144,12 @@ describe("home page: personal album and public collections", () => {
       }),
     ]);
     expect(a.recentVisits.map((visit) => visit.kind)).toEqual(["on_site", "past"]);
+    expect(a.homeReturn).toEqual({ hasSaved: true, remaining: [], saveNudge: null });
     expect(await homeOf(explorerB)).toEqual({
       summary: { discoveredPlaces: 0, regions: 0, savedCollections: 0 },
       favorites: [],
       recentVisits: [],
+      homeReturn: { hasSaved: false, remaining: [], saveNudge: null },
     });
   });
 
