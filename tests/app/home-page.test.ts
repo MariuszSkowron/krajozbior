@@ -581,7 +581,7 @@ describe("home page of a signed-in explorer", () => {
         ...album,
         homeReturn: {
           hasSaved: true,
-          remaining: [{ slug: "wiezyce", title: "Wieżyce", remaining: 3, names: ["Dwór"] }],
+          remaining: [{ slug: "f-0", title: "Ulubiona 0", remaining: 3, names: ["Dwór"] }],
           saveNudge: { id: "n1", slug: "nowa", title: "Nowa", visited: 1, total: 3 },
         },
       },
@@ -594,6 +594,36 @@ describe("home page of a signed-in explorer", () => {
     expect(html).toContain("do odkrycia: 3 · Dwór");
     expect(html).toContain("Masz 1 z 3 miejsc kolekcji Nowa.");
     expect(mocks.getHomePublicReads).toHaveBeenCalledWith(expect.anything(), new Set(["wiezyce"]));
+  });
+
+  it("does not repeat the collection of the banner in the list of what is left (P6, C-01)", async () => {
+    const row = (slug: string, title: string) => ({ slug, title, remaining: 3, names: ["Dwór"] });
+    const withRemaining = (remaining: ReturnType<typeof row>[]) => ({
+      status: "ok",
+      value: { ...album, homeReturn: { hasSaved: true, remaining, saveNudge: null } },
+    });
+
+    mocks.listSaved.mockResolvedValue({ status: "ok", value: ["wiezyce"] });
+
+    // The banner is the first saved collection ("wiezyce"): it stays in the banner only.
+    mocks.getHomeAlbum.mockResolvedValue(
+      withRemaining([row("wiezyce", "Wieżyce"), row("f-0", "Ulubiona 0")]),
+    );
+
+    const html = await render();
+    const rest = html.slice(html.indexOf('id="zostalo-title"'));
+    const section = rest.slice(0, rest.indexOf("</section>"));
+
+    expect(section).toContain("Ulubiona 0");
+    expect(section).not.toContain("/collections/wiezyce");
+
+    // Only the banner collection is left: no section, and no false "all complete".
+    mocks.getHomeAlbum.mockResolvedValue(withRemaining([row("wiezyce", "Wieżyce")]));
+
+    const alone = await render();
+
+    expect(alone).not.toContain("Do odkrycia w Twoich kolekcjach");
+    expect(alone).not.toContain("Wszystkie zapisane kolekcje masz ukończone");
   });
 
   it("leaves out only the public reasons to return when their read fails", async () => {

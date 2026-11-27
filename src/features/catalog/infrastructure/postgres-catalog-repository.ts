@@ -175,6 +175,7 @@ const collectionCardJoin = collectionCoverLateral("cph");
 // (`Migration20261121170000_place_photos`). Pilnuje tego test integracyjny z ukrytym zdjęciem.
 const placeOfDayCandidate = `
   p.description <> ''
+  and p.access_restriction = 'none'
   and exists (select from public.organizations po where po.id = p.organization_id and po.status = 'approved')
   and exists (select from public.place_photos x
                where x.place_id = p.id and x.file_state = 'ready' and x.storage_key is not null)

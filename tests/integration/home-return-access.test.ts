@@ -385,4 +385,43 @@ describe("home page: reasons to return", () => {
     resetPlaceOfDayCache();
     expect((await getHomePublicReads(catalogDeps())).placeOfDay).toEqual(first);
   });
+
+  // C-01: serwis nie poleca na Starcie terenu prywatnego, ogrodzonego ani ruiny (regulamin,
+  // rozdz. 10 ust. 5 pkt 2). Miejsce z ograniczeniem nie jest wybierane, a to samo miejsce bez
+  // ograniczenia tak; pamięć "Miejsca dnia" jest czyszczona przed każdym odczytem.
+  for (const restriction of ["private", "fenced", "ruin"] as const) {
+    it(`never draws a place with access restriction "${restriction}" as the place of the day`, async () => {
+      const made = await f.publishedCollection(curA, orgA, 1);
+      const placeId = made.placeIds[0]!;
+
+      await describePlace(orgA, placeId);
+      await admin$(`update public.places set access_restriction = $2 where id = $1`, [
+        placeId,
+        restriction,
+      ]);
+
+      // Every candidate of the draw, not one pick: the place must be absent from all of them.
+      const candidates = () =>
+        runInGuestContext(app.em, async (tx) => {
+          const count = await postgresCatalogRepository.countPlaceOfDayCandidates(tx);
+          const ids: string[] = [];
+
+          for (let offset = 0; offset < count; offset += 1) {
+            const place = await postgresCatalogRepository.findPlaceOfDayAt(tx, offset);
+
+            if (place !== null) {
+              ids.push(place.id);
+            }
+          }
+
+          return ids;
+        });
+
+      expect(await candidates()).not.toContain(placeId);
+
+      await admin$(`update public.places set access_restriction = 'none' where id = $1`, [placeId]);
+
+      expect(await candidates()).toContain(placeId);
+    });
+  }
 });

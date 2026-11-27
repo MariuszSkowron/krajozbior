@@ -362,7 +362,10 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
       {album === null || newExplorer ? null : (
         <>
           <SaveStartedCollection value={album.homeReturn} />
-          <RemainingInCollections value={album.homeReturn} />
+          <RemainingInCollections
+            value={album.homeReturn}
+            exceptSlug={favorites.length > 0 ? favorites[0].slug : null}
+          />
         </>
       )}
       {album === null ? null : <RecentVisits visits={album.recentVisits} />}

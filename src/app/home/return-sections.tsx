@@ -21,15 +21,27 @@ import { SaveNudgeButton } from "./save-nudge-button";
 // stronę. Teksty: raport audytu, sekcja 6 (zaakceptowane) i [P] oznaczone w raporcie zadania.
 
 /** „Do odkrycia w Twoich kolekcjach”: co zostało w zapisanych kolekcjach (odkrywca z zapisem). */
-export function RemainingInCollections({ value }: Readonly<{ value: HomeReturn }>) {
+// `exceptSlug` to kolekcja z banera na górze Startu: ma tam własną, dużą kartę z postępem, więc
+// nie powtarza się na tej liście. Gdy po jej pominięciu nic nie zostaje, a wcześniej coś było,
+// sekcji nie ma (komunikat „wszystkie ukończone” byłby nieprawdziwy).
+export function RemainingInCollections({
+  value,
+  exceptSlug = null,
+}: Readonly<{ value: HomeReturn; exceptSlug?: string | null }>) {
   if (!value.hasSaved) {
+    return null;
+  }
+
+  const remaining = value.remaining.filter((row) => row.slug !== exceptSlug);
+
+  if (remaining.length === 0 && value.remaining.length > 0) {
     return null;
   }
 
   return (
     <section className={styles.section} aria-labelledby="zostalo-title">
       <h2 id="zostalo-title">Do odkrycia w Twoich kolekcjach</h2>
-      {value.remaining.length === 0 ? (
+      {remaining.length === 0 ? (
         <div className={styles.empty}>
           <p>Wszystkie zapisane kolekcje masz ukończone. Wybierz następną.</p>
           <Link className="button button--outline" href="#do-odkrycia">
@@ -38,7 +50,7 @@ export function RemainingInCollections({ value }: Readonly<{ value: HomeReturn }
         </div>
       ) : (
         <ul className={styles.visits}>
-          {value.remaining.map((row) => (
+          {remaining.map((row) => (
             <li key={row.slug} className={styles.visit}>
               <Link
                 className={`${catalog.itemTitle} ${styles.visitName}`}
