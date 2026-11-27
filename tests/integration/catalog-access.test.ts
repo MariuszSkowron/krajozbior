@@ -763,12 +763,13 @@ describe("collections, places and their links", () => {
       // Another organization's curator and an explorer touch 0 rows.
       expect(await setExtra(curB, id)).toHaveLength(0);
       expect(await setExtra(explorer, id)).toHaveLength(0);
-      expect(
-        await asGuest(
+      // A guest context is a read-only transaction, so the write is refused outright.
+      await expect(
+        asGuest(
           `update public.collections set extra_regions = '{opolskie}' where id = ? returning id`,
           [id],
         ),
-      ).toHaveLength(0);
+      ).rejects.toThrow(/read-only|permission denied/);
       expect((await rowOf(id)).extra_regions).toEqual([]);
 
       // INSERT of a guest or an outsider is refused; a member may name the column.
@@ -778,7 +779,7 @@ describe("collections, places and their links", () => {
            values (?, ?, 't', 'dolnoslaskie', '{opolskie}')`,
           [slug(), orgA],
         ),
-      ).rejects.toThrow(/permission denied|row-level security/);
+      ).rejects.toThrow(/read-only|permission denied|row-level security/);
       await expect(
         as(
           outsider,
