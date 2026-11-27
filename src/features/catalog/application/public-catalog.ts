@@ -108,7 +108,17 @@ export async function listRecentlyPublishedCollections(
 }
 
 /** How long the place of the day is kept in the memory of the process (never past its day). */
-const PLACE_OF_DAY_TTL_MS = 15 * 60 * 1000;
+const DEFAULT_PLACE_OF_DAY_TTL_MS = 15 * 60 * 1000;
+
+// E2E servers set PLACE_OF_DAY_CACHE_TTL_MS=0: specs delete the places they seed, and a cached
+// place would stay on the page of the next spec as a link to a page that is gone.
+function placeOfDayTtlMs(): number {
+  const configured = Number(process.env.PLACE_OF_DAY_CACHE_TTL_MS);
+
+  return Number.isFinite(configured) && configured >= 0 && process.env.PLACE_OF_DAY_CACHE_TTL_MS
+    ? Math.min(configured, DEFAULT_PLACE_OF_DAY_TTL_MS)
+    : DEFAULT_PLACE_OF_DAY_TTL_MS;
+}
 
 let placeOfDayCache: { day: string; until: number; place: PlaceOfTheDay } | null = null;
 
@@ -163,7 +173,7 @@ export async function getHomePublicReads(
     // An empty result is not kept: it costs one cheap count, and a count and an offset that
     // differ in `read committed` would hide the place from everyone for 15 minutes.
     if (placeOfDay !== null) {
-      placeOfDayCache = { day, until: now.getTime() + PLACE_OF_DAY_TTL_MS, place: placeOfDay };
+      placeOfDayCache = { day, until: now.getTime() + placeOfDayTtlMs(), place: placeOfDay };
     }
 
     return { placeOfDay, newCollections };

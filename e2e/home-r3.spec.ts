@@ -477,7 +477,9 @@ test.describe("home page: the R3 look", () => {
         const { slug, title } = seeded!;
         const main = page.getByRole("main");
         // A string name matches as a substring (no escaping of the title needed).
-        const banner = main.getByRole("link", { name: title });
+        // The same collection is also listed under "Do odkrycia w Twoich kolekcjach" (P6), so the
+        // banner is the first of the links with this title (it is the first one in the page).
+        const banner = main.getByRole("link", { name: title }).first();
 
         await expect(banner).toHaveAttribute("href", `/collections/${slug}`);
         await expect(banner).toContainText("Kolekcja · Pomorskie");

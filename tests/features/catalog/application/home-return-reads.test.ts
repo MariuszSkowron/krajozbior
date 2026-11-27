@@ -129,7 +129,24 @@ describe("getHomePublicReads: the place of the day", () => {
     expect(findPlaceOfDayAt).toHaveBeenCalledTimes(2);
   });
 
-  it("does not remember a failed read: the next read asks the source again", async () => {
+  it("does not keep the place when PLACE_OF_DAY_CACHE_TTL_MS is 0 (E2E servers)", async () => {
+    const findPlaceOfDayAt = vi.fn(async () => place);
+    const countPlaceOfDayCandidates = vi.fn(async () => 9);
+    const { deps } = depsWith({ ...empty, countPlaceOfDayCandidates, findPlaceOfDayAt });
+    const start = new Date("2026-11-24T10:00:00Z");
+
+    vi.stubEnv("PLACE_OF_DAY_CACHE_TTL_MS", "0");
+    try {
+      await getHomePublicReads(deps, new Set(), start);
+      await getHomePublicReads(deps, new Set(), new Date(start.getTime() + 1000));
+    } finally {
+      vi.unstubAllEnvs();
+    }
+
+    expect(findPlaceOfDayAt).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not remember a failed read:the next read asks the source again", async () => {
     const findPlaceOfDayAt = vi
       .fn<() => Promise<PlaceOfTheDay | null>>()
       .mockRejectedValueOnce(new Error("db down"))
