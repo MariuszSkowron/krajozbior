@@ -25,6 +25,8 @@ type PlaceMapProps = Readonly<{
   radiusM: number | null;
   /** Coordinates of the places the collection already has (the first view of a new place). */
   bounds: readonly PinPosition[];
+  /** Grows with every address search: the map then zooms to the pin (no zoom on a plain click). */
+  focusToken?: number;
   onPick: (position: PinPosition) => void;
   onTilesFailed: () => void;
   onHide: () => void;
@@ -52,6 +54,7 @@ export default function PlaceMap({
   position,
   radiusM,
   bounds,
+  focusToken = 0,
   onPick,
   onTilesFailed,
   onHide,
@@ -186,6 +189,19 @@ export default function PlaceMap({
       instance.panTo(point);
     }
   }, [position, radiusM]);
+
+  // An address search found a place: show it close enough to move the pin by hand.
+  useEffect(() => {
+    const instance = map.current;
+    const target = latest.current.position;
+
+    if (focusToken > 0 && instance !== null && target !== null) {
+      instance.setView(
+        [target.latitude, target.longitude],
+        Math.max(instance.getZoom(), PLACE_ZOOM),
+      );
+    }
+  }, [focusToken]);
 
   return (
     <div className={styles.wrap}>

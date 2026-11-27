@@ -30,6 +30,8 @@ export type CuratorCollectionSummary = Readonly<{
   region: Region;
   status: CollectionStatus;
   placeCount: number;
+  /** How many explorers saved the collection: a bare number, never who (private data). */
+  saveCount: number;
   updatedAt: Date;
 }>;
 
@@ -53,6 +55,12 @@ export type CuratorCollectionDetail = Readonly<{
   coverPlacePhotoId: string | null;
   /** Photos the curator can choose from: ready, not hidden, of places in this collection. */
   coverCandidates: readonly CoverCandidate[];
+  /**
+   * The photo the public page shows for "Automatycznie" (the guest's rule: ready and not hidden);
+   * `null` when there is none. A collection that is not published has no public page, so the
+   * database cannot tell the curator which photos are hidden: its first candidate is shown.
+   */
+  autoCoverPhotoId: string | null;
   places: readonly CuratorPlaceItem[];
   /** Places of the same organization that are not in this collection yet. */
   otherPlaces: readonly CuratorOwnPlace[];
@@ -262,6 +270,12 @@ export interface CatalogRepository {
     tx: TransactionContext,
     collectionId: string,
   ): Promise<readonly CoverCandidate[]>;
+  /**
+   * The automatic cover of a published collection as a guest sees it (first ready photo of the
+   * first place that has one; hidden photos are dropped by the policy of `place_photos`).
+   * Run in the guest context.
+   */
+  findPublicAutoCoverPhotoId(tx: TransactionContext, collectionId: string): Promise<string | null>;
   /**
    * Sets or clears (`null`) the cover. `"rejected"` when the database refuses the photo
    * (it is not a ready, visible photo of a place in this collection, error 23514); the
