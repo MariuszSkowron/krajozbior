@@ -9,7 +9,7 @@ import { cardCoverImage } from "@/features/catalog/domain/collection-cover";
 import { formatPlaceCount } from "@/features/catalog/domain/place-count";
 import { firstSentence } from "@/features/catalog/domain/place-of-day";
 import type { PublicNewsCard } from "@/features/news/application/news-read-types";
-import { formatNewsDate } from "@/features/news/domain/news-view";
+import { formatSavedDate } from "@/features/want-to-see/domain/saved-date";
 
 import catalog from "../catalog.module.css";
 import { NewsEventDays, NewsKicker, NewsPublished } from "../news/news-parts";
@@ -145,7 +145,7 @@ export function NewCollectionsSection({
               title={collection.title}
               regionLabel={REGION_LABELS[collection.region]}
               cover={cardCoverImage(collection.cover)}
-              note={`dodana ${formatNewsDate(collection.firstPublishedAt)} · ${formatPlaceCount(collection.placeCount)} · ${collection.organization.name}`}
+              note={`dodana ${formatSavedDate(collection.firstPublishedAt)} · ${formatPlaceCount(collection.placeCount)} · ${collection.organization.name}`}
             />
           </li>
         ))}

@@ -37,6 +37,7 @@ function makeDeps(over: Partial<AlbumRepository> = {}, allowed = true) {
     homeIncompleteSaved: async () => [],
     homeUnvisitedPlaces: async () => [],
     homeStartedUnsaved: async () => [],
+    homeHasSavedWithPlaces: async () => false,
     listPlaceIdsOfCollection: async () => [],
     listVisitedPlaceIdsOfCollection: async () => [],
     ...over,

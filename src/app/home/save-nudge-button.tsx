@@ -8,7 +8,7 @@ import { useHydrated } from "@/app/use-hydrated";
 
 import styles from "./home-sections.module.css";
 
-// „Zapisz kolekcję” na Starcie: ten sam zapis co na stronie kolekcji (wspólne wywołanie trasy
+// „Zapisuję kolekcję” na Starcie (napis jak na stronie kolekcji, D-49 pkt 8, D-55 pkt 3): ten sam zapis co na stronie kolekcji (wspólne wywołanie trasy
 // albumu i wspólne komunikaty). Po zapisie strona odświeża się, a zachęta znika, bo kolekcja jest
 // już zapisana.
 export function SaveNudgeButton({ collectionId }: Readonly<{ collectionId: string }>) {
@@ -41,7 +41,7 @@ export function SaveNudgeButton({ collectionId }: Readonly<{ collectionId: strin
         aria-busy={pending}
         onClick={() => void save()}
       >
-        Zapisz kolekcję
+        Zapisuję kolekcję
       </button>
       <p className={styles.nudgeStatus} role="status">
         {pending ? "Zapisuję…" : (error ?? "")}

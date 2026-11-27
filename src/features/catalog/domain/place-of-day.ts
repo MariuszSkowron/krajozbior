@@ -32,13 +32,68 @@ export function newCollectionsSince(now: Date): Date {
   return new Date(now.getTime() - NEW_COLLECTIONS_DAYS * 24 * 60 * 60 * 1000);
 }
 
+// Skróty, po których kropka nie kończy zdania (małymi literami, bez końcowej kropki). Liczby
+// rzymskie przed „w.” są zwykłym słowem przed skrótem, więc osobnej listy nie trzeba.
+const ABBREVIATIONS = new Set([
+  "pw",
+  "św",
+  "w",
+  "ww",
+  "ok",
+  "ul",
+  "al",
+  "pl",
+  "im",
+  "np",
+  "tzw",
+  "m.in",
+  "r",
+  "gm",
+  "pow",
+  "woj",
+  "ks",
+  "bp",
+  "abp",
+  "ob",
+  "zob",
+  "tj",
+  "tys",
+  "mln",
+  "wg",
+  "nr",
+  "dr",
+  "prof",
+  "inż",
+  "mgr",
+]);
+
+/** Czy kropka na pozycji `index` kończy skrót (albo inicjał), a nie zdanie. */
+function endsAbbreviation(text: string, index: number): boolean {
+  // Wyrażenie pasuje zawsze (może dać pusty ciąg), więc wynik nie bywa `null`.
+  const [word] = /[^\s(„"]*$/.exec(text.slice(0, index)) as RegExpExecArray;
+
+  return ABBREVIATIONS.has(word.toLowerCase()) || /^\p{Lu}$/u.test(word);
+}
+
+/** Pozycja kropki, wykrzyknika lub pytajnika kończącego pierwsze zdanie (`-1`: brak). */
+function sentenceEnd(text: string): number {
+  for (const match of text.matchAll(/[.!?](?=\s|$)/g)) {
+    if (match[0] !== "." || !endsAbbreviation(text, match.index)) {
+      return match.index;
+    }
+  }
+
+  return -1;
+}
+
 /**
- * Pierwsze zdanie opisu (do kropki, wykrzyknika lub pytajnika), a gdy go nie widać albo jest
- * dłuższe niż `max` znaków, początek obcięty na granicy słowa z wielokropkiem.
+ * Pierwsze zdanie opisu (do kropki, wykrzyknika lub pytajnika, z pominięciem kropek po
+ * skrótach jak „pw.”, „św.”, „w.”), a gdy go nie widać albo jest dłuższe niż `max` znaków,
+ * początek obcięty na granicy słowa z wielokropkiem.
  */
 export function firstSentence(text: string, max = 160): string {
   const flat = text.replace(/\s+/g, " ").trim();
-  const end = flat.search(/[.!?](\s|$)/);
+  const end = sentenceEnd(flat);
   const sentence = end === -1 ? flat : flat.slice(0, end + 1);
 
   if (sentence.length <= max) {

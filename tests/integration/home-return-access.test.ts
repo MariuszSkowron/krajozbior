@@ -235,6 +235,23 @@ describe("home page: reasons to return", () => {
     ]);
   });
 
+  it("counts a saved collection without places neither as complete nor as open (N4)", async () => {
+    const a = await explorer("a");
+    const empty = await f.publishedCollection(curA, orgA, 0);
+
+    await save(a, empty.collectionId);
+
+    // Only an empty collection is saved: no "all complete", no row.
+    expect(await returnOf(a)).toEqual({ hasSaved: false, remaining: [], saveNudge: null });
+
+    // With a complete collection next to it, "all complete" is true again; the empty one adds no row.
+    const done = await f.publishedCollection(curA, orgA, 1);
+
+    await save(a, done.collectionId);
+    await pastVisit(a, done.placeIds[0]!);
+    expect(await returnOf(a)).toEqual({ hasSaved: true, remaining: [], saveNudge: null });
+  });
+
   it("lists at most three collections with something left", async () => {
     const a = await explorer("a");
 

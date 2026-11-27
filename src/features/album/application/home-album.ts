@@ -68,6 +68,11 @@ export async function getHomeAlbum(
             HOME_REMAINING_NAMES,
           );
     const [saveNudge] = await deps.repository.homeStartedUnsaved(tx, 1);
+    // A saved collection without places is neither complete nor open (N4): "all complete" is
+    // said only when some saved collection has places.
+    const hasSaved =
+      open.length > 0 ||
+      (summary.savedCollections > 0 && (await deps.repository.homeHasSavedWithPlaces(tx)));
 
     return {
       status: "ok",
@@ -79,7 +84,7 @@ export async function getHomeAlbum(
         })),
         recentVisits,
         homeReturn: {
-          hasSaved: summary.savedCollections > 0,
+          hasSaved,
           remaining: remainingCollections(open, unvisited),
           saveNudge: saveNudge ?? null,
         },

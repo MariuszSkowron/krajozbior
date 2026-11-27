@@ -269,6 +269,20 @@ export const postgresAlbumRepository: AlbumRepository = {
     );
   },
 
+  async homeHasSavedWithPlaces(tx) {
+    const rows = await tx.em.execute<{ ok: boolean }[]>(
+      `select true as ok
+         from public.saved_collections sc
+         join public.collections c on c.id = sc.collection_id
+         join public.organizations o on o.id = c.organization_id
+        where sc.user_id = app_current_user_id() and ${publishedCollection}
+          and exists (select from public.collection_places cp where cp.collection_id = c.id)
+        limit 1`,
+    );
+
+    return rows.length > 0;
+  },
+
   async homeStartedUnsaved(tx, limit) {
     // Starts from the visits of the actor (not from the whole catalogue): the collections that
     // hold a visited place, then only those that are public and not saved get a total.

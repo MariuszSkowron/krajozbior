@@ -484,6 +484,29 @@ describe("home page of a signed-in explorer", () => {
     expect(html).toContain("Twój album");
   });
 
+  it("says the save sentence once when a visit comes with a nudge to save the started collection", async () => {
+    mocks.getHomeAlbum.mockResolvedValue({
+      status: "ok",
+      value: {
+        ...album,
+        summary: { discoveredPlaces: 1, regions: 1, savedCollections: 0 },
+        favorites: [],
+        homeReturn: {
+          hasSaved: false,
+          remaining: [],
+          saveNudge: { id: "n1", slug: "nowa", title: "Nowa", visited: 1, total: 3 },
+        },
+      },
+    });
+
+    const html = await render();
+
+    expect(html).not.toContain("Zapisz kolekcję, a pokażemy tu Twój postęp w niej.");
+    expect(html).not.toContain("Nie masz jeszcze zapisanych kolekcji");
+    expect(html).toContain("Masz 1 z 3 miejsc kolekcji Nowa. Zapisz ją, żeby widzieć postęp.");
+    expect(html).toMatch(/<a [^>]*href="#do-odkrycia"[^>]*>Zobacz kolekcje<\/a>/);
+  });
+
   it("shows a new explorer (no visit, no saved collection) the big banner with the first step, not the zeros", async () => {
     mocks.getHomeBanner.mockResolvedValue({
       ...banner,

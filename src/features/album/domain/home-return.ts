@@ -2,6 +2,8 @@
 // kolekcji jeszcze nie zapisał. Czyste funkcje; o tym, co jest publiczne, rozstrzyga SQL
 // repozytorium (kolekcja opublikowana, organizacja zatwierdzona), nie ten moduł.
 
+import { formatPlaceCount } from "@/features/catalog/domain/place-count";
+
 import type { Progress } from "./progress";
 
 /** Najwyżej tyle kolekcji w sekcji „Do odkrycia w Twoich kolekcjach”. */
@@ -75,7 +77,18 @@ export type StartedUnsavedCollection = Readonly<{
   total: number;
 }>;
 
-/** „Masz 1 z 3 miejsc kolekcji X. Zapisz ją, żeby widzieć postęp.” (po „z” zawsze „miejsc”). */
+/**
+ * „Masz 1 z 3 miejsc kolekcji X. Zapisz ją, żeby widzieć postęp.” (po „z” zawsze „miejsc”). Przy
+ * kolekcji odwiedzonej w całości postęp nie ma już czego pokazywać: „Masz wszystkie 3 miejsca
+ * kolekcji X. Zapisz ją w swoich kolekcjach.”
+ */
 export function saveNudgeText(collection: StartedUnsavedCollection): string {
+  if (collection.total > 0 && collection.visited >= collection.total) {
+    const places =
+      collection.total === 1 ? "jedyne miejsce" : `wszystkie ${formatPlaceCount(collection.total)}`;
+
+    return `Masz ${places} kolekcji ${collection.title}. Zapisz ją w swoich kolekcjach.`;
+  }
+
   return `Masz ${collection.visited} z ${collection.total} miejsc kolekcji ${collection.title}. Zapisz ją, żeby widzieć postęp.`;
 }

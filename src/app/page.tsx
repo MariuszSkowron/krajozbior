@@ -353,6 +353,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
             banner={favorites.length > 0 ? banner : null}
             fallbackBanner={favorites.length > 0 ? null : banner}
             hasVisits={album.summary.discoveredPlaces > 0}
+            hasSaveNudge={album.homeReturn.saveNudge !== null}
           />
           <AlbumSummary summary={album.summary} />
           <MoreFavoriteCollections collections={album.favorites} />

@@ -55,6 +55,10 @@ describe("SaveNudgeButton", () => {
     expect(render().button.props.disabled).toBe(false);
   });
 
+  it("is labelled like the button on the collection page (D-55 pkt 3)", () => {
+    expect(render().button.props.children).toBe("Zapisuję kolekcję");
+  });
+
   it("saves the collection and refreshes the page", async () => {
     render().button.props.onClick?.();
     await new Promise((resolve) => setTimeout(resolve, 0));

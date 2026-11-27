@@ -70,4 +70,16 @@ describe("texts", () => {
       saveNudgeText({ id: "x", slug: "x", title: "Mosty i zamki", visited: 1, total: 3 }),
     ).toBe("Masz 1 z 3 miejsc kolekcji Mosty i zamki. Zapisz ją, żeby widzieć postęp.");
   });
+
+  it("does not promise progress for a collection visited in full", () => {
+    expect(
+      saveNudgeText({ id: "x", slug: "x", title: "Mosty i zamki", visited: 3, total: 3 }),
+    ).toBe("Masz wszystkie 3 miejsca kolekcji Mosty i zamki. Zapisz ją w swoich kolekcjach.");
+    expect(saveNudgeText({ id: "x", slug: "x", title: "Młyn", visited: 1, total: 1 })).toBe(
+      "Masz jedyne miejsce kolekcji Młyn. Zapisz ją w swoich kolekcjach.",
+    );
+    expect(saveNudgeText({ id: "x", slug: "x", title: "Szlak", visited: 5, total: 5 })).toBe(
+      "Masz wszystkie 5 miejsc kolekcji Szlak. Zapisz ją w swoich kolekcjach.",
+    );
+  });
 });

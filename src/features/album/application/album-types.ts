@@ -56,7 +56,7 @@ export type IncompleteSavedRow = Omit<HomeFavoriteRow, "region">;
 // "Powody do powrotu" on the home page of the explorer: what is left in the saved collections and
 // the started collection the explorer has not saved. Public fields and own counts only.
 export type HomeReturn = Readonly<{
-  /** The explorer has at least one saved (public) collection. */
+  /** The explorer has at least one saved (public) collection with places (an empty one is not counted). */
   hasSaved: boolean;
   /** Saved collections with something left, at most three; empty when all are complete. */
   remaining: readonly RemainingCollection[];
@@ -118,6 +118,11 @@ export interface AlbumRepository {
     tx: TransactionContext,
     limit: number,
   ): Promise<readonly IncompleteSavedRow[]>;
+  /**
+   * True when the actor has at least one saved public collection with at least one place. A saved
+   * collection without places is counted neither as complete nor as open (N4, 27.11).
+   */
+  homeHasSavedWithPlaces(tx: TransactionContext): Promise<boolean>;
   /**
    * The actor's `limit` latest visits, newest first. The place is joined only when
    * it is in a public collection; otherwise `place` is null.

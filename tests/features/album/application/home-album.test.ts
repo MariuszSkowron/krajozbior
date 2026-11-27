@@ -22,6 +22,7 @@ function makeDeps(over: Partial<AlbumRepository> = {}) {
     ]),
     homeUnvisitedPlaces: vi.fn(async () => [{ collectionId: "a", name: "Zamek", position: 2 }]),
     homeStartedUnsaved: vi.fn(async () => []),
+    homeHasSavedWithPlaces: vi.fn(async () => true),
     ...over,
   } as unknown as AlbumRepository;
 
@@ -105,6 +106,33 @@ describe("getHomeAlbum", () => {
         homeReturn: { hasSaved: false, remaining: [], saveNudge: null },
       }),
     });
+  });
+
+  it("counts a saved collection without places neither as complete nor as open (N4)", async () => {
+    const { deps, repository } = makeDeps({
+      homeSummary: vi.fn(async () => ({ discoveredPlaces: 0, regions: 0, savedCollections: 1 })),
+      homeIncompleteSaved: vi.fn(async () => []),
+      homeHasSavedWithPlaces: vi.fn(async () => false),
+    });
+
+    expect(await getHomeAlbum(actor, deps)).toEqual({
+      status: "ok",
+      value: expect.objectContaining({
+        homeReturn: { hasSaved: false, remaining: [], saveNudge: null },
+      }),
+    });
+    expect(repository.homeHasSavedWithPlaces).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not ask for saved collections with places when nothing is saved", async () => {
+    const { deps, repository } = makeDeps({
+      homeSummary: vi.fn(async () => ({ discoveredPlaces: 0, regions: 0, savedCollections: 0 })),
+      homeIncompleteSaved: vi.fn(async () => []),
+    });
+
+    await getHomeAlbum(actor, deps);
+
+    expect(repository.homeHasSavedWithPlaces).not.toHaveBeenCalled();
   });
 
   it("does not hide an unexpected failure as a refusal", async () => {

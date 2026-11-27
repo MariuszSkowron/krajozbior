@@ -232,9 +232,7 @@ test.describe("home page: reasons to return", () => {
         "href",
         `/collections/${seeded!.slug}`,
       );
-      await expect(
-        fresh.getByText(/dodana \d{1,2}\.\d{2}\.\d{4} · 3 miejsca · /).first(),
-      ).toBeVisible();
+      await expect(fresh.getByText(/dodana \d{2}\.\d{2} · 3 miejsca · /).first()).toBeVisible();
       // No link to "all new collections": there is no such view yet (search sorts by title).
       await expect(fresh.getByRole("link", { name: "Wszystkie nowe kolekcje" })).toHaveCount(0);
 
@@ -357,7 +355,7 @@ test.describe("home page: reasons to return", () => {
       expect(await overflowOf(page)).toBeLessThanOrEqual(0);
       await inBothThemes(page, () => expectNoAccessibilityViolations(page));
 
-      await nudge.getByRole("button", { name: "Zapisz kolekcję" }).click();
+      await nudge.getByRole("button", { name: "Zapisuję kolekcję" }).click();
       await expect(
         page.getByRole("heading", { name: "Masz już miejsca z tej kolekcji" }),
       ).toHaveCount(0);

@@ -51,6 +51,29 @@ describe("firstSentence", () => {
     expect(firstSentence("Wersja 2.0 zamku")).toBe("Wersja 2.0 zamku");
   });
 
+  it("does not end the sentence at a Polish abbreviation", () => {
+    expect(firstSentence("Kościół pw. św. Jana z XIV w. stoi na wzgórzu. Drugie zdanie.")).toBe(
+      "Kościół pw. św. Jana z XIV w. stoi na wzgórzu.",
+    );
+    expect(firstSentence("Gotycki zamek z XIV w. Przebudowany później.")).toBe(
+      "Gotycki zamek z XIV w. Przebudowany później.",
+    );
+    expect(firstSentence("Stoi przy ul. Długiej, ok. 5 km stąd. Dalej las.")).toBe(
+      "Stoi przy ul. Długiej, ok. 5 km stąd.",
+    );
+    expect(firstSentence("Szkoła im. Kopernika, tzw. stara. Nowa obok.")).toBe(
+      "Szkoła im. Kopernika, tzw. stara.",
+    );
+    expect(firstSentence("Zburzony m.in. w 1410 r. przez wojska. Odbudowany.")).toBe(
+      "Zburzony m.in. w 1410 r. przez wojska.",
+    );
+    expect(firstSentence("Dzieło J. Kowalskiego. Drugie zdanie.")).toBe("Dzieło J. Kowalskiego.");
+  });
+
+  it("keeps a text whose only full stop follows an abbreviation", () => {
+    expect(firstSentence("Zamek z XIV w.")).toBe("Zamek z XIV w.");
+  });
+
   it("cuts a long sentence at a word boundary with an ellipsis", () => {
     expect(firstSentence("Alfa beta gamma delta epsilon", 12)).toBe("Alfa beta…");
   });
