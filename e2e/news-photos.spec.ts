@@ -287,21 +287,26 @@ test.describe("aktualności ze zdjęciami", () => {
         await expect(thumb).toHaveAttribute("src", `/media/p/${photoIds[WITH_PHOTO.slug]}/w400`);
         await expect(thumb).toHaveAttribute("alt", "");
 
-        // S-3: na telefonie karta pobiera miniaturę, od 48 rem (kolumna zdjęcia szersza niż 400 px)
-        // plik główny, żeby zdjęcie nie było rozciągnięte i rozmyte.
-        const expectedFile = viewport.width < 768 ? "w400" : "main";
-
-        for (const card of cards) {
+        // S-3, M-1: zwykłe karty biorą miniaturę `w400` na każdej szerokości (kolumna zdjęcia
+        // najwyżej 400 px); plik główny dostaje tylko karta wyróżniona (pierwsza), od 48 rem.
+        for (const [index, card] of cards.entries()) {
           const image = card.locator("img");
 
           if ((await image.count()) === 0) {
             continue;
           }
 
+          const expectedFile = index === 0 && viewport.width >= 768 ? "main" : "w400";
+
           await image.scrollIntoViewIfNeeded();
           await expect
             .poll(() => image.evaluate((img: HTMLImageElement) => img.currentSrc))
             .toMatch(new RegExp(`/media/p/[^/]+/${expectedFile}$`));
+
+          if (index > 0 && viewport.width >= 768) {
+            // Miniatura nie jest rozciągnięta: kolumna zdjęcia zwykłej karty ma najwyżej 400 px.
+            expect((await image.boundingBox())!.width).toBeLessThanOrEqual(401);
+          }
         }
 
         // S-2: na telefonie karta jest niska (na ekranie mieszczą się dwie).

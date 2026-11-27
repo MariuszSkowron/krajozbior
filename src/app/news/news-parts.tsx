@@ -70,12 +70,14 @@ export function NewsEventDays({ card }: Readonly<{ card: PublicNewsCard }>) {
 }
 
 /**
- * Rozmiar miniatury na karcie (S-3): od 48 rem kolumna zdjęcia ma około 450 px (wyróżniona 650 px),
- * więc przeglądarka bierze plik główny (miniatura 400 px byłaby rozciągnięta i rozmyta); na
- * telefonie kolumna zdjęcia jest wąska i wystarcza miniatura `w400`.
+ * Wybór pliku na karcie (S-3, M-1): zwykła karta zawsze bierze miniaturę `w400` (jej kolumna
+ * zdjęcia ma na komputerze najwyżej 25 rem = 400 px, więc miniatura nie jest rozciągnięta), nie ma
+ * więc `srcset` ani `sizes` i lista nie pobiera plików głównych. Tylko karta wyróżniona (jedna na
+ * liście) ma kolumnę około 650 px i pozwala przeglądarce wziąć plik główny od 48 rem; na telefonie
+ * kolumna jest wąska i wystarcza miniatura.
  */
-export function cardImageSizes(featured: boolean): string {
-  return featured ? "(min-width: 48rem) 40rem, 8rem" : "(min-width: 48rem) 30rem, 8rem";
+export function cardImageSizes(featured: boolean): string | undefined {
+  return featured ? "(min-width: 48rem) 40rem, 8rem" : undefined;
 }
 
 /**
@@ -102,8 +104,8 @@ export function NewsCard({
           <img
             className={image.whole ? styles.imageWhole : undefined}
             src={image.src}
-            srcSet={image.srcSet}
-            sizes={image.srcSet === undefined ? undefined : cardImageSizes(featured)}
+            srcSet={featured ? image.srcSet : undefined}
+            sizes={featured && image.srcSet !== undefined ? cardImageSizes(featured) : undefined}
             width={image.width}
             height={image.height}
             alt=""

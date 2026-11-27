@@ -167,8 +167,9 @@
 }
 
 @media (min-width: 48rem) {
+  /* Kolumna zdjęcia zwykłej karty ma najwyżej 25 rem (400 px): miniatura `w400` nie jest rozciągnięta (M-1). */
   .card {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    grid-template-columns: minmax(0, 25rem) minmax(0, 1fr);
     min-block-size: 14rem;
   }
 

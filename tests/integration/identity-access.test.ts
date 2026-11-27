@@ -256,6 +256,23 @@ describe("local demo login and role enforcement", () => {
     }
   });
 
+  // The address shown on the profile comes only from the session of the request: an account sees
+  // its own, another account never sees it, a guest (or a forged cookie) gets nothing.
+  it("gives each account only its own e-mail address, and a guest none", async () => {
+    const { BetterAuthIdentityProvider } =
+      await import("@/features/identity/infrastructure/better-auth");
+    const provider = new BetterAuthIdentityProvider();
+    const user = await signIn("user");
+    const admin = await signIn("admin");
+    const emailOf = (cookie?: string) =>
+      provider.getSessionEmail(new Headers(cookie ? { cookie } : {}));
+
+    expect(await emailOf(user.cookie)).toBe("user@demo.krajozbior.local");
+    expect(await emailOf(admin.cookie)).toBe("admin@demo.krajozbior.local");
+    expect(await emailOf()).toBeNull();
+    expect(await emailOf("krajozbior.session_token=forged")).toBeNull();
+  });
+
   it("denies the admin route to a user with 403", async () => {
     const { cookie } = await signIn("user");
 

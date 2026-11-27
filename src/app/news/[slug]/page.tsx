@@ -18,7 +18,6 @@ import {
   NewsOrganization,
   NewsPublished,
 } from "../news-parts";
-import { NewsPhotoCredit } from "../news-photo-credit";
 import styles from "../news.module.css";
 
 // Same rules as the list: dynamic, always read as a guest.
@@ -143,11 +142,7 @@ export default async function NewsItemPage({ params }: { params: Params }) {
       <article>
         <div className={`content-width-wide ${styles.coverFrame}`}>
           {back}
-          <CollectionCover
-            cover={item.cover}
-            eyebrow={NEWS_KIND_LABELS[item.kind]}
-            credit={<NewsPhotoCredit photo={item.cover} />}
-          >
+          <CollectionCover cover={item.cover} eyebrow={NEWS_KIND_LABELS[item.kind]}>
             <h1>{item.title}</h1>
           </CollectionCover>
         </div>

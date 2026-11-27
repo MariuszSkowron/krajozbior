@@ -225,9 +225,7 @@ test.describe("search", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Wszystkie kolekcje" })).toBeVisible();
 
     await page.goto(`/search?q=${"a".repeat(81)}`);
-    await expect(page.getByRole("main").getByRole("alert")).toHaveText(
-      "Fraza może mieć najwyżej 80 znaków.",
-    );
+    await expect(page.getByRole("main").getByRole("alert")).toHaveText("Wpisz najwyżej 80 znaków.");
   });
 
   test("lists all collections and filters them by region with the select of the form", async ({

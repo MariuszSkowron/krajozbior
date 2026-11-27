@@ -18,6 +18,7 @@ function providerFor(actor: Actor | null | Error): IdentityProvider {
     signInWithCode: async () => null,
     signOut: async () => [],
     getSessionCreatedAt: async () => null,
+    getSessionEmail: async () => null,
     deleteAccount: async () => false,
   };
 }

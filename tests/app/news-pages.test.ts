@@ -243,7 +243,7 @@ describe("news item page", () => {
     // D-58 pkt 3: one short line with the place, not the full credit.
     const caption = html.match(/<figcaption[\s\S]*?<\/figcaption>/)?.[0] ?? "";
 
-    expect(caption).toContain('<a href="/places/pl-1">Stary Most</a>');
+    expect(caption).toMatch(/<a class="[^"]*" href="\/places\/pl-1">Stary Most<\/a>/);
     expect(caption).toContain(" · fot. Jan Kowalski");
     expect(caption).toContain("Wikimedia Commons</a>");
     expect(caption).toContain("CC BY-SA 4.0</a> · zdjęcie zmniejszone");

@@ -531,6 +531,8 @@ describe("public reading of news (E7-R3)", () => {
 
       expect(chosen.card?.photoId).toBe(secondPhoto);
       expect(chosen.page?.photoId).toBe(secondPhoto);
+      // The short credit names the place of the chosen photo, not the first place of the collection.
+      expect(chosen.page).toMatchObject({ placeId: second, placeName: "Drugie" });
     });
 
     it("gives no photo for a hidden or not ready photo, a place outside a public collection, a draft or withdrawn collection, or no link", async () => {
