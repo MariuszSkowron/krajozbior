@@ -152,6 +152,8 @@ function CollectionFields({
 
     if (result.ok) {
       known.report(result.value);
+      // Saved: nothing is unsaved while the page loads the new version (the fields then restart).
+      setDirty(false);
       onFeedback({ kind: "success", message: "Zapisano zmiany." });
       router.refresh();
     } else {

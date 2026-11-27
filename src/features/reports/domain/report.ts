@@ -1,5 +1,5 @@
 // Reports of a problem with a place, the part a curator needs (P4b, PR A). Frozen copies
-// of these lists live in the migration CHECKs (`Migration20261124020000_place_reports`);
+// of these lists live in the migration CHECKs (`Migration20261128010000_place_reports`);
 // tests/integration/place-reports-access.test.ts compares them with these constants.
 
 export const REPORT_CATEGORIES = [

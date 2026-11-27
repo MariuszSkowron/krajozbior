@@ -37,7 +37,7 @@ const countsSignature = `uuid`;
 const queueSignature = `uuid, text, integer`;
 const decideSignature = `uuid, text, text, text, integer`;
 
-export class Migration20261124020000_place_reports extends Migration {
+export class Migration20261128010000_place_reports extends Migration {
   override async up(): Promise<void> {
     this.addSql(`
       create table place_reports (

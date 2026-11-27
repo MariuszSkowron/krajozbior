@@ -1,3 +1,7 @@
+import type {
+  CollectionBanner,
+  CollectionCover,
+} from "@/features/catalog/application/catalog-types";
 import type { TransactionContext } from "@/lib/db/user-context";
 
 import type { NewsKind } from "../domain/news";
@@ -16,10 +20,17 @@ export type PublicNewsCard = Readonly<{
   organization: Readonly<{ name: string; slug: string }>;
   /** `editorial`: the team of Krajozbiór itself; `verified`: an organization approved by the team (Q4). */
   verification: "editorial" | "verified";
+  /**
+   * The thumbnail inherited from the linked place (first) or collection (T-1 of the spec), or
+   * `null`. Public fields only: no author, no licence (a thumbnail has no credit, D-55 pkt 2).
+   */
+  cover: CollectionCover | null;
 }>;
 
-export type PublicNewsItem = PublicNewsCard &
+export type PublicNewsItem = Omit<PublicNewsCard, "cover"> &
   Readonly<{
+    /** The same photo as on the list, with what its credit needs and the place it shows (D-58). */
+    cover: CollectionBanner | null;
     body: string;
     /** Set only when the content of a published item changed (D-E7-9). */
     contentUpdatedAt: Date | null;
