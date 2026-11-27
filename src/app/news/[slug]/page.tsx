@@ -4,8 +4,10 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { logReadFailure } from "@/app/request-actor";
+import { CollectionCover } from "@/app/collections/[slug]/collection-cover";
+import { ogCoverDescription, ogImageUrl } from "@/features/catalog/domain/collection-cover";
 import { getPublicNews } from "@/features/news/application/public-news";
-import { showUpdatedNote } from "@/features/news/domain/news";
+import { NEWS_KIND_LABELS, showUpdatedNote } from "@/features/news/domain/news";
 import { formatNewsDate, newsBodyParagraphs, newsDateTime } from "@/features/news/domain/news-view";
 import { getNewsReadDeps } from "@/features/news/infrastructure/news-read-deps";
 
@@ -42,7 +44,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     return {};
   }
 
-  const { title, lead, publishedAt } = result.value;
+  const { title, lead, publishedAt, cover } = result.value;
+  // The preview image of the photo, like the page of a collection (T-5); only with a photo and
+  // a known public address.
+  const image = ogImageUrl(process.env.BETTER_AUTH_URL, cover);
 
   // No `canonical` and no `og:url`: the application does not know its public address yet
   // (no `metadataBase`), and a wrong address would be worse than none.
@@ -56,7 +61,18 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       locale: "pl_PL",
       siteName: "Krajozbiór",
       publishedTime: publishedAt.toISOString(),
+      ...(image === null || cover === null ? {} : { images: [{ url: image, alt: cover.altText }] }),
     },
+    ...(image === null || cover === null
+      ? {}
+      : {
+          twitter: {
+            card: "summary_large_image" as const,
+            title,
+            description: ogCoverDescription(cover),
+            images: [image],
+          },
+        }),
   };
 }
 
@@ -77,13 +93,13 @@ export default async function NewsItemPage({ params }: { params: Params }) {
   const item = result.value;
   const updated = showUpdatedNote(item.publishedAt, item.contentUpdatedAt);
 
-  return (
-    <article className={`content-width ${styles.article}`}>
-      <Link className={styles.back} href="/news">
-        ← Wszystkie aktualności
-      </Link>
-      <NewsKicker card={item} />
-      <h1>{item.title}</h1>
+  const back = (
+    <Link className={styles.back} href="/news">
+      ← Wszystkie aktualności
+    </Link>
+  );
+  const rest = (
+    <>
       <p className={styles.articleLead}>{item.lead}</p>
       <NewsEventDays card={item} />
       <div className={styles.meta}>
@@ -115,6 +131,32 @@ export default async function NewsItemPage({ params }: { params: Params }) {
           )}
         </section>
       )}
+    </>
+  );
+
+  // Ze zdjęciem: okładka jak na stronie kolekcji (rodzaj i `h1` na zdjęciu, krótki podpis pod nią),
+  // tekst w czytelnej kolumnie. Bez zdjęcia: nagłówek tekstowy, bez pustej okładki (T-6). Link
+  // powrotu jest w obu układach na samej górze, nad okładką albo nad nadtytułem.
+  if (item.cover !== null) {
+    return (
+      <article>
+        <div className={`content-width-wide ${styles.coverFrame}`}>
+          {back}
+          <CollectionCover cover={item.cover} eyebrow={NEWS_KIND_LABELS[item.kind]}>
+            <h1>{item.title}</h1>
+          </CollectionCover>
+        </div>
+        <div className={`content-width ${styles.article}`}>{rest}</div>
+      </article>
+    );
+  }
+
+  return (
+    <article className={`content-width ${styles.article}`}>
+      {back}
+      <NewsKicker card={item} />
+      <h1>{item.title}</h1>
+      {rest}
     </article>
   );
 }

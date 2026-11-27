@@ -1,5 +1,11 @@
 import "server-only";
 
+import {
+  collectionCoverLateral,
+  coverCardColumns,
+  coverCreditColumns,
+  toCardCover,
+} from "./collection-cover-sql";
 import { placeInPublicCollection, publishedCollection } from "./public-visibility";
 import type { TransactionContext } from "@/lib/db/user-context";
 
@@ -106,10 +112,7 @@ const toRecentCollection = ({
 }: CollectionCardRow): RecentCollection => ({
   ...rest,
   organization: { name: organizationName },
-  cover:
-    coverPhotoId === null || coverWidth === null || coverHeight === null || coverAltText === null
-      ? null
-      : { photoId: coverPhotoId, width: coverWidth, height: coverHeight, altText: coverAltText },
+  cover: toCardCover({ coverPhotoId, coverWidth, coverHeight, coverAltText }),
 });
 
 // The columns of a collection card (public fields only); the collection is `c`, its organization
@@ -118,54 +121,9 @@ const toRecentCollection = ({
 const collectionCardColumns = `c.id, c.slug, c.title, c.region, o.name as "organizationName",
   (select count(*)::int from public.collection_places cp
     where cp.collection_id = c.id) as "placeCount",
-  cph.id as "coverPhotoId", cph.width as "coverWidth", cph.height as "coverHeight",
-  cph.alt_text as "coverAltText"`;
+  ${coverCardColumns("cph")}`;
 
-// The cover is joined in the context of the list (the guest), so the policy of `place_photos`
-// leaves the photo only when everyone may see it (ready, not hidden, in a public collection);
-// the conditions are repeated for the reader of the query. No cover or a photo nobody may see
-// gives nulls: the card keeps the placeholder.
-//
-// The automatic cover (D-55 pkt 1, D-57): the photo chosen by the curator when it is ready,
-// otherwise the first ready photo of the first place (by position in the collection) that has
-// one. Both are only photos of the collection's own places. The columns are listed (never
-// `ph.*`): the application role has no grant on the `hidden_*` columns.
-//
-// Two branches joined with `union all` (the chosen photo by its key, the places of the collection
-// by `collection_places`, then the first ready photo of each place through the index
-// `(place_id, position)`), so no branch scans the whole table of photos: the sort key `k` puts
-// the chosen photo first.
-const collectionCoverLateral = (alias: string) => `left join lateral (
-      select u.id, u.place_id, u.width, u.height, u.alt_text, u.title, u.author_text, u.author_url,
-             u.source_url, u.source_kind, u.license_code, u.license_url, u.license_label
-        from (
-          (select ph.id, ph.place_id, ph.width, ph.height, ph.alt_text, ph.title, ph.author_text, ph.author_url,
-                  ph.source_url, ph.source_kind, ph.license_code, ph.license_url, ph.license_label,
-                  0 as k, 0 as place_pos, ph.position as photo_pos
-             from public.place_photos ph
-            where ph.id = c.cover_place_photo_id
-              and ph.file_state = 'ready' and ph.storage_key is not null)
-          union all
-          (select ph.id, ph.place_id, ph.width, ph.height, ph.alt_text, ph.title, ph.author_text, ph.author_url,
-                  ph.source_url, ph.source_kind, ph.license_code, ph.license_url, ph.license_label,
-                  1 as k, cp.position as place_pos, ph.position as photo_pos
-             from public.collection_places cp
-             cross join lateral (
-               select p.id, p.place_id, p.width, p.height, p.alt_text, p.title, p.author_text, p.author_url,
-                      p.source_url, p.source_kind, p.license_code, p.license_url, p.license_label,
-                      p.position
-                 from public.place_photos p
-                where p.place_id = cp.place_id
-                  and p.file_state = 'ready' and p.storage_key is not null
-                order by p.position
-                limit 1
-             ) ph
-            where cp.collection_id = c.id)
-        ) u
-       order by u.k, u.place_pos, u.photo_pos
-       limit 1
-    ) ${alias} on true`;
-
+// The cover lateral lives in `collection-cover-sql.ts` (shared with the news).
 const collectionCardJoin = collectionCoverLateral("cph");
 
 const LIKE = `like ? escape '\\'`;
@@ -633,11 +591,7 @@ export const postgresCatalogRepository: CatalogRepository = {
     // application role has no grant on the `hidden_*` columns, so the query does not read them.
     const cover = first(
       await tx.em.execute<NonNullable<PublishedCollection["cover"]>[]>(
-        `select ph.id as "photoId", ph.width, ph.height, ph.alt_text as "altText", ph.title,
-                ph.author_text as "authorText", ph.author_url as "authorUrl",
-                ph.source_url as "sourceUrl", ph.source_kind as "sourceKind",
-                ph.license_code as "licenseCode", ph.license_url as "licenseUrl",
-                ph.license_label as "licenseLabel",
+        `select ${coverCreditColumns("ph")},
                 ph.place_id as "placeId", pl.name as "placeName"
            from public.collections c
            ${collectionCoverLateral("ph")}
@@ -677,11 +631,7 @@ export const postgresCatalogRepository: CatalogRepository = {
     // Kontekst gościa zostawia tylko zdjęcie, które wolno zobaczyć każdemu.
     return first(
       await tx.em.execute<CollectionBanner[]>(
-        `select ph.id as "photoId", ph.width, ph.height, ph.alt_text as "altText", ph.title,
-                ph.author_text as "authorText", ph.author_url as "authorUrl",
-                ph.source_url as "sourceUrl", ph.source_kind as "sourceKind",
-                ph.license_code as "licenseCode", ph.license_url as "licenseUrl",
-                ph.license_label as "licenseLabel",
+        `select ${coverCreditColumns("ph")},
                 ph.place_id as "placeId", pl.name as "placeName"
            from public.collections c
            join public.organizations o on o.id = c.organization_id
@@ -804,8 +754,7 @@ export const postgresCatalogRepository: CatalogRepository = {
                 ) at time zone 'UTC',
                 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
               ) as "contentUpdatedAt",
-              cph.id as "coverPhotoId", cph.width as "coverWidth", cph.height as "coverHeight",
-              cph.alt_text as "coverAltText"
+              ${coverCardColumns("cph")}
          from public.collection_places cp
          join public.collections c on c.id = cp.collection_id
          join public.organizations o on o.id = c.organization_id
@@ -818,18 +767,7 @@ export const postgresCatalogRepository: CatalogRepository = {
       ({ contentUpdatedAt, coverPhotoId, coverWidth, coverHeight, coverAltText, ...rest }) => ({
         ...rest,
         contentUpdatedAt: new Date(contentUpdatedAt),
-        cover:
-          coverPhotoId === null ||
-          coverWidth === null ||
-          coverHeight === null ||
-          coverAltText === null
-            ? null
-            : {
-                photoId: coverPhotoId,
-                width: coverWidth,
-                height: coverHeight,
-                altText: coverAltText,
-              },
+        cover: toCardCover({ coverPhotoId, coverWidth, coverHeight, coverAltText }),
       }),
     );
     // The cover: the first ready photo by position. This runs in the guest context, so the policy

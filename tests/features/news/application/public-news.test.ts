@@ -13,6 +13,7 @@ const row = (overrides: Partial<Row> & { slug: string }): Row => ({
   eventStartsOn: null,
   eventEndsOn: null,
   organization: { name: "Krajozbiór — redakcja", slug: "krajozbior-redakcja" },
+  cover: null,
   ...overrides,
 });
 
@@ -121,6 +122,17 @@ describe("getPublicNews", () => {
       value: { ...item, verification: "editorial" },
     });
     expect(d.findPublished).toHaveBeenCalledWith(expect.anything(), "jak-zbierac");
+  });
+
+  it("passes the cover through unchanged", async () => {
+    const cover = { photoId: "p", width: 1, height: 1, altText: "a" };
+
+    expect(await listPublicNews(null, deps([row({ slug: "z", cover })]).value, now)).toMatchObject([
+      { cover },
+    ]);
+    expect(await listPublicNews(null, deps([row({ slug: "n" })]).value, now)).toMatchObject([
+      { cover: null },
+    ]);
   });
 
   it("marks an organization other than the team as verified", async () => {
