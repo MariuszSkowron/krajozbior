@@ -14,6 +14,8 @@ export type CollectionRow = Readonly<{
   title: string;
   summary: string;
   region: Region;
+  /** Extra voivodeships (0-3) in the order of REGIONS; set by the import file, read only in the panel. */
+  extraRegions: readonly Region[];
   status: CollectionStatus;
   firstPublishedAt: Date | null;
   version: number;
@@ -92,6 +94,7 @@ export type PublishedCollection = Readonly<{
   title: string;
   summary: string;
   region: Region;
+  extraRegions: readonly Region[];
   organization: Readonly<{ name: string; slug: string }>;
   places: readonly PublishedPlaceSummary[];
   /** How many places the collection has now (the same places as `places`). */
@@ -132,6 +135,7 @@ export type RecentCollection = Readonly<{
   slug: string;
   title: string;
   region: Region;
+  extraRegions: readonly Region[];
   organization: Readonly<{ name: string }>;
   placeCount: number;
   /** The cover photo (E4-3); `null` keeps the placeholder background of the card. */
@@ -169,6 +173,7 @@ export type PlaceCollection = Readonly<{
   slug: string;
   title: string;
   region: Region;
+  extraRegions: readonly Region[];
   position: number;
   placeCount: number;
   contentUpdatedAt: Date;

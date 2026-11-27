@@ -14,6 +14,7 @@ const row = (overrides: Partial<CollectionRow>): CollectionRow => ({
   title: "Zamki Pomorza",
   summary: "",
   region: "pomorskie",
+  extraRegions: [],
   status: "draft",
   firstPublishedAt: null,
   version: 1,
