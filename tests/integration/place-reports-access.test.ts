@@ -472,7 +472,8 @@ describe("place_reports: access of the author and the curator (P4b)", () => {
       )
     ).map((row) => row.t as number);
 
-    expect(times).toHaveLength(rows.length);
+    // `rows` was read before the report with the first name only was filed
+    expect(times).toHaveLength((await queue(curA, orgA)).length);
     expect(times).toEqual([...times].sort((a, b) => a - b));
   });
 
