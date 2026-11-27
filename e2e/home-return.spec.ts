@@ -99,11 +99,26 @@ const clearExplorer = () =>
   });
 
 // Odkrywca z `visited` wizytami w kolekcji testowej; zapisaną kolekcję ma tylko z `save`.
-const visitOf = (visited: number, save: boolean) =>
+// Kolekcja zapisana jako ostatnia jest na Starcie w banerze i nie powtarza się na liście „Do
+// odkrycia w Twoich kolekcjach” (P6). Dlatego z `withBanner` odkrywca zapisał kolekcję testową
+// wcześniej, a inną opublikowaną kolekcję później: ta druga jest w banerze, testowa na liście.
+const visitOf = (visited: number, save: boolean, withBanner = false) =>
   explorerData(async (client, userId) => {
     if (save) {
       await client.query(
-        `insert into public.saved_collections (user_id, collection_id) values ($1, $2)`,
+        `insert into public.saved_collections (user_id, collection_id, saved_at)
+         values ($1, $2, now() - interval '1 hour')`,
+        [userId, seeded!.collectionId],
+      );
+    }
+    if (save && withBanner) {
+      await client.query(
+        // The banner is the collection with the latest use (the save or the last visit), and the
+        // visits of this setup come right after it, so the save is set clearly later.
+        `insert into public.saved_collections (user_id, collection_id, saved_at)
+         select $1, id, now() + interval '1 hour' from public.collections
+          where status = 'published' and id <> $2
+          order by id limit 1`,
         [userId, seeded!.collectionId],
       );
     }
@@ -275,7 +290,7 @@ test.describe("home page: reasons to return", () => {
     test(`an explorer with a collection in progress sees what is left in it at ${size.name}`, async ({
       browser,
     }) => {
-      await visitOf(1, true);
+      await visitOf(1, true, true);
 
       const page = await signedInPage(browser, size);
 
@@ -359,8 +374,11 @@ test.describe("home page: reasons to return", () => {
       await expect(
         page.getByRole("heading", { name: "Masz już miejsca z tej kolekcji" }),
       ).toHaveCount(0);
+      // The collection is saved last now, so it is the one of the banner (P6), with its progress.
       await expect(
-        region(page, "Do odkrycia w Twoich kolekcjach").getByRole("link", { name: seeded!.title }),
+        region(page, "Moje kolekcje")
+          .getByRole("link", { name: seeded!.title })
+          .filter({ hasText: "1/3 odwiedzone" }),
       ).toBeVisible();
       await page.context().close();
     });
