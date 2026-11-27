@@ -167,6 +167,13 @@
 # Panel kuratora (ekrany zapisujące dane CUR przez trasy API), lista organizacji
 # konta w żądaniu i test dwóch kuratorów (kurator B nie widzi szkiców A)
 /src/app/curator/                  @MariuszSkowron
+# Wyszukiwanie adresu w edytorze miejsca (zewnętrzna usługa geokodowania; trasa tylko dla
+# kuratora) i podgląd liczby zapisów kolekcji (zbiorcza liczba z danych PRIV)
+/src/app/api/curator/geocode/      @MariuszSkowron
+/e2e/curator-editor-guard.spec.ts  @MariuszSkowron
+/e2e/curator-address-search.spec.ts @MariuszSkowron
+/tests/integration/curator-geocode-access.test.ts @MariuszSkowron
+/tests/integration/curator-collection-saves.test.ts @MariuszSkowron
 /src/app/request-organizations.ts  @MariuszSkowron
 /e2e/catalog-access.spec.ts        @MariuszSkowron
 /e2e/competition-path.spec.ts      @MariuszSkowron

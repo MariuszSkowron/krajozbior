@@ -227,6 +227,7 @@ describe("public reading of news (E7-R3)", () => {
 
       expect(Object.keys(card).sort()).toEqual(
         [
+          "cover",
           "eventEndsOn",
           "eventStartsOn",
           "kind",
@@ -417,6 +418,244 @@ describe("public reading of news (E7-R3)", () => {
         collection: null,
         place: null,
       });
+    });
+  });
+
+  // The cover of an item (T-1, T-2 of the spec "aktualności ze zdjęciami"): inherited from the
+  // linked place, else from the linked collection, and only when everyone may see the photo.
+  // Everything is read as krajozbior_app in the guest context (`guestDeps`), so the policy
+  // `place_photos_select` is the second barrier; the admin client only prepares the data.
+  describe("the cover", () => {
+    const photo = async (
+      placeId: string,
+      position: number,
+      state: "ready" | "pending_fetch" = "ready",
+      organizationId: string = orgTeam,
+    ): Promise<string> =>
+      (
+        await admin$<{ id: string }>(
+          `insert into public.place_photos
+             (organization_id, place_id, position, file_state, storage_key, width, height, alt_text,
+              source_kind, title, author_text, source_url, license_code, license_url, license_label,
+              rights_statement, commons_file)
+           values ($1, $2, $3, $4, $5, $6, $7, 'Opis zdjęcia', 'commons_import', 'Tytuł', 'Autor',
+                   'https://commons.wikimedia.org/wiki/File:X.jpg', 'cc-by-sa-4.0',
+                   'https://creativecommons.org/licenses/by-sa/4.0/', 'CC BY-SA 4.0',
+                   'commons-import/1', $8)
+           returning id`,
+          [
+            organizationId,
+            placeId,
+            position,
+            state,
+            state === "ready" ? randomUUID() : null,
+            state === "ready" ? 1280 : null,
+            state === "ready" ? 853 : null,
+            `Plik ${next()}.jpg`,
+          ],
+        )
+      )[0]!.id;
+
+    // Publishes an item with the given links and reads it as a guest, from the list and the page.
+    const publish = async (v: {
+      collectionId?: string;
+      placeId?: string;
+      organizationId?: string;
+    }) => {
+      const slug = `okladka-${next()}`;
+
+      await put({ organizationId: orgTeam, slug, title: title("okładka"), ...v });
+
+      return slug;
+    };
+
+    const readBack = async (slug: string) => {
+      const page = await getPublicNews(slug, guestDeps);
+      const list = (await listPublicNews(null, guestDeps)).find((card) => card.slug === slug);
+
+      if (page.status !== "ok" || list === undefined) {
+        throw new Error("expected a published item on the page and in the list");
+      }
+
+      return { page: page.value.cover, card: list.cover };
+    };
+
+    const read = async (v: { collectionId?: string; placeId?: string }) =>
+      readBack(await publish(v));
+
+    it("takes the photo of the place before the cover of the collection, with the credit only on the page", async () => {
+      const place = await newPlace(orgTeam, "Miejsce ze zdjęciem");
+      const other = await newPlace(orgTeam, "Inne miejsce");
+      const placePhoto = await photo(place, 2);
+      const firstPlacePhoto = await photo(place, 1);
+      const collectionPhoto = await photo(other, 1);
+      const collection = await newCollection(orgTeam, "Kolekcja", [other, place], "published");
+      const result = await read({ collectionId: collection.id, placeId: place });
+
+      expect(placePhoto).not.toBe(firstPlacePhoto);
+      expect(result.card).toEqual({
+        photoId: firstPlacePhoto,
+        width: 1280,
+        height: 853,
+        altText: "Opis zdjęcia",
+      });
+      expect(result.page).toMatchObject({
+        photoId: firstPlacePhoto,
+        authorText: "Autor",
+        licenseLabel: "CC BY-SA 4.0",
+        licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+        title: "Tytuł",
+        // The short credit of the page names the place the photo belongs to (D-58 pkt 3).
+        placeId: place,
+        placeName: "Miejsce ze zdjęciem",
+      });
+      expect(result.page?.photoId).not.toBe(collectionPhoto);
+      expect(result.card).not.toHaveProperty("authorText");
+    });
+
+    it("takes the chosen cover of a collection, else the first photo of its first place", async () => {
+      const first = await newPlace(orgTeam, "Pierwsze");
+      const second = await newPlace(orgTeam, "Drugie");
+      const firstPhoto = await photo(first, 1);
+      const secondPhoto = await photo(second, 1);
+      const collection = await newCollection(orgTeam, "Kolekcja", [first, second], "published");
+
+      expect((await read({ collectionId: collection.id })).card?.photoId).toBe(firstPhoto);
+
+      await admin$(`update public.collections set cover_place_photo_id = $1 where id = $2`, [
+        secondPhoto,
+        collection.id,
+      ]);
+
+      const chosen = await read({ collectionId: collection.id });
+
+      expect(chosen.card?.photoId).toBe(secondPhoto);
+      expect(chosen.page?.photoId).toBe(secondPhoto);
+      // The short credit names the place of the chosen photo, not the first place of the collection.
+      expect(chosen.page).toMatchObject({ placeId: second, placeName: "Drugie" });
+    });
+
+    it("gives no photo for a hidden or not ready photo, a place outside a public collection, a draft or withdrawn collection, or no link", async () => {
+      const hiddenPlace = await newPlace(orgTeam, "Ukryte");
+      const hidden = await photo(hiddenPlace, 1);
+      const pendingPlace = await newPlace(orgTeam, "Niegotowe");
+
+      await photo(pendingPlace, 1, "pending_fetch");
+
+      const loosePlace = await newPlace(orgTeam, "Luźne");
+
+      await photo(loosePlace, 1);
+
+      const draftPlace = await newPlace(orgTeam, "Ze szkicu");
+
+      await photo(draftPlace, 1);
+
+      const withdrawnPlace = await newPlace(orgTeam, "Z wycofanej");
+
+      await photo(withdrawnPlace, 1);
+
+      await newCollection(orgTeam, "Publiczna", [hiddenPlace, pendingPlace], "published");
+
+      const draft = await newCollection(orgTeam, "Szkic", [draftPlace], "draft");
+      const withdrawn = await newCollection(orgTeam, "Wycofana", [withdrawnPlace], "published");
+
+      // A withdrawn collection is a published one that went back to a draft (it keeps its
+      // `first_published_at`).
+      await admin$(`update public.collections set status = 'draft' where id = $1`, [withdrawn.id]);
+      await admin$(`update public.place_photos set hidden_at = now() where id = $1`, [hidden]);
+
+      const none = { page: null, card: null };
+
+      expect(await read({ placeId: hiddenPlace })).toEqual(none);
+      expect(await read({ placeId: pendingPlace })).toEqual(none);
+      expect(await read({ placeId: loosePlace })).toEqual(none);
+      // A collection that is not public: the cover is not read, even with a chosen photo.
+      await admin$(`update public.collections set cover_place_photo_id = $1 where id = $2`, [
+        (
+          await admin$<{ id: string }>(`select id from public.place_photos where place_id = $1`, [
+            draftPlace,
+          ])
+        )[0]!.id,
+        draft.id,
+      ]);
+      expect(await read({ collectionId: draft.id })).toEqual(none);
+      expect(await read({ collectionId: withdrawn.id })).toEqual(none);
+      expect(await read({})).toEqual(none);
+    });
+
+    it("gives no photo while the organization of the collection and the place is suspended, and gives it back after the approval", async () => {
+      const place = await newPlace(orgOther, "Miejsce zawieszonej");
+
+      await photo(place, 1, "ready", orgOther);
+
+      const collection = await newCollection(
+        orgOther,
+        "Kolekcja zawieszonej",
+        [place],
+        "published",
+      );
+      // The items are published while the organization is approved (the database refuses a link
+      // to a collection or place of a suspended one), then the organization is suspended.
+      const byPlace = await publish({ organizationId: orgOther, placeId: place });
+      const byCollection = await publish({ organizationId: orgOther, collectionId: collection.id });
+      const byBoth = await publish({
+        organizationId: orgOther,
+        collectionId: collection.id,
+        placeId: place,
+      });
+
+      // Control: while the organization is approved the same links give a photo.
+      expect((await readBack(byPlace)).card).not.toBeNull();
+      expect((await readBack(byCollection)).card).not.toBeNull();
+
+      await admin$(`update public.organizations set status = 'suspended' where id = $1`, [
+        orgOther,
+      ]);
+
+      try {
+        // The item and its photo of a suspended organization are gone from the page and the list.
+        const list = await listPublicNews(null, guestDeps);
+
+        for (const slug of [byPlace, byCollection, byBoth]) {
+          expect((await getPublicNews(slug, guestDeps)).status).not.toBe("ok");
+          expect(list.find((card) => card.slug === slug)).toBeUndefined();
+        }
+      } finally {
+        await admin$(`update public.organizations set status = 'approved' where id = $1`, [
+          orgOther,
+        ]);
+      }
+
+      expect((await readBack(byPlace)).card).not.toBeNull();
+    });
+
+    it("drops the photo once its collection leaves the public list, and the item stays", async () => {
+      const place = await newPlace(orgTeam, "Zniknie");
+
+      await photo(place, 1);
+
+      const collection = await newCollection(orgTeam, "Zniknie", [place], "published");
+      const before = await read({ collectionId: collection.id });
+
+      expect(before.card).not.toBeNull();
+
+      await admin$(`update public.collections set status = 'draft' where id = $1`, [collection.id]);
+      expect(await read({ collectionId: collection.id, placeId: place })).toEqual({
+        page: null,
+        card: null,
+      });
+    });
+
+    it("returns the same photo on the list and on the page", async () => {
+      const place = await newPlace(orgTeam, "To samo");
+
+      await photo(place, 1);
+      await newCollection(orgTeam, "Ta sama", [place], "published");
+
+      const result = await read({ placeId: place });
+
+      expect(result.card?.photoId).toBeDefined();
+      expect(result.page?.photoId).toBe(result.card?.photoId);
     });
   });
 

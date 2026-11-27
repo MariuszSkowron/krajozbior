@@ -124,7 +124,7 @@ test.describe("the competition path", () => {
     await curatorA.getByLabel("Nazwa", { exact: true }).fill("Most ze ścieżki");
     await curatorA.getByLabel("Adres", { exact: true }).fill("Tczew");
     // Współrzędne są w zwiniętej części formularza (K-39).
-    await curatorA.getByText("Ustawienia potwierdzania wizyt").click();
+    await curatorA.getByText("Współrzędne i promień potwierdzania wizyty", { exact: true }).click();
     await curatorA.getByLabel("Szerokość geograficzna").fill("54,0928");
     await curatorA.getByLabel("Długość geograficzna").fill("18.7919");
     await curatorA.getByRole("button", { name: "Dodaj miejsce do kolekcji" }).click();

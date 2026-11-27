@@ -197,7 +197,9 @@ describe("PostgreSQL migrations and transactions", () => {
         want: "want_to_see_places",
         visits: "visits",
         fn: "record_on_site_visit(uuid,double precision,double precision,double precision,uuid)",
-        ownerPolicies: "3",
+        // Three from the album migration, one from `collection_saves_for_curator` (collections
+        // that were ever published, for the aggregate `app_collection_saves`).
+        ownerPolicies: "4",
       });
     } finally {
       await owner.close(true);

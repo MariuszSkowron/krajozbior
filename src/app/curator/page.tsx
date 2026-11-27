@@ -4,6 +4,7 @@ import Link from "next/link";
 import { StatusBadge } from "@/design-system/components/status-badge";
 import { listCuratorCollections } from "@/features/catalog/application/curator-queries";
 import { COLLECTION_STATUS_LABELS, REGION_LABELS } from "@/features/catalog/domain/collection";
+import { formatSaveCount } from "@/features/catalog/domain/save-count";
 import { formatCollectionCount } from "@/features/catalog/domain/search";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
 
@@ -82,6 +83,7 @@ export default async function CuratorHome({
                 <th scope="col">Stan</th>
                 <th scope="col">Województwo</th>
                 <th scope="col">Miejsca</th>
+                <th scope="col">Zapisy</th>
                 <th scope="col">Zmieniono</th>
               </tr>
             </thead>
@@ -98,12 +100,20 @@ export default async function CuratorHome({
                   </td>
                   <td>{REGION_LABELS[collection.region]}</td>
                   <td>{collection.placeCount}</td>
+                  <td data-testid="save-count">{formatSaveCount(collection.saveCount)}</td>
                   <td>{formatDate(collection.updatedAt)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+      {collections.length === 0 ? null : (
+        <p className={`${styles.muted} ${styles.tableNote}`}>
+          Zapisy to liczba odkrywców, którzy dodali kolekcję do swojego albumu. Widzisz tylko
+          liczbę, nie to, kto zapisał kolekcję. Gdy zapisały ją mniej niż 3 osoby, widzisz tylko
+          „mniej niż 3”.
+        </p>
       )}
     </>
   );
