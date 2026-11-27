@@ -3,7 +3,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { getRequestActor, loginHref } from "@/app/request-actor";
+import { getRequestActor, getRequestEmail, loginHref } from "@/app/request-actor";
 import { getMyProfile } from "@/features/profile/application/profile";
 import { PROFILE_DRAFT_COOKIE, parseProfileDraft } from "@/features/profile/domain/profile-draft";
 import { getProfileDeps } from "@/features/profile/infrastructure/profile-deps";
@@ -47,6 +47,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
     throw new Error("Profile could not be read");
   }
 
+  const email = await getRequestEmail();
+
   return (
     <div className={`content-width ${styles.page}`}>
       <header className={styles.header}>
@@ -60,6 +62,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
       />
       <section aria-labelledby="settings-account" className={styles.section}>
         <h2 id="settings-account">Konto</h2>
+        {email === null ? null : (
+          <p data-testid="account-email">
+            Adres e-mail konta: <strong>{email}</strong>
+          </p>
+        )}
         <ul className={styles.links}>
           <li>
             <Link className={styles.link} href="/my/delete-account">

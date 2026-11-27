@@ -24,7 +24,7 @@ const messages = new Map<string, string>([
 // The message at the field itself (tied to it with `aria-describedby`).
 const fieldHints: Record<ProfileField, string> = {
   firstName:
-    "Wpisz do 40 liter (może mieć spację, myślnik lub apostrof). Pierwszą literę nazwiska podaj tylko razem z imieniem.",
+    "Imię może mieć do 40 liter, także spację, myślnik lub apostrof. Pierwszą literę nazwiska podaj tylko razem z imieniem.",
   familyInitial: "Wpisz jedną literę.",
   region: "Wybierz województwo z listy.",
   visibility: "Wybierz jedną z opcji.",
@@ -32,21 +32,10 @@ const fieldHints: Record<ProfileField, string> = {
 
 const fieldMessages: Record<ProfileField, string> = {
   firstName:
-    "Imię: wpisz do 40 liter (może mieć spację, myślnik lub apostrof). Pierwszą literę nazwiska podaj tylko razem z imieniem.",
-  familyInitial: "Pierwsza litera nazwiska: wpisz jedną literę.",
+    "Imię może mieć do 40 liter, także spację, myślnik lub apostrof. Pierwszą literę nazwiska podaj tylko razem z imieniem.",
+  familyInitial: "Pierwsza litera nazwiska to jedna litera.",
   region: "Region: wybierz województwo z listy.",
   visibility: "Widoczność: wybierz jedną z opcji.",
-};
-
-const visibilityChoices: Record<Visibility, { label: string; hint: string }> = {
-  private: {
-    label: "Tylko ja",
-    hint: "Nikt poza Tobą nie zobaczy Twojego imienia ani regionu.",
-  },
-  public: {
-    label: "Inni odkrywcy",
-    hint: "Teraz profil widzisz tylko Ty. Gdy go udostępnimy, inni odkrywcy zobaczą imię, region i liczby. Historii wizyt nie zobaczy nikt.",
-  },
 };
 
 const knownFields: readonly string[] = ["firstName", "familyInitial", "region", "visibility"];
@@ -177,29 +166,9 @@ export function ProfileForm({
           <FieldError field="region" wrong={wrong} />
         </div>
 
-        <fieldset className={styles.fieldset} aria-describedby={describedBy("visibility")}>
-          <legend>Kto zobaczy Twój profil</legend>
-          <FieldError field="visibility" wrong={wrong} />
-          {VISIBILITIES.map((visibility) => (
-            <div key={visibility} className={styles.choice}>
-              <input
-                id={`profile-visibility-${visibility}`}
-                name="visibility"
-                type="radio"
-                value={visibility}
-                defaultChecked={shown === visibility}
-                aria-describedby={`profile-visibility-${visibility}-hint`}
-              />
-              <label htmlFor={`profile-visibility-${visibility}`}>
-                {visibilityChoices[visibility].label}
-              </label>
-              <p id={`profile-visibility-${visibility}-hint`} className={styles.hint}>
-                {visibilityChoices[visibility].hint}
-              </p>
-            </div>
-          ))}
-          <p className={styles.hint}>E-mail i ustawienia konta widzisz tylko Ty.</p>
-        </fieldset>
+        {/* R-024: przełącznik widoczności jest ukryty, bo profile dla innych nie istnieją i nic by
+            nie zmienił. Zapisana wartość wraca bez zmian, więc dane i kolumna zostają. */}
+        <input type="hidden" name="visibility" value={shown} />
 
         <button className="button button--primary" type="submit">
           Zapisz profil

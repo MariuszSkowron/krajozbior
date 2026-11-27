@@ -130,8 +130,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         <SearchForm id="search" phrase={formPhrase} withRegion />
         <p role="alert" className={`${styles.notice} ${styles.noticeDanger}`}>
           {outcome.status === "busy"
-            ? "Wyszukiwarka jest teraz zajęta, spróbuj za chwilę."
-            : "Wyszukiwanie trwa zbyt długo. Doprecyzuj frazę."}
+            ? "Wyszukiwarka jest teraz zajęta. Spróbuj za chwilę."
+            : "Wyszukiwanie trwa zbyt długo. Wpisz dokładniejszą nazwę."}
         </p>
       </div>
     );
@@ -189,7 +189,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
     outcome.status === "invalid"
       ? outcome.reason === "too_short"
         ? "Wpisz co najmniej 2 znaki."
-        : `Fraza może mieć najwyżej ${SEARCH_MAX_LENGTH} znaków.`
+        : `Wpisz najwyżej ${SEARCH_MAX_LENGTH} znaków.`
       : null;
 
   return (

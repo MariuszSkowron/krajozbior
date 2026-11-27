@@ -22,10 +22,12 @@ import {
 import { formatPlaceCount } from "@/features/catalog/domain/place-count";
 
 import styles from "./home-sections.module.css";
+import { fetchNearbyCandidates } from "./nearby-client";
 
 // One section "Kolekcje do odkrycia" (D-49 pkt 2, K-34): the recently published collections,
 // visible to everyone. The button "Pokaż najbliższe" sorts the same list by distance. The list
-// of candidates comes from the server and is public. The distance is counted here: the position
+// of places comes from a public route, fetched only after the click (not sent with the page,
+// and without any position in the request). The distance is counted here: the position
 // of the device is read only after a click, lives for the length of one callback and is never
 // sent, stored, put in the address or logged (D-14, E12-Q4). What the state keeps are the
 // distances of the collections, not the position.
@@ -73,20 +75,20 @@ function sortedByDistance(
 }
 
 // `collections: null` is a failed read of the list: a message in the section, the rest of the
-// page works. `candidates: null` is a failed read of the positions: the list stays, the button
-// is left out.
+// page works. A failed fetch of the places (after a click) leaves the list and says so.
 export function CollectionsToDiscover({
   collections,
-  candidates,
   allSaved = false,
 }: Readonly<{
   collections: readonly RecentCollection[] | null;
-  candidates: readonly NearbyCandidate[] | null;
   /** The explorer saved every collection of the list, so nothing is left to discover. */
   allSaved?: boolean;
 }>) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const busy = useRef(false);
+  // The places of the collections are fetched on the first click, not sent with the page; a
+  // failed fetch is forgotten, so the next click tries again.
+  const places = useRef<Promise<readonly NearbyCandidate[]> | null>(null);
   // The button is rendered only in the browser, after hydration, and only with geolocation.
   const support = useSyncExternalStore(noSubscription, browserSupport, serverSupport);
 
@@ -94,7 +96,7 @@ export function CollectionsToDiscover({
 
   function locate() {
     // aria-disabled keeps the focus on the button, so a click while locating is ignored here.
-    if (busy.current || candidates === null) {
+    if (busy.current) {
       return;
     }
 
@@ -120,20 +122,36 @@ export function CollectionsToDiscover({
     );
 
     setState({ kind: "locating" });
+
+    const list = (places.current ??= fetchNearbyCandidates());
+
+    list.catch(() => {
+      places.current = null;
+    });
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        const now = new Date();
-        // No radius and no limit: the whole list is sorted, not narrowed.
-        const bySlug = new Map<string, Found>(
-          nearbyCollections(candidates, coords, Infinity, Infinity).map(
-            ({ candidate, distanceKm }) => [
-              candidate.slug,
-              { km: distanceKm, isNew: isNewNearby(candidate.firstPublishedAt, distanceKm, now) },
-            ],
-          ),
-        );
+        const { accuracy, latitude, longitude } = coords;
 
-        show({ kind: "found", bySlug, coarse: coords.accuracy > NEARBY_COARSE_ACCURACY_M });
+        list.then(
+          (candidates) => {
+            const now = new Date();
+            // No radius and no limit: the whole list is sorted, not narrowed.
+            const bySlug = new Map<string, Found>(
+              nearbyCollections(candidates, { latitude, longitude }, Infinity, Infinity).map(
+                ({ candidate, distanceKm }) => [
+                  candidate.slug,
+                  {
+                    km: distanceKm,
+                    isNew: isNewNearby(candidate.firstPublishedAt, distanceKm, now),
+                  },
+                ],
+              ),
+            );
+
+            show({ kind: "found", bySlug, coarse: accuracy > NEARBY_COARSE_ACCURACY_M });
+          },
+          () => show({ kind: "problem", problem: "list" }),
+        );
       },
       (error) => show({ kind: "problem", problem: problemOf(error) }),
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 600_000 },
@@ -156,7 +174,7 @@ export function CollectionsToDiscover({
         : state.kind === "problem"
           ? nearbyProblemMessage(state.problem)
           : "";
-  const canSort = collections !== null && collections.length > 0 && candidates !== null;
+  const canSort = collections !== null && collections.length > 0;
 
   return (
     <section className={styles.section} id="do-odkrycia" aria-labelledby="odkrycie-title">
