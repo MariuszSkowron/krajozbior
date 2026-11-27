@@ -28,6 +28,9 @@
   font-size: var(--font-size-sm);
 }
 
+/* Cel dotyku co najmniej 24 px (UX-P3-01): 14 px * 1,5 + 2 * 2 px; wiersz ma tę samą wysokość. */
 .lineLink {
+  display: inline-block;
+  padding-block: 2px;
   color: var(--color-text-accent);
 }

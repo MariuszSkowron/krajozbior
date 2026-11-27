@@ -398,6 +398,32 @@ test.describe("nagłówek konta", () => {
     }
   });
 
+  test("„Wyloguj” w nagłówku kończy się na tej samej prawej linii co „Zamknij” paska „Wersja testowa” (UX-P3-03)", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, "user", { width: 1440, height: 900 });
+    const logout = page.getByRole("banner").getByRole("button", { name: "Wyloguj" });
+    const close = page.getByRole("region", { name: "Wersja testowa" }).getByRole("button", {
+      name: "Zamknij",
+    });
+
+    await expect(logout).toBeVisible();
+    await expect(close).toBeVisible();
+
+    // Prawa krawędź widocznego napisu „Wyloguj” (nie pola przycisku, które ma wewnętrzny odstęp).
+    const textRight = await logout.evaluate((element) => {
+      const range = document.createRange();
+
+      range.selectNodeContents(element);
+
+      return range.getBoundingClientRect().right;
+    });
+    const closeRight = (await close.boundingBox())!;
+
+    expect(Math.abs(textRight - (closeRight.x + closeRight.width))).toBeLessThanOrEqual(2);
+    await page.context().close();
+  });
+
   test("kurator na komputerze widzi „Kurator · organizacja” prowadzące do panelu, na telefonie nie", async ({
     browser,
   }) => {

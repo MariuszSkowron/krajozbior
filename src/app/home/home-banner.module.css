@@ -198,12 +198,15 @@
 .credit {
   max-width: none;
   color: color-mix(in srgb, var(--color-text-on-image) 92%, transparent);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   text-align: left;
 }
 
+/* Link w podpisie ma cel dotyku co najmniej 24 px wysokości (UX-P3-01): 14 px * 1,5 + 2 * 2 px. */
 .creditLink {
+  display: inline-block;
+  padding-block: 2px;
   color: inherit;
   text-underline-offset: 3px;
 }
@@ -318,7 +321,7 @@
 .creditBelow {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 
 .srOnly {

@@ -215,9 +215,12 @@ describe("texts of W okolicy", () => {
   });
 
   it("says the list is sorted, with a note when the reading is coarse", () => {
-    expect(nearbySortedMessage(4, false)).toBe("Kolekcje od najbliższej.");
+    // UX-P3-02: the message says what the distance on a card is measured to.
+    expect(nearbySortedMessage(4, false)).toBe(
+      "Kolekcje od najbliższej. Odległość liczymy do najbliższego miejsca kolekcji.",
+    );
     expect(nearbySortedMessage(1, true)).toBe(
-      "Kolekcje od najbliższej. Położenie jest niedokładne, więc odległości są przybliżone.",
+      "Kolekcje od najbliższej. Odległość liczymy do najbliższego miejsca kolekcji. Położenie jest niedokładne, więc odległości są przybliżone.",
     );
     // Without any known distance there is nothing to sort, and no note about accuracy.
     expect(nearbySortedMessage(0, false)).toContain("żadna nie ma miejsc na mapie");

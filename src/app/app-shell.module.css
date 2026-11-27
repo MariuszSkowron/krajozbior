@@ -300,6 +300,9 @@
   box-sizing: border-box;
   min-height: var(--size-touch-min);
   padding-inline: var(--space-md);
+  /* Napis kończy się na prawej linii zawartości (jak „Zamknij” paska „Wersja testowa”), a pole
+     przycisku z odstępem wystaje w margines nagłówka (UX-P3-03). */
+  margin-inline-end: calc(-1 * var(--space-md));
   background: transparent;
   color: var(--color-text-primary);
   font: inherit;

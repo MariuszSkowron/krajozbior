@@ -175,7 +175,8 @@ export function nearbySortedMessage(count: number, coarse: boolean): string {
     return "Nie możemy jeszcze uporządkować kolekcji według odległości: żadna nie ma miejsc na mapie.";
   }
 
-  const sorted = "Kolekcje od najbliższej.";
+  // UX-P3-02: „9 km” na karcie to dystans do najbliższego miejsca kolekcji, nie do jej środka ani gminy.
+  const sorted = "Kolekcje od najbliższej. Odległość liczymy do najbliższego miejsca kolekcji.";
 
   return coarse ? `${sorted} Położenie jest niedokładne, więc odległości są przybliżone.` : sorted;
 }

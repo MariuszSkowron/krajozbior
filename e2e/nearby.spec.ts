@@ -232,7 +232,9 @@ test.describe("'Pokaż najbliższe' in 'Kolekcje do odkrycia' on the home page",
     await page.goto("/");
     await waitForHydration(page);
     await section(page).getByRole("button", { name: "Pokaż najbliższe" }).click();
-    await expect(section(page).getByRole("status")).toHaveText("Kolekcje od najbliższej.");
+    await expect(section(page).getByRole("status")).toHaveText(
+      "Kolekcje od najbliższej. Odległość liczymy do najbliższego miejsca kolekcji.",
+    );
     await expect(
       section(page).getByRole("link", { name: "Wszystkie kolekcje", exact: true }),
     ).toHaveAttribute("href", "/search");

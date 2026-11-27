@@ -224,7 +224,9 @@ describe("CollectionsToDiscover", () => {
 
     const markup = html();
 
-    expect(markup).toContain("Kolekcje od najbliższej.");
+    expect(markup).toContain(
+      "Kolekcje od najbliższej. Odległość liczymy do najbliższego miejsca kolekcji.",
+    );
     expect(order(markup)).toEqual(["blisko", "daleko", "bez-miejsc"]);
     expect(markup).toContain("11 km · 3 miejsca · Gmina A");
     expect(markup).toMatch(/\d{3} km · 1 miejsce · Gmina B/);

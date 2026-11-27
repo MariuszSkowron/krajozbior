@@ -35,8 +35,10 @@ export async function expectCreditLinksUsable(caption: Locator): Promise<void> {
 
     const box = (await link.boundingBox())!;
 
-    // An inline link is as tall as its text; it must not be squeezed below the font size.
-    expect(box.height).toBeGreaterThanOrEqual(outline.fontSize);
+    // UX-P3-01: the credit reads at 14 px like the rest of the app (not 11 px), and every link
+    // has a target of at least 24 px (WCAG 2.5.8) even though a link in a sentence is exempt.
+    expect(outline.fontSize).toBeGreaterThanOrEqual(14);
+    expect(box.height).toBeGreaterThanOrEqual(24);
     expect(box.width).toBeGreaterThan(0);
   }
 
