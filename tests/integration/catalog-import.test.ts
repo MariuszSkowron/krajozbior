@@ -1007,6 +1007,120 @@ describe("publishing and removing what a file loaded", () => {
     expect(await keyVersions("pub-b")).toEqual(keys);
   });
 
+  it("extra_regions: absent keeps, a list sets (also when published, version stays), the same list is unchanged, [] clears, a preview writes nothing", async () => {
+    const { curator } = await newOrg("xr-a");
+    const withExtra = (jeden: unknown, dwa: unknown) => {
+      const lines = fileLines();
+
+      for (const [key, value] of [
+        ["col:testowa-jeden", jeden],
+        ["col:testowa-dwa", dwa],
+      ] as const) {
+        if (value !== undefined) {
+          byKey(lines, key).extra_regions = value;
+        }
+      }
+
+      return fileText(lines);
+    };
+    const extraOf = async () =>
+      (
+        await admin$<{ title: string; extra_regions: string[] }>(
+          `select c.title, c.extra_regions from collections c
+             join organizations o on o.id = c.organization_id
+            where o.slug = 'xr-a' order by c.title`,
+        )
+      ).map((row) => row.extra_regions);
+    const extraResults = (reports: readonly CollectionReport[]) =>
+      reports.map((r) => r.extraRegions ?? null);
+    const file = withExtra(["zachodniopomorskie", "kujawsko_pomorskie"], ["lodzkie"]);
+
+    // A file without the field: the report has no `extraRegions`, the lists stay empty.
+    const first = done(await load(curator, "xr-a", fixture, { publish: true }));
+
+    expect(extraResults(first)).toEqual([null, null]);
+    expect(await extraOf()).toEqual([[], []]);
+
+    const before = await collectionsOf("xr-a");
+    const keys = await keyVersions("xr-a");
+    const preview = await load(curator, "xr-a", file, { preview: true, publish: true });
+
+    expect(preview).toMatchObject({ kind: "preview", preview: { extraRegions: { updated: 2 } } });
+    expect(await extraOf()).toEqual([[], []]);
+
+    // Set, also in the published collection; no version moves, so no false manual edit.
+    const second = done(await load(curator, "xr-a", file, { publish: true }));
+
+    expect(second.map((r) => r.result)).toEqual(["skipped_already_published", "noop"]);
+    expect(extraResults(second)).toEqual(["updated", "updated"]);
+    // The order of the file is kept, the database does not sort.
+    expect(await extraOf()).toEqual([["zachodniopomorskie", "kujawsko_pomorskie"], ["lodzkie"]]);
+    expect(await collectionsOf("xr-a")).toEqual(before);
+    expect(await keyVersions("xr-a")).toEqual(keys);
+
+    // The same file again: unchanged; the draft is not reported as edited by hand.
+    const third = done(await load(curator, "xr-a", file, { publish: true }));
+
+    expect(third.map((r) => r.result)).toEqual(["skipped_already_published", "noop"]);
+    expect(extraResults(third)).toEqual(["unchanged", "unchanged"]);
+
+    // The lists are compared as sets: the same voivodeships in another order are no change.
+    const reordered = await load(
+      curator,
+      "xr-a",
+      withExtra(["kujawsko_pomorskie", "zachodniopomorskie"], ["lodzkie"]),
+      { preview: true },
+    );
+
+    expect(reordered.kind === "preview" && reordered.preview.extraRegions).toBeUndefined();
+
+    // The field absent again: nothing changes.
+    expect(extraResults(done(await load(curator, "xr-a", fixture, { publish: true })))).toEqual([
+      null,
+      null,
+    ]);
+    expect(await extraOf()).toEqual([["zachodniopomorskie", "kujawsko_pomorskie"], ["lodzkie"]]);
+
+    // `[]` clears one, the other stays.
+    const cleared = done(await load(curator, "xr-a", withExtra([], undefined), { publish: true }));
+
+    expect(extraResults(cleared)).toEqual(["updated", null]);
+    expect(await extraOf()).toEqual([[], ["lodzkie"]]);
+    expect(await collectionsOf("xr-a")).toEqual(before);
+  });
+
+  it("extra_regions: a main voivodeship changed in the panel leaves the extra ones in the same write", async () => {
+    const { curator } = await newOrg("xr-b");
+
+    done(await load(curator, "xr-b", fixture));
+
+    const lines = fileLines();
+
+    byKey(lines, "col:testowa-dwa").extra_regions = ["lodzkie", "opolskie"];
+    done(await load(curator, "xr-b", fileText(lines)));
+
+    // The curator makes one of the extra voivodeships the main one (the CHECK would refuse both).
+    const [{ id, version }] = await admin$<{ id: string; version: number }>(
+      `select c.id, c.version from collections c join organizations o on o.id = c.organization_id
+        where o.slug = 'xr-b' and c.title = 'Kolekcja testowa dwa'`,
+    );
+    const updated = await runInUserContext(appOrm.em, curator, (tx) =>
+      postgresCatalogRepository.updateCollection(tx, id, version, {
+        title: "Kolekcja testowa dwa",
+        summary: "Opis",
+        region: "lodzkie",
+      }),
+    );
+
+    expect(updated).toMatchObject({ region: "lodzkie", extraRegions: ["opolskie"] });
+
+    // The next load: the file asks for lodzkie among the extra ones, which the main one already is.
+    const reload = done(await load(curator, "xr-b", fileText(lines)));
+
+    expect(reload[1]).toMatchObject({ result: "kept_manual_edit" });
+    expect(reload[1]!.extraRegions).toBe("unchanged");
+  });
+
   it("an edit made in the panel after publication is kept_manual_edit", async () => {
     const { curator } = await newOrg("pub-c");
 

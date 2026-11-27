@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   decideCollection,
+  decideExtraRegions,
   decidePlace,
   diffComposition,
   sameIds,
@@ -25,6 +26,30 @@ const placeKey: ImportKeyState = { entityId: "p1", importedVersion: 2, importedP
 const storedPlace = (over: Partial<PlaceInput> = {}, version = 2): StoredPlace => ({
   version,
   content: { ...wantedPlace, ...over },
+});
+
+describe("decideExtraRegions", () => {
+  it("leaves a deleted collection alone", () => {
+    expect(decideExtraRegions(null, ["opolskie"])).toBe("kept_manual_delete");
+    expect(decideExtraRegions(null, null)).toBe("kept_manual_delete");
+  });
+
+  it("changes nothing when the file does not name the field", () => {
+    expect(decideExtraRegions(["opolskie"], null)).toBe("not_in_file");
+  });
+
+  it("compares the lists as sets", () => {
+    expect(decideExtraRegions(["slaskie", "opolskie"], ["opolskie", "slaskie"])).toBe("noop");
+    expect(decideExtraRegions([], [])).toBe("noop");
+  });
+
+  it("sets, adds, removes and clears", () => {
+    expect(decideExtraRegions([], ["opolskie"])).toBe("set");
+    expect(decideExtraRegions(["opolskie"], ["opolskie", "slaskie"])).toBe("set");
+    expect(decideExtraRegions(["opolskie", "slaskie"], ["opolskie"])).toBe("set");
+    expect(decideExtraRegions(["opolskie"], [])).toBe("set");
+    expect(decideExtraRegions(["opolskie"], ["slaskie"])).toBe("set");
+  });
 });
 
 describe("decidePlace", () => {

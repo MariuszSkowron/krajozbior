@@ -249,6 +249,12 @@ export interface CatalogRepository {
     version: number,
     values: CollectionInput,
   ): Promise<CollectionRow | null>;
+  /**
+   * Sets the extra voivodeships (the import file). The main one is dropped from the list in the
+   * statement itself; `version` and `updated_at` stay (not content). `false` when no row of the
+   * actor has this id.
+   */
+  setExtraRegions(tx: TransactionContext, id: string, regions: readonly Region[]): Promise<boolean>;
   setCollectionStatus(
     tx: TransactionContext,
     id: string,

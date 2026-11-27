@@ -593,6 +593,9 @@ function mapOutcome(
               : {}),
             orphanedKeys: outcome.preview.orphanedKeys,
             collectionLimitExceeded: outcome.preview.collectionLimitExceeded,
+            ...(outcome.preview.extraRegions === undefined
+              ? {}
+              : { extraRegionsUpdated: outcome.preview.extraRegions.updated }),
             ...(outcome.preview.publishable === undefined
               ? {}
               : {
@@ -615,9 +618,15 @@ function mapOutcome(
       const placeCounts: Record<string, number> = {};
       const photoCounts: Record<string, number> = {};
       const publicationCounts: Record<string, number> = {};
+      const extraRegionCounts: Record<string, number> = {};
 
       for (const collection of outcome.collections) {
         counts[collection.result] = (counts[collection.result] ?? 0) + 1;
+
+        if (collection.extraRegions !== undefined) {
+          extraRegionCounts[collection.extraRegions] =
+            (extraRegionCounts[collection.extraRegions] ?? 0) + 1;
+        }
 
         if (collection.publication !== undefined) {
           publicationCounts[collection.publication] =
@@ -647,6 +656,9 @@ function mapOutcome(
             ...(Object.keys(photoCounts).length > 0 ? { photoResults: photoCounts } : {}),
             ...(Object.keys(publicationCounts).length > 0
               ? { publicationResults: publicationCounts }
+              : {}),
+            ...(Object.keys(extraRegionCounts).length > 0
+              ? { extraRegionResults: extraRegionCounts }
               : {}),
             refused: refused.map((c) => ({ line: c.line, reason: c.refusal })),
             publicationRefused: publicationRefused.map((c) => ({

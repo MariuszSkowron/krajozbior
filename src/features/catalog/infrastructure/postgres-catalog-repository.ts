@@ -207,6 +207,24 @@ export const postgresCatalogRepository: CatalogRepository = {
     );
   },
 
+  async setExtraRegions(tx, id, regions) {
+    // The order of the file is kept (`with ordinality`); the main voivodeship is dropped here,
+    // so a parallel change of the main one in the panel never breaks the CHECK (23514).
+    const rows = await tx.em.execute<{ id: string }[]>(
+      `update public.collections
+          set extra_regions = array(
+            select r.code
+              from jsonb_array_elements_text(?::jsonb) with ordinality as r(code, ord)
+             where r.code <> region
+             order by r.ord)
+        where id = ?
+        returning id`,
+      [JSON.stringify(regions), id],
+    );
+
+    return rows.length > 0;
+  },
+
   async setCollectionStatus(tx, id, version, status: CollectionStatus) {
     return firstCollection(
       await tx.em.execute<CollectionRow[]>(
