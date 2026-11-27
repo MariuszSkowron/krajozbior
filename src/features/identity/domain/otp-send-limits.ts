@@ -17,7 +17,9 @@ export const otpSendLimits = {
   // 15-minute windows (rows in auth.sign_in_throttle, prefix `otp_send:`).
   window: { emailIp: 3, email: 5, ip: 10 },
   // UTC days (rows in auth.otp_send_counters).
-  daily: { emailIp: 10, email: 20, ip: 30 },
+  // ip: 100 per day, so a class, a mobile network or a jury in one room can
+  // sign in from one address (D-62); the address and the global limits stay.
+  daily: { emailIp: 10, email: 20, ip: 100 },
 } as const;
 
 // The global daily limit of accepted requests comes from configuration

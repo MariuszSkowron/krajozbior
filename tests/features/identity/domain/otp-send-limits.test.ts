@@ -82,13 +82,13 @@ describe("decideOtpSend: limits of sign-in code requests", () => {
     expect(
       decide(
         [win({ scope: "email", attempts: 5, windowStartedAt: ago(60) })],
-        [{ scope: "ip", count: 30 }],
+        [{ scope: "ip", count: 100 }],
       ),
     ).toEqual({ allowed: false, reason: "rate", retryAfterSeconds: HOUR });
     expect(
       decide(
         [win({ scope: "email", attempts: 5, windowStartedAt: ago(60) })],
-        [{ scope: "ip", count: 29 }],
+        [{ scope: "ip", count: 99 }],
       ),
     ).toEqual({ allowed: false, reason: "rate", retryAfterSeconds: OTP_SEND_WINDOW_SECONDS - 60 });
   });
