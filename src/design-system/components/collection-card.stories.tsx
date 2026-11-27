@@ -39,6 +39,12 @@ export const States: Story = {
           note="13 miejsc · Gmina A"
         />
         <CollectionCard
+          href="/collections/karpaty"
+          title="Karpaty na granicy województw"
+          regionLabel="Małopolskie · Podkarpackie · Śląskie · Świętokrzyskie"
+          note="8 miejsc · Gmina A"
+        />
+        <CollectionCard
           href="/collections/mosty"
           title="Mosty nad Wisłą"
           regionLabel="Pomorskie"
