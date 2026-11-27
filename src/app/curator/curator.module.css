@@ -218,6 +218,53 @@
   gap: var(--space-lg);
 }
 
+/* Wyszukiwanie adresu (K-2): pole z przyciskiem w jednym rzędzie, pod nim wynik i lista. */
+.addressSearch {
+  display: flex;
+  align-items: start;
+  gap: var(--space-md);
+}
+
+.addressSearch .field {
+  flex: 1 1 auto;
+}
+
+.addressSearch > button {
+  margin-block-start: var(--space-xl);
+}
+
+.searchOutcome {
+  margin-block: 0;
+}
+
+.searchOutcome:empty {
+  display: none;
+}
+
+.searchResults {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.searchResults button {
+  inline-size: 100%;
+  justify-content: flex-start;
+  text-align: start;
+}
+
+.fieldset .searchResults {
+  margin-block-end: var(--space-md);
+}
+
+.searchCredit {
+  margin-block: 0 var(--space-lg);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
 /* Położenie miejsca: linia stanu pinezki i zwinięte ustawienia potwierdzania wizyt. */
 .pinStatus {
   margin-block: 0 var(--space-md);
@@ -401,6 +448,10 @@
  * Tabela kolekcji stoi na karcie: odznaki stanu (StatusBadge) są dozwolone tylko na `card`
  * (reguła tła). Wiersze nie zmieniają tła po najechaniu, bo zawierają odznaki i linki akcentem.
  */
+.tableNote {
+  margin-block: var(--space-md) 0;
+}
+
 .tableCard {
   overflow-x: auto;
   background: var(--color-surface-card);

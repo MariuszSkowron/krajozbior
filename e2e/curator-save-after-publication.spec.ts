@@ -38,7 +38,7 @@ async function createDraftWithPlace(page: Page, title: string): Promise<string> 
   await waitForHydration(page);
   await page.getByLabel("Nazwa", { exact: true }).fill("Miejsce testowe");
   await page.getByLabel("Adres", { exact: true }).fill("Tczew");
-  await page.getByText("Ustawienia potwierdzania wizyt").click();
+  await page.getByText("Współrzędne i promień potwierdzania wizyty", { exact: true }).click();
   await page.getByLabel("Szerokość geograficzna").fill("54,0928");
   await page.getByLabel("Długość geograficzna").fill("18.7919");
   await page.getByRole("button", { name: "Dodaj miejsce do kolekcji" }).click();

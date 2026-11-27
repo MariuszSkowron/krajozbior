@@ -59,25 +59,46 @@ export async function getCuratorCollection(
     return { status: "not_found" };
   }
 
-  return inCuratorContext<CuratorCollectionDetail>(admitted.actor, deps, async (tx) => {
-    const collection = await deps.repository.findEditableCollection(tx, collectionId);
+  const detail = await inCuratorContext<Omit<CuratorCollectionDetail, "autoCoverPhotoId">>(
+    admitted.actor,
+    deps,
+    async (tx) => {
+      const collection = await deps.repository.findEditableCollection(tx, collectionId);
 
-    if (collection === null) {
-      return { status: "not_found" } as const;
-    }
+      if (collection === null) {
+        return { status: "not_found" } as const;
+      }
 
-    const [places, otherPlaces, coverPlacePhotoId, coverCandidates] = await Promise.all([
-      deps.repository.listCollectionPlaces(tx, collectionId),
-      deps.repository.listPlacesOutsideCollection(tx, collection.organizationId, collectionId),
-      deps.repository.findCollectionCoverId(tx, collectionId),
-      deps.repository.listCoverCandidates(tx, collectionId),
-    ]);
+      const [places, otherPlaces, coverPlacePhotoId, coverCandidates] = await Promise.all([
+        deps.repository.listCollectionPlaces(tx, collectionId),
+        deps.repository.listPlacesOutsideCollection(tx, collection.organizationId, collectionId),
+        deps.repository.findCollectionCoverId(tx, collectionId),
+        deps.repository.listCoverCandidates(tx, collectionId),
+      ]);
 
-    return {
-      status: "ok",
-      value: { collection, coverPlacePhotoId, coverCandidates, places, otherPlaces },
-    } as const;
-  });
+      return {
+        status: "ok",
+        value: { collection, coverPlacePhotoId, coverCandidates, places, otherPlaces },
+      } as const;
+    },
+  );
+
+  if (detail.status !== "ok") {
+    return detail;
+  }
+
+  // The preview of "Automatycznie" follows the public page: for a published collection the
+  // guest's rule decides (a hidden photo is skipped), asked after the curator's transaction
+  // closed. A draft has no public page, so its first candidate stands in.
+  const { collection, coverCandidates } = detail.value;
+  const autoCoverPhotoId =
+    collection.status === "published"
+      ? await deps.withGuestContext((tx) =>
+          deps.repository.findPublicAutoCoverPhotoId(tx, collection.id),
+        )
+      : (coverCandidates[0]?.photoId ?? null);
+
+  return { status: "ok", value: { ...detail.value, autoCoverPhotoId } };
 }
 
 // A place of a collection: both must be the actor's, and the place must be in

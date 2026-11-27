@@ -113,11 +113,15 @@ export function PublicationControls({ collection }: PublicationControlsProps) {
         <p>
           Szkic widzisz tylko Ty i zespół organizacji. Po publikacji kolekcję zobaczą wszyscy.
           Publikacja wymaga co najmniej jednego miejsca.
+          {collection.wasPublished
+            ? " Kolekcja była już opublikowana, więc nie da się jej usunąć."
+            : null}
         </p>
       ) : (
         <p>
-          Kolekcja jest opublikowana. Po wycofaniu publikacji znika z katalogu, ale zapisy i wizyty
-          odkrywców zostają i wracają po ponownej publikacji.
+          Kolekcja jest opublikowana. Opublikowanej kolekcji nie da się usunąć, tylko wycofać. Po
+          wycofaniu publikacji znika z katalogu, ale zapisy i wizyty odkrywców zostają i wracają po
+          ponownej publikacji.
         </p>
       )}
       <FeedbackRegion
