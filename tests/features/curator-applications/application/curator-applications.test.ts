@@ -84,7 +84,10 @@ const refused = (code: string): FunctionAnswer => ({
   code,
   organizationId: null,
 });
-const dbError = (code: string) => Object.assign(new Error("db"), { code });
+const dbError = (code: string, message = "db") => Object.assign(new Error(message), { code });
+// What `app_require_live_admin` raises (the text is part of the contract with the migration).
+const liveAdminRefusal = () =>
+  dbError("42501", "select app_x() - a live administrator session is required");
 
 describe("getMyCuratorApplication", () => {
   it("returns the newest application with the state of the screen", async () => {
@@ -258,12 +261,12 @@ describe("the use cases of the administrator", () => {
   });
 
   it("map 42501 (no live session) to unauthenticated and 22023 to invalid, rethrow the rest", async () => {
-    for (const [state, expected] of [
-      ["42501", { status: "unauthenticated" }],
-      ["22023", { status: "invalid" }],
+    for (const [make, expected] of [
+      [liveAdminRefusal, { status: "unauthenticated" }],
+      [() => dbError("22023"), { status: "invalid" }],
     ] as const) {
       const failing = async () => {
-        throw dbError(state);
+        throw make();
       };
       const { deps } = setup({ listForAdmin: failing, decide: failing, revoke: failing });
 
@@ -290,6 +293,28 @@ describe("the use cases of the administrator", () => {
     await expect(listCuratorApplications(session, "pending", deps)).rejects.toMatchObject({
       code: "57014",
     });
+  });
+
+  it("does not take every 42501 for a signed-out administrator", async () => {
+    // A policy refusal inside a function has another text: a server error, not unauthenticated.
+    for (const error of [
+      dbError("42501"),
+      dbError("42501", "new row violates row-level security"),
+      { code: "42501" },
+    ]) {
+      const failing = async () => {
+        throw error;
+      };
+      const { deps } = setup({ listForAdmin: failing, decide: failing, revoke: failing });
+
+      await expect(listCuratorApplications(session, "pending", deps)).rejects.toBe(error);
+      await expect(
+        decideCuratorApplication(session, applicationId, { decision: "reject", reason: "x" }, deps),
+      ).rejects.toBe(error);
+      await expect(revokeCuratorRole(session, applicationId, { reason: "x" }, deps)).rejects.toBe(
+        error,
+      );
+    }
   });
 });
 
@@ -370,7 +395,7 @@ describe("decideCuratorApplication", () => {
     expect(deps.limiter.reserve).not.toHaveBeenCalled();
   });
 
-  it("stops at the first limit that refuses, approval limit first", async () => {
+  it("spends no approval slot when the decision limit refuses (decision limit first)", async () => {
     const { deps } = setup();
 
     deps.limiter.reserve.mockResolvedValueOnce({ allowed: false, retryAfterSeconds: 9 });
@@ -379,6 +404,11 @@ describe("decideCuratorApplication", () => {
       retryAfterSeconds: 9,
     });
     expect(deps.limiter.reserve).toHaveBeenCalledTimes(1);
+    expect(deps.limiter.reserve).toHaveBeenCalledWith(
+      "curator_application_decide",
+      session.actor.id,
+      expect.anything(),
+    );
 
     deps.limiter.reserve.mockReset();
     deps.limiter.reserve

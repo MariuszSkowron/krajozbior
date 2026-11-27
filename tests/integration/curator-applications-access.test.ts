@@ -543,13 +543,15 @@ describe("curator applications: access, administrator functions, session and gat
     it("does not carry the context to the next transaction on the same connection", async () => {
       await listCuratorApplications(sessionOf(admin, adminToken), "pending", deps);
 
-      const [leak] = await app.em.execute<{ user: string | null; token: string | null }[]>(
+      const [leak] = await app.em.execute<
+        { user: string | null; token: string | null; gate: string | null }[]
+      >(
         `select nullif(current_setting('app.user_id', true), '') as "user",
                 nullif(current_setting('app.session_token', true), '') as token,
                 nullif(current_setting('krajozbior.curator_panel_write', true), '') as gate`,
       );
 
-      expect(leak).toMatchObject({ user: null, token: null });
+      expect(leak).toMatchObject({ user: null, token: null, gate: null });
     });
   });
 

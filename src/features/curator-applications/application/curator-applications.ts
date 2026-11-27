@@ -109,12 +109,23 @@ function fromFunctionAnswer(answer: FunctionAnswer): CuratorApplicationsOutcome<
   return { status: "conflict", code };
 }
 
-// The functions of the administrator refuse without a live session with 42501 and a malformed
-// argument with 22023 (the use case validated it, so this is a late race such as a deleted role).
+// The functions of the administrator refuse without a live session with 42501 and the fixed text
+// below (`app_require_live_admin`), and a malformed argument with 22023 (the use case validated it,
+// so this is a late race such as a deleted role). Another 42501 (a policy inside a function) is a
+// bug of the migration, not a signed-out administrator: it goes on as a server error. The fixed
+// text holds no user value, so comparing it is safe.
+const LIVE_ADMIN_REFUSAL = "a live administrator session is required";
+
+function isLiveAdminRefusal(error: unknown): boolean {
+  const message = (error as { message?: unknown } | null)?.message;
+
+  return typeof message === "string" && message.includes(LIVE_ADMIN_REFUSAL);
+}
+
 function fromAdminDatabaseError(error: unknown): Refusal {
   const state = sqlState(error);
 
-  if (state === "42501") {
+  if (state === "42501" && isLiveAdminRefusal(error)) {
     return UNAUTHENTICATED;
   }
   if (state === "22023") {
@@ -314,19 +325,10 @@ export async function decideCuratorApplication(
 
   const { actor, sessionToken } = admitted.session;
 
-  if (decision.value.decision === "approve") {
-    const limited = await reserve(
-      deps,
-      CURATOR_APPLICATION_APPROVE_ACTION,
-      actor.id,
-      curatorApplicationApproveLimit,
-    );
-
-    if (limited !== null) {
-      return limited;
-    }
-  }
-
+  // The decision limit (20 per hour) goes first: a refusal by it must not spend a slot of the
+  // approval limit (10 per 24 hours), which only an approval that is allowed through may use.
+  // The reverse (approval refused after a decision slot was spent) costs a slot that renews within
+  // the hour; the limiter has no way to take a slot back.
   const limited = await reserve(
     deps,
     CURATOR_APPLICATION_DECIDE_ACTION,
@@ -336,6 +338,18 @@ export async function decideCuratorApplication(
 
   if (limited !== null) {
     return limited;
+  }
+  if (decision.value.decision === "approve") {
+    const approvalLimited = await reserve(
+      deps,
+      CURATOR_APPLICATION_APPROVE_ACTION,
+      actor.id,
+      curatorApplicationApproveLimit,
+    );
+
+    if (approvalLimited !== null) {
+      return approvalLimited;
+    }
   }
 
   try {
