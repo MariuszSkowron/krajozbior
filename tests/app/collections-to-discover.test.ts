@@ -41,6 +41,12 @@ vi.mock("react", async (importOriginal) => ({
   useSyncExternalStore: () => store.support,
 }));
 
+// The places of the collections come from a public route, fetched only after a click (not sent
+// with the page); here the fetch is replaced and counted.
+const nearby = vi.hoisted(() => ({ fetch: vi.fn() }));
+
+vi.mock("@/app/home/nearby-client", () => ({ fetchNearbyCandidates: nearby.fetch }));
+
 const { CollectionsToDiscover } = await import("@/app/home/collections-to-discover");
 
 // "Kolekcje do odkrycia" (K-34): one list, sorted by distance after a click. The list of the
@@ -81,8 +87,7 @@ const candidates: NearbyCandidate[] = [
     title: "Blisko",
     region: "pomorskie",
     placeCount: 3,
-    centerLat: 54.1,
-    centerLon: 18,
+    points: [[54.1, 18]],
     firstPublishedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
@@ -90,8 +95,7 @@ const candidates: NearbyCandidate[] = [
     title: "Daleko",
     region: "malopolskie",
     placeCount: 1,
-    centerLat: 50,
-    centerLon: 20,
+    points: [[50, 20]],
     firstPublishedAt: null,
   },
 ];
@@ -123,7 +127,7 @@ function findButton(node: ReactNode): ReactElement<Props> | null {
 function render() {
   store.cursor = 0;
 
-  return CollectionsToDiscover({ collections, candidates }) as ReactElement;
+  return CollectionsToDiscover({ collections }) as ReactElement;
 }
 
 const html = () => renderToStaticMarkup(render());
@@ -146,11 +150,21 @@ const reading = (latitude: number, longitude: number, accuracy = 20) => ({
   coords: { latitude, longitude, accuracy },
 });
 
-function click() {
+// The click starts the reading and the fetch of the places; the result is ready after a few
+// turns of the microtask queue.
+async function settle() {
+  for (let turn = 0; turn < 10; turn += 1) {
+    await Promise.resolve();
+  }
+}
+
+async function click() {
   findButton(render())?.props.onClick?.();
+  await settle();
 }
 
 beforeEach(() => {
+  nearby.fetch.mockReset().mockImplementation(async () => candidates);
   store.values = [];
   store.cursor = 0;
   store.support = "supported";
@@ -177,13 +191,18 @@ describe("CollectionsToDiscover", () => {
     expect(markup).not.toContain("Nowa w okolicy");
     expect(markup).not.toContain(" km · ");
     expect(geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    // The page carries no places of the collections: they are fetched only after a click.
+    expect(nearby.fetch).not.toHaveBeenCalled();
+    expect(markup).not.toContain("54.1");
   });
 
-  it("reads the position once, only after a click, with a rough and bounded request", () => {
+  it("reads the position once, only after a click, with a rough and bounded request", async () => {
     const geolocation = stubGeolocation(() => undefined);
 
-    click();
+    await click();
 
+    expect(nearby.fetch).toHaveBeenCalledTimes(1);
+    expect(nearby.fetch).toHaveBeenCalledWith();
     expect(geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
     expect(geolocation.getCurrentPosition.mock.calls[0]?.[2]).toEqual({
       enableHighAccuracy: false,
@@ -193,18 +212,21 @@ describe("CollectionsToDiscover", () => {
     expect(html()).toMatch(/<p role="status"[^>]*>Ustalamy Twoje położenie…<\/p>/);
     expect(html()).toContain('aria-disabled="true"');
 
-    // A second click while locating does not start another reading.
-    click();
+    // A second click while locating does not start another reading or fetch.
+    await click();
     expect(geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+    expect(nearby.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("sorts the same list by distance (nearest first, one without a distance last) and keeps the far one", () => {
+  it("sorts the same list by distance (nearest first, one without a distance last) and keeps the far one", async () => {
     stubGeolocation((success) => success(reading(54, 18)));
-    click();
+    await click();
 
     const markup = html();
 
-    expect(markup).toContain("Kolekcje od najbliższej.");
+    expect(markup).toContain(
+      "Kolekcje od najbliższej. Odległość liczymy do najbliższego miejsca kolekcji.",
+    );
     expect(order(markup)).toEqual(["blisko", "daleko", "bez-miejsc"]);
     expect(markup).toContain("11 km · 3 miejsca · Gmina A");
     expect(markup).toMatch(/\d{3} km · 1 miejsce · Gmina B/);
@@ -215,7 +237,7 @@ describe("CollectionsToDiscover", () => {
     expect(markup).not.toMatch(/54\.0|18\.0/);
   });
 
-  it("marks only a collection published within 30 days; an old or never published one has no mark", () => {
+  it("marks only a collection published within 30 days; an old or never published one has no mark", async () => {
     stubGeolocation((success) => success(reading(54, 18)));
 
     const day = 24 * 60 * 60 * 1000;
@@ -226,7 +248,7 @@ describe("CollectionsToDiscover", () => {
         title: `C${index}`,
         firstPublishedAt,
       }));
-    const run = (list: NearbyCandidate[]) => {
+    const run = async (list: NearbyCandidate[]) => {
       const own = list.map((candidate) => ({
         ...collections[2]!,
         id: candidate.slug,
@@ -234,48 +256,48 @@ describe("CollectionsToDiscover", () => {
         title: candidate.title,
       }));
 
+      nearby.fetch.mockResolvedValue(list);
       store.values = [];
       store.cursor = 0;
-      findButton(
-        CollectionsToDiscover({ collections: own, candidates: list }) as ReactElement,
-      )?.props.onClick?.();
+      findButton(CollectionsToDiscover({ collections: own }) as ReactElement)?.props.onClick?.();
+      await settle();
       store.cursor = 0;
 
-      return renderToStaticMarkup(
-        CollectionsToDiscover({ collections: own, candidates: list }) as ReactElement,
-      );
+      return renderToStaticMarkup(CollectionsToDiscover({ collections: own }) as ReactElement);
     };
 
-    const old = run(withDates([new Date(Date.now() - 31 * day).toISOString(), null, "nie data"]));
+    const old = await run(
+      withDates([new Date(Date.now() - 31 * day).toISOString(), null, "nie data"]),
+    );
 
     expect(old).toContain("/collections/c0");
     expect(old).not.toContain("Nowa w okolicy");
-    expect(run(withDates([new Date(Date.now() - 29 * day).toISOString(), null]))).toContain(
+    expect(await run(withDates([new Date(Date.now() - 29 * day).toISOString(), null]))).toContain(
       "Nowa w okolicy",
     );
   });
 
-  it("says when the reading is coarse, and does not drop a collection that lies far away", () => {
+  it("says when the reading is coarse, and does not drop a collection that lies far away", async () => {
     stubGeolocation((success) => success(reading(54, 18, 8000)));
-    click();
+    await click();
     expect(html()).toContain("Położenie jest niedokładne");
 
     // From the other end of the world every collection is still on the list, nearest first.
     stubGeolocation((success) => success(reading(-40, 170)));
-    click();
+    await click();
 
     expect(order(html())).toHaveLength(3);
   });
 
   it.each([
-    [1, "Nie mamy zgody na użycie lokalizacji. Włączysz ją w ustawieniach przeglądarki."],
+    [1, "Nie mamy zgody na lokalizację. Zezwól na nią w ustawieniach przeglądarki."],
     [2, "Nie udało się ustalić Twojego położenia. Spróbuj ponownie."],
     [3, "Ustalanie położenia trwało zbyt długo. Spróbuj ponownie."],
   ])(
     "explains a refusal or failure (code %s) and offers the list of all collections",
-    (code, text) => {
+    async (code, text) => {
       stubGeolocation((_success, fail) => fail({ code }));
-      click();
+      await click();
 
       const markup = html();
 
@@ -287,7 +309,7 @@ describe("CollectionsToDiscover", () => {
     },
   );
 
-  it("gives up after its own time limit when the browser never answers, and ignores a late answer", () => {
+  it("gives up after its own time limit when the browser never answers, and ignores a late answer", async () => {
     vi.useFakeTimers();
 
     try {
@@ -296,7 +318,7 @@ describe("CollectionsToDiscover", () => {
         late = success;
       });
 
-      click();
+      await click();
       vi.advanceTimersByTime(11_999);
       expect(html()).toContain("Ustalamy Twoje położenie…");
 
@@ -312,28 +334,57 @@ describe("CollectionsToDiscover", () => {
 
       // The answer that comes after the limit changes nothing.
       late(reading(54, 18));
+      await settle();
       expect(html()).toContain("Ustalanie położenia trwało zbyt długo");
       expect(html()).not.toContain(" km · ");
 
       // And the explorer can try again.
-      click();
+      await click();
       expect(geolocation.getCurrentPosition).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("can try again after a refusal", () => {
+  it("can try again after a refusal", async () => {
     const geolocation = stubGeolocation((_success, fail) => fail({ code: 1 }));
 
-    click();
-    click();
+    await click();
+    await click();
 
     expect(geolocation.getCurrentPosition).toHaveBeenCalledTimes(2);
   });
 
+  it("says so, keeps the list and tries the fetch again on the next click, when the places cannot be fetched", async () => {
+    stubGeolocation((success) => success(reading(54, 18)));
+    nearby.fetch.mockRejectedValueOnce(new Error("503"));
+    await click();
+
+    const markup = html();
+
+    expect(markup).toMatch(
+      /<p role="status"[^>]*>Nie udało się wczytać miejsc kolekcji\. Spróbuj ponownie\.<\/p>/,
+    );
+    expect(order(markup)).toEqual(["daleko", "bez-miejsc", "blisko"]);
+    expect(markup).toContain("Sprawdź ponownie");
+
+    // The failed fetch is not kept: the next click asks again and the sort works.
+    await click();
+    expect(nearby.fetch).toHaveBeenCalledTimes(2);
+    expect(order(html())).toEqual(["blisko", "daleko", "bez-miejsc"]);
+  });
+
+  it("fetches the places once and reuses them for a repeated check", async () => {
+    stubGeolocation((success) => success(reading(54, 18)));
+    await click();
+    await click();
+
+    expect(nearby.fetch).toHaveBeenCalledTimes(1);
+    expect(order(html())).toEqual(["blisko", "daleko", "bez-miejsc"]);
+  });
+
   // D-14: the position never leaves the component: no request, no storage, no log, no address.
-  it("sends, stores and logs no coordinates in any outcome", () => {
+  it("sends, stores and logs no coordinates in any outcome", async () => {
     const LAT = 54.371234567;
     const LON = 18.612345678;
     const fetchSpy = vi.fn();
@@ -357,7 +408,7 @@ describe("CollectionsToDiscover", () => {
     ]) {
       stubGeolocation(behaviour);
       store.values = [];
-      click();
+      await click();
 
       const markup = html();
 
@@ -418,30 +469,11 @@ describe("CollectionsToDiscover", () => {
     expect(order(markup)).toHaveLength(3);
   });
 
-  it("keeps the list without a button when only the positions could not be read", () => {
-    store.cursor = 0;
-
-    const markup = renderToStaticMarkup(
-      CollectionsToDiscover({ collections, candidates: null }) as ReactElement,
-    );
-
-    expect(order(markup)).toHaveLength(3);
-    expect(markup).not.toContain("<button");
-
-    // A click handler is never reachable without positions; the guard is harmless anyway.
-    const geolocation = stubGeolocation(() => undefined);
-
-    expect(
-      findButton(CollectionsToDiscover({ collections, candidates: null }) as ReactElement),
-    ).toBeNull();
-    expect(geolocation.getCurrentPosition).not.toHaveBeenCalled();
-  });
-
   it("shows a message and no button when the list could not be read", () => {
     store.cursor = 0;
 
     const markup = renderToStaticMarkup(
-      CollectionsToDiscover({ collections: null, candidates }) as ReactElement,
+      CollectionsToDiscover({ collections: null }) as ReactElement,
     );
 
     expect(markup).toMatch(/role="alert"[^>]*>Nie udało się wczytać kolekcji\. Odśwież stronę\./);
@@ -452,9 +484,7 @@ describe("CollectionsToDiscover", () => {
   it("says so, with no button, when there are no published collections yet", () => {
     store.cursor = 0;
 
-    const markup = renderToStaticMarkup(
-      CollectionsToDiscover({ collections: [], candidates }) as ReactElement,
-    );
+    const markup = renderToStaticMarkup(CollectionsToDiscover({ collections: [] }) as ReactElement);
 
     expect(markup).toContain("Nie ma jeszcze opublikowanych kolekcji.");
     expect(markup).not.toContain("<button");

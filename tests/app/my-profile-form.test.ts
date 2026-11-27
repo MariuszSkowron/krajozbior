@@ -45,13 +45,12 @@ describe("ProfileForm", () => {
     expect(html).toContain("Nie podaję");
   });
 
-  it("explains who sees the profile and keeps the private choice by default", () => {
+  it("offers no visibility choice (R-024) and keeps the private value by default", () => {
     const html = render();
 
-    expect(html).toContain("Kto zobaczy Twój profil");
-    expect(html).toContain("Nikt poza Tobą nie zobaczy Twojego imienia ani regionu.");
-    expect(html).toMatch(/<input [^>]*name="visibility" checked="" value="private"/);
-    expect(html).not.toMatch(/<input [^>]*name="visibility" checked="" value="public"/);
+    expect(html).not.toContain("Kto zobaczy Twój profil");
+    expect(html).not.toContain('type="radio"');
+    expect(html).toMatch(/<input type="hidden" name="visibility" value="private"/);
   });
 
   it("fills the form with the saved profile", () => {
@@ -65,8 +64,7 @@ describe("ProfileForm", () => {
     expect(html).toContain('value="Anna"');
     expect(html).toContain('value="K"');
     expect(html).toMatch(/<option value="pomorskie" selected/);
-    expect(html).toMatch(/<input [^>]*name="visibility" checked="" value="public"/);
-    expect(html).not.toMatch(/<input [^>]*name="visibility" checked="" value="private"/);
+    expect(html).toMatch(/<input type="hidden" name="visibility" value="public"/);
   });
 
   it("confirms a save with a status message", () => {
@@ -92,8 +90,8 @@ describe("ProfileForm", () => {
 
     // The radio group has no single field to mark; the other three are marked.
     expect((html.match(/aria-invalid="true"/g) ?? []).length).toBe(3);
-    expect(html).toContain("Imię: wpisz do 40 liter");
-    expect(html).toContain("Pierwsza litera nazwiska: wpisz jedną literę.");
+    expect(html).toContain("Imię może mieć do 40 liter, także spację");
+    expect(html).toContain("Pierwsza litera nazwiska to jedna litera.");
     expect(html).toContain("Region: wybierz województwo z listy.");
     expect(html).toContain("Widoczność: wybierz jedną z opcji.");
     expect(html).not.toContain("nonsense");
@@ -103,7 +101,8 @@ describe("ProfileForm", () => {
     const html = render(empty, "blad", "firstName,familyInitial,region,visibility");
 
     expect(html).toMatch(/<div id="profile-error" role="alert" tabindex="-1"/);
-    for (const field of ["firstName", "familyInitial", "region", "visibility"]) {
+    // The visibility has no visible field any more (R-024): nothing to tie a message to.
+    for (const field of ["firstName", "familyInitial", "region"]) {
       const id = `profile-${field}-error`;
 
       expect(html, field).toMatch(new RegExp(`<p id="${id}"`));
@@ -129,7 +128,7 @@ describe("ProfileForm", () => {
     expect(html).toContain('value="Anna2"');
     expect(html).not.toContain('value="Anna"');
     expect(html).toMatch(/<option value="slaskie" selected/);
-    expect(html).toMatch(/<input [^>]*name="visibility" checked="" value="public"/);
+    expect(html).toMatch(/<input type="hidden" name="visibility" value="public"/);
   });
 
   it("does not break on a result code that is a key of Object.prototype", () => {

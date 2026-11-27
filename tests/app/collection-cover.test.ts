@@ -4,9 +4,11 @@ import { describe, expect, it } from "vitest";
 
 import { CollectionCover, CoverProgress } from "@/app/collections/[slug]/collection-cover";
 import { CollectionCard } from "@/design-system/components/collection-card";
-import type { PlaceCover } from "@/features/catalog/application/catalog-types";
+import type { CollectionBanner } from "@/features/catalog/application/catalog-types";
 
-const cover: PlaceCover = {
+const cover: CollectionBanner = {
+  placeId: "4f6e1c2a-9b3d-4a7e-8c15-0d2e3f4a5b6c",
+  placeName: "Zamek testowy",
   photoId: "0b6f3a52-7c41-4b7e-9d0a-1c2d3e4f5a6b",
   width: 1280,
   height: 853,
@@ -23,7 +25,7 @@ const cover: PlaceCover = {
 
 const eyebrow = "Kolekcja · Pomorskie";
 const title = createElement("h1", null, "Zamki");
-const show = (value: PlaceCover | null) =>
+const show = (value: CollectionBanner | null) =>
   createElement(CollectionCover, { cover: value, eyebrow }, title);
 
 describe("CollectionCover (nagłówek kolekcji, E4-3, R3)", () => {
@@ -35,6 +37,27 @@ describe("CollectionCover (nagłówek kolekcji, E4-3, R3)", () => {
     expect(html).toContain("<h1>Zamki</h1>");
     expect(html.indexOf("<img")).toBeLessThan(html.indexOf("<h1>"));
     expect(html.indexOf("<h1>")).toBeLessThan(html.indexOf("<figcaption"));
+  });
+
+  it("signs the photo with one short line, the full credit stays on the place page (D-58)", () => {
+    const html = renderToStaticMarkup(show(cover));
+    const caption = html.slice(html.indexOf("<figcaption"));
+    // Znaczniki wycinamy do skutku (wzorzec akceptowany przez CodeQL; tu i tak to statyczny HTML z testu).
+    let text = caption;
+    for (let previous = ""; previous !== text;) {
+      previous = text;
+      text = text.replace(/<[^>]*>/g, "");
+    }
+
+    expect(text).toBe(
+      "Zamek testowy · fot. Fikcyjny Autor, Wikimedia Commons · CC BY-SA 3.0 PL · zdjęcie zmniejszone",
+    );
+    expect(caption.match(/<p[ >]/g)).toHaveLength(1);
+    expect(caption).toContain(`href="/places/${cover.placeId}"`);
+    expect(caption).toContain('href="https://creativecommons.org/licenses/by-sa/3.0/pl/"');
+    expect(caption).toContain('href="https://commons.wikimedia.org/wiki/File:Zamek.jpg"');
+    expect(html).not.toContain("Tę kopię udostępniamy");
+    expect(html).not.toContain("WebP");
   });
 
   it("gives a panorama and a portrait the same alt text and size as any photo", () => {

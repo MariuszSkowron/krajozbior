@@ -93,8 +93,11 @@ export type PublishedCollection = Readonly<{
    * places. Removing a place does not move it (no trace is kept without a migration, D-E12-2).
    */
   contentUpdatedAt: Date;
-  /** The cover photo with what its credit needs (E4-3), or `null` (no cover chosen). */
-  cover: PlaceCover | null;
+  /**
+   * The cover photo with what its credit needs (E4-3) and the place it shows (the short credit
+   * links to it, D-58), or `null` (no cover chosen).
+   */
+  cover: CollectionBanner | null;
 }>;
 
 /** The cover of a collection with the place it shows (the banner of the home page). */

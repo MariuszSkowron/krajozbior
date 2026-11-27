@@ -5,7 +5,8 @@ import { CollectionComplete } from "@/design-system/components/collection-progre
 import type { CollectionBanner } from "@/features/catalog/application/catalog-types";
 import { showsWhole } from "@/features/catalog/domain/collection-cover";
 import { THUMB_WIDTH } from "@/features/media/domain/limits";
-import { buildPhotoCredit } from "@/features/photos/domain/photo-credit";
+
+import { PhotoCreditLine } from "../places/[placeId]/photo-credit";
 
 import styles from "./home-banner.module.css";
 
@@ -49,53 +50,19 @@ export function BannerPhoto({
   );
 }
 
-// Podpis zdjęcia na banerze: miejsce jako link, potem autor, źródło i licencja (wymogi licencji
-// CC), jak pod zdjęciem na stronie miejsca. Teksty z zewnątrz wstawia React jako tekst.
+// Podpis zdjęcia na banerze (D-58): jedna linia z miejscem jako linkiem; pełny podpis jest na
+// stronie miejsca. Teksty z zewnątrz wstawia React jako tekst.
 export function BannerCredit({
   cover,
   className,
 }: Readonly<{ cover: CollectionBanner; className: string }>) {
-  const credit = buildPhotoCredit(cover);
-
   return (
-    <p className={className}>
-      <Link
-        className={`${styles.creditLink} ${styles.placeLink}`}
-        href={`/places/${cover.placeId}`}
-      >
-        {cover.placeName}
-      </Link>
-      <span className={styles.sep}> · </span>
-      {credit.title === null ? null : `${credit.title}. `}
-      Autor:{" "}
-      {credit.author.url === null ? (
-        credit.author.text
-      ) : (
-        <a className={styles.creditLink} href={credit.author.url} rel="noopener noreferrer">
-          {credit.author.text}
-        </a>
-      )}
-      .
-      {credit.source === null ? null : (
-        <>
-          {" "}
-          Źródło:{" "}
-          <a className={styles.creditLink} href={credit.source.url} rel="noopener noreferrer">
-            {credit.source.label}
-          </a>
-          .
-        </>
-      )}{" "}
-      {credit.license.heading}:{" "}
-      {credit.license.url === null ? (
-        credit.license.label
-      ) : (
-        <a className={styles.creditLink} href={credit.license.url} rel="noopener noreferrer">
-          {credit.license.label}
-        </a>
-      )}
-      .{credit.notices.length === 0 ? null : ` ${credit.notices.join(" ")}`}
-    </p>
+    <PhotoCreditLine
+      photo={cover}
+      place={{ id: cover.placeId, name: cover.placeName }}
+      className={className}
+      linkClassName={styles.creditLink}
+    />
   );
 }
 

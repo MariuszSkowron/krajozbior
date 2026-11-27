@@ -204,10 +204,9 @@ test.describe("photos from Wikimedia Commons", () => {
       "href",
       LICENSE_URL,
     );
-    await expect(credit).toContainText(
-      "Zdjęcie zmniejszone i skompresowane, zapisane w formacie WebP.",
-    );
-    await expect(credit).toContainText("Ta kopia jest dostępna na licencji CC BY-SA 3.0 PL.");
+    await expect(credit).toContainText("Tytuł pliku: „Zamek testowy”.");
+    await expect(credit).toContainText("Zdjęcie zmniejszyliśmy i zapisaliśmy w formacie WebP.");
+    await expect(credit).toContainText("Tę kopię udostępniamy na tej samej licencji.");
   });
 
   test("the file of a public photo is cacheable for a day and has exactly one Content-Security-Policy", async ({
