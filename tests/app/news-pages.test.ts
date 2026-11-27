@@ -221,11 +221,13 @@ describe("news item page", () => {
           title: null,
           authorText: "Jan Kowalski",
           authorUrl: null,
-          sourceUrl: null,
-          sourceKind: "own",
+          sourceUrl: "https://commons.wikimedia.org/wiki/File:Most.jpg",
+          sourceKind: "commons_import",
           licenseCode: "cc-by-sa-4.0",
           licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
           licenseLabel: "CC BY-SA 4.0",
+          placeId: "pl-1",
+          placeName: "Stary Most",
         },
       }),
     });
@@ -235,9 +237,19 @@ describe("news item page", () => {
     expect(html).toContain('src="/media/p/ph1/main"');
     expect(html).toContain("Poradnik");
     expect(html.match(/<h1/g)).toHaveLength(1);
-    expect(html).toContain("Jan Kowalski");
-    expect(html).toContain("CC BY-SA 4.0");
-    expect(html.indexOf("<h1")).toBeLessThan(html.indexOf("Wszystkie aktualności"));
+    // N-1: the way back is above the cover (and the h1), like in an item without a photo.
+    expect(html.indexOf("Wszystkie aktualności")).toBeLessThan(html.indexOf("<figure"));
+    expect(html.indexOf("Wszystkie aktualności")).toBeLessThan(html.indexOf("<h1"));
+    // D-58 pkt 3: one short line with the place, not the full credit.
+    const caption = html.match(/<figcaption[\s\S]*?<\/figcaption>/)?.[0] ?? "";
+
+    expect(caption).toContain('<a href="/places/pl-1">Stary Most</a>');
+    expect(caption).toContain(" · fot. Jan Kowalski");
+    expect(caption).toContain("Wikimedia Commons</a>");
+    expect(caption).toContain("CC BY-SA 4.0</a> · zdjęcie zmniejszone");
+    expect(caption).not.toContain("Autor:");
+    expect(caption).not.toContain("Ta kopia");
+    expect(caption.match(/<p/g)).toHaveLength(1);
     // the kind is the label on the photo, not repeated as a kicker
     expect(html).not.toMatch(/<p class="[^"]*kicker/);
   });

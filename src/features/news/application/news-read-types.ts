@@ -1,4 +1,7 @@
-import type { CollectionCover, PlaceCover } from "@/features/catalog/application/catalog-types";
+import type {
+  CollectionBanner,
+  CollectionCover,
+} from "@/features/catalog/application/catalog-types";
 import type { TransactionContext } from "@/lib/db/user-context";
 
 import type { NewsKind } from "../domain/news";
@@ -26,8 +29,8 @@ export type PublicNewsCard = Readonly<{
 
 export type PublicNewsItem = Omit<PublicNewsCard, "cover"> &
   Readonly<{
-    /** The same photo as on the list, with what its credit needs. */
-    cover: PlaceCover | null;
+    /** The same photo as on the list, with what its credit needs and the place it shows (D-58). */
+    cover: CollectionBanner | null;
     body: string;
     /** Set only when the content of a published item changed (D-E7-9). */
     contentUpdatedAt: Date | null;

@@ -21,7 +21,14 @@ export function CollectionCover({
   cover,
   eyebrow,
   children,
-}: Readonly<{ cover: PlaceCover | null; eyebrow: string; children?: ReactNode }>) {
+  credit,
+}: Readonly<{
+  cover: PlaceCover | null;
+  eyebrow: string;
+  children?: ReactNode;
+  /** Własny podpis pod zdjęciem (`<figcaption>`) zamiast pełnego `PhotoCredit`. */
+  credit?: ReactNode;
+}>) {
   const text = (
     <div className={styles.text}>
       <p className={styles.eyebrow}>{eyebrow}</p>
@@ -55,7 +62,7 @@ export function CollectionCover({
         />
         {text}
       </div>
-      <PhotoCredit photo={cover} />
+      {credit ?? <PhotoCredit photo={cover} />}
     </figure>
   );
 }

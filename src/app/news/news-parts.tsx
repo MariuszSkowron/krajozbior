@@ -70,35 +70,48 @@ export function NewsEventDays({ card }: Readonly<{ card: PublicNewsCard }>) {
 }
 
 /**
- * Karta listy: pozioma, na całą szerokość listy (jak „Kolekcje z tym miejscem”): zdjęcie 1/3 i
- * tekst 2/3, na telefonie zdjęcie 16:9 nad tekstem. `<article>` z jednym linkiem, tytułem,
- * rozciągniętym na całą kartę. Zdjęcie jest ozdobą (pusty `alt`): tytuł stoi obok; miniatura nie
- * ma podpisu (D-55 pkt 2). Wpis bez zdjęcia ma to samo pole z tłem zastępczym.
+ * Rozmiar miniatury na karcie (S-3): od 48 rem kolumna zdjęcia ma około 450 px (wyróżniona 650 px),
+ * więc przeglądarka bierze plik główny (miniatura 400 px byłaby rozciągnięta i rozmyta); na
+ * telefonie kolumna zdjęcia jest wąska i wystarcza miniatura `w400`.
+ */
+export function cardImageSizes(featured: boolean): string {
+  return featured ? "(min-width: 48rem) 40rem, 8rem" : "(min-width: 48rem) 30rem, 8rem";
+}
+
+/**
+ * Karta listy: pozioma, na całą szerokość listy: zdjęcie po lewej (na komputerze 1/3, na telefonie
+ * wąska kolumna, żeby na ekranie mieściły się dwie karty), tekst obok. `<article>` z jednym
+ * linkiem, tytułem, rozciągniętym na całą kartę. Zdjęcie jest ozdobą (pusty `alt`): tytuł stoi
+ * obok; miniatura nie ma podpisu (D-55 pkt 2). Wpis bez zdjęcia jest kartą tekstową na jedną
+ * kolumnę, bez pustego pola (S-1).
  */
 export function NewsCard({
   card,
   featured,
 }: Readonly<{ card: PublicNewsCard; featured: boolean }>) {
   const image = cardCoverImage(card.cover);
+  const className = [styles.card, featured ? styles.featured : null, image ? null : styles.plain]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <article className={featured ? `${styles.card} ${styles.featured}` : styles.card}>
-      <div className={styles.image} aria-hidden={image === null ? "true" : undefined}>
-        {image === null ? null : (
-          // eslint-disable-next-line @next/next/no-img-element -- plik z własnej trasy, bez optymalizatora
+    <article className={className}>
+      {image === null ? null : (
+        <div className={styles.image}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- plik z własnej trasy, bez optymalizatora */}
           <img
             className={image.whole ? styles.imageWhole : undefined}
             src={image.src}
             srcSet={image.srcSet}
-            sizes={featured ? "(min-width: 48rem) 36rem, 100vw" : image.sizes}
+            sizes={image.srcSet === undefined ? undefined : cardImageSizes(featured)}
             width={image.width}
             height={image.height}
             alt=""
             loading="lazy"
             decoding="async"
           />
-        )}
-      </div>
+        </div>
+      )}
       <div className={styles.cardBody}>
         <NewsKicker card={card} />
         <h2 className={styles.cardTitle}>

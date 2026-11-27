@@ -505,6 +505,9 @@ describe("public reading of news (E7-R3)", () => {
         licenseLabel: "CC BY-SA 4.0",
         licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
         title: "Tytuł",
+        // The short credit of the page names the place the photo belongs to (D-58 pkt 3).
+        placeId: place,
+        placeName: "Miejsce ze zdjęciem",
       });
       expect(result.page?.photoId).not.toBe(collectionPhoto);
       expect(result.card).not.toHaveProperty("authorText");

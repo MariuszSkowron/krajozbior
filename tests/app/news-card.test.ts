@@ -7,7 +7,7 @@ vi.mock("@/features/news/application/public-news", () => ({
   getPublicNews: vi.fn(),
 }));
 
-const { NewsCard } = await import("@/app/news/news-parts");
+const { NewsCard, cardImageSizes } = await import("@/app/news/news-parts");
 
 const base = {
   slug: "jak-zbierac",
@@ -43,12 +43,20 @@ describe("NewsCard", () => {
     );
   });
 
-  it("without a photo keeps a hidden placeholder field and no image", () => {
+  it("without a photo is a text card: no image field at all, a single link (S-1)", () => {
     const html = show(null);
 
     expect(html).not.toContain("<img");
-    expect(html).toMatch(/<div class="[^"]*image[^"]*" aria-hidden="true"/);
+    expect(html).not.toMatch(/class="[^"]*\bimage\b/);
+    expect(html).toMatch(/<article class="[^"]*plain/);
     expect(html.match(/<a /g)).toHaveLength(1);
+  });
+
+  it("with a photo has the image field and is not a text card", () => {
+    const html = show({ photoId: "abc", width: 1280, height: 853, altText: "x" });
+
+    expect(html).toMatch(/<div class="[^"]*image/);
+    expect(html).not.toMatch(/<article class="[^"]*plain/);
   });
 
   it("asks for a wider image on the featured card", () => {
@@ -59,10 +67,10 @@ describe("NewsCard", () => {
       }),
     );
 
-    expect(html).toContain("(min-width: 48rem) 36rem, 100vw");
+    expect(html).toContain(`sizes="${cardImageSizes(true)}"`);
   });
 
-  it("lets a regular card take the thumbnail, not the main file", () => {
+  it("asks for the main file from 48rem (the column is wider than the 400 px thumbnail), the thumbnail on a phone (S-3)", () => {
     const html = renderToStaticMarkup(
       createElement(NewsCard, {
         card: { ...base, cover: { photoId: "abc", width: 1280, height: 853, altText: "x" } },
@@ -70,6 +78,19 @@ describe("NewsCard", () => {
       }),
     );
 
-    expect(html).toContain("(min-width: 48rem) 25rem, calc(100vw - 2rem)");
+    expect(html).toContain('sizes="(min-width: 48rem) 30rem, 8rem"');
+    // 30rem = 480 px > 400 px of the thumbnail, so a desktop browser takes `main`; 8rem = 128 px
+    // (x3 = 384 px) is covered by the thumbnail.
+    expect(cardImageSizes(false)).toMatch(/^\(min-width: 48rem\) (\d+)rem, (\d+)rem$/);
+    expect(Number(/ (\d+)rem,/.exec(cardImageSizes(false))?.[1]) * 16).toBeGreaterThan(400);
+    expect(Number(/, (\d+)rem$/.exec(cardImageSizes(false))?.[1]) * 16 * 3).toBeLessThanOrEqual(
+      400,
+    );
+  });
+
+  it("gives no sizes when the file is not larger than the thumbnail", () => {
+    const html = show({ photoId: "abc", width: 300, height: 200, altText: "x" });
+
+    expect(html).not.toContain("sizes=");
   });
 });

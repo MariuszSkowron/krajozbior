@@ -18,6 +18,7 @@ import {
   NewsOrganization,
   NewsPublished,
 } from "../news-parts";
+import { NewsPhotoCredit } from "../news-photo-credit";
 import styles from "../news.module.css";
 
 // Same rules as the list: dynamic, always read as a guest.
@@ -134,20 +135,23 @@ export default async function NewsItemPage({ params }: { params: Params }) {
     </>
   );
 
-  // Ze zdjęciem: okładka jak na stronie kolekcji (rodzaj i `h1` na zdjęciu, podpis pod nią), tekst
-  // w czytelnej kolumnie. Bez zdjęcia: nagłówek tekstowy jak dotąd, bez pustej okładki (T-6).
+  // Ze zdjęciem: okładka jak na stronie kolekcji (rodzaj i `h1` na zdjęciu, krótki podpis pod nią),
+  // tekst w czytelnej kolumnie. Bez zdjęcia: nagłówek tekstowy, bez pustej okładki (T-6). Link
+  // powrotu jest w obu układach na samej górze, nad okładką albo nad nadtytułem.
   if (item.cover !== null) {
     return (
       <article>
         <div className={`content-width-wide ${styles.coverFrame}`}>
-          <CollectionCover cover={item.cover} eyebrow={NEWS_KIND_LABELS[item.kind]}>
+          {back}
+          <CollectionCover
+            cover={item.cover}
+            eyebrow={NEWS_KIND_LABELS[item.kind]}
+            credit={<NewsPhotoCredit photo={item.cover} />}
+          >
             <h1>{item.title}</h1>
           </CollectionCover>
         </div>
-        <div className={`content-width ${styles.article}`}>
-          {back}
-          {rest}
-        </div>
+        <div className={`content-width ${styles.article}`}>{rest}</div>
       </article>
     );
   }

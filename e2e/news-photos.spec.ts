@@ -287,10 +287,11 @@ test.describe("aktualności ze zdjęciami", () => {
         await expect(thumb).toHaveAttribute("src", `/media/p/${photoIds[WITH_PHOTO.slug]}/w400`);
         await expect(thumb).toHaveAttribute("alt", "");
 
-        // Karta (poza wyróżnioną pierwszą na szerokim ekranie) pobiera miniaturę, nie plik główny.
-        const thumbCards = viewport.width < 768 ? cards : cards.slice(1);
+        // S-3: na telefonie karta pobiera miniaturę, od 48 rem (kolumna zdjęcia szersza niż 400 px)
+        // plik główny, żeby zdjęcie nie było rozciągnięte i rozmyte.
+        const expectedFile = viewport.width < 768 ? "w400" : "main";
 
-        for (const card of thumbCards) {
+        for (const card of cards) {
           const image = card.locator("img");
 
           if ((await image.count()) === 0) {
@@ -300,7 +301,14 @@ test.describe("aktualności ze zdjęciami", () => {
           await image.scrollIntoViewIfNeeded();
           await expect
             .poll(() => image.evaluate((img: HTMLImageElement) => img.currentSrc))
-            .toMatch(/\/media\/p\/[^/]+\/w400$/);
+            .toMatch(new RegExp(`/media/p/[^/]+/${expectedFile}$`));
+        }
+
+        // S-2: na telefonie karta jest niska (na ekranie mieszczą się dwie).
+        if (viewport.width < 768) {
+          for (const card of cards) {
+            expect((await card.boundingBox())!.height).toBeLessThanOrEqual(viewport.height / 2);
+          }
         }
 
         await thumb.scrollIntoViewIfNeeded();
@@ -314,6 +322,12 @@ test.describe("aktualności ze zdjęciami", () => {
 
         await expect(none.locator("img")).toHaveCount(0);
         await expect(none.getByRole("link")).toHaveCount(1);
+
+        // S-1: karta bez zdjęcia nie rezerwuje pola zdjęcia; tekst zajmuje całą szerokość karty.
+        const noneBox = (await none.boundingBox())!;
+        const bodyBox = (await none.locator("h2").boundingBox())!;
+
+        expect(bodyBox.x - noneBox.x).toBeLessThan(noneBox.width / 10);
         for (const src of await list
           .locator("img")
           .evaluateAll((imgs) => imgs.map((img) => img.getAttribute("src")))) {
@@ -341,7 +355,23 @@ test.describe("aktualności ze zdjęciami", () => {
           "href",
           LICENSE_URL,
         );
-        await expect(article.getByRole("link", { name: "← Wszystkie aktualności" })).toBeVisible();
+        // N-1: powrót nad okładką, tak jak we wpisie bez zdjęcia.
+        const back = article.getByRole("link", { name: "← Wszystkie aktualności" });
+
+        await expect(back).toBeVisible();
+        expect((await back.boundingBox())!.y).toBeLessThan((await figure.boundingBox())!.y);
+
+        // D-58 pkt 3: podpis w jednej linii z nazwą miejsca (link), „fot.” i licencją.
+        const caption = figure.locator("figcaption");
+
+        await expect(caption.getByRole("link", { name: /^Miejsce aktualności / })).toHaveAttribute(
+          "href",
+          /^\/places\/[0-9a-f-]{36}$/,
+        );
+        await expect(caption).toContainText(`· fot. ${AUTHOR}`);
+        await expect(caption).toContainText("zdjęcie zmniejszone");
+        await expect(caption).not.toContainText("Autor:");
+        expect(await caption.locator("p").count()).toBe(1);
         await shot(page, `wpis-${width}-${theme}`);
 
         // Kontrast na jasnym zdjęciu: etykieta >= 4,5:1, tytuł (duży tekst) >= 3:1.

@@ -1,4 +1,4 @@
-import type { PlaceCover } from "@/features/catalog/application/catalog-types";
+import type { CollectionBanner, PlaceCover } from "@/features/catalog/application/catalog-types";
 import {
   collectionCoverLateral,
   coverCardColumns,
@@ -28,9 +28,12 @@ type CardRow = {
 };
 
 // The credit columns of the cover; the title of the photo is `photoTitle` (the item has a title).
+// `coverPlaceId` / `coverPlaceName`: the place the photo belongs to (for the short credit, D-58).
 type CreditRow = Omit<PlaceCover, "photoId" | "title"> & {
   photoId: string | null;
   photoTitle: string | null;
+  coverPlaceId: string | null;
+  coverPlaceName: string | null;
 };
 
 type ItemRow = CardRow &
@@ -75,10 +78,10 @@ const publicLinkJoins = `left join public.collections c
 // nothing. Columns are listed (never `ph.*`): the application role has no grant on the `hidden_*`
 // columns, so hiding a photo is enforced by the policy `place_photos_select` of the guest context.
 const newsCoverLateral = (alias: string) => `left join lateral (
-      select u.id, u.width, u.height, u.alt_text, u.title, u.author_text, u.author_url,
+      select u.id, u.place_id, u.width, u.height, u.alt_text, u.title, u.author_text, u.author_url,
              u.source_url, u.source_kind, u.license_code, u.license_url, u.license_label
         from (
-          (select ph.id, ph.width, ph.height, ph.alt_text, ph.title, ph.author_text, ph.author_url,
+          (select ph.id, ph.place_id, ph.width, ph.height, ph.alt_text, ph.title, ph.author_text, ph.author_url,
                   ph.source_url, ph.source_kind, ph.license_code, ph.license_url, ph.license_label,
                   0 as k
              from public.place_photos ph
@@ -87,7 +90,7 @@ const newsCoverLateral = (alias: string) => `left join lateral (
             order by ph.position
             limit 1)
           union all
-          (select cc.id, cc.width, cc.height, cc.alt_text, cc.title, cc.author_text, cc.author_url,
+          (select cc.id, cc.place_id, cc.width, cc.height, cc.alt_text, cc.title, cc.author_text, cc.author_url,
                   cc.source_url, cc.source_kind, cc.license_code, cc.license_url, cc.license_label,
                   1 as k
              from (select 1) one
@@ -111,10 +114,12 @@ function toCard(row: CardRow) {
   };
 }
 
-function toCreditCover(row: CreditRow): PlaceCover | null {
-  return row.photoId === null
+function toCreditCover(row: CreditRow): CollectionBanner | null {
+  return row.photoId === null || row.coverPlaceId === null || row.coverPlaceName === null
     ? null
     : {
+        placeId: row.coverPlaceId,
+        placeName: row.coverPlaceName,
         photoId: row.photoId,
         width: row.width,
         height: row.height,
@@ -151,11 +156,13 @@ export const postgresNewsReadRepository: NewsReadRepository = {
     const rows = await tx.em.execute<ItemRow[]>(
       `select ${cardColumns}, n.body, n.content_updated_at as "contentUpdatedAt",
               c.slug as "collectionSlug", c.title as "collectionTitle",
-              p.id as "placeId", p.name as "placeName", ${coverCreditColumns("nc", "photoTitle")}
+              p.id as "placeId", p.name as "placeName", ${coverCreditColumns("nc", "photoTitle")},
+              nc.place_id as "coverPlaceId", cpl.name as "coverPlaceName"
          from public.news_posts n
          join public.organizations o on o.id = n.organization_id
          ${publicLinkJoins}
          ${newsCoverLateral("nc")}
+         left join public.places cpl on cpl.id = nc.place_id
         where ${published} and n.slug = ?`,
       [slug],
     );
