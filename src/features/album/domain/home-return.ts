@@ -8,6 +8,11 @@ import type { Progress } from "./progress";
 
 /** Najwyżej tyle kolekcji w sekcji „Do odkrycia w Twoich kolekcjach”. */
 export const HOME_REMAINING_COLLECTIONS = 3;
+/**
+ * Tyle kolekcji się czyta: o jedną więcej, bo kolekcja z banera Startu jest pomijana na liście,
+ * a mimo to ma zostać do `HOME_REMAINING_COLLECTIONS` innych.
+ */
+export const HOME_REMAINING_READ = HOME_REMAINING_COLLECTIONS + 1;
 /** Najwyżej tyle nazw miejsc w jednym wierszu. */
 export const HOME_REMAINING_NAMES = 2;
 
@@ -32,7 +37,7 @@ export type RemainingCollection = Readonly<{
   names: readonly string[];
 }>;
 
-/** Kolekcje, w których coś zostało (postęp niepełny), najwyżej `HOME_REMAINING_COLLECTIONS`. */
+/** Kolekcje, w których coś zostało (postęp niepełny), najwyżej `HOME_REMAINING_READ`. */
 export function incompleteCollections(
   collections: readonly RemainingCollectionInput[],
 ): readonly OpenCollection[] {
@@ -43,7 +48,7 @@ export function incompleteCollections(
         ? [{ ...collection, progress: collection.progress }]
         : [],
     )
-    .slice(0, HOME_REMAINING_COLLECTIONS);
+    .slice(0, HOME_REMAINING_READ);
 }
 
 /** Wiersze sekcji z liczbą pozostałych miejsc i nazwami pierwszych z nich. */

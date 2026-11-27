@@ -3,8 +3,8 @@ import type { Actor } from "@/features/identity/domain/actor";
 import { HOME_FAVORITES_LIMIT, HOME_RECENT_VISITS_LIMIT } from "../domain/home-album";
 import type { Progress } from "../domain/progress";
 import {
-  HOME_REMAINING_COLLECTIONS,
   HOME_REMAINING_NAMES,
+  HOME_REMAINING_READ,
   remainingCollections,
 } from "../domain/home-return";
 import type { AlbumDeps, AlbumOutcome, HomeAlbum, HomeSummary } from "./album-types";
@@ -53,7 +53,8 @@ export async function getHomeAlbum(
     const recentVisits = await deps.repository.homeRecentVisits(tx, HOME_RECENT_VISITS_LIMIT);
     // "Powody do powrotu": what is left in the saved collections is read over all of them (its
     // own query), not from the six favourites, so "all complete" is said only when it is true.
-    const open = (await deps.repository.homeIncompleteSaved(tx, HOME_REMAINING_COLLECTIONS)).map(
+    // One more than shown: the page leaves out the collection of its banner (see HOME_REMAINING_READ).
+    const open = (await deps.repository.homeIncompleteSaved(tx, HOME_REMAINING_READ)).map(
       ({ visited, total, ...collection }) => ({
         ...collection,
         progress: progressOf(visited, total),

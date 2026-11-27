@@ -2,7 +2,11 @@ import Link from "next/link";
 
 import { CollectionCard } from "@/design-system/components/collection-card";
 import type { HomeReturn } from "@/features/album/application/album-types";
-import { remainingLabel, saveNudgeText } from "@/features/album/domain/home-return";
+import {
+  HOME_REMAINING_COLLECTIONS,
+  remainingLabel,
+  saveNudgeText,
+} from "@/features/album/domain/home-return";
 import type { NewCollection, PlaceOfTheDay } from "@/features/catalog/application/catalog-types";
 import { REGION_LABELS } from "@/features/catalog/domain/collection";
 import { cardCoverImage } from "@/features/catalog/domain/collection-cover";
@@ -32,7 +36,11 @@ export function RemainingInCollections({
     return null;
   }
 
-  const remaining = value.remaining.filter((row) => row.slug !== exceptSlug);
+  // Odczyt ma o jedną kolekcję więcej niż pokazujemy (`HOME_REMAINING_READ`): po pominięciu
+  // kolekcji z banera zostaje do trzech innych.
+  const remaining = value.remaining
+    .filter((row) => row.slug !== exceptSlug)
+    .slice(0, HOME_REMAINING_COLLECTIONS);
 
   if (remaining.length === 0 && value.remaining.length > 0) {
     return null;

@@ -627,6 +627,48 @@ describe("home page of a signed-in explorer", () => {
     expect(alone).not.toContain("Wszystkie zapisane kolekcje masz ukończone");
   });
 
+  it("shows up to three other collections when the banner collection is among those read (P6, m3)", async () => {
+    const row = (slug: string) => ({ slug, title: `Kol ${slug}`, remaining: 3, names: [] });
+
+    mocks.listSaved.mockResolvedValue({ status: "ok", value: ["wiezyce"] });
+    mocks.getHomeAlbum.mockResolvedValue({
+      status: "ok",
+      value: {
+        ...album,
+        homeReturn: {
+          hasSaved: true,
+          remaining: [row("wiezyce"), row("a"), row("b"), row("c")],
+          saveNudge: null,
+        },
+      },
+    });
+
+    const html = await render();
+    const rest = html.slice(html.indexOf('id="zostalo-title"'));
+    const section = rest.slice(0, rest.indexOf("</section>"));
+
+    expect(section).not.toContain("/collections/wiezyce");
+    expect(section.match(/<li /g)).toHaveLength(3);
+
+    // Without the banner collection among them, at most three are shown.
+    mocks.getHomeAlbum.mockResolvedValue({
+      status: "ok",
+      value: {
+        ...album,
+        homeReturn: {
+          hasSaved: true,
+          remaining: [row("a"), row("b"), row("c"), row("d")],
+          saveNudge: null,
+        },
+      },
+    });
+
+    const other = await render();
+    const rest2 = other.slice(other.indexOf('id="zostalo-title"'));
+
+    expect(rest2.slice(0, rest2.indexOf("</section>")).match(/<li /g)).toHaveLength(3);
+  });
+
   it("leaves out only the public reasons to return when their read fails", async () => {
     mocks.getHomePublicReads.mockRejectedValue(new Error("db down: secret-public"));
 

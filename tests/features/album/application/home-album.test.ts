@@ -50,7 +50,7 @@ describe("getHomeAlbum", () => {
     expect(repository.homeFavorites).toHaveBeenCalledTimes(1);
     expect(repository.homeFavorites).toHaveBeenCalledWith(expect.anything(), 6);
     expect(repository.homeRecentVisits).toHaveBeenCalledWith(expect.anything(), 5);
-    expect(repository.homeIncompleteSaved).toHaveBeenCalledWith(expect.anything(), 3);
+    expect(repository.homeIncompleteSaved).toHaveBeenCalledWith(expect.anything(), 4);
     expect(repository.homeUnvisitedPlaces).toHaveBeenCalledWith(expect.anything(), ["a"], 2);
     expect(result).toEqual({
       status: "ok",

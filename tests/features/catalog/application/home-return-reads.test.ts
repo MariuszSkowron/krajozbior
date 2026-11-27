@@ -129,22 +129,63 @@ describe("getHomePublicReads: the place of the day", () => {
     expect(findPlaceOfDayAt).toHaveBeenCalledTimes(2);
   });
 
-  it("does not keep the place when PLACE_OF_DAY_CACHE_TTL_MS is 0 (E2E servers)", async () => {
+  // Reads the place twice, `gapMs` apart, with the given environment, and tells how many times
+  // the source was asked.
+  async function readsWithEnv(env: Record<string, string>, gapMs: number): Promise<number> {
     const findPlaceOfDayAt = vi.fn(async () => place);
-    const countPlaceOfDayCandidates = vi.fn(async () => 9);
-    const { deps } = depsWith({ ...empty, countPlaceOfDayCandidates, findPlaceOfDayAt });
+    const { deps } = depsWith({
+      ...empty,
+      countPlaceOfDayCandidates: async () => 9,
+      findPlaceOfDayAt,
+    });
     const start = new Date("2026-11-24T10:00:00Z");
 
-    vi.stubEnv("PLACE_OF_DAY_CACHE_TTL_MS", "0");
+    resetPlaceOfDayCache();
+
+    for (const [name, value] of Object.entries(env)) {
+      vi.stubEnv(name, value);
+    }
+
     try {
       await getHomePublicReads(deps, new Set(), start);
-      await getHomePublicReads(deps, new Set(), new Date(start.getTime() + 1000));
+      await getHomePublicReads(deps, new Set(), new Date(start.getTime() + gapMs));
     } finally {
       vi.unstubAllEnvs();
     }
 
-    expect(findPlaceOfDayAt).toHaveBeenCalledTimes(2);
+    return findPlaceOfDayAt.mock.calls.length;
+  }
+
+  const TEST_ENV = { DEMO_ACCOUNTS_TEST_ONLY: "1" };
+  const MINUTE = 60 * 1000;
+
+  it("does not keep the place when PLACE_OF_DAY_CACHE_TTL_MS is 0 in a test environment", async () => {
+    expect(await readsWithEnv({ ...TEST_ENV, PLACE_OF_DAY_CACHE_TTL_MS: "0" }, 1000)).toBe(2);
   });
+
+  it("ignores PLACE_OF_DAY_CACHE_TTL_MS outside a test environment (always 15 minutes)", async () => {
+    expect(await readsWithEnv({ PLACE_OF_DAY_CACHE_TTL_MS: "0" }, 1000)).toBe(1);
+    expect(
+      await readsWithEnv({ DEMO_ACCOUNTS_TEST_ONLY: "0", PLACE_OF_DAY_CACHE_TTL_MS: "0" }, 1000),
+    ).toBe(1);
+  });
+
+  it("cuts a value above 15 minutes down to 15 minutes", async () => {
+    const env = { ...TEST_ENV, PLACE_OF_DAY_CACHE_TTL_MS: String(24 * 60 * MINUTE) };
+
+    expect(await readsWithEnv(env, 14 * MINUTE)).toBe(1);
+    expect(await readsWithEnv(env, 16 * MINUTE)).toBe(2);
+  });
+
+  it.each(["abc", "-5", "Infinity", "", "   "])(
+    "uses 15 minutes for the invalid value %j",
+    async (value) => {
+      const env = { ...TEST_ENV, PLACE_OF_DAY_CACHE_TTL_MS: value };
+
+      expect(await readsWithEnv(env, 14 * MINUTE)).toBe(1);
+      expect(await readsWithEnv(env, 16 * MINUTE)).toBe(2);
+    },
+  );
 
   it("does not remember a failed read:the next read asks the source again", async () => {
     const findPlaceOfDayAt = vi

@@ -8,8 +8,8 @@ import { useHydrated } from "@/app/use-hydrated";
 
 import styles from "./home-sections.module.css";
 
-// „Zapisuję kolekcję” na Starcie (napis jak na stronie kolekcji, D-49 pkt 8, D-55 pkt 3): ten sam zapis co na stronie kolekcji (wspólne wywołanie trasy
-// albumu i wspólne komunikaty). Po zapisie strona odświeża się, a zachęta znika, bo kolekcja jest
+// „Zapisuję kolekcję” na Starcie (napis jak na stronie kolekcji, D-49 pkt 8, D-55 pkt 3): ten sam
+// zapis co na stronie kolekcji (wspólne wywołanie trasy albumu i wspólne komunikaty). Po zapisie strona odświeża się, a zachęta znika, bo kolekcja jest
 // już zapisana.
 export function SaveNudgeButton({ collectionId }: Readonly<{ collectionId: string }>) {
   const router = useRouter();

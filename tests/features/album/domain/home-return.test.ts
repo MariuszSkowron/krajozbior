@@ -16,7 +16,7 @@ const collection = (id: string, visited: number, total: number) => ({
 });
 
 describe("incompleteCollections", () => {
-  it("leaves out complete and empty collections and keeps at most three", () => {
+  it("leaves out complete and empty collections and keeps one more than three shown", () => {
     const result = incompleteCollections([
       collection("a", 3, 3),
       collection("b", 0, 0),
@@ -24,9 +24,10 @@ describe("incompleteCollections", () => {
       collection("d", 0, 2),
       collection("e", 1, 4),
       collection("f", 2, 4),
+      collection("g", 2, 5),
     ]);
 
-    expect(result.map(({ id }) => id)).toEqual(["c", "d", "e"]);
+    expect(result.map(({ id }) => id)).toEqual(["c", "d", "e", "f"]);
   });
 });
 

@@ -111,11 +111,21 @@ export async function listRecentlyPublishedCollections(
 const DEFAULT_PLACE_OF_DAY_TTL_MS = 15 * 60 * 1000;
 
 // E2E servers set PLACE_OF_DAY_CACHE_TTL_MS=0: specs delete the places they seed, and a cached
-// place would stay on the page of the next spec as a link to a page that is gone.
+// place would stay on the page of the next spec as a link to a page that is gone. The value is
+// read ONLY in a test environment, recognised like the rest of the repository does it: the flag
+// DEMO_ACCOUNTS_TEST_ONLY=1 (set by playwright.config.ts and scripts/test-env, never in production
+// settings); elsewhere the TTL is always the default 15 minutes, so a stray value cannot turn the
+// memory off on a real server. Even then the value is only ever lowered, never raised.
 function placeOfDayTtlMs(): number {
-  const configured = Number(process.env.PLACE_OF_DAY_CACHE_TTL_MS);
+  const raw = process.env.PLACE_OF_DAY_CACHE_TTL_MS?.trim();
 
-  return Number.isFinite(configured) && configured >= 0 && process.env.PLACE_OF_DAY_CACHE_TTL_MS
+  if (process.env.DEMO_ACCOUNTS_TEST_ONLY !== "1" || !raw) {
+    return DEFAULT_PLACE_OF_DAY_TTL_MS;
+  }
+
+  const configured = Number(raw);
+
+  return Number.isFinite(configured) && configured >= 0
     ? Math.min(configured, DEFAULT_PLACE_OF_DAY_TTL_MS)
     : DEFAULT_PLACE_OF_DAY_TTL_MS;
 }
