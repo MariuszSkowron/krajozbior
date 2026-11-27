@@ -208,7 +208,8 @@ export const postgresCatalogRepository: CatalogRepository = {
   },
 
   async setExtraRegions(tx, id, regions) {
-    // The order of the file is kept (`with ordinality`); the main voivodeship is dropped here,
+    // The order of the list is kept (`with ordinality`); the import passes it in the order of
+    // `REGIONS` (`normalizeExtraRegions`). The main voivodeship is dropped here,
     // so a parallel change of the main one in the panel never breaks the CHECK (23514).
     const rows = await tx.em.execute<{ id: string }[]>(
       `update public.collections

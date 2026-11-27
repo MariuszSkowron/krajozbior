@@ -707,13 +707,18 @@ async function loadCollection(
 
   if (collection.extraRegions !== null) {
     const current = await repository.findEditableCollection(tx, collectionId);
-    const wantedExtra = extraRegionsWanted(
-      collection.extraRegions,
-      (current as { region: Region }).region,
-    );
 
-    if (decideExtraRegions(current?.extraRegions ?? [], wantedExtra) === "set") {
-      await repository.setExtraRegions(tx, collectionId, wantedExtra as readonly Region[]);
+    if (current === null) {
+      throw new CollectionRefusal("not_found");
+    }
+
+    const wantedExtra = extraRegionsWanted(collection.extraRegions, current.region);
+
+    if (decideExtraRegions(current.extraRegions, wantedExtra) === "set") {
+      if (!(await repository.setExtraRegions(tx, collectionId, wantedExtra as readonly Region[]))) {
+        throw new CollectionRefusal("not_found");
+      }
+
       extraRegionsResult = "updated";
     } else {
       extraRegionsResult = "unchanged";

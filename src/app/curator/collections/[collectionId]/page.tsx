@@ -62,8 +62,9 @@ export default async function CollectionEditorPage({
             </p>
             {collection.extraRegions.length > 0 ? (
               <p className={styles.muted}>
-                Także w: {collection.extraRegions.map((region) => REGION_LABELS[region]).join(", ")}
-                . Zmienisz to w pliku kolekcji.
+                Także w:{" "}
+                {collection.extraRegions.map((region) => REGION_LABELS[region]).join(" · ")}.
+                Zmienisz to w pliku kolekcji.
               </p>
             ) : null}
             {collection.status === "published" ? (

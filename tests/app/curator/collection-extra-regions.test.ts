@@ -62,7 +62,7 @@ describe("curator editor: extra voivodeships (read only)", () => {
 
     const html = await render();
 
-    expect(html).toContain("Także w: Opolskie, Śląskie.");
+    expect(html).toContain("Także w: Opolskie · Śląskie.");
     expect(html).toContain("Zmienisz to w pliku kolekcji.");
   });
 

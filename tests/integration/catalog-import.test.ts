@@ -1053,8 +1053,8 @@ describe("publishing and removing what a file loaded", () => {
 
     expect(second.map((r) => r.result)).toEqual(["skipped_already_published", "noop"]);
     expect(extraResults(second)).toEqual(["updated", "updated"]);
-    // The order of the file is kept, the database does not sort.
-    expect(await extraOf()).toEqual([["zachodniopomorskie", "kujawsko_pomorskie"], ["lodzkie"]]);
+    // Rows by title ("dwa" first); the codes stand in the order of REGIONS (`normalizeExtraRegions`).
+    expect(await extraOf()).toEqual([["lodzkie"], ["kujawsko_pomorskie", "zachodniopomorskie"]]);
     expect(await collectionsOf("xr-a")).toEqual(before);
     expect(await keyVersions("xr-a")).toEqual(keys);
 
@@ -1079,13 +1079,13 @@ describe("publishing and removing what a file loaded", () => {
       null,
       null,
     ]);
-    expect(await extraOf()).toEqual([["zachodniopomorskie", "kujawsko_pomorskie"], ["lodzkie"]]);
+    expect(await extraOf()).toEqual([["lodzkie"], ["kujawsko_pomorskie", "zachodniopomorskie"]]);
 
     // `[]` clears one, the other stays.
     const cleared = done(await load(curator, "xr-a", withExtra([], undefined), { publish: true }));
 
     expect(extraResults(cleared)).toEqual(["updated", null]);
-    expect(await extraOf()).toEqual([[], ["lodzkie"]]);
+    expect(await extraOf()).toEqual([["lodzkie"], []]);
     expect(await collectionsOf("xr-a")).toEqual(before);
   });
 
