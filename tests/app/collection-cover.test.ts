@@ -42,7 +42,12 @@ describe("CollectionCover (nagłówek kolekcji, E4-3, R3)", () => {
   it("signs the photo with one short line, the full credit stays on the place page (D-58)", () => {
     const html = renderToStaticMarkup(show(cover));
     const caption = html.slice(html.indexOf("<figcaption"));
-    const text = caption.replace(/<[^>]+>/g, "");
+    // Znaczniki wycinamy do skutku (wzorzec akceptowany przez CodeQL; tu i tak to statyczny HTML z testu).
+    let text = caption;
+    for (let previous = ""; previous !== text;) {
+      previous = text;
+      text = text.replace(/<[^>]*>/g, "");
+    }
 
     expect(text).toBe(
       "Zamek testowy · fot. Fikcyjny Autor, Wikimedia Commons · CC BY-SA 3.0 PL · zdjęcie zmniejszone",
