@@ -996,7 +996,8 @@ describe("curator applications: access, administrator functions, session and gat
       // D-62 point 1: the panel takes nobody into an existing organization, so the pair appears
       // only through the operator (`ops:curator`), simulated here: the role is taken, the panel
       // refuses the second application, then the operator re-admits the person and the second
-      // application is marked approved directly.
+      // application is marked approved directly. The pair is built by hand (raw SQL below) as a
+      // simulation of what the operator does, because the panel no longer creates such a pair.
       expect(
         await revokeCuratorRole(session, first, { reason: "Przerwa we współpracy" }, deps),
       ).toMatchObject({ status: "ok" });
