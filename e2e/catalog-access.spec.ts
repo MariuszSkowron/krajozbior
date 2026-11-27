@@ -82,7 +82,7 @@ async function addPlace(page: Page, editorPath: string, name: string) {
   await page.getByLabel("Nazwa", { exact: true }).fill(name);
   await page.getByLabel("Adres", { exact: true }).fill("Tczew");
   // Współrzędne są w zwiniętej części formularza (K-39).
-  await page.getByText("Ustawienia potwierdzania wizyt").click();
+  await page.getByText("Współrzędne i promień potwierdzania wizyty", { exact: true }).click();
   await page.getByLabel("Szerokość geograficzna").fill("54,0928");
   await page.getByLabel("Długość geograficzna").fill("18.7919");
   await page.getByRole("button", { name: "Dodaj miejsce do kolekcji" }).click();
@@ -185,7 +185,7 @@ test.describe("curator panel", () => {
     // The place editor.
     await curator.getByRole("link", { name: "Drugie miejsce" }).click();
     await expect(curator.getByRole("heading", { level: 1, name: "Drugie miejsce" })).toBeVisible();
-    await curator.getByText("Ustawienia potwierdzania wizyt").click();
+    await curator.getByText("Współrzędne i promień potwierdzania wizyty", { exact: true }).click();
     await curator.getByLabel("Promień potwierdzania wizyty (m)").fill("20");
     await curator.getByRole("button", { name: "Zapisz zmiany" }).click();
     await expect(curator.locator("main [role=alert]")).toContainText("Popraw zaznaczone pola");

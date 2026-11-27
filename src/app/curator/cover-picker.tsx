@@ -22,6 +22,8 @@ type CoverPickerProps = Readonly<{
   currentPhotoId: string | null;
   /** Ready photos of the places of this collection. */
   choices: readonly CoverChoice[];
+  /** The photo the public page shows for "Automatycznie" (never a hidden one), or `null`. */
+  autoPhotoId: string | null;
 }>;
 
 const NONE = "none";
@@ -31,8 +33,14 @@ const NONE = "none";
 // in a fieldset: they work from the keyboard (arrows) and a screen reader reads the legend, the
 // description of the photo and the place. The rules (which photo is allowed) are the server's:
 // this only sends the choice and tells the answer.
-export function CoverPicker({ collectionId, currentPhotoId, choices }: CoverPickerProps) {
+export function CoverPicker({
+  collectionId,
+  currentPhotoId,
+  choices,
+  autoPhotoId,
+}: CoverPickerProps) {
   const router = useRouter();
+  const auto = choices.find((choice) => choice.photoId === autoPhotoId) ?? null;
   const groupId = useId();
   const [selected, setSelected] = useState<string>(currentPhotoId ?? NONE);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -61,7 +69,7 @@ export function CoverPicker({ collectionId, currentPhotoId, choices }: CoverPick
         kind: "success",
         message:
           selected === NONE
-            ? "Kolekcja jest teraz bez okładki."
+            ? "Okładka jest teraz wybierana automatycznie: to zdjęcie pierwszego miejsca."
             : "Okładka zapisana. Zobaczą ją odkrywcy po opublikowaniu kolekcji.",
       });
       router.refresh();
@@ -92,7 +100,22 @@ export function CoverPicker({ collectionId, currentPhotoId, choices }: CoverPick
                     checked={selected === NONE}
                     onChange={() => setSelected(NONE)}
                   />
-                  <span className={pickerStyles.none}>Bez okładki (stałe tło)</span>
+                  {auto === null ? null : (
+                    // eslint-disable-next-line @next/next/no-img-element -- plik z własnej trasy, bez optymalizatora
+                    <img
+                      src={`/media/p/${auto.photoId}/w400`}
+                      alt=""
+                      width={Math.min(auto.width, 400)}
+                      height={Math.round(auto.height * (Math.min(auto.width, 400) / auto.width))}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  )}
+                  <span className={pickerStyles.none}>
+                    {auto === null
+                      ? "Automatycznie: zdjęcie pierwszego miejsca, które ma zdjęcie"
+                      : `Automatycznie: zdjęcie pierwszego miejsca (${auto.placeName})`}
+                  </span>
                 </label>
               </li>
               {choices.map((choice) => (
