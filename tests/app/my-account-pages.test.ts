@@ -7,12 +7,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // explanation (Q8).
 const mocks = vi.hoisted(() => ({
   getActor: vi.fn(),
+  getEmail: vi.fn(),
   redirect: vi.fn(),
   getSessionCreatedAt: vi.fn(),
 }));
 
 vi.mock("@/app/request-actor", () => ({
   getRequestActor: mocks.getActor,
+  getRequestEmail: mocks.getEmail,
   loginHref: (path: string) => `/login?returnTo=${encodeURIComponent(path)}`,
 }));
 vi.mock("next/navigation", () => ({
@@ -44,6 +46,7 @@ const render = async (params: Record<string, string> = {}) =>
 beforeEach(() => {
   mocks.getActor.mockReset().mockResolvedValue({ id, role: "user" });
   mocks.redirect.mockReset();
+  mocks.getEmail.mockReset().mockResolvedValue("anna@example.test");
   mocks.getSessionCreatedAt.mockReset().mockResolvedValue(new Date());
 });
 
@@ -65,6 +68,23 @@ describe("settings page", () => {
     expect(html).toMatch(/<h2[^>]*>Konto<\/h2>/);
     expect(hrefs).toEqual(["/my/delete-account"]);
     expect(html).toContain("Usuń konto");
+  });
+
+  it("shows the full e-mail of the account in Konto and no longer promises one it did not show (UX-10)", async () => {
+    const html = renderToStaticMarkup(await SettingsPage({ searchParams: Promise.resolve({}) }));
+
+    expect(html).toMatch(
+      /data-testid="account-email"[^>]*>Adres e-mail konta: <strong>anna@example\.test<\/strong>/,
+    );
+    expect(html).not.toContain("E-mail i ustawienia konta widzisz tylko Ty");
+  });
+
+  it("hides the visibility choice but still posts the saved value (R-024)", async () => {
+    const html = renderToStaticMarkup(await SettingsPage({ searchParams: Promise.resolve({}) }));
+
+    expect(html).not.toContain("Kto zobaczy Twój profil");
+    expect(html).not.toContain('type="radio"');
+    expect(html).toMatch(/<input type="hidden" name="visibility" value="private"/);
   });
 });
 

@@ -43,6 +43,9 @@ export interface IdentityProvider {
   // When the request's session was created (never its last use); null without a
   // valid session. Used to ask for a fresh sign-in before account deletion.
   getSessionCreatedAt(headers: Headers): Promise<Date | null>;
+  // The e-mail address of the signed-in account of this request's session (shown to that account
+  // only, on its profile and settings); null without a valid session.
+  getSessionEmail(headers: Headers): Promise<string | null>;
   // Deletes the account in one transaction (as krajozbior_auth): sign-in codes
   // and action limits of the account, then the account row, from which the
   // database cascades to sessions and all product data and writes the audit

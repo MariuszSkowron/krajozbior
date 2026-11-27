@@ -55,6 +55,9 @@
   width: 100%;
   height: 100%;
   max-width: none;
+  /* Wszystkie cztery rogi jednakowo (UX-11): warstwa zdjęcia sama zaokrągla rogi, więc jej
+     krawędź (przy animacji `settle`) nie wystaje poza zaokrąglenie banera. */
+  border-radius: inherit;
 }
 
 /* Kadr z puli banera (`--focus-narrow`, `--focus-wide` w atrybucie `style`); bez puli 50% 40%. */
@@ -93,6 +96,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
+  border-radius: inherit;
   background: linear-gradient(
     0deg,
     color-mix(in srgb, var(--color-image-scrim) 96%, transparent) 0%,
@@ -194,27 +198,17 @@
 .credit {
   max-width: none;
   color: color-mix(in srgb, var(--color-text-on-image) 92%, transparent);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   text-align: left;
 }
 
+/* Link w podpisie ma cel dotyku co najmniej 24 px wysokości (UX-P3-01): 14 px * 1,5 + 2 * 2 px. */
 .creditLink {
+  display: inline-block;
+  padding-block: 2px;
   color: inherit;
   text-underline-offset: 3px;
-}
-
-/* Miejsce na telefonie: osobny wiersz z celem dotyku 44 px; pozostałe linki podpisu to zwykłe
-   odnośniki w tekście (zwarte wiersze, WCAG 2.5.8 je zwalnia). */
-.placeLink {
-  display: flex;
-  align-items: center;
-  inline-size: fit-content;
-  min-height: var(--size-touch-min);
-}
-
-.sep {
-  display: none;
 }
 
 /* Odkrywca: baner jest linkiem do kolekcji, podpis pod nim. */
@@ -327,7 +321,7 @@
 .creditBelow {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 
 .srOnly {
@@ -424,16 +418,6 @@
 
   .actions > * {
     flex: none;
-  }
-
-  /* Cel dotyku podpisu na komputerze: 24 px wystarczy (WCAG 2.5.8), ale wiersz zostaje zwarty. */
-  .placeLink {
-    display: inline-flex;
-    min-height: var(--space-lg);
-  }
-
-  .sep {
-    display: inline;
   }
 
   .savedTitle {

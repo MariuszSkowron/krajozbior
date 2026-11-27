@@ -10,6 +10,7 @@ import sharp from "sharp";
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
 import { waitForHydration } from "../tests/support/e2e-hydration";
 import { buttonContrast, contrastOver } from "./contrast-support";
+import { expectCreditLinksUsable } from "./credit-support";
 import { waitForEntrance } from "./scroll-support";
 
 // R3 / D-57 (PR 3): the new home page. A guest sees the banner with the photo of the first
@@ -289,7 +290,8 @@ test.describe("home page: the R3 look", () => {
         await expect(login).toBeVisible();
         await expect(collections).toBeVisible();
         await expect(placeLink).toHaveAttribute("href", `/places/${placeIds[0]}`);
-        await expect(main.getByText("Autor: Fikcyjny Autor R3")).toBeVisible();
+        await expect(main.getByText("fot. Fikcyjny Autor R3")).toBeVisible();
+        await expect(main.getByText("Tę kopię udostępniamy")).toHaveCount(0);
 
         // Everything of the banner lies on the photo; the search is below it.
         const photoBox = (await photo.boundingBox())!;
@@ -305,7 +307,12 @@ test.describe("home page: the R3 look", () => {
           expect(box.y + box.height).toBeLessThanOrEqual(photoBox.y + photoBox.height + 1);
         }
 
-        expect((await placeLink.boundingBox())!.height).toBeGreaterThanOrEqual(size.touch);
+        // The short credit is one paragraph with inline links (WCAG 2.5.8 exempts them, see
+        // docs/design/accessibility.md); each link is still named, focusable and not squeezed.
+        const credit = main.locator("p", { hasText: "fot. Fikcyjny Autor R3" });
+
+        expect(await credit.count()).toBe(1);
+        await expectCreditLinksUsable(credit);
         expect(await overflowOf(page)).toBeLessThanOrEqual(0);
 
         // Dark text on a calm placeholder is not under test here: the photo is white, the
@@ -315,7 +322,7 @@ test.describe("home page: the R3 look", () => {
             heading,
             main.getByText(/Gotowe kolekcje miejsc/),
             haveAccount,
-            main.getByText("Autor: Fikcyjny Autor R3"),
+            main.getByText("fot. Fikcyjny Autor R3"),
           ]) {
             expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
           }
@@ -381,7 +388,7 @@ test.describe("home page: the R3 look", () => {
           heading,
           main.getByText(/Gotowe kolekcje miejsc/),
           main.getByText("Masz już konto?"),
-          main.getByText("Autor: Fikcyjny Autor R3"),
+          main.getByText("fot. Fikcyjny Autor R3"),
         ]) {
           expect(await contrastOver(page, part)).toBeGreaterThanOrEqual(4.5);
         }
@@ -492,7 +499,7 @@ test.describe("home page: the R3 look", () => {
         }
         // The credit is outside the link (links do not nest) and under the banner.
         await expect(banner.getByRole("link")).toHaveCount(0);
-        await expect(main.getByText("Autor: Fikcyjny Autor R3")).toBeVisible();
+        await expect(main.getByText("fot. Fikcyjny Autor R3")).toBeVisible();
 
         const album = main.getByRole("heading", { level: 2, name: "Twój album" });
         const albumBox = (await album.boundingBox())!;
@@ -563,7 +570,7 @@ test.describe("home page: the R3 look", () => {
           ["heading", heading],
           ["sentence", sentence],
           ["greeting", main.getByText("Dzień dobry", { exact: true })],
-          ["credit", bannerBox.locator("p", { hasText: "Autor:" })],
+          ["credit", bannerBox.locator("p", { hasText: "fot." })],
         ] as const) {
           // The box of the heading is as wide as its longest allowed line (14 characters), wider
           // than the text itself, so its empty right end lies where the left gradient has already

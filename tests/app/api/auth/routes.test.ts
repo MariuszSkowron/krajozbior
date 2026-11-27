@@ -10,6 +10,7 @@ const provider = vi.hoisted(() => ({
   signInWithCode: vi.fn(),
   signOut: vi.fn(),
   getSessionCreatedAt: vi.fn(),
+  getSessionEmail: vi.fn(),
   deleteAccount: vi.fn(),
 }));
 

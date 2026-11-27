@@ -343,9 +343,11 @@ test.describe("ekran „Zanim zaczniesz”", () => {
     await page.getByRole("button", { name: "Nie akceptuję — wyloguj" }).click();
 
     await expect(page).toHaveURL(/\/\?wylogowano=odmowa$/);
-    const message = page.getByRole("status").filter({ hasText: "Bez akceptacji regulaminu" });
+    const message = page
+      .getByRole("status")
+      .filter({ hasText: "Konto działa dopiero po akceptacji" });
 
-    await expect(message).toContainText("nie korzystasz z konta");
+    await expect(message).toContainText("po akceptacji regulaminu");
     await expect(message.getByRole("link", { name: "kontakt@mariuszskowron.pl" })).toBeVisible();
     await expect(page.getByRole("banner").getByRole("link", { name: "Zaloguj się" })).toBeVisible();
     expect(await acceptances(email)).toEqual([]);

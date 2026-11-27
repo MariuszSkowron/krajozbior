@@ -28,7 +28,7 @@ function respond(outcome: VisitUseCaseOutcome<VisitResponse>): Response {
     case "rate_limited":
       return json(
         429,
-        { error: "rate_limited", message: "Za dużo prób, spróbuj za chwilę." },
+        { error: "rate_limited", message: "Za dużo prób. Spróbuj za chwilę." },
         { "Retry-After": String(outcome.retryAfterSeconds) },
       );
   }
