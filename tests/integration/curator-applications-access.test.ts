@@ -389,6 +389,40 @@ describe("curator applications: access, administrator functions, session and gat
       await expect(submit(b)).rejects.toMatchObject(denied);
     });
 
+    it("counts only the rows of the caller (app_my_curator_application_count)", async () => {
+      const a = await newAccount();
+      const b = await newAccount();
+      const countFor = (context: { user?: string }) =>
+        inApp(context, async (client) =>
+          Number(
+            (await client.query(`select public.app_my_curator_application_count() as n`)).rows[0].n,
+          ),
+        );
+
+      await submit(a);
+      await admin$(
+        `insert into public.curator_applications
+           (applicant_user_id, organization_name, organization_kind, applicant_role, contact,
+            status, decided_at, rejection_reason)
+         select $1, 'Gmina ' || n, 'other', 'rola', 'kontakt', 'rejected', now(), 'powód'
+           from generate_series(1, 20) as n`,
+        [b.id],
+      );
+
+      // Twenty rows of another account do not count for the caller; without a context: zero.
+      expect(await countFor({ user: a.id })).toBe(1);
+      expect(await countFor({ user: b.id })).toBe(20);
+      expect(await countFor({})).toBe(0);
+
+      const [{ others }] = await admin$<{ others: boolean }>(
+        `select bool_or(has_function_privilege(r, 'app_my_curator_application_count()', 'execute'))
+                  as others
+           from unnest(array['krajozbior_auth', 'krajozbior_ops']) as r`,
+      );
+
+      expect(others).toBe(false);
+    });
+
     it("lets the applicant remove a pending or rejected row but never an approved one", async () => {
       const a = await newAccount();
       const del = (user: Account, id: string) =>
@@ -791,7 +825,7 @@ describe("curator applications: access, administrator functions, session and gat
         [kindApplication, existing(otherKind), "kind_mismatch"],
         [suspendedApplication, existing(suspended), "organization_not_found"],
         [unknownApplication, existing(randomUUID()), "organization_not_found"],
-        [personApplication, existing(personOrg), "organization_has_curators"],
+        [personApplication, existing(personOrg), "organization_exists"],
         [adminApplication, newOrg("gmina-admina"), "admin_cannot_be_member"],
       ];
 
@@ -866,7 +900,7 @@ describe("curator applications: access, administrator functions, session and gat
       expect((await snapshot()).counts).toEqual(before.counts);
     });
 
-    it("refuses an existing organization that has curators, also for its own member (D-62 point 1)", async () => {
+    it("refuses every existing organization, with or without members, also for its own member (D-62 point 1)", async () => {
       const [{ id: organizationId }] = await admin$<{ id: string }>(
         `insert into public.organizations (name, slug, kind) values ('Stała', 'stala-org', 'other') returning id`,
       );
@@ -894,7 +928,7 @@ describe("curator applications: access, administrator functions, session and gat
             { decision: "approve", organizationId },
             deps,
           ),
-        ).toEqual({ status: "conflict", code: "organization_has_curators" });
+        ).toEqual({ status: "conflict", code: "organization_exists" });
       }
       // The same through the function of the database: a refusal, nothing written.
       expect(
@@ -910,7 +944,7 @@ describe("curator applications: access, administrator functions, session and gat
             ])
           ).rows.map((row) => [row.outcome, row.code]),
         ),
-      ).toEqual([["refused", "organization_has_curators"]]);
+      ).toEqual([["refused", "organization_exists"]]);
       expect(await snapshot()).toEqual(before);
 
       // The application stays pending, and the administrator can reject it with an explanation.
@@ -923,8 +957,10 @@ describe("curator applications: access, administrator functions, session and gat
         ),
       ).toMatchObject({ status: "ok" });
 
-      // An existing organization without any member is still approved (nobody to ask).
+      // An existing organization without any member is refused too (D-62 point 1): re-admission
+      // is the job of the operator (`ops:curator`), not of the panel. Nothing is written.
       const emptyApplication = await submit(await newAccount(), "other", "Pusta");
+      const beforeEmpty = await snapshot();
 
       expect(
         await decideCuratorApplication(
@@ -933,7 +969,8 @@ describe("curator applications: access, administrator functions, session and gat
           { decision: "approve", organizationId: emptyOrganizationId },
           deps,
         ),
-      ).toMatchObject({ status: "ok", value: { organizationId: emptyOrganizationId } });
+      ).toEqual({ status: "conflict", code: "organization_exists" });
+      expect(await snapshot()).toEqual(beforeEmpty);
     });
   });
 
@@ -956,19 +993,34 @@ describe("curator applications: access, administrator functions, session and gat
         `select organization_id from public.curator_applications where id = $1`,
         [first],
       );
-      // D-62 point 1: an organization with a member takes nobody through the panel, so the pair
-      // appears only after the role was taken (the organization is empty again).
+      // D-62 point 1: the panel takes nobody into an existing organization, so the pair appears
+      // only through the operator (`ops:curator`), simulated here: the role is taken, the panel
+      // refuses the second application, then the operator re-admits the person and the second
+      // application is marked approved directly.
       expect(
         await revokeCuratorRole(session, first, { reason: "Przerwa we współpracy" }, deps),
       ).toMatchObject({ status: "ok" });
 
       const second = await submit(applicant);
 
-      await decideCuratorApplication(
-        session,
-        second,
-        { decision: "approve", organizationId },
-        deps,
+      expect(
+        await decideCuratorApplication(
+          session,
+          second,
+          { decision: "approve", organizationId },
+          deps,
+        ),
+      ).toEqual({ status: "conflict", code: "organization_exists" });
+
+      await admin$(
+        `insert into public.organization_members (organization_id, user_id) values ($1, $2)`,
+        [organizationId, applicant.id],
+      );
+      await admin$(
+        `update public.curator_applications
+            set status = 'approved', decided_at = now(), decided_by = $2, organization_id = $3
+          where id = $1`,
+        [second, admin.id, organizationId],
       );
 
       const listed = await listCuratorApplications(session, "approved", deps);

@@ -437,7 +437,7 @@ describe("decideCuratorApplication", () => {
   it.each([
     "not_pending",
     "slug_taken",
-    "organization_has_curators",
+    "organization_exists",
     "kind_mismatch",
     "admin_cannot_be_member",
     "organization_not_found",

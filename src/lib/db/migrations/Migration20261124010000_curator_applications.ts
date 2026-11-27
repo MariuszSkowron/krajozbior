@@ -369,15 +369,13 @@ export class Migration20261124010000_curator_applications extends Migration {
           perform pg_catalog.pg_advisory_xact_lock(
             pg_catalog.hashtextextended('organization_members:' || v_org.id::text, 0));
 
-          -- D-62 point 1: the administrator approves into a NEW organization only. An existing
-          -- organization that already has a member joins a new person through its own curator
-          -- (invitations, after the contest); here it is refused, the application stays pending
-          -- and the administrator rejects it with an explanation. Checked under the lock above,
-          -- before the first write to the membership; a new organization has no member yet.
-          if not v_created
-             and exists (select from public.organization_members m
-                          where m.organization_id = v_org.id) then
-            v_outcome := 'refused'; v_code := 'organization_has_curators'; exit run;
+          -- D-62 point 1: the administrator approves into a NEW organization only. Every existing
+          -- organization is refused, also one without any member: a person joins an existing
+          -- organization through its own curator (invitations, after the contest) or, as an
+          -- emergency path, through the operator command ops:curator. The application stays
+          -- pending and the administrator rejects it with an explanation. Nothing was written yet.
+          if not v_created then
+            v_outcome := 'refused'; v_code := 'organization_exists'; exit run;
           end if;
 
           insert into public.organization_members (organization_id, user_id)

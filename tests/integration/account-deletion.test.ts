@@ -90,7 +90,8 @@ async function populate(user: { id: string; email: string }) {
      values ('Anna', 'K', 'pomorskie', 'public')`,
   );
   // An application for the curator role (P7): a pending one written by the applicant, and a
-  // decided one that names the account as the decider (`decided_by`, set null on deletion).
+  // decided one of the same account (it goes with the applicant by cascade; the rule
+  // `decided_by` set null is tried separately, in "keeps the application of another account").
   await as(
     user,
     `insert into public.curator_applications
@@ -271,6 +272,38 @@ describe("account deletion on the real database", () => {
       expect(await rowsOf("auth.sign_in_throttle", "key", `action:want_to_see_write:${b.id}`)).toBe(
         1,
       );
+    });
+
+    it("keeps the application of another account that the deleted account decided, only without the decider", async () => {
+      const a = await newExplorer("applicant");
+      const b = await newExplorer("decider");
+      const [{ id: applicationId }] = await admin$<{ id: string }>(
+        `insert into public.curator_applications
+           (applicant_user_id, organization_name, organization_kind, applicant_role, contact,
+            status, decided_at, decided_by, rejection_reason)
+         values ($1, 'Gmina Puck', 'municipality', 'promocja', 'promocja@example.com',
+                 'rejected', now(), $2, 'Brak potwierdzenia')
+         returning id`,
+        [a.id, b.id],
+      );
+      const read = async () =>
+        (
+          await admin$<Record<string, unknown>>(
+            `select status, rejection_reason, decided_at::text as decided_at, decided_by
+               from public.curator_applications where id = $1`,
+            [applicationId],
+          )
+        )[0]!;
+      const before = await read();
+
+      expect(before.decided_by).toBe(b.id);
+      expect(await deleteAccountRows(authPool, b.id)).toBe(true);
+
+      const after = await read();
+
+      expect(after).toEqual({ ...before, decided_by: null });
+      expect(after.status).toBe("rejected");
+      expect(await rowsOf("auth.users", "id", a.id)).toBe(1);
     });
 
     it("leaves no address of A in clear text in any table of the auth schema, nor in the audit", async () => {
