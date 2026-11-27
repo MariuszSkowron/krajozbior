@@ -72,12 +72,10 @@ test.describe("profile and logout", () => {
     await expect(main.getByRole("link")).toHaveText(["Ustawienia", "Napisz do nas"]);
     await expect(main.getByRole("link", { name: "Moje kolekcje" })).toHaveCount(0);
     await expect(main.getByRole("link", { name: "Chcę zobaczyć" })).toHaveCount(0);
-    // The header says "Profil" (no first name saved) and links to the profile.
-    await expect(page.getByRole("banner").getByRole("link", { name: /^Profil/ })).toHaveAttribute(
-      "href",
-      "/my",
-    );
-    await expect(page.getByRole("banner").getByRole("button", { name: "Wyloguj" })).toBeVisible();
+    // UX-06: "Profil" is only in the menu. On a phone (where this test runs) "Wyloguj" is only
+    // here, on the profile; the header has it on a computer only (D-54 P20 B).
+    await expect(page.getByRole("banner").getByRole("link", { name: /^Profil/ })).toHaveCount(0);
+    await expect(page.getByRole("banner").getByRole("button", { name: "Wyloguj" })).toHaveCount(0);
     // E9-6a: contact is a mailto link to the team's address (no form, no data).
     const contact = main.getByRole("link", { name: "Napisz do nas" });
     await expect(contact).toBeVisible();
@@ -171,15 +169,11 @@ test.describe("profile and logout", () => {
 // shared with other specs, so the test puts both profiles back to the defaults.
 const EXPLORER_B = "user2@demo.krajozbior.local";
 
-async function saveProfile(
-  page: Page,
-  values: { name: string; initial: string; region: string; visible: boolean },
-) {
+async function saveProfile(page: Page, values: { name: string; initial: string; region: string }) {
   await page.goto("/my/settings");
   await page.getByLabel("Imię", { exact: true }).fill(values.name);
   await page.getByLabel("Pierwsza litera nazwiska").fill(values.initial);
   await page.getByLabel("Region").selectOption({ label: values.region });
-  await page.getByLabel(values.visible ? "Inni odkrywcy" : "Tylko ja").check();
   await page.getByRole("button", { name: "Zapisz profil" }).click();
 }
 
@@ -195,9 +189,10 @@ test.describe("profile data: name, region, visibility", () => {
       const main = page.getByRole("main");
 
       await expect(main.getByTestId("profile-name")).toHaveText("Odkrywca");
-      await expect(main).toContainText("Profil niewidoczny");
+      await expect(main).toContainText("Tylko Ty widzisz swój profil.");
+      await expect(main.getByTestId("profile-email")).toContainText("@");
 
-      await saveProfile(page, { name: "Anna", initial: "k", region: "Pomorskie", visible: true });
+      await saveProfile(page, { name: "Anna", initial: "k", region: "Pomorskie" });
       await expect(page).toHaveURL(/\/my\/settings\?profil=zapisano/);
       await expect(
         page
@@ -209,7 +204,7 @@ test.describe("profile data: name, region, visibility", () => {
       await page.goto("/my");
       await expect(main.getByTestId("profile-name")).toHaveText("Anna K.");
       await expect(main).toContainText("Pomorskie");
-      await expect(main).toContainText("Profil widoczny");
+      await expect(main).toContainText("Tylko Ty widzisz swój profil.");
       await page.reload();
       await expect(main.getByTestId("profile-name")).toHaveText("Anna K.");
 
@@ -217,10 +212,53 @@ test.describe("profile data: name, region, visibility", () => {
       await expect(page.getByLabel("Imię", { exact: true })).toHaveValue("Anna");
       await expect(page.getByLabel("Pierwsza litera nazwiska")).toHaveValue("K");
       await expect(page.getByLabel("Region")).toHaveValue("pomorskie");
-      await expect(page.getByLabel("Inni odkrywcy")).toBeChecked();
+      // No choice of visibility on the screen (R-024); the account e-mail is shown instead.
+      await expect(page.getByLabel("Inni odkrywcy")).toHaveCount(0);
+      await expect(page.getByRole("radio")).toHaveCount(0);
+      await expect(page.getByTestId("account-email")).toContainText("@");
     } finally {
-      await saveProfile(page, { name: "", initial: "", region: "Nie podaję", visible: false });
+      await saveProfile(page, { name: "", initial: "", region: "Nie podaję" });
       await page.context().close();
+    }
+  });
+
+  test("each account sees only its own e-mail address; another account and a guest see none of it, and the pages are private, no-store", async ({
+    browser,
+  }) => {
+    const other = "user2@demo.krajozbior.local";
+    const pageA = await signedInPage(browser);
+    const pageB = await signedInPage(browser, 390, other);
+    const guest = await browser.newContext();
+
+    try {
+      for (const [page, own, foreign] of [
+        [pageA, EXPLORER, other],
+        [pageB, other, EXPLORER],
+      ] as const) {
+        const profile = await page.goto("/my");
+
+        expect(profile?.headers()["cache-control"]).toBe("private, no-store");
+        await expect(page.getByTestId("profile-email")).toHaveText(own);
+        expect(await profile!.text()).not.toContain(foreign);
+
+        const settings = await page.goto("/my/settings");
+
+        expect(settings?.headers()["cache-control"]).toBe("private, no-store");
+        await expect(page.getByTestId("account-email")).toContainText(own);
+        expect(await settings!.text()).not.toContain(foreign);
+      }
+
+      // A guest is sent to the login screen, and no page of theirs carries an account address.
+      const guestPage = await guest.newPage();
+      const redirected = await guestPage.goto("/my");
+
+      await expect(guestPage).toHaveURL(/\/login/);
+      expect(await redirected!.text()).not.toContain("@demo.krajozbior.local");
+      expect(await guestPage.content()).not.toContain("@demo.krajozbior.local");
+    } finally {
+      await pageA.context().close();
+      await pageB.context().close();
+      await guest.close();
     }
   });
 
@@ -229,10 +267,10 @@ test.describe("profile data: name, region, visibility", () => {
   }) => {
     const page = await signedInPage(browser);
 
-    await saveProfile(page, { name: "Anna2", initial: "", region: "Nie podaję", visible: false });
+    await saveProfile(page, { name: "Anna2", initial: "", region: "Nie podaję" });
     await expect(page).toHaveURL(/\/my\/settings\?profil=blad&pola=firstName/);
     await expect(
-      page.getByRole("main").getByRole("alert").filter({ hasText: "Imię: wpisz do 40 liter" }),
+      page.getByRole("main").getByRole("alert").filter({ hasText: "Imię może mieć do 40 liter" }),
     ).toBeVisible();
 
     const field = page.getByLabel("Imię", { exact: true });
@@ -243,7 +281,9 @@ test.describe("profile data: name, region, visibility", () => {
     expect(page.url()).not.toContain("Anna2");
     // The message at the field is tied to it, and focus lands on the summary of errors.
     await expect(field).toHaveAttribute("aria-describedby", /profile-firstName-error/);
-    await expect(page.locator("#profile-firstName-error")).toContainText("Wpisz do 40 liter");
+    await expect(page.locator("#profile-firstName-error")).toContainText(
+      "Imię może mieć do 40 liter",
+    );
     await expect(page.locator("#profile-error")).toBeFocused();
 
     await page.goto("/my");
@@ -259,20 +299,19 @@ test.describe("profile data: name, region, visibility", () => {
     const b = await signedInPage(browser, 390, EXPLORER_B);
 
     try {
-      await saveProfile(a, { name: "Anna", initial: "K", region: "Pomorskie", visible: true });
+      await saveProfile(a, { name: "Anna", initial: "K", region: "Pomorskie" });
       await expect(a).toHaveURL(/profil=zapisano/);
 
       await b.goto("/my");
       await expect(b.getByTestId("profile-name")).toHaveText("Odkrywca");
       await expect(b.getByRole("main")).not.toContainText("Anna");
-      await expect(b.getByRole("main")).toContainText("Profil niewidoczny");
+      await expect(b.getByRole("main")).toContainText("Tylko Ty widzisz swój profil.");
       await b.goto("/my/settings");
       await expect(b.getByLabel("Imię", { exact: true })).toHaveValue("");
       await expect(b.getByLabel("Region")).toHaveValue("");
-      await expect(b.getByLabel("Tylko ja")).toBeChecked();
 
       // B saves a profile of their own; A keeps theirs.
-      await saveProfile(b, { name: "Bartek", initial: "", region: "Śląskie", visible: false });
+      await saveProfile(b, { name: "Bartek", initial: "", region: "Śląskie" });
       await a.goto("/my");
       await expect(a.getByTestId("profile-name")).toHaveText("Anna K.");
 
@@ -305,7 +344,7 @@ test.describe("profile data: name, region, visibility", () => {
       await guest.close();
     } finally {
       for (const page of [a, b]) {
-        await saveProfile(page, { name: "", initial: "", region: "Nie podaję", visible: false });
+        await saveProfile(page, { name: "", initial: "", region: "Nie podaję" });
         await page.context().close();
       }
     }

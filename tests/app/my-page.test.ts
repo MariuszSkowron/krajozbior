@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // existing screens only (no dead entries, D-22 point 7) and a native logout form.
 const mocks = vi.hoisted(() => ({
   getActor: vi.fn(),
+  getEmail: vi.fn(),
   redirect: vi.fn(),
   getMyProfile: vi.fn(),
   getMyStats: vi.fn(),
@@ -18,6 +19,7 @@ vi.mock("@/app/request-organizations", () => ({
 
 vi.mock("@/app/request-actor", () => ({
   getRequestActor: mocks.getActor,
+  getRequestEmail: mocks.getEmail,
   loginHref: (path: string) => `/login?returnTo=${encodeURIComponent(path)}`,
 }));
 vi.mock("next/navigation", () => ({
@@ -41,6 +43,7 @@ const empty = { firstName: null, familyInitial: null, region: null, visibility: 
 beforeEach(() => {
   mocks.getActor.mockReset().mockResolvedValue({ id, role: "user" });
   mocks.redirect.mockReset();
+  mocks.getEmail.mockReset().mockResolvedValue("anna@example.test");
   mocks.getApprovedOrganizations.mockReset().mockResolvedValue([]);
   mocks.getMyProfile.mockReset().mockResolvedValue({ status: "ok", value: empty });
   mocks.getMyStats
@@ -126,13 +129,24 @@ describe("profile page", () => {
     spy.mockRestore();
   });
 
-  it("says Odkrywca, the letter O and a private profile when nothing was saved", async () => {
+  it("says Odkrywca, the letter O and that only the owner sees the profile", async () => {
     const html = renderToStaticMarkup(await MyPage());
 
     expect(html).toContain(">Odkrywca<");
     expect(html).toMatch(/aria-hidden="true">O<\/span>/);
-    expect(html).toContain("Profil niewidoczny");
+    expect(html).toContain("Tylko Ty widzisz swój profil.");
+    expect(html).not.toContain("Profil niewidoczny");
     expect(html).not.toContain("Profil widoczny");
+  });
+
+  it("shows the e-mail of the account under the name (UX-10), and leaves it out without one", async () => {
+    const html = renderToStaticMarkup(await MyPage());
+
+    expect(html).toMatch(/data-testid="profile-email"[^>]*>anna@example\.test</);
+
+    mocks.getEmail.mockResolvedValue(null);
+
+    expect(renderToStaticMarkup(await MyPage())).not.toContain("profile-email");
   });
 
   it("does not call a nameless curator or administrator Odkrywca above their role", async () => {
@@ -149,7 +163,7 @@ describe("profile page", () => {
     }
   });
 
-  it('shows "Anna K.", the region and a visible profile', async () => {
+  it('shows "Anna K." and the region, and says the profile is seen by the owner only', async () => {
     mocks.getMyProfile.mockResolvedValue({
       status: "ok",
       value: { firstName: "Anna", familyInitial: "K", region: "pomorskie", visibility: "public" },
@@ -160,7 +174,8 @@ describe("profile page", () => {
     expect(html).toContain(">Anna K.<");
     expect(html).toMatch(/aria-hidden="true">A<\/span>/);
     expect(html).toContain("Pomorskie");
-    expect(html).toContain("Profil widoczny");
+    expect(html).toContain("Tylko Ty widzisz swój profil.");
+    expect(html).not.toContain("Profil widoczny");
   });
 
   it("does not render when the profile cannot be read", async () => {

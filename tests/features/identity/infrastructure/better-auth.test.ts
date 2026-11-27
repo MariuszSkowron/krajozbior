@@ -63,6 +63,35 @@ describe("BetterAuthIdentityProvider.getActor", () => {
   });
 });
 
+describe("BetterAuthIdentityProvider.getSessionEmail", () => {
+  it("returns the e-mail of the session of these headers, and nothing else of the user", async () => {
+    const getSession = vi.fn().mockResolvedValue({
+      user: { id: userId, role: "user", email: "anna@example.test" },
+    });
+    const headers = new Headers({ cookie: "krajozbior.session_token=x" });
+
+    expect(await providerWith({ getSession }).getSessionEmail(headers)).toBe("anna@example.test");
+    expect(getSession).toHaveBeenCalledTimes(1);
+    expect(getSession).toHaveBeenCalledWith({ headers });
+  });
+
+  it("returns null for a guest", async () => {
+    const provider = providerWith({ getSession: vi.fn().mockResolvedValue(null) });
+
+    expect(await provider.getSessionEmail(new Headers())).toBeNull();
+  });
+
+  it("asks for the session once per call, so one account never gets another's address", async () => {
+    const getSession = vi.fn(async ({ headers }: { headers: Headers }) => ({
+      user: { id: userId, email: `${headers.get("cookie")}@example.test` },
+    }));
+    const provider = providerWith({ getSession });
+
+    expect(await provider.getSessionEmail(new Headers({ cookie: "a" }))).toBe("a@example.test");
+    expect(await provider.getSessionEmail(new Headers({ cookie: "b" }))).toBe("b@example.test");
+  });
+});
+
 describe("BetterAuthIdentityProvider.signIn", () => {
   const credentials = { email: "user@demo.krajozbior.local", password: "secret-password" };
 

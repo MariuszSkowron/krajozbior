@@ -49,7 +49,7 @@ describe("Moje kolekcje", () => {
   it("filters by the state with plain links (no form, no 'Pokaż' button, no 'nowe w okolicy')", async () => {
     const markup = await render();
 
-    expect(markup).toContain("Zapisane kolekcje i Twój postęp w nich.");
+    expect(markup).not.toContain("Zapisane kolekcje i Twój postęp w nich.");
     expect(markup).not.toContain("<form");
     expect(markup).not.toContain("Pokaż</button>");
     expect(markup).not.toContain("w okolicy");
@@ -76,7 +76,8 @@ describe("Moje kolekcje", () => {
 
     const markup = await render("ukonczone");
 
-    expect(markup).toContain("Nie ma zapisanych kolekcji ze stanem „Ukończone”.");
+    expect(markup).toContain("Nie masz jeszcze ukończonych kolekcji.");
+    expect(markup).not.toContain("Nie ma zapisanych kolekcji ze stanem „Ukończone”.");
     expect(markup).toContain('href="/my/collections">Pokaż wszystkie</a>');
   });
 
@@ -85,7 +86,8 @@ describe("Moje kolekcje", () => {
 
     const markup = await render("w-trakcie");
 
-    expect(markup).toContain("ze stanem „W trakcie”.");
+    expect(markup).toContain("Nie masz kolekcji w trakcie.");
+    expect(markup).not.toContain("ze stanem „W trakcie”.");
   });
 
   it("uses the wide content width of the home page, also while loading", async () => {

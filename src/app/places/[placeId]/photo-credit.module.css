@@ -19,6 +19,18 @@
   color: var(--color-text-accent);
 }
 
-.title {
-  color: var(--color-text-primary);
+/* Krótki podpis (jedna linia, zawija się na wąskich ekranach). */
+.line {
+  margin: 0;
+  max-width: 60rem;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Cel dotyku co najmniej 24 px (UX-P3-01): 14 px * 1,5 + 2 * 2 px; wiersz ma tę samą wysokość. */
+.lineLink {
+  display: inline-block;
+  padding-block: 2px;
+  color: var(--color-text-accent);
 }
