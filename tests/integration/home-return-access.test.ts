@@ -330,16 +330,17 @@ describe("home page: reasons to return", () => {
   });
 
   it("draws the place of the day only among public places with a visible photo and a description", async () => {
-    expect((await getHomePublicReads(catalogDeps())).placeOfDay).toBeNull();
-
-    // A public place whose only photo is hidden does not qualify.
+    // A public place whose only photo is hidden does not qualify. The assertions do not assume
+    // that no other test has described a place before (they only look at this test's places).
     const hiddenMade = await f.publishedCollection(curA, orgA, 1);
     const hiddenPhoto = await describePlace(orgA, hiddenMade.placeIds[0]!);
 
     await admin$(`update public.place_photos set hidden_at = now() where id = $1`, [hiddenPhoto]);
     resetPlaceOfDayCache();
 
-    expect((await getHomePublicReads(catalogDeps())).placeOfDay).toBeNull();
+    expect((await getHomePublicReads(catalogDeps())).placeOfDay?.id).not.toBe(
+      hiddenMade.placeIds[0],
+    );
 
     const made = await f.publishedCollection(curA, orgA, 1);
     const draft = await f.draftCollection(curA, orgA, 1);
@@ -352,13 +353,11 @@ describe("home page: reasons to return", () => {
 
     const first = (await getHomePublicReads(catalogDeps())).placeOfDay;
 
-    // The place of the draft collection never qualifies; the only candidate is the public one.
-    expect(first).toEqual(
-      expect.objectContaining({
-        id: placeId,
-        collection: expect.objectContaining({ title: "Zamki nad rzeką" }),
-      }),
-    );
+    // The places of the draft collection and of the hidden photo never qualify; a qualifying
+    // place exists (this test's public one), whichever other places other tests described.
+    expect(first).not.toBeNull();
+    expect(first?.id).not.toBe(draft.placeIds[0]);
+    expect(first?.id).not.toBe(hiddenMade.placeIds[0]);
     resetPlaceOfDayCache();
     expect((await getHomePublicReads(catalogDeps())).placeOfDay).toEqual(first);
   });

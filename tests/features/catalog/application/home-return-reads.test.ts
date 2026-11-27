@@ -129,6 +129,36 @@ describe("getHomePublicReads: the place of the day", () => {
     expect(findPlaceOfDayAt).toHaveBeenCalledTimes(2);
   });
 
+  it("does not remember a failed read: the next read asks the source again", async () => {
+    const findPlaceOfDayAt = vi
+      .fn<() => Promise<PlaceOfTheDay | null>>()
+      .mockRejectedValueOnce(new Error("db down"))
+      .mockResolvedValueOnce(place);
+    const { deps } = depsWith({
+      ...empty,
+      countPlaceOfDayCandidates: async () => 9,
+      findPlaceOfDayAt,
+    });
+    const now = new Date("2026-11-24T10:00:00Z");
+
+    await expect(getHomePublicReads(deps, new Set(), now)).rejects.toThrow("db down");
+    expect((await getHomePublicReads(deps, new Set(), now)).placeOfDay).toEqual(place);
+    expect(findPlaceOfDayAt).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not remember an empty result: a place that appears is shown at the next read", async () => {
+    const countPlaceOfDayCandidates = vi
+      .fn<() => Promise<number>>()
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(9);
+    const findPlaceOfDayAt = vi.fn(async () => place);
+    const { deps } = depsWith({ ...empty, countPlaceOfDayCandidates, findPlaceOfDayAt });
+    const now = new Date("2026-11-24T10:00:00Z");
+
+    expect((await getHomePublicReads(deps, new Set(), now)).placeOfDay).toBeNull();
+    expect((await getHomePublicReads(deps, new Set(), now)).placeOfDay).toEqual(place);
+  });
+
   it("reads the place again when the Polish day changes", async () => {
     const findPlaceOfDayAt = vi.fn(async () => place);
     const { deps } = depsWith({

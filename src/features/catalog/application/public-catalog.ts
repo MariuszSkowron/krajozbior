@@ -110,7 +110,7 @@ export async function listRecentlyPublishedCollections(
 /** How long the place of the day is kept in the memory of the process (never past its day). */
 const PLACE_OF_DAY_TTL_MS = 15 * 60 * 1000;
 
-let placeOfDayCache: { day: string; until: number; place: PlaceOfTheDay | null } | null = null;
+let placeOfDayCache: { day: string; until: number; place: PlaceOfTheDay } | null = null;
 
 /** Forgets the place of the day kept in memory (tests start from a clean state). */
 export function resetPlaceOfDayCache(): void {
@@ -126,7 +126,7 @@ export function resetPlaceOfDayCache(): void {
  * - "Miejsce dnia": one place drawn from the public places with a photo and a description, the
  *   same through the whole Polish calendar day, `null` when no place qualifies. The choice is kept
  *   in the memory of the process for the rest of its day, but at most 15 minutes, so a place that
- *   stops being public does not stay on the page for long.
+ *   stops being public does not stay on the page for long; an empty result is never kept.
  * The clock is a parameter for tests.
  */
 export async function getHomePublicReads(
@@ -160,7 +160,11 @@ export async function getHomePublicReads(
     const offset = placeOfDayIndex(day, await deps.repository.countPlaceOfDayCandidates(tx));
     const placeOfDay = offset === null ? null : await deps.repository.findPlaceOfDayAt(tx, offset);
 
-    placeOfDayCache = { day, until: now.getTime() + PLACE_OF_DAY_TTL_MS, place: placeOfDay };
+    // An empty result is not kept: it costs one cheap count, and a count and an offset that
+    // differ in `read committed` would hide the place from everyone for 15 minutes.
+    if (placeOfDay !== null) {
+      placeOfDayCache = { day, until: now.getTime() + PLACE_OF_DAY_TTL_MS, place: placeOfDay };
+    }
 
     return { placeOfDay, newCollections };
   });

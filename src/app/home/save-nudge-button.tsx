@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { changeSavedCollection } from "@/app/saved-collection-request";
+import { useHydrated } from "@/app/use-hydrated";
 
 import styles from "./home-sections.module.css";
 
@@ -12,6 +13,7 @@ import styles from "./home-sections.module.css";
 // już zapisana.
 export function SaveNudgeButton({ collectionId }: Readonly<{ collectionId: string }>) {
   const router = useRouter();
+  const hydrated = useHydrated();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +37,7 @@ export function SaveNudgeButton({ collectionId }: Readonly<{ collectionId: strin
       <button
         type="button"
         className="button button--primary"
-        disabled={pending}
+        disabled={pending || !hydrated}
         aria-busy={pending}
         onClick={() => void save()}
       >
