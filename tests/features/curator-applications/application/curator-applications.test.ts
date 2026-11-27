@@ -116,6 +116,19 @@ describe("getMyCuratorApplication", () => {
     expect(await getMyCuratorApplication(admin, deps)).toEqual({ status: "forbidden" });
     expect(deps.withUserContext).not.toHaveBeenCalled();
   });
+
+  it("does not turn an unexpected error of the role check into a refusal", async () => {
+    const { deps } = setup();
+    const broken = {
+      id: user.id,
+      get role(): never {
+        throw new Error("unexpected");
+      },
+    } as unknown as Actor;
+
+    await expect(getMyCuratorApplication(broken, deps)).rejects.toThrow("unexpected");
+    expect(deps.withUserContext).not.toHaveBeenCalled();
+  });
 });
 
 describe("submitCuratorApplication", () => {
@@ -424,7 +437,7 @@ describe("decideCuratorApplication", () => {
   it.each([
     "not_pending",
     "slug_taken",
-    "person_member_limit",
+    "organization_has_curators",
     "kind_mismatch",
     "admin_cannot_be_member",
     "organization_not_found",

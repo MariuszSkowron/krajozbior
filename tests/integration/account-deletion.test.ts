@@ -89,6 +89,22 @@ async function populate(user: { id: string; email: string }) {
     `insert into public.profiles (first_name, family_initial, region, visibility)
      values ('Anna', 'K', 'pomorskie', 'public')`,
   );
+  // An application for the curator role (P7): a pending one written by the applicant, and a
+  // decided one that names the account as the decider (`decided_by`, set null on deletion).
+  await as(
+    user,
+    `insert into public.curator_applications
+       (organization_name, organization_kind, applicant_role, contact)
+     values ('Gmina Rumia', 'municipality', 'promocja', 'promocja@example.com')`,
+  );
+  await admin$(
+    `insert into public.curator_applications
+       (applicant_user_id, organization_name, organization_kind, applicant_role, contact,
+        status, decided_at, decided_by, rejection_reason)
+     values ($1, 'Gmina Wejherowo', 'municipality', 'promocja', 'promocja@example.com',
+             'rejected', now(), $1, 'Brak potwierdzenia')`,
+    [user.id],
+  );
   // The theme remembered on the account (E9-4).
   await as(user, `insert into public.account_settings (theme) values ('light')`);
   // The acceptance of the terms (F-K3): evidence that goes with the account.
@@ -214,6 +230,7 @@ describe("account deletion on the real database", () => {
 
       expect(referencing.map(({ table }) => table)).toEqual(
         expect.arrayContaining([
+          "public.curator_applications",
           "public.organization_members",
           "public.profiles",
           "public.account_settings",
@@ -290,6 +307,7 @@ describe("account deletion on the real database", () => {
         "profiles",
         "account_settings",
         "terms_acceptance",
+        "curator_applications",
       ]) {
         expect(await as(a, `select * from public.${table}`), table).toEqual([]);
       }
@@ -517,6 +535,7 @@ describe("account deletion on the real database", () => {
       expect(inserts.map(({ name }) => name).sort()).toEqual([
         "operations_audit_account_deletion_insert",
         "operations_audit_ops_insert",
+        "operations_audit_panel_insert",
       ]);
       expect(owner.name).toBe("operations_audit_account_deletion_insert");
       for (const part of [

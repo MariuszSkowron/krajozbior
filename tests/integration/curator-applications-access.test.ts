@@ -735,7 +735,7 @@ describe("curator applications: access, administrator functions, session and gat
       });
     });
 
-    it("refuses with a code and writes nothing: slug_taken, kind, person limit, role, state", async () => {
+    it("refuses with a code and writes nothing: slug_taken, kind, organization with curators, role, state", async () => {
       await admin$(
         `insert into public.organizations (name, slug, kind, status) values
            ('Zajęta', 'zajeta', 'municipality', 'approved'),
@@ -791,7 +791,7 @@ describe("curator applications: access, administrator functions, session and gat
         [kindApplication, existing(otherKind), "kind_mismatch"],
         [suspendedApplication, existing(suspended), "organization_not_found"],
         [unknownApplication, existing(randomUUID()), "organization_not_found"],
-        [personApplication, existing(personOrg), "person_member_limit"],
+        [personApplication, existing(personOrg), "organization_has_curators"],
         [adminApplication, newOrg("gmina-admina"), "admin_cannot_be_member"],
       ];
 
@@ -866,29 +866,74 @@ describe("curator applications: access, administrator functions, session and gat
       expect((await snapshot()).counts).toEqual(before.counts);
     });
 
-    it("approves a member of the organization again without a new audit entry", async () => {
+    it("refuses an existing organization that has curators, also for its own member (D-62 point 1)", async () => {
       const [{ id: organizationId }] = await admin$<{ id: string }>(
         `insert into public.organizations (name, slug, kind) values ('Stała', 'stala-org', 'other') returning id`,
       );
-      const applicant = await newAccount();
+      const [{ id: emptyOrganizationId }] = await admin$<{ id: string }>(
+        `insert into public.organizations (name, slug, kind) values ('Pusta', 'pusta-org', 'other') returning id`,
+      );
+      const curator = await newAccount();
+      const stranger = await newAccount();
 
       await admin$(
         `insert into public.organization_members (organization_id, user_id) values ($1, $2)`,
-        [organizationId, applicant.id],
+        [organizationId, curator.id],
       );
 
-      const id = await submit(applicant, "other", "Stała");
+      const ownMemberApplication = await submit(curator, "other", "Stała");
+      const strangerApplication = await submit(stranger, "other", "Stała");
       const before = await snapshot();
+      const session = sessionOf(admin, adminToken);
+
+      for (const id of [ownMemberApplication, strangerApplication]) {
+        expect(
+          await decideCuratorApplication(
+            session,
+            id,
+            { decision: "approve", organizationId },
+            deps,
+          ),
+        ).toEqual({ status: "conflict", code: "organization_has_curators" });
+      }
+      // The same through the function of the database: a refusal, nothing written.
+      expect(
+        await inApp({ user: admin.id, token: adminToken }, async (client) =>
+          (
+            await client.query(decideSql, [
+              strangerApplication,
+              "approve",
+              organizationId,
+              null,
+              null,
+              null,
+            ])
+          ).rows.map((row) => [row.outcome, row.code]),
+        ),
+      ).toEqual([["refused", "organization_has_curators"]]);
+      expect(await snapshot()).toEqual(before);
+
+      // The application stays pending, and the administrator can reject it with an explanation.
+      expect(
+        await decideCuratorApplication(
+          session,
+          strangerApplication,
+          { decision: "reject", reason: "Dołącz przez kuratora tej organizacji." },
+          deps,
+        ),
+      ).toMatchObject({ status: "ok" });
+
+      // An existing organization without any member is still approved (nobody to ask).
+      const emptyApplication = await submit(await newAccount(), "other", "Pusta");
 
       expect(
         await decideCuratorApplication(
-          sessionOf(admin, adminToken),
-          id,
-          { decision: "approve", organizationId },
+          session,
+          emptyApplication,
+          { decision: "approve", organizationId: emptyOrganizationId },
           deps,
         ),
-      ).toMatchObject({ status: "ok", value: { organizationId } });
-      expect((await snapshot()).counts).toEqual(before.counts);
+      ).toMatchObject({ status: "ok", value: { organizationId: emptyOrganizationId } });
     });
   });
 
@@ -911,6 +956,12 @@ describe("curator applications: access, administrator functions, session and gat
         `select organization_id from public.curator_applications where id = $1`,
         [first],
       );
+      // D-62 point 1: an organization with a member takes nobody through the panel, so the pair
+      // appears only after the role was taken (the organization is empty again).
+      expect(
+        await revokeCuratorRole(session, first, { reason: "Przerwa we współpracy" }, deps),
+      ).toMatchObject({ status: "ok" });
+
       const second = await submit(applicant);
 
       await decideCuratorApplication(
@@ -953,8 +1004,9 @@ describe("curator applications: access, administrator functions, session and gat
       ).toHaveLength(0);
 
       const [audit] = await admin$<Record<string, unknown>>(
-        `select * from public.operations_audit where operation = 'revoke_curator' and subject_user_id = $1`,
-        [applicant.id],
+        `select * from public.operations_audit
+          where operation = 'revoke_curator' and subject_user_id = $1 and reason = $2`,
+        [applicant.id, "Koniec współpracy"],
       );
 
       expect(audit).toMatchObject({

@@ -81,7 +81,7 @@ async function reserve(
 const CONFLICT_CODES: readonly ConflictCode[] = [
   "not_pending",
   "slug_taken",
-  "person_member_limit",
+  "organization_has_curators",
   "kind_mismatch",
   "admin_cannot_be_member",
   "organization_not_found",

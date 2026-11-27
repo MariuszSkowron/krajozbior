@@ -132,13 +132,24 @@ export class Migration20261124010000_curator_applications extends Migration {
         for insert to krajozbior_app
         with check (applicant_user_id = (select app_current_user_id()) and status = 'pending');
     `);
+    // The count goes through a function of the owner: a policy that reads its own table in a
+    // subquery fails with "infinite recursion detected in policy" (42P17). The function counts
+    // only the rows of the caller (`app_current_user_id()`), nobody else's.
+    this.addSql(`
+      create function app_my_curator_application_count() returns bigint
+      language sql stable security definer
+      set search_path = ''
+      as $$
+        select pg_catalog.count(*) from public.curator_applications c
+         where c.applicant_user_id = public.app_current_user_id()
+      $$;
+    `);
+    this.addSql(`revoke all on function app_my_curator_application_count() from public;`);
+    this.addSql(`grant execute on function app_my_curator_application_count() to krajozbior_app;`);
     this.addSql(`
       create policy curator_applications_insert_limit on curator_applications
         as restrictive for insert to krajozbior_app
-        with check (
-          (select count(*) from public.curator_applications c
-            where c.applicant_user_id = (select app_current_user_id())) < ${maxApplicationsPerAccount}
-        );
+        with check ((select app_my_curator_application_count()) < ${maxApplicationsPerAccount});
     `);
     // Withdraw a pending application or remove a rejected one; an approved one stays (history).
     this.addSql(`
@@ -277,7 +288,6 @@ export class Migration20261124010000_curator_applications extends Migration {
         v_org public.organizations;
         v_applicant_role text;
         v_created boolean := false;
-        v_already boolean;
         v_outcome text := 'applied';
         v_code text := null;
         v_result_org uuid := null;
@@ -359,32 +369,31 @@ export class Migration20261124010000_curator_applications extends Migration {
           perform pg_catalog.pg_advisory_xact_lock(
             pg_catalog.hashtextextended('organization_members:' || v_org.id::text, 0));
 
-          v_already := exists (select from public.organization_members m
-                                where m.organization_id = v_org.id
-                                  and m.user_id = v_app.applicant_user_id);
-
-          if not v_already then
-            if v_org.kind = 'person'
-               and exists (select from public.organization_members m
-                            where m.organization_id = v_org.id) then
-              v_outcome := 'refused'; v_code := 'person_member_limit'; exit run;
-            end if;
-
-            insert into public.organization_members (organization_id, user_id)
-            values (v_org.id, v_app.applicant_user_id);
-
-            insert into public.operations_audit
-              (operation, operator_label, subject_user_id, organization_id, outcome,
-               before_state, after_state, reason)
-            values (
-              'grant_curator', 'panel administratora', v_app.applicant_user_id, v_org.id, 'applied',
-              pg_catalog.jsonb_build_object('member', false),
-              pg_catalog.jsonb_build_object(
-                'member', true, 'organizationSlug', v_org.slug, 'organizationKind', v_org.kind,
-                'organizationCreated', v_created, 'applicationId', v_app.id,
-                'adminUserId', public.app_current_user_id()),
-              'Wniosek o status kuratora');
+          -- D-62 point 1: the administrator approves into a NEW organization only. An existing
+          -- organization that already has a member joins a new person through its own curator
+          -- (invitations, after the contest); here it is refused, the application stays pending
+          -- and the administrator rejects it with an explanation. Checked under the lock above,
+          -- before the first write to the membership; a new organization has no member yet.
+          if not v_created
+             and exists (select from public.organization_members m
+                          where m.organization_id = v_org.id) then
+            v_outcome := 'refused'; v_code := 'organization_has_curators'; exit run;
           end if;
+
+          insert into public.organization_members (organization_id, user_id)
+          values (v_org.id, v_app.applicant_user_id);
+
+          insert into public.operations_audit
+            (operation, operator_label, subject_user_id, organization_id, outcome,
+             before_state, after_state, reason)
+          values (
+            'grant_curator', 'panel administratora', v_app.applicant_user_id, v_org.id, 'applied',
+            pg_catalog.jsonb_build_object('member', false),
+            pg_catalog.jsonb_build_object(
+              'member', true, 'organizationSlug', v_org.slug, 'organizationKind', v_org.kind,
+              'organizationCreated', v_created, 'applicationId', v_app.id,
+              'adminUserId', public.app_current_user_id()),
+            'Wniosek o status kuratora');
 
           update public.curator_applications
              set status = 'approved', decided_at = pg_catalog.now(),
@@ -502,5 +511,6 @@ export class Migration20261124010000_curator_applications extends Migration {
 
     // The policies of the table go with it; no CASCADE.
     this.addSql(`drop table curator_applications;`);
+    this.addSql(`drop function app_my_curator_application_count();`);
   }
 }
