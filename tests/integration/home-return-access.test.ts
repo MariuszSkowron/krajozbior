@@ -252,16 +252,17 @@ describe("home page: reasons to return", () => {
     expect(await returnOf(a)).toEqual({ hasSaved: true, remaining: [], saveNudge: null });
   });
 
-  it("lists at most three collections with something left", async () => {
+  it("reads one collection more than the page shows (the banner's one is left out there)", async () => {
     const a = await explorer("a");
 
-    for (let i = 1; i <= 4; i += 1) {
+    for (let i = 1; i <= 5; i += 1) {
       const made = await f.publishedCollection(curA, orgA, 2);
 
       await save(a, made.collectionId);
     }
 
-    expect((await returnOf(a)).remaining).toHaveLength(3);
+    // HOME_REMAINING_READ = 4: three shown plus one spare; the page cuts to three after leaving out the banner's.
+    expect((await returnOf(a)).remaining).toHaveLength(4);
   });
 
   it("shows nothing of a withdrawn collection, also to the curator who owns it", async () => {
