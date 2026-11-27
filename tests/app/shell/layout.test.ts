@@ -109,7 +109,7 @@ describe("app shell", () => {
       ["/regulamin", "Regulamin"],
       ["/polityka-prywatnosci", "Polityka prywatności"],
       ["/zasady", "Najważniejsze zasady"],
-      ["mailto:kontakt@mariuszskowron.pl", "Kontakt"],
+      ["mailto:kontakt@krajozbior.pl", "Kontakt"],
     ]) {
       expect(footer).toMatch(new RegExp(`href="${href}">${label}</a>`));
     }
@@ -123,7 +123,7 @@ describe("app shell", () => {
 
     expect(href).toBeDefined();
     expect(decodeURIComponent(href!.replaceAll("&amp;", "&"))).toContain("/collections/demo");
-    expect(footer).toMatch(/href="mailto:kontakt@mariuszskowron\.pl">Kontakt<\/a>/);
+    expect(footer).toMatch(/href="mailto:kontakt@krajozbior\.pl">Kontakt<\/a>/);
   });
 
   describe("the terms screen (E11-Q4 A)", () => {

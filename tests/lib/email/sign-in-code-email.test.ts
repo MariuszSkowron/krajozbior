@@ -42,7 +42,7 @@ describe("renderSignInCodeEmail", () => {
 
   it("ends with the data controller and the privacy policy in both bodies (E11 5.8)", () => {
     const footer = [
-      "Administrator danych: Mariusz Skowron, kontakt@mariuszskowron.pl",
+      "Administrator danych: Mariusz Skowron, prywatnosc@krajozbior.pl",
       "Polityka prywatności: https://krajozbior.example/polityka-prywatnosci",
     ];
 

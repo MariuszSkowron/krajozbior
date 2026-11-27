@@ -1,6 +1,8 @@
 // Najważniejsze zasady: streszczenie regulaminu i polityki prywatności prostym językiem
 // (wersja robocza 0.2 z 19 listopada 2026 r., bez zmian merytorycznych). Wartości z E11-Q12
 // są wpisane; test w tests/features/legal/legal-content.test.ts pilnuje braku znaczników roboczych.
+import { CONTACT_ADDRESSES as ADDRESS } from "../domain/legal-pages";
+
 export const ZASADY = `
 Streszczenie nie zastępuje regulaminu ani polityki prywatności; w razie rozbieżności obowiązują one.
 
@@ -11,7 +13,7 @@ Streszczenie nie zastępuje regulaminu ani polityki prywatności; w razie rozbie
 - **Nasz serwer i kopie zapasowe są w Niemczech.**
 - **Mapa** pochodzi z OpenStreetMap. Gdy wybierzesz widok „Mapa”, Twoja przeglądarka łączy się z serwerami OpenStreetMap i przekazuje im swój adres IP. Lista miejsc działa bez tego.
 - **Nie śledzimy Cię.** Nie używamy narzędzi analitycznych ani reklamowych. W przeglądarce zapisujemy tylko to, co niezbędne: pliki cookies logowania, wyglądu i szkicu profilu oraz — do zamknięcia karty — adres e-mail podczas logowania.
-- **Zauważyłeś lub zauważyłaś treść niezgodną z prawem albo z regulaminem?** Napisz na adres kontakt@mariuszskowron.pl i podaj imię, nazwisko i adres e-mail (szczegóły w regulaminie).
+- **Zauważyłeś lub zauważyłaś treść niezgodną z prawem albo z regulaminem?** Napisz na adres ${ADDRESS.reports} i podaj imię, nazwisko i adres e-mail (szczegóły w regulaminie).
 - **Odwiedzaj miejsca rozważnie.** Nie wchodź na teren prywatny ani ogrodzony i uważaj w ruinach oraz na wieżach. Do potwierdzenia wizyty wystarczy, że będziesz w pobliżu.
 
 ## Gdy masz konto
@@ -24,7 +26,7 @@ Streszczenie nie zastępuje regulaminu ani polityki prywatności; w razie rozbie
 - **Własne kolekcje** są prywatne, dopóki nie oznaczysz ich jako publiczne. Kolekcja publiczna pojawi się dla innych po naszej akceptacji.
 - **Wizyty z przeszłości** zaznaczaj tylko tam, gdzie naprawdę byłeś lub byłaś.
 - **Usunięcie konta** w ustawieniach działa od razu: znikają Twoje dane, w tym wizyty, kolekcje i zdjęcia. Z kopii zapasowych znikną po 30 dniach. W dzienniku operacji (zapisach o ważnych czynnościach) zostaje tylko wewnętrzny numer konta, bez e-maila i imienia.
-- **Kopię swoich danych** albo pomoc w innej sprawie otrzymasz po napisaniu na adres kontakt@mariuszskowron.pl. W sprawach danych osobowych odpowiadamy zwykle w ciągu miesiąca, a reklamacje rozpatrujemy w ciągu 14 dni.
+- **Kopię swoich danych** albo pomoc w innej sprawie otrzymasz po napisaniu na adres ${ADDRESS.privacy}. W sprawach danych osobowych odpowiadamy zwykle w ciągu miesiąca, a reklamacje (adres ${ADDRESS.complaints}) rozpatrujemy w ciągu 14 dni.
 - **O zmianach** regulaminu i polityki prywatności napiszemy do Ciebie co najmniej 14 dni wcześniej.
 - **O zakończeniu działania serwisu** napiszemy co najmniej 30 dni wcześniej; w tym czasie można poprosić o kopię swoich danych.
 

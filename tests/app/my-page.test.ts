@@ -236,7 +236,7 @@ describe("profile page", () => {
 
     // "Ustawienia" arrived with its screen (E9-5); "Napisz do nas" is a mailto link (E9-6a).
     // The main menu has "Moje kolekcje" and "Chcę zobaczyć", so the profile does not repeat them.
-    expect(hrefs).toEqual(["/my/settings", "mailto:kontakt@mariuszskowron.pl"]);
+    expect(hrefs).toEqual(["/my/settings", "mailto:kontakt@krajozbior.pl"]);
     expect(html).not.toContain("Moje kolekcje");
     expect(html).not.toContain("Chcę zobaczyć");
     expect(html).toContain("Ustawienia");

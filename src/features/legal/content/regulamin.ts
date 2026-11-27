@@ -2,11 +2,13 @@
 // bez zmian merytorycznych. Znaczniki „PRAWNIK” zastępuje dopisek u góry strony (E11-Q12 A).
 // Miejsca z napisem „DO UZUPEŁNIENIA” czekają na dane od właściciela; test w
 // tests/features/legal/legal-content.test.ts pilnuje, żeby żadne nie trafiło do ruchu publicznego.
+import { CONTACT_ADDRESSES as ADDRESS } from "../domain/legal-pages";
+
 export const REGULAMIN = `
 ## Rozdział 1. Postanowienia ogólne
 
 1. Regulamin określa zasady korzystania z serwisu internetowego Krajozbiór, dostępnego pod adresem https://krajozbior.pl, oraz z aplikacji Krajozbioru, jeśli powstaną (dalej razem „serwis”).
-2. Serwis prowadzi Mariusz Skowron (dalej „usługodawca”, „my”). Kontakt: kontakt@mariuszskowron.pl. Adres do doręczeń podamy na prośbę wysłaną na ten adres e-mail.
+2. Serwis prowadzi Mariusz Skowron (dalej „usługodawca”, „my”). Kontakt: ${ADDRESS.general}. Adres do doręczeń podamy na prośbę wysłaną na ten adres e-mail.
 3. Regulamin jest regulaminem świadczenia usług drogą elektroniczną w rozumieniu art. 8 ustawy z 18 lipca 2002 r. o świadczeniu usług drogą elektroniczną.
 4. Korzystanie z serwisu jest bezpłatne.
 5. Pojęcia użyte w regulaminie:
@@ -94,7 +96,7 @@ export const REGULAMIN = `
 
 ## Rozdział 8. Zgłaszanie treści bezprawnych i moderacja
 
-1. Każdy, także osoba bez konta, może zgłosić treść, którą uważa za bezprawną albo niezgodną z regulaminem, wysyłając wiadomość na adres kontakt@mariuszskowron.pl. Zgłoszenie powinno zawierać:
+1. Każdy, także osoba bez konta, może zgłosić treść, którą uważa za bezprawną albo niezgodną z regulaminem, wysyłając wiadomość na adres ${ADDRESS.reports}. Zgłoszenie powinno zawierać:
    1. wskazanie treści (np. link do miejsca i opis zdjęcia);
    2. wyjaśnienie, dlaczego treść jest bezprawna albo niezgodna z regulaminem;
    3. imię i nazwisko oraz adres e-mail zgłaszającego — z wyjątkiem zgłoszeń dotyczących przestępstw, o których mowa w art. 3–7 dyrektywy 2011/93/UE (m.in. wykorzystywanie seksualne dzieci);
@@ -103,11 +105,11 @@ export const REGULAMIN = `
 3. Treść bezprawną albo niezgodną z regulaminem możemy ukryć albo usunąć, a w przypadkach opisanych w rozdziale 4 ust. 7 — zablokować konto. Decyzje o treściach i kontach podejmujemy my albo kurator kolekcji, której dotyczy treść. Podejmują je ludzie; nie stosujemy do tego automatycznych narzędzi.
 4. Autora treści informujemy o decyzji. Wskazujemy, co zrobiliśmy, na podstawie jakich faktów, czy uznaliśmy, że treść narusza prawo (i jaki przepis), czy regulamin (i które postanowienie), oraz jak może się odwołać (rozdział 9) albo dochodzić swoich praw przed sądem.
 5. Jeśli dowiemy się o treści, która wskazuje na przestępstwo zagrażające życiu lub bezpieczeństwu osób, niezwłocznie zawiadomimy policję albo prokuraturę.
-6. Punktem kontaktowym, o którym mowa w art. 11 i 12 rozporządzenia (UE) 2022/2065 (akt o usługach cyfrowych), dla organów państw członkowskich, Komisji Europejskiej i odbiorców usługi jest adres kontakt@mariuszskowron.pl. Porozumiewamy się po polsku i po angielsku.
+6. Punktem kontaktowym, o którym mowa w art. 11 i 12 rozporządzenia (UE) 2022/2065 (akt o usługach cyfrowych), dla organów państw członkowskich, Komisji Europejskiej i odbiorców usługi jest adres ${ADDRESS.general}. Porozumiewamy się po polsku i po angielsku.
 
 ## Rozdział 9. Reklamacje i odwołania
 
-1. Reklamację dotyczącą działania serwisu albo odwołanie od decyzji w sprawie treści lub konta możesz złożyć na kontakt@mariuszskowron.pl w ciągu 6 miesięcy od decyzji.
+1. Reklamację dotyczącą działania serwisu albo odwołanie od decyzji w sprawie treści lub konta możesz złożyć na ${ADDRESS.complaints} w ciągu 6 miesięcy od decyzji.
 2. Opisz w niej, czego dotyczy, i podaj adres e-mail przypisany do konta (jeśli je masz).
 3. Odpowiemy e-mailem w ciągu 14 dni od otrzymania reklamacji albo odwołania.
 4. Odwołanie od decyzji kuratora rozpatrujemy my. Odwołanie od naszej decyzji rozpatrujemy ponownie, biorąc pod uwagę Twoje argumenty. Jeśli uznamy odwołanie, cofniemy decyzję (np. przywrócimy treść albo odblokujemy konto).

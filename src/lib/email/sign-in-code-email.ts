@@ -1,3 +1,5 @@
+import { CONTACT_ADDRESSES } from "@/features/legal/domain/legal-pages";
+
 export const SIGN_IN_CODE_VALIDITY_MINUTES = 10;
 
 /** Name of the application in messages; `npm run rename-project` replaces it. */
@@ -21,8 +23,7 @@ export function escapeHtml(value: string): string {
 }
 
 /** Footer line required by the privacy policy (D-36 pkt 1, E11 5.8). */
-export const DATA_CONTROLLER_LINE =
-  "Administrator danych: Mariusz Skowron, kontakt@mariuszskowron.pl";
+export const DATA_CONTROLLER_LINE = `Administrator danych: Mariusz Skowron, ${CONTACT_ADDRESSES.privacy}`;
 
 export const PRIVACY_POLICY_PATH = "/polityka-prywatnosci";
 
