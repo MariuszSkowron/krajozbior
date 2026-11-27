@@ -28,6 +28,7 @@ const card = (overrides: Record<string, unknown> = {}) => ({
   eventEndsOn: null,
   organization: { name: "Krajozbiór — redakcja", slug: "krajozbior-redakcja" },
   verification: "editorial",
+  cover: null,
   ...overrides,
 });
 
@@ -206,6 +207,61 @@ describe("news item page", () => {
     expect(html).not.toContain("Zgłoś treść");
     expect(html).not.toContain("Powiązane");
     expect(html).not.toContain("Zaktualizowano");
+  });
+
+  it("starts with the cover when the item has a photo: kind and the one h1 on it, credit below", async () => {
+    mocks.item.mockResolvedValue({
+      status: "ok",
+      value: full({
+        cover: {
+          photoId: "ph1",
+          width: 1280,
+          height: 853,
+          altText: "Most",
+          title: null,
+          authorText: "Jan Kowalski",
+          authorUrl: null,
+          sourceUrl: "https://commons.wikimedia.org/wiki/File:Most.jpg",
+          sourceKind: "commons_import",
+          licenseCode: "cc-by-sa-4.0",
+          licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+          licenseLabel: "CC BY-SA 4.0",
+          placeId: "pl-1",
+          placeName: "Stary Most",
+        },
+      }),
+    });
+
+    const html = await item();
+
+    expect(html).toContain('src="/media/p/ph1/main"');
+    expect(html).toContain("Poradnik");
+    expect(html.match(/<h1/g)).toHaveLength(1);
+    // N-1: the way back is above the cover (and the h1), like in an item without a photo.
+    expect(html.indexOf("Wszystkie aktualności")).toBeLessThan(html.indexOf("<figure"));
+    expect(html.indexOf("Wszystkie aktualności")).toBeLessThan(html.indexOf("<h1"));
+    // D-58 pkt 3: one short line with the place, not the full credit.
+    const caption = html.match(/<figcaption[\s\S]*?<\/figcaption>/)?.[0] ?? "";
+
+    expect(caption).toMatch(/<a class="[^"]*" href="\/places\/pl-1">Stary Most<\/a>/);
+    expect(caption).toContain(" · fot. Jan Kowalski");
+    expect(caption).toContain("Wikimedia Commons</a>");
+    expect(caption).toContain("CC BY-SA 4.0</a> · zdjęcie zmniejszone");
+    expect(caption).not.toContain("Autor:");
+    expect(caption).not.toContain("Ta kopia");
+    expect(caption.match(/<p/g)).toHaveLength(1);
+    // the kind is the label on the photo, not repeated as a kicker
+    expect(html).not.toMatch(/<p class="[^"]*kicker/);
+  });
+
+  it("keeps the text heading without a photo and has no cover image", async () => {
+    mocks.item.mockResolvedValue({ status: "ok", value: full() });
+
+    const html = await item();
+
+    expect(html).not.toContain("<img");
+    expect(html).toMatch(/<p class="[^"]*kicker/);
+    expect(html.indexOf("Wszystkie aktualności")).toBeLessThan(html.indexOf("<h1"));
   });
 
   it("shows markup in the text as text and makes no link of it", async () => {
