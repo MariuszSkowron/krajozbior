@@ -27,7 +27,7 @@ describe("the legal pages", () => {
     });
   });
 
-  it("name the contact address of the decision D-36", () => {
+  it("name the contact address of the decision D-63", () => {
     expect(CONTACT_EMAIL).toBe("kontakt@krajozbior.pl");
     expect(Object.values(CONTACT_ADDRESSES).sort()).toEqual([
       "bezpieczenstwo@krajozbior.pl",

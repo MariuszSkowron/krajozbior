@@ -19,6 +19,7 @@ describe("security.txt", () => {
     expect(field("Preferred-Languages")).toBe("pl, en");
   });
 
+  // Plik security.txt trzeba odnowić (nowe Expires) przed 27.11.2027, inaczej ten test zacznie padać.
   it("has an expiry date in the future, in ISO 8601", () => {
     const expires = field("Expires");
 

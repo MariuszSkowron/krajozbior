@@ -26,7 +26,7 @@ Streszczenie nie zastępuje regulaminu ani polityki prywatności; w razie rozbie
 - **Własne kolekcje** są prywatne, dopóki nie oznaczysz ich jako publiczne. Kolekcja publiczna pojawi się dla innych po naszej akceptacji.
 - **Wizyty z przeszłości** zaznaczaj tylko tam, gdzie naprawdę byłeś lub byłaś.
 - **Usunięcie konta** w ustawieniach działa od razu: znikają Twoje dane, w tym wizyty, kolekcje i zdjęcia. Z kopii zapasowych znikną po 30 dniach. W dzienniku operacji (zapisach o ważnych czynnościach) zostaje tylko wewnętrzny numer konta, bez e-maila i imienia.
-- **Kopię swoich danych** albo pomoc w innej sprawie otrzymasz po napisaniu na adres ${ADDRESS.privacy}. W sprawach danych osobowych odpowiadamy zwykle w ciągu miesiąca, a reklamacje (adres ${ADDRESS.complaints}) rozpatrujemy w ciągu 14 dni.
+- **Kopię swoich danych** otrzymasz po napisaniu na adres ${ADDRESS.privacy}, a pomoc w innej sprawie — na ${ADDRESS.general}. W sprawach danych osobowych odpowiadamy zwykle w ciągu miesiąca, a reklamacje wysłane na ${ADDRESS.complaints} rozpatrujemy w ciągu 14 dni.
 - **O zmianach** regulaminu i polityki prywatności napiszemy do Ciebie co najmniej 14 dni wcześniej.
 - **O zakończeniu działania serwisu** napiszemy co najmniej 30 dni wcześniej; w tym czasie można poprosić o kopię swoich danych.
 
