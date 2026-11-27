@@ -507,8 +507,9 @@ describe("visits and the visit function", () => {
             and tablename in ('collections', 'collection_places', 'places', 'visits')`,
       );
 
-      // collections, collection_places, places: SELECT; visits: SELECT and INSERT.
-      expect(Number(n)).toBe(5);
+      // collections, collection_places, places: SELECT; visits: SELECT and INSERT; plus the
+      // SELECT policy on collections for the curator's save counts (collection_saves_for_curator).
+      expect(Number(n)).toBe(6);
       const visitPolicies = await admin$<{ cmd: string; with_check: string | null }>(
         `select cmd, with_check from pg_policies
           where tablename = 'visits' and 'krajozbior_owner' = any (roles) order by cmd`,
