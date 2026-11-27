@@ -108,7 +108,7 @@ test.describe("queue of reports of the curator", () => {
 
     await expect(dialog).toBeHidden();
     await expect(curator.locator("main").getByRole("status")).toContainText(
-      "Odrzucono zgłoszenie dla Most Tczewski.",
+      "Odrzucono zgłoszenie: Most Tczewski.",
     );
     await expect(reports).toHaveCount(1);
     await expect(reports.first().getByRole("heading", { level: 2 })).toBeFocused();
@@ -117,7 +117,7 @@ test.describe("queue of reports of the curator", () => {
     // Undo from the message under the list.
     await curator.getByRole("button", { name: "Cofnij", exact: true }).click();
     await expect(curator.locator("main").getByRole("status")).toContainText(
-      "Cofnięto decyzję dla Most Tczewski.",
+      "Cofnięto decyzję: Most Tczewski.",
     );
     await expect(reports).toHaveCount(2);
     await expect(curator.getByRole("link", { name: "Do sprawdzenia (2)" })).toBeVisible();
@@ -128,9 +128,7 @@ test.describe("queue of reports of the curator", () => {
       /\/curator\/collections\/[0-9a-f-]+\/places\/[0-9a-f-]+$/,
     );
     await reports.first().getByRole("button", { name: "Przyjmij" }).click();
-    await expect(curator.locator("main").getByRole("status")).toContainText(
-      "Przyjęto zgłoszenie dla",
-    );
+    await expect(curator.locator("main").getByRole("status")).toContainText("Przyjęto zgłoszenie:");
     await expect(reports).toHaveCount(1);
     await expect(curator.getByRole("link", { name: "Do sprawdzenia (1)" })).toBeVisible();
 

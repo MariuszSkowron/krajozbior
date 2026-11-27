@@ -49,7 +49,7 @@ function failureText(status: number, reason: unknown): string {
       return "Nie znaleziono tego zgłoszenia. Odśwież listę.";
     case 409:
       if (reason === "author_gone") {
-        return "Autor usunął konto, więc decyzji nie można cofnąć.";
+        return "Konto autora jest usunięte, więc decyzji nie można cofnąć.";
       }
 
       if (reason === "own_report") {
@@ -185,14 +185,14 @@ export function ReportsQueue({
   const accept = (row: ReportRow) =>
     decide(row, { action: "accept" }, (version) => ({
       kind: "info",
-      text: `Przyjęto zgłoszenie dla ${row.placeName}.`,
+      text: `Przyjęto zgłoszenie: ${row.placeName}.`,
       undo: { reportId: row.id, version, placeName: row.placeName },
     }));
 
   const undo = (row: ReportRow) =>
     decide(row, { action: "undo" }, () => ({
       kind: "info",
-      text: `Cofnięto decyzję dla ${row.placeName}. Zgłoszenie wróciło do sprawdzenia.`,
+      text: `Cofnięto decyzję: ${row.placeName}. Zgłoszenie wróciło do sprawdzenia.`,
     }));
 
   async function reject() {
@@ -215,7 +215,7 @@ export function ReportsQueue({
       { action: "reject", reason, note: noteRef.current?.value },
       (version) => ({
         kind: "info",
-        text: `Odrzucono zgłoszenie dla ${row.placeName}.`,
+        text: `Odrzucono zgłoszenie: ${row.placeName}.`,
         undo: { reportId: row.id, version, placeName: row.placeName },
       }),
     );
@@ -246,7 +246,7 @@ export function ReportsQueue({
 
     setNotice({
       kind: "info",
-      text: `Cofnięto decyzję dla ${last.placeName}. Zgłoszenie wróciło do sprawdzenia.`,
+      text: `Cofnięto decyzję: ${last.placeName}. Zgłoszenie wróciło do sprawdzenia.`,
     });
     router.refresh();
     // The "Cofnij" button that had the focus is gone: the focus goes to the message.
@@ -313,9 +313,7 @@ export function ReportsQueue({
                 </p>
                 {row.message === "" ? (
                   <p className={styles.removed}>
-                    {row.authorGone
-                      ? "Opis usunięty razem z kontem autora."
-                      : "Zgłaszający nie dodał opisu."}
+                    {row.authorGone ? "Opis usunięty razem z kontem autora." : "Bez opisu."}
                   </p>
                 ) : (
                   <p className={styles.message}>{row.message}</p>
@@ -366,8 +364,8 @@ export function ReportsQueue({
                     </>
                   ) : row.authorGone ? (
                     <p className={styles.decision}>
-                      Autor usunął konto, więc decyzji nie można cofnąć. Jeśli trzeba, popraw
-                      miejsce w edytorze.
+                      Konto autora jest usunięte, więc decyzji nie można cofnąć. Jeśli trzeba,
+                      popraw miejsce w edytorze.
                     </p>
                   ) : (
                     <button
@@ -401,7 +399,7 @@ export function ReportsQueue({
               void reject();
             }}
           >
-            <h2 id="reject-heading">Odrzucić zgłoszenie dla {rejecting.placeName}?</h2>
+            <h2 id="reject-heading">Odrzucić zgłoszenie: {rejecting.placeName}?</h2>
             <div className={curator.field}>
               <label htmlFor="reject-reason">Powód</label>
               <select
@@ -437,8 +435,7 @@ export function ReportsQueue({
                 aria-describedby="reject-note-help"
               />
               <p id="reject-note-help" className={curator.help}>
-                Zgłaszający zobaczy ją przy swoim zgłoszeniu, bez Twojego nazwiska. Do{" "}
-                {DECISION_NOTE_MAX_LENGTH} znaków.
+                Zgłaszający nie zobaczy Twojego nazwiska. Do {DECISION_NOTE_MAX_LENGTH} znaków.
               </p>
             </div>
             {/* The dialog is modal: a message outside of it would be inert, so a failed
