@@ -265,12 +265,12 @@ test.describe("collection page: the R3 look", () => {
     await expect(cover).toBeVisible();
     await expect(figure.getByText("Kolekcja · Pomorskie")).toBeVisible();
     await expect(heading).toBeVisible();
-    await expect(figure.getByText("Autor: Fikcyjny Autor R3")).toBeVisible();
+    await expect(figure.getByText("fot. Fikcyjny Autor R3")).toBeVisible();
 
     // The title lies on the photo (inside the box of the cover), the credit under the photo.
     const photoBox = (await cover.boundingBox())!;
     const titleBox = (await heading.boundingBox())!;
-    const creditBox = (await figure.getByText("Autor: Fikcyjny Autor R3").boundingBox())!;
+    const creditBox = (await figure.getByText("fot. Fikcyjny Autor R3").boundingBox())!;
 
     expect(titleBox.y).toBeGreaterThanOrEqual(photoBox.y);
     expect(titleBox.y + titleBox.height).toBeLessThanOrEqual(photoBox.y + photoBox.height);
@@ -282,9 +282,7 @@ test.describe("collection page: the R3 look", () => {
     await expect(tiles).toHaveCount(PLACE_COUNT);
     await expect(tiles.first()).toContainText("01");
     await expect(page.getByText("Do odkrycia")).toHaveCount(0);
-    await expect(
-      page.getByRole("heading", { level: 2, name: /Miejsca w kolekcji \(6\)/ }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Miejsca w kolekcji" })).toBeVisible();
     await shot(page, "kolekcja-gosc-1440");
   });
 

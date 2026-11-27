@@ -753,11 +753,18 @@ describe("public read of collections and places (guest context)", () => {
         )
       )[0]!.id as string;
 
-    it("gives the centre and the number of the places of a published collection, public fields only", async () => {
+    it("gives the coordinates and the number of the places of a published collection, public fields only", async () => {
       const open = await newCollection(curB, orgB, "W okolicy: publiczna");
 
       await link(curB, open.id, await placeAt(curB, orgB, "Okolica 1", 54, 18), orgB, 1);
       await link(curB, open.id, await placeAt(curB, orgB, "Okolica 2", 54.2, 18.4), orgB, 2);
+      await link(
+        curB,
+        open.id,
+        await placeAt(curB, orgB, "Okolica 3", 54.123456, 18.987654),
+        orgB,
+        3,
+      );
       await publish(curB, open.id);
 
       const found = (await listNearbyCandidates(deps)).find((entry) => entry.slug === open.slug);
@@ -766,16 +773,20 @@ describe("public read of collections and places (guest context)", () => {
         slug: open.slug,
         title: "W okolicy: publiczna",
         region: "pomorskie",
-        placeCount: 2,
+        placeCount: 3,
       });
-      expect(found!.centerLat).toBeCloseTo(54.1, 9);
-      expect(found!.centerLon).toBeCloseTo(18.2, 9);
+      // Each place by its position in the collection (R-067: the browser measures to the nearest),
+      // rounded to 3 decimals (about 100 m), not the exact position of the place.
+      expect(found!.points).toEqual([
+        [54, 18],
+        [54.2, 18.4],
+        [54.123, 18.988],
+      ]);
       expect(typeof found!.firstPublishedAt).toBe("string");
       expect(Object.keys(found!).sort()).toEqual([
-        "centerLat",
-        "centerLon",
         "firstPublishedAt",
         "placeCount",
+        "points",
         "region",
         "slug",
         "title",
@@ -841,7 +852,7 @@ describe("public read of collections and places (guest context)", () => {
       const list = await listNearbyCandidates(deps);
       const found = list.find((entry) => entry.slug === open.slug);
 
-      expect(found).toMatchObject({ placeCount: 1, centerLat: 54, centerLon: 18 });
+      expect(found).toMatchObject({ placeCount: 1, points: [[54, 18]] });
       expect(list.map((entry) => entry.slug)).not.toContain(draft.slug);
     });
 

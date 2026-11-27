@@ -9,7 +9,6 @@ import {
   getCollectionBanner,
   getHomeBanner,
   getHomePublicReads,
-  listNearbyCandidates,
   listRecentlyPublishedCollections,
 } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
@@ -66,18 +65,6 @@ async function loadDiscover(extra: number) {
     return await listRecentlyPublishedCollections(DISCOVER_LIMIT + extra, getCatalogDeps());
   } catch (error) {
     logReadFailure("Home collections read", error);
-
-    return null;
-  }
-}
-
-// The list behind "Pokaż najbliższe": public, the same for everyone. The distance is counted in
-// the browser, so the position of the device never comes here (E12-3).
-async function loadNearby() {
-  try {
-    return await listNearbyCandidates(getCatalogDeps());
-  } catch (error) {
-    logReadFailure("Home nearby read", error);
 
     return null;
   }
@@ -197,30 +184,24 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const existingAccount =
     actor !== null && first(params[FIRST_SIGN_IN_PARAM]) === FIRST_SIGN_IN_EXISTING_ACCOUNT;
   const savedRead = actor === null ? Promise.resolve(null) : loadSavedSlugs(actor);
-  const [allDiscover, allNearby, album, firstName, saved, guestDrawn, publicReads, news] =
-    await Promise.all([
-      // The saved ones are known first, so the list can read that many more than it shows.
-      savedRead.then((slugs) => loadDiscover(slugs?.size ?? 0)),
-      loadNearby(),
-      actor === null ? Promise.resolve(null) : loadAlbum(actor),
-      actor === null ? Promise.resolve(null) : loadFirstName(actor),
-      savedRead,
-      // A guest always gets the draw, so its read starts with the others, not after them.
-      actor === null ? loadDrawnBanner() : Promise.resolve(null),
-      // The saved ones are left out of "Nowe kolekcje" (they have their place in "Moje kolekcje").
-      savedRead.then((slugs) => loadPublicReads(slugs ?? new Set())),
-      loadNews(),
-    ]);
+  const [allDiscover, album, firstName, saved, guestDrawn, publicReads, news] = await Promise.all([
+    // The saved ones are known first, so the list can read that many more than it shows.
+    savedRead.then((slugs) => loadDiscover(slugs?.size ?? 0)),
+    actor === null ? Promise.resolve(null) : loadAlbum(actor),
+    actor === null ? Promise.resolve(null) : loadFirstName(actor),
+    savedRead,
+    // A guest always gets the draw, so its read starts with the others, not after them.
+    actor === null ? loadDrawnBanner() : Promise.resolve(null),
+    // The saved ones are left out of "Nowe kolekcje" (they have their place in "Moje kolekcje").
+    savedRead.then((slugs) => loadPublicReads(slugs ?? new Set())),
+    loadNews(),
+  ]);
   // A saved collection is not "to discover": it has its place in "Moje kolekcje". The list is
   // trimmed to twelve only after the filter, so it does not shrink with every save.
   const discover =
     allDiscover === null || saved === null
       ? allDiscover
       : allDiscover.filter(({ slug }) => !saved.has(slug)).slice(0, DISCOVER_LIMIT);
-  const nearby =
-    allNearby === null || saved === null
-      ? allNearby
-      : allNearby.filter(({ slug }) => !saved.has(slug));
   const allSaved =
     discover !== null && allDiscover !== null && allDiscover.length > 0 && discover.length === 0;
 
@@ -264,7 +245,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
       ) : null}
       {termsDeclined ? (
         <p role="status" className={styles.status}>
-          Wylogowano. Bez akceptacji regulaminu nie korzystasz z konta. Zapisaliśmy tylko Twój adres
+          Wylogowano. Konto działa dopiero po akceptacji regulaminu. Zapisaliśmy tylko Twój adres
           e-mail; jeśli chcesz, żebyśmy go usunęli, napisz na{" "}
           <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
         </p>
@@ -372,7 +353,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
       <PlaceOfTheDaySection place={publicReads?.placeOfDay ?? null} />
       <NewCollectionsSection collections={publicReads?.newCollections ?? null} />
       <NewsHighlights cards={news} />
-      <CollectionsToDiscover collections={discover} candidates={nearby} allSaved={allSaved} />
+      <CollectionsToDiscover collections={discover} allSaved={allSaved} />
     </div>
   );
 }

@@ -627,9 +627,11 @@ export const postgresCatalogRepository: CatalogRepository = {
                 ph.author_text as "authorText", ph.author_url as "authorUrl",
                 ph.source_url as "sourceUrl", ph.source_kind as "sourceKind",
                 ph.license_code as "licenseCode", ph.license_url as "licenseUrl",
-                ph.license_label as "licenseLabel"
+                ph.license_label as "licenseLabel",
+                ph.place_id as "placeId", pl.name as "placeName"
            from public.collections c
            ${collectionCoverLateral("ph")}
+           join public.places pl on pl.id = ph.place_id
           where c.id = ? and ph.id is not null`,
         [collection.id],
       ),
@@ -938,20 +940,23 @@ export const postgresCatalogRepository: CatalogRepository = {
   async listNearbyCandidates(tx, limit) {
     // Public data only: the guest context, the collection published by an approved organization,
     // and only the places that lie in a public collection (the same fragments as the album).
-    // A collection without such a place has no centre and does not come back.
+    // A collection without such a place does not come back. The coordinates of each place, rounded
+    // to 3 decimals (about 100 m: enough for a distance in km), go to the browser only on request
+    // ("Pokaż najbliższe", /api/nearby), which counts the distance to the nearest one (R-067).
     const rows = await tx.em.execute<
       {
         slug: string;
         title: string;
         region: string;
         placeCount: number;
-        centerLat: number;
-        centerLon: number;
+        points: [number, number][];
         firstPublishedAt: Date | null;
       }[]
     >(
       `select c.slug, c.title, c.region, count(*)::int as "placeCount",
-              avg(p.latitude)::float8 as "centerLat", avg(p.longitude)::float8 as "centerLon",
+              json_agg(json_build_array(round(p.latitude::numeric, 3)::float8,
+                                        round(p.longitude::numeric, 3)::float8)
+                       order by cp.position, p.id) as "points",
               c.first_published_at as "firstPublishedAt"
          from public.collections c
          join public.organizations o on o.id = c.organization_id

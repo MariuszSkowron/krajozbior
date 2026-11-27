@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildPhotoCredit,
+  buildShortPhotoCredit,
   CHANGES_NOTICE,
+  shortPhotoCreditText,
   type PhotoCreditInput,
 } from "@/features/photos/domain/photo-credit";
 
@@ -31,7 +33,7 @@ describe("buildPhotoCredit", () => {
         label: "CC BY-SA 3.0 PL",
         url: "https://creativecommons.org/licenses/by-sa/3.0/pl/",
       },
-      notices: [CHANGES_NOTICE, "Ta kopia jest dostępna na licencji CC BY-SA 3.0 PL."],
+      notices: [CHANGES_NOTICE, "Tę kopię udostępniamy na tej samej licencji."],
     });
   });
 
@@ -79,5 +81,43 @@ describe("buildPhotoCredit", () => {
 
   it("labels the source of a photo that does not come from Commons neutrally", () => {
     expect(buildPhotoCredit({ ...base, sourceKind: "third_party" }).source?.label).toBe("Źródło");
+  });
+});
+
+describe("buildShortPhotoCredit", () => {
+  it("is one line: place, 'fot.' author with source, licence and the change notice", () => {
+    expect(shortPhotoCreditText("Zamek w Malborku", buildShortPhotoCredit(base))).toBe(
+      "Zamek w Malborku · fot. Fikcyjny Autor, Wikimedia Commons · CC BY-SA 3.0 PL · zdjęcie zmniejszone",
+    );
+  });
+
+  it("drops the sentence about the licence of the copy and the WebP remark", () => {
+    const text = shortPhotoCreditText(null, buildShortPhotoCredit(base));
+
+    expect(text).not.toContain("Tę kopię udostępniamy");
+    expect(text).not.toContain("WebP");
+    expect(text).not.toContain("skompresowane");
+    expect(text).not.toContain("Autor:");
+    expect(text.startsWith("fot. Fikcyjny Autor")).toBe(true);
+  });
+
+  it("keeps the licence link", () => {
+    expect(buildShortPhotoCredit(base).license).toEqual({
+      label: "CC BY-SA 3.0 PL",
+      url: "https://creativecommons.org/licenses/by-sa/3.0/pl/",
+    });
+  });
+
+  it("says nothing about changes for the public domain mark and skips a missing source", () => {
+    const credit = buildShortPhotoCredit({
+      ...base,
+      sourceUrl: null,
+      licenseCode: "public-domain",
+      licenseLabel: "domena publiczna",
+    });
+
+    expect(shortPhotoCreditText("Most", credit)).toBe(
+      "Most · fot. Fikcyjny Autor · domena publiczna",
+    );
   });
 });

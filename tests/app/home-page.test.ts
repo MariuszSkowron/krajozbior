@@ -86,8 +86,7 @@ const nearby = [
     title: "Mosty i zamki",
     region: "pomorskie",
     placeCount: 3,
-    centerLat: 54.1,
-    centerLon: 18.8,
+    points: [[54.1, 18.8]],
     firstPublishedAt: "2026-11-01T10:00:00.000Z",
   },
 ];
@@ -142,6 +141,7 @@ beforeEach(() => {
   mocks.getActor.mockReset().mockResolvedValue(null);
   mocks.listRecent.mockReset().mockResolvedValue(discover);
   mocks.listNearby.mockReset().mockResolvedValue(nearby);
+  // (Not called by the page any more; kept to prove it.)
   mocks.getBanner.mockReset().mockResolvedValue(null);
   mocks.getHomeBanner.mockReset().mockResolvedValue(null);
   mocks.connection.mockReset().mockResolvedValue(undefined);
@@ -190,8 +190,10 @@ describe("home page of a guest", () => {
     expect(mocks.getBanner).toHaveBeenCalledWith("mosty-i-zamki", expect.anything());
     expect(html).toMatch(/<img [^>]*src="\/media\/p\/ph1\/main"[^>]*fetchPriority="high"/);
     expect(html).toMatch(/<a [^>]*href="\/places\/p9"[^>]*>Zamek w Płotach<\/a>/);
-    expect(html).toContain("Autor:");
-    expect(html).toContain("Jan Autor");
+    expect(html).toContain("fot. Jan Autor");
+    expect(html).not.toContain("Autor:");
+    expect(html).toContain("zdjęcie zmniejszone");
+    expect(html).not.toContain("Tę kopię udostępniamy");
     expect(html).toContain("CC BY-SA 4.0");
     expect(html).toContain("<em>w swoim albumie</em>");
     // The search button is an outline button; the primary one is "Załóż konto" on the banner.
@@ -295,15 +297,14 @@ describe("home page of a guest", () => {
     );
   });
 
-  it("keeps the list, without the button, when the read of positions fails, and the rest works", async () => {
-    mocks.listNearby.mockRejectedValue(new Error("db down: secret-host"));
-
+  // Paczka 3 fix: the places of the collections are fetched after a click, never sent with the
+  // page (neither in the HTML nor in the props of the client component).
+  it("does not read or send the coordinates of the places on the home page", async () => {
     const html = await render();
 
-    expect(html).not.toContain("Pokaż najbliższe");
+    expect(mocks.listNearby).not.toHaveBeenCalled();
     expect(html).toContain("Mosty i zamki");
-    expect(console.error).toHaveBeenCalledWith("Home nearby read failed:", "Error");
-    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
+    expect(html).not.toMatch(/54\.1|18\.8|"points"|latitude|longitude/);
   });
 
   it("says an existing account was signed in, only for a signed-in person and the exact mark", async () => {
