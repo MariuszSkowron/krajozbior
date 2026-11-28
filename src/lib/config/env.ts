@@ -66,6 +66,37 @@ const mediaEnvSchema = z.object({
 
 export type MediaEnv = z.infer<typeof mediaEnvSchema>;
 
+// The switch of reports of a problem with a place (P4b, spec Q3): off unless it says "true". It
+// closes the whole road of collecting the data (the form, the route, "Moje zgłoszenia"), so it
+// is read on its own and a missing or wrong value never breaks the rest of the configuration.
+const placeReportsEnvSchema = z.object({
+  FEATURE_PLACE_REPORTS: z.enum(["true", "false"]).optional(),
+});
+
+export type PlaceReportsEnv = z.infer<typeof placeReportsEnvSchema>;
+
+export function parsePlaceReportsEnv(source: Record<string, string | undefined>): PlaceReportsEnv {
+  return parseEnv(placeReportsEnvSchema, {
+    FEATURE_PLACE_REPORTS: source.FEATURE_PLACE_REPORTS?.trim() || undefined,
+  });
+}
+
+// True only for the exact value "true". A wrong value counts as off (it is a switch of personal
+// data collection: when in doubt, nothing is collected).
+export function isPlaceReportsEnabled(
+  source: Record<string, string | undefined> = process.env,
+): boolean {
+  try {
+    return parsePlaceReportsEnv(source).FEATURE_PLACE_REPORTS === "true";
+  } catch (error) {
+    if (error instanceof ServerConfigError) {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
 export class ServerConfigError extends Error {
   constructor(readonly invalidNames: string[]) {
     // Names only: values may be secrets and must not reach logs or responses.

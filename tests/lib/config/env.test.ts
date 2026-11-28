@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  isPlaceReportsEnabled,
   mediaRootWarning,
   parseAuthEnv,
   parseMediaEnv,
   parseMigrationEnv,
   parseOpsEnv,
+  parsePlaceReportsEnv,
   parseServerEnv,
   ServerConfigError,
 } from "@/lib/config/env";
@@ -246,6 +248,41 @@ describe("MEDIA_ROOT (E4 5.11.1)", () => {
     const warning = mediaRootWarning({ MEDIA_ROOT: "media" }, () => "ok");
 
     expect(warning).toContain("not an absolute path");
+  });
+});
+
+describe("the switch of reports of a problem with a place", () => {
+  it("is off unless the value is exactly true", () => {
+    expect(isPlaceReportsEnabled({})).toBe(false);
+    expect(isPlaceReportsEnabled({ FEATURE_PLACE_REPORTS: "" })).toBe(false);
+    expect(isPlaceReportsEnabled({ FEATURE_PLACE_REPORTS: "  " })).toBe(false);
+    expect(isPlaceReportsEnabled({ FEATURE_PLACE_REPORTS: "false" })).toBe(false);
+    expect(isPlaceReportsEnabled({ FEATURE_PLACE_REPORTS: "true" })).toBe(true);
+    expect(isPlaceReportsEnabled({ FEATURE_PLACE_REPORTS: " true " })).toBe(true);
+  });
+
+  it("counts a wrong value as off instead of failing, so a typo never collects data", () => {
+    expect(isPlaceReportsEnabled({ FEATURE_PLACE_REPORTS: "TRUE" })).toBe(false);
+    expect(isPlaceReportsEnabled({ FEATURE_PLACE_REPORTS: "1" })).toBe(false);
+    expect(isPlaceReportsEnabled({ FEATURE_PLACE_REPORTS: "yes" })).toBe(false);
+  });
+
+  it("is read on its own: a missing value never touches the rest of the configuration", () => {
+    expect(parsePlaceReportsEnv({})).toEqual({});
+    expect(parsePlaceReportsEnv({ FEATURE_PLACE_REPORTS: "true" })).toEqual({
+      FEATURE_PLACE_REPORTS: "true",
+    });
+    expect(getError(() => parsePlaceReportsEnv({ FEATURE_PLACE_REPORTS: "1" })).message).toBe(
+      "Invalid server configuration: FEATURE_PLACE_REPORTS",
+    );
+  });
+
+  it("reads the process environment by default", () => {
+    vi.stubEnv("FEATURE_PLACE_REPORTS", "true");
+    expect(isPlaceReportsEnabled()).toBe(true);
+    vi.stubEnv("FEATURE_PLACE_REPORTS", "false");
+    expect(isPlaceReportsEnabled()).toBe(false);
+    vi.unstubAllEnvs();
   });
 });
 

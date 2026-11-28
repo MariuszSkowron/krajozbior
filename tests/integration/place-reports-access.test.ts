@@ -659,12 +659,18 @@ describe("place_reports: access of the author and the curator (P4b)", () => {
   });
 
   it("counts the same open reports as the list shows, and shows 200 of 201 (W4c)", async () => {
-    // 201 open reports without an author (as the superuser; the trigger fills the rest)
-    await f.admin$(
-      `insert into public.place_reports (place_id, category, message, author_id)
-       select $1, 'other', 'zgłoszenie ' || g, null from generate_series(1, 201) g`,
-      [placeBig],
-    );
+    // 201 open reports without an author (as the superuser; the trigger fills the rest). The
+    // limit of 20 open reports per place (PR B) is switched off for this one bulk insert.
+    await f.admin$(`alter table public.place_reports disable trigger place_reports_place_limit`);
+    try {
+      await f.admin$(
+        `insert into public.place_reports (place_id, category, message, author_id)
+         select $1, 'other', 'zgłoszenie ' || g, null from generate_series(1, 201) g`,
+        [placeBig],
+      );
+    } finally {
+      await f.admin$(`alter table public.place_reports enable trigger place_reports_place_limit`);
+    }
 
     expect(await count(curBig, orgBig)).toBe(201);
     expect((await queue(curBig, orgBig, "open", 100000)).length).toBe(200);
@@ -680,11 +686,16 @@ describe("place_reports: access of the author and the curator (P4b)", () => {
   });
 
   it("shows decided reports newest first, at most 50", async () => {
-    await f.admin$(
-      `insert into public.place_reports (place_id, category, message, author_id)
-       select $1, 'other', 'rozpatrzone ' || g, null from generate_series(1, 60) g`,
-      [placeBig],
-    );
+    await f.admin$(`alter table public.place_reports disable trigger place_reports_place_limit`);
+    try {
+      await f.admin$(
+        `insert into public.place_reports (place_id, category, message, author_id)
+         select $1, 'other', 'rozpatrzone ' || g, null from generate_series(1, 60) g`,
+        [placeBig],
+      );
+    } finally {
+      await f.admin$(`alter table public.place_reports enable trigger place_reports_place_limit`);
+    }
     await f.admin$(
       `update public.place_reports set status = 'accepted', decided_at = now() - (random() * interval '1 day')
         where organization_id = $1 and message like 'rozpatrzone %'`,
@@ -800,6 +811,10 @@ describe("place_reports: access of the author and the curator (P4b)", () => {
       "app_decide_report",
       "app_report_counts",
       "app_report_queue",
+      // PR B: the count of open reports of a place (limit) and the removal of an open report
+      // whose author deleted the account; both read only `place_reports`
+      "place_reports_place_limit",
+      "place_reports_purge_orphaned",
     ]);
 
     // Only the author-label policy of profiles was added for the owner by this change
@@ -811,6 +826,18 @@ describe("place_reports: access of the author and the curator (P4b)", () => {
     );
 
     expect(policies).toEqual([
+      // PR B: `status = 'open'` (limit per place) and `author_id is null and status = 'open'`
+      { tablename: "place_reports", policyname: "place_reports_owner_open_select", cmd: "SELECT" },
+      {
+        tablename: "place_reports",
+        policyname: "place_reports_owner_orphan_delete",
+        cmd: "DELETE",
+      },
+      {
+        tablename: "place_reports",
+        policyname: "place_reports_owner_orphan_select",
+        cmd: "SELECT",
+      },
       { tablename: "place_reports", policyname: "place_reports_owner_select", cmd: "SELECT" },
       { tablename: "place_reports", policyname: "place_reports_owner_update", cmd: "UPDATE" },
       { tablename: "profiles", policyname: "profiles_owner_report_author_select", cmd: "SELECT" },
