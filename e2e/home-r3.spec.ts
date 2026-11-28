@@ -484,7 +484,10 @@ test.describe("home page: the R3 look", () => {
         const { slug, title } = seeded!;
         const main = page.getByRole("main");
         // A string name matches as a substring (no escaping of the title needed).
-        const banner = main.getByRole("link", { name: title });
+        // The collection of the banner is left out of "Do odkrycia w Twoich kolekcjach" (P6), but
+        // "Miejsce dnia" can name it too ("z kolekcji ..."), so the banner is the link with the
+        // progress in it.
+        const banner = main.getByRole("link", { name: title }).filter({ hasText: "odwiedzone" });
 
         await expect(banner).toHaveAttribute("href", `/collections/${slug}`);
         await expect(banner).toContainText("Kolekcja · Pomorskie");

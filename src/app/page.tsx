@@ -8,6 +8,7 @@ import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import {
   getCollectionBanner,
   getHomeBanner,
+  getHomePublicReads,
   listRecentlyPublishedCollections,
 } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
@@ -21,6 +22,8 @@ import {
 } from "@/features/identity/domain/login-entry";
 import { isNewExplorerAccount } from "@/features/identity/domain/role-home";
 import { CONTACT_ADDRESSES } from "@/features/legal/domain/legal-pages";
+import { listLatestNews } from "@/features/news/application/public-news";
+import { getNewsReadDeps } from "@/features/news/infrastructure/news-read-deps";
 import { getMyProfile } from "@/features/profile/application/profile";
 import { getProfileDeps } from "@/features/profile/infrastructure/profile-deps";
 
@@ -30,6 +33,13 @@ import { FavoriteCollections, MoreFavoriteCollections } from "./home/favorite-co
 import { HomeBanner } from "./home/home-banner";
 import bannerStyles from "./home/home-banner.module.css";
 import { RecentVisits } from "./home/recent-visits";
+import {
+  NewCollectionsSection,
+  NewsHighlights,
+  PlaceOfTheDaySection,
+  RemainingInCollections,
+  SaveStartedCollection,
+} from "./home/return-sections";
 import styles from "./home.module.css";
 import { SearchForm } from "./search/search-form";
 
@@ -38,6 +48,8 @@ export const dynamic = "force-dynamic";
 // Kolekcje do odkrycia na stronie głównej. Przycisk „Pokaż najbliższe” sortuje właśnie tę listę,
 // więc jest dłuższa niż dawna lista „W okolicy” (sześć), ale mieści się w trzech–czterech rzędach.
 const DISCOVER_LIMIT = 12;
+// „Aktualności i wydarzenia” na Starcie: dwa–trzy najnowsze wpisy.
+const NEWS_ON_HOME = 3;
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -102,6 +114,29 @@ async function loadAlbum(actor: Actor) {
   }
 }
 
+// "Powody do powrotu", the public part (guest context, the same for everyone, one transaction):
+// the place of the day and the new collections (without the ones the explorer has saved). A failed
+// read leaves out both sections, not the page. The personal part comes with the album.
+async function loadPublicReads(saved: ReadonlySet<string>) {
+  try {
+    return await getHomePublicReads(getCatalogDeps(), saved);
+  } catch (error) {
+    logReadFailure("Home public reads", error);
+
+    return null;
+  }
+}
+
+async function loadNews() {
+  try {
+    return await listLatestNews(NEWS_ON_HOME, getNewsReadDeps());
+  } catch (error) {
+    logReadFailure("Home news read", error);
+
+    return null;
+  }
+}
+
 // Slugs of the collections the explorer saved: "Kolekcje do odkrycia" leaves them out, because
 // they are already in "Moje kolekcje". A failed read leaves the list whole (an empty set).
 async function loadSavedSlugs(actor: Actor): Promise<ReadonlySet<string>> {
@@ -149,7 +184,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const existingAccount =
     actor !== null && first(params[FIRST_SIGN_IN_PARAM]) === FIRST_SIGN_IN_EXISTING_ACCOUNT;
   const savedRead = actor === null ? Promise.resolve(null) : loadSavedSlugs(actor);
-  const [allDiscover, album, firstName, saved, guestDrawn] = await Promise.all([
+  const [allDiscover, album, firstName, saved, guestDrawn, publicReads, news] = await Promise.all([
     // The saved ones are known first, so the list can read that many more than it shows.
     savedRead.then((slugs) => loadDiscover(slugs?.size ?? 0)),
     actor === null ? Promise.resolve(null) : loadAlbum(actor),
@@ -157,6 +192,9 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
     savedRead,
     // A guest always gets the draw, so its read starts with the others, not after them.
     actor === null ? loadDrawnBanner() : Promise.resolve(null),
+    // The saved ones are left out of "Nowe kolekcje" (they have their place in "Moje kolekcje").
+    savedRead.then((slugs) => loadPublicReads(slugs ?? new Set())),
+    loadNews(),
   ]);
   // A saved collection is not "to discover": it has its place in "Moje kolekcje". The list is
   // trimmed to twelve only after the filter, so it does not shrink with every save.
@@ -296,12 +334,25 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
             banner={favorites.length > 0 ? banner : null}
             fallbackBanner={favorites.length > 0 ? null : banner}
             hasVisits={album.summary.discoveredPlaces > 0}
+            hasSaveNudge={album.homeReturn.saveNudge !== null}
           />
           <AlbumSummary summary={album.summary} />
           <MoreFavoriteCollections collections={album.favorites} />
         </>
       )}
+      {album === null || newExplorer ? null : (
+        <>
+          <SaveStartedCollection value={album.homeReturn} />
+          <RemainingInCollections
+            value={album.homeReturn}
+            exceptSlug={favorites.length > 0 ? favorites[0].slug : null}
+          />
+        </>
+      )}
       {album === null ? null : <RecentVisits visits={album.recentVisits} />}
+      <PlaceOfTheDaySection place={publicReads?.placeOfDay ?? null} />
+      <NewCollectionsSection collections={publicReads?.newCollections ?? null} />
+      <NewsHighlights cards={news} />
       <CollectionsToDiscover collections={discover} allSaved={allSaved} />
     </div>
   );

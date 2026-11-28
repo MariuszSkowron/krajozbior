@@ -183,10 +183,12 @@ test.describe("home page with the catalog", () => {
     ).toBeVisible();
 
     // A plain string matches a substring of the accessible name, so no regular expression is needed.
-    const card = page.getByRole("link", { name: DEMO_TITLE });
+    // „Nowe kolekcje” może pokazywać tę samą kolekcję, więc karta jest szukana w swojej sekcji.
+    const discover = page.getByRole("region", { name: "Kolekcje do odkrycia" });
+    const card = discover.getByRole("link", { name: DEMO_TITLE });
 
     await expect(card).toHaveAttribute("href", `/collections/${DEMO_SLUG}`);
-    await expect(page.getByText("3 miejsca · ")).toBeVisible();
+    await expect(discover.getByText("3 miejsca · ")).toBeVisible();
     // The personal sections are not for a guest.
     await expect(page.getByRole("heading", { name: "Twój album" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Ostatnio odwiedzone" })).toHaveCount(0);
