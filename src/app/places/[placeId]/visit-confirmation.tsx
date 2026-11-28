@@ -18,6 +18,7 @@ import { PastVisit } from "./past-visit";
 import { PinnedAction } from "./pinned-action";
 import { revealResult } from "./reveal-result";
 import styles from "./visit-confirmation.module.css";
+import { newClientVisitId } from "./visit-id";
 import { WantToSeeButton } from "./want-to-see-button";
 
 // initialWanted is null when the list could not be read: only its button is hidden.
@@ -312,7 +313,19 @@ export function VisitConfirmation({
       return;
     }
 
-    attempt.current = { clientVisitId: crypto.randomUUID(), reading };
+    try {
+      attempt.current = { clientVisitId: newClientVisitId(globalThis.crypto), reading };
+    } catch {
+      setState({
+        kind: "failed",
+        message:
+          "Ta przeglądarka nie pozwala zapisać wizyty. Otwórz tę stronę w nowszej przeglądarce.",
+        canRetry: false,
+      });
+
+      return;
+    }
+
     await send(attempt.current);
   }
 
