@@ -315,6 +315,26 @@ describe("visits and the visit function", () => {
       ).toHaveLength(1);
     });
 
+    it("lets the owner delete a past visit but not an on-site one, also with raw SQL (audit F-1)", async () => {
+      const [{ id: pastId }] = (await markPast(explorerA, otherPlace)) as { id: string }[];
+      const onSitePlace = (await f.publishedCollection(curA, orgA, 1)).placeIds[0]!;
+
+      expect(await record(explorerA, onSitePlace)).toEqual([{ result: "recorded", distance_m: 0 }]);
+
+      const before = await visitCount(explorerA.id, onSitePlace);
+
+      expect(
+        await as(
+          explorerA,
+          `delete from public.visits where user_id = app_current_user_id() and kind = 'on_site' returning id`,
+        ),
+      ).toEqual([]);
+      expect(await visitCount(explorerA.id, onSitePlace)).toBe(before);
+      expect(
+        await as(explorerA, `delete from public.visits where id = ? returning id`, [pastId]),
+      ).toHaveLength(1);
+    });
+
     it("shows a curator no visit at all, even a member of the organization of the place", async () => {
       await record(explorerA, place);
       await markPast(explorerB, place);
