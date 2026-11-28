@@ -12,6 +12,7 @@ import {
   FIRST_SIGN_IN_PARAM,
 } from "@/features/identity/domain/login-entry";
 import { CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
+import { isPlaceReportsEnabled } from "@/lib/config/env";
 import { logFailure } from "@/lib/log-failure";
 import { getRequestProfile } from "@/app/request-profile";
 import { avatarLetter, formatDisplayName } from "@/features/profile/domain/display-name";
@@ -160,6 +161,14 @@ export default async function MyPage({
       </section>
       <nav aria-labelledby="profile-title">
         <ul className={styles.links}>
+          {/* P4b: „Moje zgłoszenia” istnieje tylko, gdy zgłaszanie problemów jest włączone. */}
+          {isPlaceReportsEnabled() ? (
+            <li>
+              <Link className={styles.link} href="/my/reports">
+                Moje zgłoszenia
+              </Link>
+            </li>
+          ) : null}
           <li>
             <Link className={styles.link} href="/my/settings">
               Ustawienia

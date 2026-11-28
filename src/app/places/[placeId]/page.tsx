@@ -14,6 +14,7 @@ import {
   getPublishedPlace,
 } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
+import { LINK_REPORT_PROBLEM } from "@/features/reports/domain/report-texts";
 import {
   getMyVisitOfPlace,
   listMyVisitKindsOfCollection,
@@ -23,6 +24,7 @@ import { formatPastVisitDate } from "@/features/visits/domain/past-visit-request
 import { getVisitDeps } from "@/features/visits/infrastructure/visit-deps";
 import { isWantedPlace } from "@/features/want-to-see/application/want-to-see";
 import { getWantToSeeDeps } from "@/features/want-to-see/infrastructure/want-to-see-deps";
+import { isPlaceReportsEnabled } from "@/lib/config/env";
 
 import albumStyles from "../../my/collections/collections.module.css";
 import { ReportContentLink } from "../../report-content-link";
@@ -276,6 +278,13 @@ export default async function PlacePage({ params }: { params: Params }) {
         <p className={reportStyles.report}>
           <ReportContentLink path={`/places/${place.id}`} title={place.name} />
         </p>
+        {/* P4b: zgłoszenie problemu z miejscem; bez przełącznika odnośnika nie ma. Gość trafia
+            na stronę zgłoszenia, która odsyła go do logowania i z powrotem. */}
+        {isPlaceReportsEnabled() ? (
+          <p className={reportStyles.report}>
+            <Link href={`/places/${place.id}/report`}>{LINK_REPORT_PROBLEM}</Link>
+          </p>
+        ) : null}
       </section>
     </div>
   );

@@ -250,4 +250,22 @@ describe("profile page", () => {
       /<form action="\/api\/auth\/logout" method="post"><button [^>]*type="submit">Wyloguj<\/button><\/form>/,
     );
   });
+
+  // P4b, PR B: "Moje zgłoszenia" is a way in only while reports of a problem are switched on.
+  it("has no 'Moje zgłoszenia' while the switch is off, and the entry while it is on", async () => {
+    vi.stubEnv("FEATURE_PLACE_REPORTS", "false");
+
+    const off = renderToStaticMarkup(await MyPage());
+
+    expect(off).not.toContain("Moje zgłoszenia");
+
+    vi.stubEnv("FEATURE_PLACE_REPORTS", "true");
+
+    const on = renderToStaticMarkup(await MyPage());
+    const hrefs = [...on.matchAll(/<a [^>]*href="([^"]+)"/g)].map((match) => match[1]);
+
+    expect(hrefs).toEqual(["/my/reports", "/my/settings", "mailto:kontakt@mariuszskowron.pl"]);
+    expect(on).toContain("Moje zgłoszenia");
+    vi.unstubAllEnvs();
+  });
 });

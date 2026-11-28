@@ -20,6 +20,50 @@ export const PLACE_QUEUE_FULL_MESSAGE =
   "To miejsce ma już wiele zgłoszeń czekających na kuratora. Kurator się nimi zajmuje.";
 export const DUPLICATE_OPEN_MESSAGE = "Masz już otwarte zgłoszenie tego rodzaju dla tego miejsca.";
 
+export const CATEGORY_REQUIRED_ERROR = "Wybierz rodzaj problemu.";
+export const MESSAGE_INVALID_ERROR =
+  "Opis może mieć do 1000 znaków i nie może zawierać znaków sterujących.";
+export const SUBMIT_UNAVAILABLE_MESSAGE =
+  "Nie udało się wysłać zgłoszenia. Spróbuj ponownie za chwilę.";
+
+export const LINK_REPORT_PROBLEM = "Zgłoś problem z miejscem";
+export const MESSAGE_LABEL = "Co jest na miejscu inaczej?";
+export const MESSAGE_HINT = "Na przykład: brama zamknięta, na tablicy przy wejściu inne godziny.";
+export const MESSAGE_REQUIRED_HINT = "Przy tym rodzaju opis jest obowiązkowy.";
+export const SUBMIT_LABEL = "Wyślij zgłoszenie";
+
+export const MY_REPORTS_TITLE = "Moje zgłoszenia";
+export const MY_REPORTS_EMPTY =
+  "Nie masz jeszcze zgłoszeń. Jeśli coś na miejscu się nie zgadza, wybierz „Zgłoś problem z miejscem” na stronie miejsca.";
+export const DISAGREE_PROMPT = "Nie zgadzasz się?";
+export const DISAGREE_LINK = "Napisz do nas";
+
+/** The heading of the form. */
+export function formatFormHeading(placeName: string): string {
+  return `Co jest nie tak z miejscem ${placeName}?`;
+}
+
+/** What a failed send says, by the answer of the route; the route's own sentence wins when it has one. */
+export function formatSubmitFailure(status: number, message: unknown): string {
+  if ((status === 409 || status === 429) && typeof message === "string" && message !== "") {
+    return message;
+  }
+
+  switch (status) {
+    case 401:
+      return "Zaloguj się ponownie, żeby wysłać zgłoszenie.";
+    case 403:
+      return OWN_ORGANIZATION_NOTICE;
+    case 404:
+      return "Nie znaleziono tego miejsca.";
+    case 413:
+    case 422:
+      return "Popraw opis i spróbuj jeszcze raz.";
+    default:
+      return SUBMIT_UNAVAILABLE_MESSAGE;
+  }
+}
+
 /** After sending: the organization that will look at the report. */
 export function formatSubmitted(organizationName: string): string {
   return `Dziękujemy. Kurator ${organizationName} sprawdzi zgłoszenie. Jego decyzję zobaczysz w „Moich zgłoszeniach”.`;

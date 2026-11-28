@@ -52,6 +52,10 @@ function failureText(status: number, reason: unknown): string {
         return "Konto autora jest usunięte, więc decyzji nie można cofnąć.";
       }
 
+      if (reason === "duplicate_open") {
+        return "Autor zgłosił to samo ponownie i nowe zgłoszenie czeka na decyzję. Rozpatrz je zamiast cofać.";
+      }
+
       if (reason === "own_report") {
         return "Własnego zgłoszenia nie rozpatrzysz. Zrobi to ktoś inny z organizacji.";
       }
@@ -435,7 +439,8 @@ export function ReportsQueue({
                 aria-describedby="reject-note-help"
               />
               <p id="reject-note-help" className={curator.help}>
-                Zgłaszający nie zobaczy Twojego nazwiska. Do {DECISION_NOTE_MAX_LENGTH} znaków.
+                Zgłaszający zobaczy tę notatkę w „Moich zgłoszeniach”, ale nie Twoje nazwisko. Do{" "}
+                {DECISION_NOTE_MAX_LENGTH} znaków.
               </p>
             </div>
             {/* The dialog is modal: a message outside of it would be inert, so a failed
