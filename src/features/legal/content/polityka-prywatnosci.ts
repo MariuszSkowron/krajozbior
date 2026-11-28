@@ -71,7 +71,7 @@ Jeśli przetwarzamy dane na podstawie naszego prawnie uzasadnionego interesu, mo
 
 - **Inni zalogowani odkrywcy** widzą Twoje imię, inicjał nazwiska, województwo i liczby w profilu (np. liczbę odkrytych miejsc, kart legendarnych, „km w trasie”) tylko wtedy, gdy ustawisz profil jako widoczny. Goście nie widzą profili.
 - **Twoich wizyt (miejsc i dat) nie pokazujemy innym.** Wyjątki, które wynikają z Twoich wyborów: podpisane zdjęcie (punkt 5) oraz liczby w widocznym profilu.
-- **Kuratorzy** widzą Twoje imię i inicjał nazwiska oraz zdjęcia i zgłoszenia, które wysyłasz do ich kolekcji. Kuratorami są organizacje (np. gminy, oddziały PTTK, organizacje turystyczne) i osoby zatwierdzone przez nas oraz członkowie ich zespołów.
+- **Kuratorzy** widzą Twoje imię i inicjał nazwiska oraz zdjęcia i zgłoszenia, które wysyłasz do ich kolekcji. Kuratorami są organizacje (np. gminy, oddziały PTTK, organizacje turystyczne) i osoby zatwierdzone przez nas oraz członkowie ich zespołów. Przy zgłoszeniu problemu z miejscem kurator widzi rodzaj problemu, Twój opis, datę i Twoje imię z inicjałem nazwiska (albo „Odkrywca”, jeśli nie podałeś lub nie podałaś imienia), ale nie Twój adres e-mail ani Twoje wizyty. Ty widzisz decyzję i nazwę organizacji, ale nie to, który członek zespołu ją podjął.
 - **Administrator serwisu** ma dostęp do danych w zakresie potrzebnym do utrzymania serwisu, moderacji i rozpatrywania zgłoszeń.
 - **Firmy przetwarzające dane na nasze zlecenie** (podmioty przetwarzające) na podstawie umowy powierzenia:
   - netcup GmbH, Emmy-Noether-Straße 10, 76131 Karlsruhe, Niemcy — serwer: baza danych, zdjęcia i kopie zapasowe w centrum danych w Norymberdze;
@@ -113,6 +113,7 @@ Okresy oznaczone jako robocze („do czasu wymaganego przepisami, nie dłużej n
 | zgoda na użycie zdjęcia w promocji i jej dowód | do cofnięcia zgody albo usunięcia zdjęcia, a dowód zgody następnie do czasu wymaganego przepisami, nie dłużej niż 3 lata (wartość robocza) |
 | jednorazowy kod logowania | do wykorzystania albo wygaśnięcia kodu |
 | liczniki prób logowania, wysyłki kodów i potwierdzania wizyt (adres IP, identyfikator konta) | od 15 minut do 2 dni |
+| zgłoszenia problemów z miejscami | do usunięcia konta; zgłoszenie jeszcze nierozpatrzone usuwamy wtedy w całości, a w rozpatrzonym usuwamy powiązanie z Tobą i treść Twojego opisu |
 | powiadomienia w serwisie | 90 dni |
 | oświadczenia o prawach do zdjęć | do usunięcia konta, a następnie do czasu wymaganego przepisami, nie dłużej niż 3 lata (wartość robocza) |
 | akceptacja regulaminu (wersja i czas) | do usunięcia konta |
