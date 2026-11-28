@@ -287,9 +287,15 @@ describe("validateNewsInput: texts", () => {
     expect(fieldMessage({ ...valid, lead: "​​" }, "lead")).toBe(
       `Krótki tekst zawiera niedozwolone znaki. ${HIDDEN}`,
     );
-    expect(!validateNewsInput({ ...valid, title: "abcd​e" }).ok).toBe(true);
-    // A joiner inside an emoji sequence is allowed.
+    expect(validateNewsInput({ ...valid, title: "abcd​e" }).ok).toBe(false);
+    // A joiner inside an emoji sequence is allowed, also after a skin tone.
     expect(validateNewsInput({ ...valid, title: "Rodzina 👨‍👩‍👧" }).ok).toBe(true);
+    expect(
+      validateNewsInput({ ...valid, title: "Astronautka \u{1F469}\u{1F3FD}‍\u{1F680}" }).ok,
+    ).toBe(true);
+    expect(
+      validateNewsInput({ ...valid, lead: "\u{1F9D1}\u{1F3FF}‍\u{1F91D}‍\u{1F9D1}\u{1F3FB}" }).ok,
+    ).toBe(true);
   });
 
   it("refuses a lone surrogate in every text (N2)", () => {

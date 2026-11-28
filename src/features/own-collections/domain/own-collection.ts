@@ -65,7 +65,7 @@ export function validateOwnCollectionInput(input: {
   if (
     summary === null ||
     summary.length > COLLECTION_SUMMARY_MAX_LENGTH ||
-    hasForbiddenCharacter(summary, true)
+    hasForbiddenCharacter(summary, true, true)
   ) {
     errors.push("summary");
   }

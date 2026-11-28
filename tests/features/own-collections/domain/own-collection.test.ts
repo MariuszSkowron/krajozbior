@@ -99,6 +99,30 @@ describe("validateOwnCollectionInput", () => {
     ).toBe(true);
   });
 
+  it("allows emoji sequences with a skin tone and tag flags, still refuses a bare joiner (U-1)", () => {
+    const allowed = [
+      "\u{1F469}\u{1F3FD}‍\u{1F680}",
+      "\u{1F9D1}\u{1F3FF}‍\u{1F91D}‍\u{1F9D1}\u{1F3FB}",
+      "\u{1F468}‍\u{1F469}‍\u{1F467}",
+      "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}",
+    ];
+
+    for (const emoji of allowed) {
+      expect(
+        validateOwnCollectionInput({ title: `A ${emoji}`, summary: emoji, region: "polska" }).ok,
+      ).toBe(true);
+    }
+
+    expect(validateOwnCollectionInput({ title: "a‍b", region: "polska" }).ok).toBe(false);
+    expect(validateOwnCollectionInput({ title: "\u{E0067}", region: "polska" }).ok).toBe(false);
+  });
+
+  it("keeps a tab allowed in the summary (U-1)", () => {
+    expect(validateOwnCollectionInput({ title: "A", summary: "a\tb", region: "polska" }).ok).toBe(
+      true,
+    );
+  });
+
   it("refuses a too long, NUL or non-text summary", () => {
     for (const summary of ["x".repeat(281), "a\u0000b", 5, null]) {
       expect(validateOwnCollectionInput({ title: "A", summary, region: "polska" })).toEqual({

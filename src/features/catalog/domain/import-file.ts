@@ -357,7 +357,8 @@ function zodCode(issue: z.core.$ZodIssue, root: unknown): string {
 
 // "<", control characters (Cc, but the tab and the line breaks of a text stay) and format
 // characters (Cf: direction marks, zero-width characters, the byte order mark) never belong in
-// a title or a text; the same set as the other text fields (src/lib/text/forbidden-characters.ts).
+// a title or a text. Stricter than the other text fields (src/lib/text/forbidden-characters.ts):
+// a zero width joiner is refused even inside an emoji sequence, and a lone surrogate is not.
 const FORBIDDEN_CHARACTER = /[<\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\p{Cf}]/u;
 
 function hasForbiddenCharacter(value: unknown): boolean {
