@@ -89,10 +89,10 @@ export default function SourcesPage() {
       <section aria-labelledby="wikipedia" className={styles.section}>
         <h2 id="wikipedia">Wikipedia</h2>
         <p>
-          Przy miejscach, które mają artykuł w polskiej Wikipedii, dajemy tylko odnośnik „Więcej w
+          Przy miejscach, które mają artykuł w polskiej Wikipedii, dajemy odnośnik „Więcej w
           Wikipedii”. Fakty z artykułów Wikipedii wykorzystujemy jako jedno ze źródeł; nie kopiujemy
-          ich tekstu. Autorów artykułu i jego licencję (CC BY-SA 4.0) zobaczysz na stronie samego
-          artykułu.
+          tekstu artykułów. Autorów artykułu i jego licencję (CC BY-SA 4.0) zobaczysz na stronie
+          samego artykułu.
         </p>
       </section>
 
@@ -119,9 +119,8 @@ export default function SourcesPage() {
         <p>
           Opisy miejsc przygotowuje redakcja serwisu na podstawie źródeł wymienionych na tej
           stronie, korzystając z narzędzi, w tym ze sztucznej inteligencji. Redakcja na bieżąco
-          przegląda i poprawia opisy, także po zgłoszeniach odkrywców. Część zdań składamy ze
-          wzorów, do których wstawiamy dane z rejestrów i otwartych źródeł. Kurator może opis
-          poprawić; wtedy tekst jest już jego autorstwa.
+          przegląda i poprawia opisy, także po zgłoszeniach odkrywców. Kurator może opis poprawić;
+          wtedy tekst jest już jego autorstwa.
         </p>
       </section>
 
