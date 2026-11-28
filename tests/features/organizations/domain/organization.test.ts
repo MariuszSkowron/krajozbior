@@ -27,7 +27,7 @@ describe("organization domain", () => {
 
   it("keeps the name pattern of the migration identical to the JS one", () => {
     const migration = readFileSync(
-      "src/lib/db/migrations/Migration20261128040000_curator_applications.ts",
+      "src/lib/db/migrations/Migration20261128130000_curator_applications.ts",
       "utf8",
     );
     const sqlLiteral = /const organizationNamePattern = String\.raw`'(.*)'`;/.exec(migration)?.[1];

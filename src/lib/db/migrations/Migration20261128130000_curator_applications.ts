@@ -51,7 +51,7 @@ const decideSignature = `uuid, text, uuid, text, text, text`;
 const revokeSignature = `uuid, text`;
 const listSignature = `text`;
 
-export class Migration20261128040000_curator_applications extends Migration {
+export class Migration20261128130000_curator_applications extends Migration {
   override async up(): Promise<void> {
     this.addSql(`
       create table curator_applications (
