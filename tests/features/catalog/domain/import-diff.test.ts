@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   decideCollection,
   decideExtraRegions,
+  decideKind,
   decidePlace,
   diffComposition,
   sameIds,
@@ -49,6 +50,24 @@ describe("decideExtraRegions", () => {
     expect(decideExtraRegions(["opolskie", "slaskie"], ["opolskie"])).toBe("set");
     expect(decideExtraRegions(["opolskie"], [])).toBe("set");
     expect(decideExtraRegions(["opolskie"], ["slaskie"])).toBe("set");
+  });
+});
+
+describe("decideKind", () => {
+  it("leaves a deleted collection alone", () => {
+    expect(decideKind(null, "land")).toBe("kept_manual_delete");
+    expect(decideKind(null, null)).toBe("kept_manual_delete");
+  });
+
+  it("changes nothing when the file does not name the field", () => {
+    expect(decideKind("theme", null)).toBe("not_in_file");
+  });
+
+  it("is a no-op for the same kind and sets a different one", () => {
+    expect(decideKind("land", "land")).toBe("noop");
+    expect(decideKind("theme", "theme")).toBe("noop");
+    expect(decideKind("theme", "land")).toBe("set");
+    expect(decideKind("land", "theme")).toBe("set");
   });
 });
 

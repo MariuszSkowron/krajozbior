@@ -1121,6 +1121,95 @@ describe("publishing and removing what a file loaded", () => {
     expect(reload[1]!.extraRegions).toBe("unchanged");
   });
 
+  it("kind: absent keeps (a new collection is a theme), a code sets (also when published, version stays), the same code is unchanged, a preview writes nothing", async () => {
+    const { curator } = await newOrg("kd-a");
+    const withKind = (jeden: unknown, dwa: unknown) => {
+      const lines = fileLines();
+
+      for (const [key, value] of [
+        ["col:testowa-jeden", jeden],
+        ["col:testowa-dwa", dwa],
+      ] as const) {
+        if (value !== undefined) {
+          byKey(lines, key).kind = value;
+        }
+      }
+
+      return fileText(lines);
+    };
+    const kindOf = async () =>
+      (
+        await admin$<{ title: string; kind: string }>(
+          `select c.title, c.kind from collections c
+             join organizations o on o.id = c.organization_id
+            where o.slug = 'kd-a' order by c.title`,
+        )
+      ).map((row) => row.kind);
+    const kindResults = (reports: readonly CollectionReport[]) =>
+      reports.map((r) => r.kind ?? null);
+    const file = withKind("land", "theme");
+
+    // A file without the field: the report has no `kind`, every collection is a theme.
+    const first = done(await load(curator, "kd-a", fixture, { publish: true }));
+
+    expect(kindResults(first)).toEqual([null, null]);
+    expect(await kindOf()).toEqual(["theme", "theme"]);
+
+    const before = await collectionsOf("kd-a");
+    const keys = await keyVersions("kd-a");
+    const preview = await load(curator, "kd-a", file, { preview: true, publish: true });
+
+    expect(preview).toMatchObject({ kind: "preview", preview: { kind: { updated: 1 } } });
+    expect(await kindOf()).toEqual(["theme", "theme"]);
+
+    // Set, also in the published collection; no version moves, so no false manual edit.
+    const second = done(await load(curator, "kd-a", file, { publish: true }));
+
+    expect(second.map((r) => r.result)).toEqual(["skipped_already_published", "noop"]);
+    // Rows by title ("dwa" first): "dwa" stays a theme, "jeden" becomes a land.
+    expect(kindResults(second)).toEqual(["updated", "unchanged"]);
+    expect(await kindOf()).toEqual(["theme", "land"]);
+    expect(await collectionsOf("kd-a")).toEqual(before);
+    expect(await keyVersions("kd-a")).toEqual(keys);
+
+    // The same file again: unchanged.
+    expect(kindResults(done(await load(curator, "kd-a", file, { publish: true })))).toEqual([
+      "unchanged",
+      "unchanged",
+    ]);
+
+    // The field absent again: nothing changes.
+    expect(kindResults(done(await load(curator, "kd-a", fixture, { publish: true })))).toEqual([
+      null,
+      null,
+    ]);
+    expect(await kindOf()).toEqual(["theme", "land"]);
+  });
+
+  it("kind: a collection deleted in the panel is not touched by a file that names its kind", async () => {
+    const { curator } = await newOrg("kd-b");
+
+    done(await load(curator, "kd-b", fixture));
+
+    const [{ id }] = await admin$<{ id: string }>(
+      `select c.id from collections c join organizations o on o.id = c.organization_id
+        where o.slug = 'kd-b' and c.title = 'Kolekcja testowa dwa'`,
+    );
+
+    await runInUserContext(appOrm.em, curator, (tx) =>
+      postgresCatalogRepository.deleteCollection(tx, id),
+    );
+
+    const lines = fileLines();
+
+    byKey(lines, "col:testowa-dwa").kind = "land";
+
+    const reload = done(await load(curator, "kd-b", fileText(lines)));
+
+    expect(reload[1]).toMatchObject({ result: "kept_manual_delete" });
+    expect(reload[1]!.kind).toBeUndefined();
+  });
+
   it("an edit made in the panel after publication is kept_manual_edit", async () => {
     const { curator } = await newOrg("pub-c");
 

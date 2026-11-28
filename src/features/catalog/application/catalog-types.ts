@@ -2,7 +2,12 @@ import type { ActionRateLimiter } from "@/features/identity/domain/action-rate-l
 import type { Actor } from "@/features/identity/domain/actor";
 import type { TransactionContext } from "@/lib/db/user-context";
 
-import type { CollectionInput, CollectionStatus, Region } from "../domain/collection";
+import type {
+  CollectionInput,
+  CollectionKind,
+  CollectionStatus,
+  Region,
+} from "../domain/collection";
 import type { NearbyCandidate } from "../domain/nearby";
 import type { AccessRestriction, PlaceInput } from "../domain/place";
 
@@ -16,6 +21,8 @@ export type CollectionRow = Readonly<{
   region: Region;
   /** Extra voivodeships (0-3) in the order of REGIONS; set by the import file, read only in the panel. */
   extraRegions: readonly Region[];
+  /** Land or theme collection; set by the import file, read only in the panel. */
+  kind: CollectionKind;
   status: CollectionStatus;
   firstPublishedAt: Date | null;
   version: number;
@@ -255,6 +262,11 @@ export interface CatalogRepository {
    * actor has this id.
    */
   setExtraRegions(tx: TransactionContext, id: string, regions: readonly Region[]): Promise<boolean>;
+  /**
+   * Sets the kind (land or theme; the import file). `version` and `updated_at` stay (an order
+   * of the catalog, not content). `false` when no row of the actor has this id.
+   */
+  setKind(tx: TransactionContext, id: string, kind: CollectionKind): Promise<boolean>;
   setCollectionStatus(
     tx: TransactionContext,
     id: string,

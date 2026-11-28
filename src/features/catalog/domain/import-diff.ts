@@ -1,4 +1,4 @@
-import type { CollectionInput, CollectionStatus, Region } from "./collection";
+import type { CollectionInput, CollectionKind, CollectionStatus, Region } from "./collection";
 import type { PlaceInput } from "./place";
 
 // Pure decisions of loading an approved collection file: what to do with one
@@ -64,6 +64,8 @@ export type StoredCollection = Readonly<{
   placeIds: readonly string[];
   /** Extra voivodeships as stored; absent counts as none. Not part of `content` (see `decideExtraRegions`). */
   extraRegions?: readonly Region[];
+  /** Kind as stored; absent counts as `theme`. Not part of `content` (see `decideKind`). */
+  kind?: CollectionKind;
 }>;
 
 export type CollectionContentDecision =
@@ -99,6 +101,28 @@ export function decideExtraRegions(
   const same = stored.length === wanted.length && wanted.every((region) => stored.includes(region));
 
   return same ? "noop" : "set";
+}
+
+export type KindDecision = "set" | "noop" | "not_in_file" | "kept_manual_delete";
+
+/**
+ * The kind (land or theme) follows the file whenever it names it (`wanted` not null), also for
+ * a published collection or one edited in the panel: it is an order of the catalog, not content,
+ * and does not touch the version. `stored` null: the collection is gone (the owner's deletion
+ * wins).
+ */
+export function decideKind(
+  stored: CollectionKind | null,
+  wanted: CollectionKind | null,
+): KindDecision {
+  if (stored === null) {
+    return "kept_manual_delete";
+  }
+  if (wanted === null) {
+    return "not_in_file";
+  }
+
+  return stored === wanted ? "noop" : "set";
 }
 
 export type CollectionDecision = Readonly<{

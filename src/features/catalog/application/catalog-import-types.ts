@@ -153,6 +153,9 @@ export type CompositionResult =
 /** Extra voivodeships of a collection; reported only when the file names them (`extra_regions`). */
 export type ExtraRegionsResult = "updated" | "unchanged";
 
+/** Kind of a collection (land or theme); reported only when the file names it (`kind`). */
+export type KindResult = "updated" | "unchanged";
+
 export type PublicationResult =
   "published" | "skipped_already_published" | "kept_manual_edit" | "refused";
 
@@ -190,6 +193,8 @@ export type CollectionReport = Readonly<{
   publicationRefusal?: string;
   /** Only when the file names `extra_regions` for the collection. */
   extraRegions?: ExtraRegionsResult;
+  /** Only when the file names `kind` for the collection. */
+  kind?: KindResult;
   places: readonly PlaceReport[];
 }>;
 
@@ -205,6 +210,8 @@ export type ImportPreview = Readonly<{
   collectionLimitExceeded: boolean;
   /** Collections whose extra voivodeships would change; absent when none (only a count). */
   extraRegions?: Readonly<{ updated: number }>;
+  /** Collections whose kind (land or theme) would change; absent when none (only a count). */
+  kind?: Readonly<{ updated: number }>;
   /** With `--publish`: collections marked `publish: true` that a load would publish now. */
   publishable?: readonly PublishableCollection[];
 }>;

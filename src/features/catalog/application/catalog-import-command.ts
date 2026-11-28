@@ -596,6 +596,9 @@ function mapOutcome(
             ...(outcome.preview.extraRegions === undefined
               ? {}
               : { extraRegionsUpdated: outcome.preview.extraRegions.updated }),
+            ...(outcome.preview.kind === undefined
+              ? {}
+              : { kindUpdated: outcome.preview.kind.updated }),
             ...(outcome.preview.publishable === undefined
               ? {}
               : {
@@ -619,9 +622,14 @@ function mapOutcome(
       const photoCounts: Record<string, number> = {};
       const publicationCounts: Record<string, number> = {};
       const extraRegionCounts: Record<string, number> = {};
+      const kindCounts: Record<string, number> = {};
 
       for (const collection of outcome.collections) {
         counts[collection.result] = (counts[collection.result] ?? 0) + 1;
+
+        if (collection.kind !== undefined) {
+          kindCounts[collection.kind] = (kindCounts[collection.kind] ?? 0) + 1;
+        }
 
         if (collection.extraRegions !== undefined) {
           extraRegionCounts[collection.extraRegions] =
@@ -660,6 +668,7 @@ function mapOutcome(
             ...(Object.keys(extraRegionCounts).length > 0
               ? { extraRegionResults: extraRegionCounts }
               : {}),
+            ...(Object.keys(kindCounts).length > 0 ? { kindResults: kindCounts } : {}),
             refused: refused.map((c) => ({ line: c.line, reason: c.refusal })),
             publicationRefused: publicationRefused.map((c) => ({
               line: c.line,

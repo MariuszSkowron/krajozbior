@@ -25,7 +25,13 @@ import type {
   RecentCollection,
   SearchPlaceHit,
 } from "../application/catalog-types";
-import { isRegion, type CollectionStatus, type Region } from "../domain/collection";
+import {
+  isCollectionKind,
+  isRegion,
+  type CollectionKind,
+  type CollectionStatus,
+  type Region,
+} from "../domain/collection";
 import {
   MAX_COLLECTIONS_PER_LIST,
   MAX_COVER_CANDIDATES,
@@ -39,10 +45,10 @@ import { SEARCH_TIME_BUDGET_MS, foldSql, remainingBudgetMs } from "../domain/sea
 // Coordinates are bound parameters of a curator's own place, never a log field.
 
 const collectionColumns = `c.id, c.slug, c.organization_id as "organizationId", c.title,
-  c.summary, c.region, c.extra_regions as "extraRegions", c.status,
+  c.summary, c.region, c.extra_regions as "extraRegions", c.kind, c.status,
   c.first_published_at as "firstPublishedAt", c.version`;
 const returningCollection = `id, slug, organization_id as "organizationId", title,
-  summary, region, extra_regions as "extraRegions", status,
+  summary, region, extra_regions as "extraRegions", kind, status,
   first_published_at as "firstPublishedAt", version`;
 const placeColumns = `id, organization_id as "organizationId", name, description, address,
   access_info as "accessInfo", access_restriction as "accessRestriction", latitude, longitude,
@@ -60,10 +66,13 @@ const withKnownRegions = <T extends { extraRegions: unknown }>(
   extraRegions: knownRegions(row.extraRegions),
 });
 
+// The CHECK keeps `kind` clean; an unknown value counts as a theme collection.
+const knownKind = (raw: unknown): CollectionKind => (isCollectionKind(raw) ? raw : "theme");
+
 const firstCollection = (rows: readonly CollectionRow[]): CollectionRow | null => {
   const row = first(rows);
 
-  return row === null ? null : withKnownRegions(row);
+  return row === null ? null : { ...withKnownRegions(row), kind: knownKind(row.kind) };
 };
 
 // The filter of the region form: the main voivodeship or one of the extra ones. The code is
@@ -221,6 +230,15 @@ export const postgresCatalogRepository: CatalogRepository = {
         where id = ?
         returning id`,
       [JSON.stringify(regions), id],
+    );
+
+    return rows.length > 0;
+  },
+
+  async setKind(tx, id, kind) {
+    const rows = await tx.em.execute<{ id: string }[]>(
+      `update public.collections set kind = ? where id = ? returning id`,
+      [kind, id],
     );
 
     return rows.length > 0;
