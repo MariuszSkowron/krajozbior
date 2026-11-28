@@ -118,8 +118,8 @@ const USAGE = [
   "      wgranie, a potem publikacja kolekcji z publish: true (tylko szkice niepublikowane i nieedytowane ręcznie)",
   "  catalog:import --file <plik> --org-slug <slug> --curator-email <e-mail> --remove",
   "      usunięcie tego, co wgrano z pliku, tylko przed publikacją (opublikowane i miejsca z wizytami zostają)",
-  "  catalog:import --target server --confirm-host <host> --profile public --file <plik> --org-slug <slug> --curator-email <e-mail> --operator <etykieta> --reason <powód> [--dry-run | --remove]",
-  "      tryb serwera (tylko w kontenerze ops): szkice, bez --publish; zapis idzie do dziennika operacji",
+  "  catalog:import --target server --confirm-host <host> --profile public --file <plik> --org-slug <slug> --curator-email <e-mail> --operator <etykieta> --reason <powód> [--dry-run] [--publish | --remove]",
+  "      tryb serwera (tylko w kontenerze ops): szkice, z --publish także publikacja (te same reguły); zapis idzie do dziennika operacji",
 ].join("\n");
 
 const argsSchema = z.strictObject({
@@ -275,12 +275,9 @@ export async function runCatalogImport(
 
   if (server) {
     // [P] Policy refusals use the exit code 3 (refusal), as in the spec.
-    if (publish) {
-      return refusal(
-        "publish_on_server",
-        "na serwerze polecenie wgrywa tylko szkice; publikuje właściciel w panelu (--publish jest wyłączone).",
-      );
-    }
+    // `--publish` is allowed since D-68 under the same conditions as a load
+    // (public profile, operator and reason for the write; the preview writes
+    // nothing) and goes through the same use case as the local `--publish`.
     if (profile !== "public") {
       return refusal(
         "profile_not_public",
@@ -455,6 +452,8 @@ async function runOnServer(
       fileSha256: options.fileSha256,
       collections: request.file.collections.length,
       places: request.file.places.length,
+      // D-68: the entries of a load with publication say so (`details.publish`).
+      ...(request.publish ? { publish: true } : {}),
     };
     let handle;
 

@@ -574,6 +574,68 @@ describe("mode import: collection file to the server (remote.sh, F-K6)", () => {
     expect(result.leftovers).toEqual([]);
   });
 
+  // D-68: the marker of the server publication in the running code (see scripts/catalog-import.ts).
+  const READY_PUBLISH = `${READY}\necho "server-publish" >>"$KZ_SRC/scripts/catalog-import.ts"`;
+
+  bashIt(
+    "publication (D-68): preview and apply both pass --publish, apply with operator and reason",
+    () => {
+      const preview = runImport(
+        { KZ_IMPORT_PHASE: "preview", KZ_IMPORT_PUBLISH: "1" },
+        `${READY_PUBLISH}\n${opsStub(0)}`,
+      );
+
+      expect(preview.status, preview.stdout).toBe(0);
+      expect(preview.stdout).toContain("--curator-email kurator@example.com --dry-run --publish\n");
+      expect(preview.stdout).not.toContain("--operator");
+      expect(preview.stdout).toContain("podglad wgrania i publikacji");
+      expect(preview.leftovers).toEqual([]);
+
+      const apply = runImport(
+        { KZ_IMPORT_PHASE: "apply", KZ_IMPORT_PUBLISH: "1" },
+        `${READY_PUBLISH}\n${opsStub(0)}`,
+      );
+
+      expect(apply.status, apply.stdout).toBe(0);
+      expect(apply.stdout).toContain(
+        `--operator wlasciciel --reason Wgranie kolekcji z pliku ${NAME} --publish\n`,
+      );
+      expect(apply.stdout).not.toContain("--dry-run");
+      expect(apply.stdout).toContain(
+        "GOTOWE: szkice wgrane, kolekcje z publish: true opublikowane",
+      );
+      expect(apply.leftovers).toEqual([]);
+    },
+  );
+
+  bashIt("without KZ_IMPORT_PUBLISH nothing is published (no --publish flag)", () => {
+    const result = runImport({ KZ_IMPORT_PHASE: "apply" }, `${READY_PUBLISH}\n${opsStub(0)}`);
+
+    expect(result.status, result.stdout).toBe(0);
+    expect(result.stdout).not.toContain("--publish");
+  });
+
+  bashIt("publication refuses an unknown switch value and a running version without it", () => {
+    const bad = runImport(
+      { KZ_IMPORT_PHASE: "apply", KZ_IMPORT_PUBLISH: "yes" },
+      `${READY_PUBLISH}\n${opsStub(0)}`,
+    );
+
+    expect(bad.status).toBe(1);
+    expect(bad.stdout).toContain("nieznana wartosc przelacznika publikacji");
+    expect(bad.stdout).not.toContain("ops catalog:import");
+
+    const old = runImport(
+      { KZ_IMPORT_PHASE: "preview", KZ_IMPORT_PUBLISH: "1" },
+      `${READY}\n${opsStub(0)}`,
+    );
+
+    expect(old.status).toBe(1);
+    expect(old.stdout).toContain("nie umie publikowac");
+    expect(old.stdout).not.toContain("ops catalog:import");
+    expect(old.leftovers).toEqual([]);
+  });
+
   for (const [code, message] of [
     [2, "plik odrzucony (kod 2)"],
     [3, "odmowa (kod 3)"],

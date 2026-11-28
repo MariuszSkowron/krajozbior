@@ -165,15 +165,27 @@ describe("catalog:import --target server on a real database", () => {
     }
   });
 
-  it("refuses a wrong host, --publish and the full profile: nothing is loaded, no audit entry", async () => {
+  it("refuses a wrong host, the full profile and --publish without operator: nothing is loaded, no audit entry", async () => {
     const wrongHost = await runCatalogImport(flags(write, "example.com"), serverDeps());
-    const publish = await runCatalogImport(flags([...write, "--publish"]), serverDeps());
+    const publishFull = await runCatalogImport(
+      flags([...write, "--publish"]).map((value) => (value === "public" ? "full" : value)),
+      serverDeps(),
+    );
+    const publishNoOperator = await runCatalogImport(
+      flags(["--reason", "Pierwsza fala", "--publish"]),
+      serverDeps(),
+    );
     const full = await runCatalogImport(
       flags(write).map((value) => (value === "public" ? "full" : value)),
       serverDeps(),
     );
 
-    expect([wrongHost.exitCode, publish.exitCode, full.exitCode]).toEqual([3, 3, 3]);
+    expect([
+      wrongHost.exitCode,
+      publishFull.exitCode,
+      publishNoOperator.exitCode,
+      full.exitCode,
+    ]).toEqual([3, 3, 2, 3]);
     expect(await collectionCount()).toBe(0);
     expect(await auditRows()).toEqual([]);
   });
@@ -259,6 +271,69 @@ describe("catalog:import --target server on a real database", () => {
     expect(result.exitCode).toBe(0);
     expect(await collectionCount()).toBe(before);
     expect(await auditRows()).toHaveLength(4);
+  });
+
+  it("--publish --dry-run lists the collections to publish and changes nothing (D-68)", async () => {
+    const entriesBefore = (await auditRows()).length;
+    const result = await runCatalogImport(flags(["--dry-run", "--publish"]), serverDeps());
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout[0]!)).toMatchObject({
+      outcome: "preview",
+      publishableCount: 1,
+      publishable: [{ line: 2, importKey: "col:testowa-jeden", title: "Kolekcja testowa jeden" }],
+    });
+    expect(await admin$(`select 1 from public.collections where status <> 'draft'`)).toHaveLength(
+      0,
+    );
+    expect(await auditRows()).toHaveLength(entriesBefore);
+  });
+
+  it("--publish publishes the marked draft through the use case and marks both entries (D-68)", async () => {
+    const entriesBefore = (await auditRows()).length;
+    const result = await runCatalogImport(flags([...write, "--publish"]), serverDeps());
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout[0]!)).toMatchObject({
+      outcome: "applied",
+      publicationResults: { published: 1 },
+    });
+
+    const states = await admin$<{ title: string; status: string; first_published_at: Date | null }>(
+      `select title, status, first_published_at from public.collections order by title`,
+    );
+
+    expect(states.map((s) => [s.title, s.status])).toEqual([
+      ["Kolekcja testowa dwa", "draft"],
+      ["Kolekcja testowa jeden", "published"],
+    ]);
+    expect(states.find((s) => s.status === "published")!.first_published_at).not.toBeNull();
+
+    const rows = (await auditRows()).slice(entriesBefore);
+
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.operation)).toEqual(["catalog_import", "catalog_import"]);
+    expect(rows[0]!.details).toMatchObject({ phase: "start", publish: true });
+    expect(rows[1]!.details).toMatchObject({
+      phase: "finish",
+      publish: true,
+      start_entry_id: rows[0]!.id,
+      publication_results: { published: 1 },
+    });
+    // Earlier plain loads keep the old shape: no publish key at all.
+    expect(
+      (await auditRows()).slice(0, entriesBefore).some((row) => "publish" in row.details),
+    ).toBe(false);
+    expect(JSON.stringify(rows)).not.toContain("@");
+    expect(JSON.stringify(rows)).not.toContain("Kolekcja");
+
+    // Repeating the same publication changes nothing (the collection is already public).
+    const again = await runCatalogImport(flags([...write, "--publish"]), serverDeps());
+
+    expect(again.exitCode).toBe(0);
+    expect(JSON.parse(again.stdout[0]!).publicationResults).toEqual({
+      skipped_already_published: 1,
+    });
   });
 
   it("--remove on the server writes catalog_remove entries", async () => {

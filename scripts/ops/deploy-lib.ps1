@@ -593,8 +593,9 @@ function Get-Sha256Hex([byte[]]$bytes) {
 }
 
 # Reason stored for ever in the operations audit: the file name only (no e-mail, no quote).
-function New-ImportReason([string]$fileName) {
-  $reason = "Wgranie kolekcji z pliku $fileName"
+# With -Publikuj (D-68) the reason says so, next to `details.publish` written by catalog:import.
+function New-ImportReason([string]$fileName, [bool]$publish = $false) {
+  $reason = if ($publish) { "Wgranie i publikacja kolekcji z pliku $fileName" } else { "Wgranie kolekcji z pliku $fileName" }
   if (-not (Test-AuditReason $reason)) { throw 'Nazwa pliku nie nadaje sie do powodu w dzienniku.' }
   return $reason
 }
@@ -631,21 +632,54 @@ function Format-ImportSummary([string]$line) {
   if (-not $text.StartsWith('{"outcome"')) { return $null }
   try { $o = $text | ConvertFrom-Json } catch { return $null }
   $inFile = "w pliku $(Get-JsonField $o 'collections') kolekcji i $(Get-JsonField $o 'places') miejsc"
+  # D-68: present only with --publish (the preview count, the publication results of the load).
+  $publishable = Get-JsonField $o 'publishableCount'
+  $toPublish = if ($null -ne $publishable) { " Do publikacji kolekcji: $publishable." } else { '' }
+  $publication = Get-JsonField $o 'publicationResults'
+  $published = if ($null -ne $publication) { " Publikacja: $(Format-JsonCounts $publication)." } else { '' }
   switch ([string](Get-JsonField $o 'outcome')) {
     'preview' {
-      return "Podglad ($inFile). Kolekcje: $(Format-JsonCounts (Get-JsonField $o 'collectionStates')). Miejsca: $(Format-JsonCounts (Get-JsonField $o 'placeStates'))."
+      return "Podglad ($inFile). Kolekcje: $(Format-JsonCounts (Get-JsonField $o 'collectionStates')). Miejsca: $(Format-JsonCounts (Get-JsonField $o 'placeStates')).$toPublish"
     }
     'applied' {
-      return "Wgrane szkice ($inFile). Kolekcje: $(Format-JsonCounts (Get-JsonField $o 'collectionResults')). Miejsca: $(Format-JsonCounts (Get-JsonField $o 'placeResults'))."
+      return "Wgrane szkice ($inFile). Kolekcje: $(Format-JsonCounts (Get-JsonField $o 'collectionResults')). Miejsca: $(Format-JsonCounts (Get-JsonField $o 'placeResults')).$published"
     }
     'partial' {
-      return "Wgrane czesciowo ($inFile): czesc kolekcji odrzucona. Kolekcje: $(Format-JsonCounts (Get-JsonField $o 'collectionResults'))."
+      return "Wgrane czesciowo ($inFile): czesc kolekcji lub publikacji odrzucona. Kolekcje: $(Format-JsonCounts (Get-JsonField $o 'collectionResults')).$published"
     }
     'invalid' { return "Plik nie przeszedl kontroli: $(Get-JsonField $o 'errorCount') bledow (numery linii wyzej)." }
     'refused' { return "Odmowa: $(Get-JsonField $o 'code')." }
     'rejected' { return "Odmowa: $(Get-JsonField $o 'code')." }
   }
   return $null
+}
+
+# The preview line of catalog:import --publish --dry-run (D-68) as an object, or $null for any
+# other line (also a preview without --publish).
+function Get-ImportPublishablePreview([string]$line) {
+  $text = $line.Trim()
+  if (-not $text.StartsWith('{"outcome"')) { return $null }
+  try { $o = $text | ConvertFrom-Json } catch { return $null }
+  if ([string](Get-JsonField $o 'outcome') -ne 'preview') { return $null }
+  if ($null -eq (Get-JsonField $o 'publishableCount')) { return $null }
+  return $o
+}
+
+# The collections the load would publish, one line each for the owner: file line, title, key.
+# Empty for any other line.
+function Get-ImportPublishableLines([string]$line) {
+  $o = Get-ImportPublishablePreview $line
+  if ($null -eq $o) { return @() }
+  return @(@(Get-JsonField $o 'publishable') | Where-Object { $null -ne $_ } | ForEach-Object {
+      "  linia $(Get-JsonField $_ 'line'): $(Get-JsonField $_ 'title') ($(Get-JsonField $_ 'importKey'))"
+    })
+}
+
+# The number of collections to publish from that preview line, or -1 for any other line.
+function Get-ImportPublishableCount([string]$line) {
+  $o = Get-ImportPublishablePreview $line
+  if ($null -eq $o) { return -1 }
+  return [int](Get-JsonField $o 'publishableCount')
 }
 
 # --- Mode zdjecia: photos from Wikimedia Commons (spec 5.11.5, E4-2z) ---------------------------

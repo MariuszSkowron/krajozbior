@@ -14,7 +14,8 @@
 #             file comes in the payload like an import file (same helpers, one-time folder)
 #   import    collection file (spec 5.6, F-K6): KZ_IMPORT_PHASE=preview runs catalog:import
 #             --dry-run, apply loads drafts; the file comes in the payload and lives in a
-#             one-time folder under imports/ only for that one command
+#             one-time folder under imports/ only for that one command; KZ_IMPORT_PUBLISH=1
+#             adds --publish to both phases (D-68: list in the preview, publication in apply)
 #   zdjecia   photos from Wikimedia Commons (spec 5.11.5, E4-2z): `photos:fetch` in the `ops`
 #             container (only the ops role password in the payload), repeatable
 # Keep this file ASCII-only.
@@ -334,12 +335,19 @@ kz_import_clear() {
 kz_require_import_support() {
   grep -q -- '--confirm-host' "$KZ_SRC/scripts/catalog-import.ts" 2>/dev/null ||
     kz_fail "dzialajaca wersja nie umie wgrywac na serwer (F-K6). Najpierw wdroz commit z F-K6 (-Commit <sha>); nic nie wgrano"
+  # The publication on the server (D-68) needs a running version that allows it; an older one
+  # would refuse it only after the file is on the server.
+  if [ "${KZ_IMPORT_PUBLISH:-}" = "1" ]; then
+    grep -q -- 'server-publish' "$KZ_SRC/scripts/catalog-import.ts" 2>/dev/null ||
+      kz_fail "dzialajaca wersja nie umie publikowac z pliku na serwerze (D-68). Najpierw wdroz nowszy commit (-Commit <sha>); nic nie wgrano"
+  fi
 }
 
 kz_import_check_inputs() {
   local name_re='^[A-Za-z0-9][A-Za-z0-9._-]{0,100}-public\.ndjson$'
   local slug_re='^[a-z0-9]+(-[a-z0-9]+)*$'
   case "${KZ_IMPORT_PHASE:-}" in preview | apply) ;; *) kz_fail "nieznana faza wgrywania" ;; esac
+  case "${KZ_IMPORT_PUBLISH:-}" in "" | 1) ;; *) kz_fail "nieznana wartosc przelacznika publikacji; nic nie wgrano" ;; esac
   [[ "${KZ_IMPORT_NAME:-}" =~ $name_re ]] || kz_fail "zla nazwa pliku (oczekiwane <nazwa>-public.ndjson); nic nie wgrano"
   [[ "${KZ_IMPORT_SHA256:-}" =~ ^[0-9a-f]{64}$ ]] || kz_fail "brak skrotu SHA-256 pliku; nic nie wgrano"
   [ -n "${KZ_IMPORT_B64:-}" ] || kz_fail "brak tresci pliku; nic nie wgrano"
@@ -381,6 +389,11 @@ kz_import_run() {
   else
     args+=(--operator wlasciciel --reason "$KZ_REASON")
   fi
+  # D-68: the preview lists the collections to publish, the load publishes them (same rules as
+  # locally; the command keeps the audit and requires the operator and reason for the write).
+  if [ "${KZ_IMPORT_PUBLISH:-}" = "1" ]; then
+    args+=(--publish)
+  fi
   kz_ops catalog:import -v "$KZ_IMPORT_DIR:/imports:ro" -- "${args[@]}"
 }
 
@@ -389,8 +402,13 @@ kz_mode_import() {
   kz_require_import_support
   kz_import_check_inputs
   kz_import_prepare
-  if [ "$KZ_IMPORT_PHASE" = "preview" ]; then
+  local publish="${KZ_IMPORT_PUBLISH:-}"
+  if [ "$KZ_IMPORT_PHASE" = "preview" ] && [ "$publish" = "1" ]; then
+    kz_step "podglad wgrania i publikacji $KZ_IMPORT_NAME do organizacji $KZ_ORG_SLUG (nic nie zapisuje)"
+  elif [ "$KZ_IMPORT_PHASE" = "preview" ]; then
     kz_step "podglad wgrania $KZ_IMPORT_NAME do organizacji $KZ_ORG_SLUG (nic nie zapisuje)"
+  elif [ "$publish" = "1" ]; then
+    kz_step "wgranie szkicow i publikacja kolekcji z $KZ_IMPORT_NAME do organizacji $KZ_ORG_SLUG (wpisy w dzienniku operacji)"
   else
     kz_step "wgranie szkicow z $KZ_IMPORT_NAME do organizacji $KZ_ORG_SLUG (wpisy w dzienniku operacji)"
   fi
@@ -400,7 +418,13 @@ kz_mode_import() {
   kz_step "plik usuniety z serwera"
   case "$status" in
     0)
-      if [ "$KZ_IMPORT_PHASE" = "preview" ]; then kz_step "GOTOWE: podglad (nic nie zapisano)"; else kz_step "GOTOWE: szkice wgrane"; fi ;;
+      if [ "$KZ_IMPORT_PHASE" = "preview" ]; then
+        kz_step "GOTOWE: podglad (nic nie zapisano)"
+      elif [ "$publish" = "1" ]; then
+        kz_step "GOTOWE: szkice wgrane, kolekcje z publish: true opublikowane"
+      else
+        kz_step "GOTOWE: szkice wgrane"
+      fi ;;
     2) kz_fail "plik odrzucony (kod 2): bledy w pliku albo miejsca spoza pliku, ktorych nie ma w bazie; nic nie wgrano" ;;
     3) kz_fail "odmowa (kod 3): organizacja, konto kuratora, nazwa hosta albo czesc kolekcji odrzucona; gdy wyzej jest 'Wgrane czesciowo', czesc szkicow juz jest na serwerze (to samo wgranie mozna powtorzyc po usunieciu przyczyny)" ;;
     *) kz_fail "wgrywanie nieudane (kod $status); dane zapisane wczesniej zostaja, to samo wgranie mozna powtorzyc" ;;

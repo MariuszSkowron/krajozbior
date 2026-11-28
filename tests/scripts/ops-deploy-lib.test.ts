@@ -467,6 +467,69 @@ describe("mode import: checks on the owner's computer (F-K6)", () => {
     expect(ps("$null -eq (Format-ImportSummary '[krajozbior] GOTOWE')").stdout).toBe("True");
   });
 
+  psIt("publication (D-68): reason, count in the preview and results after the load", () => {
+    expect(psJson<string>("New-ImportReason 'fala-1-public.ndjson' $true")).toBe(
+      "Wgranie i publikacja kolekcji z pliku fala-1-public.ndjson",
+    );
+
+    const preview = JSON.stringify({
+      outcome: "preview",
+      dryRun: true,
+      collections: 2,
+      places: 5,
+      collectionStates: { create: 2 },
+      placeStates: { create: 5 },
+      publishable: [
+        { line: 2, importKey: "col:a", title: "Zamki nad Odra" },
+        { line: 3, importKey: "col:b", title: "Wieze widokowe" },
+      ],
+      publishableCount: 2,
+    });
+
+    expect(psJson<string>(`Format-ImportSummary ${psString(preview)}`)).toBe(
+      "Podglad (w pliku 2 kolekcji i 5 miejsc). Kolekcje: create=2. Miejsca: create=5. Do publikacji kolekcji: 2.",
+    );
+    expect(psJson<string[]>(`@(Get-ImportPublishableLines ${psString(preview)})`)).toEqual([
+      "  linia 2: Zamki nad Odra (col:a)",
+      "  linia 3: Wieze widokowe (col:b)",
+    ]);
+    expect(psJson<number>(`Get-ImportPublishableCount ${psString(preview)}`)).toBe(2);
+    // A preview without --publish, other lines and broken JSON give no list.
+    expect(
+      psJson<number>(
+        `@(Get-ImportPublishableLines ${psString(JSON.stringify({ outcome: "preview", collections: 1 }))}).Count`,
+      ),
+    ).toBe(0);
+    expect(psJson<number>("@(Get-ImportPublishableLines '[krajozbior] GOTOWE').Count")).toBe(0);
+    expect(psJson<number>("Get-ImportPublishableCount '{\"outcome\": broken'")).toBe(-1);
+
+    const applied = JSON.stringify({
+      outcome: "applied",
+      collections: 2,
+      places: 5,
+      collectionResults: { created: 2 },
+      placeResults: { created: 5 },
+      publicationResults: { published: 2 },
+    });
+
+    expect(psJson<string>(`Format-ImportSummary ${psString(applied)}`)).toBe(
+      "Wgrane szkice (w pliku 2 kolekcji i 5 miejsc). Kolekcje: created=2. Miejsca: created=5. Publikacja: published=2.",
+    );
+  });
+
+  it("wdroz.ps1 passes -Publikuj on only with -Import; deploy.ps1 sends the switch in the payload (D-68)", () => {
+    const deploy = withoutComments(readFileSync(join(OPS_DIR, "deploy.ps1"), "utf8"));
+    const starter = withoutComments(readFileSync(join(OPS_DIR, "wdroz.template.ps1"), "utf8"));
+
+    expect(starter).toContain("[switch]$Publikuj");
+    expect(starter).toContain("if ($Publikuj) { $deployArgs += '-ImportPublish' }");
+    expect(starter).toContain("-Publikuj dziala tylko z -Import <plik>.");
+    expect(deploy).toContain("[switch]$ImportPublish");
+    expect(deploy).toContain("if ($ImportPublish) { $plain.KZ_IMPORT_PUBLISH = '1' }");
+    expect(deploy).toContain("-ImportPublish dziala tylko w trybie import.");
+    expect(deploy).toContain("New-ImportReason $importName ([bool]$ImportPublish)");
+  });
+
   it("deploy.ps1 checks the file before the vault and any connection; wdroz.ps1 passes it on", () => {
     const deploy = withoutComments(readFileSync(join(OPS_DIR, "deploy.ps1"), "utf8"));
     const starter = withoutComments(readFileSync(join(OPS_DIR, "wdroz.template.ps1"), "utf8"));

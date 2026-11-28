@@ -3,8 +3,10 @@
 // local operator command: refuses in production and on a database outside
 // localhost. The only way to a server database is the explicit mode
 // `--target server` (F-K6, spec 5.6): the host must be confirmed, the profile is
-// `public`, `--publish` is refused, and the load is wrapped in two entries of
-// the operations audit. It runs in the `ops` container on the server.
+// `public`, and the load is wrapped in two entries of the operations audit.
+// It runs in the `ops` container on the server. Since D-68 the server mode
+// also takes `--publish` (marker server-publish, read by scripts/ops/server/remote.sh),
+// with the same rules as locally; its audit entries carry `publish: true`.
 // Prints a JSON summary on stdout (no e-mails, no addresses), short Polish
 // hints on stderr, and writes the per entity report to .ai/tmp/catalog-import/
 // (ignored by git; on the server the report goes to stdout only).
@@ -15,7 +17,7 @@
 //   npm run catalog:import -- --dry-run --file <plik> --org-slug <slug> --curator-email <e-mail>
 //   npm run catalog:import -- --file <plik> --org-slug <slug> --curator-email <e-mail>
 //   npm run catalog:import -- --target server --confirm-host <host> --profile public \
-//     --file <plik> --org-slug <slug> --curator-email <e-mail> --operator <etykieta> --reason <powód>
+//     --file <plik> --org-slug <slug> --curator-email <e-mail> --operator <etykieta> --reason <powód> [--publish]
 //
 // The validation alone (--dry-run without the organization flags) needs no
 // database and no database variables: the database module is imported only
