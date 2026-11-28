@@ -254,7 +254,11 @@ export default async function CollectionPage({
             <p className={styles.summary}>{collection.summary}</p>
           )}
           {landLineOfTheme === null ? null : (
-            <LandLineText line={landLineOfTheme} placeCount={collection.placeCount} />
+            <LandLineText
+              line={landLineOfTheme}
+              placeCount={collection.placeCount}
+              placesInLands={related[0]?.placesInRelated ?? 0}
+            />
           )}
           <p className={panelStyles.curator}>
             <svg

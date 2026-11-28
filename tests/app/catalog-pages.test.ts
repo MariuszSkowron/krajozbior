@@ -602,7 +602,12 @@ describe("public catalog pages", () => {
       renderToStaticMarkup(
         await collectionPage.default({ params: Promise.resolve({ slug: next() }) }),
       );
-    const card = (slug: string, title: string, sharedPlaces: number) => ({
+    const card = (
+      slug: string,
+      title: string,
+      sharedPlaces: number,
+      placesInRelated: number = sharedPlaces,
+    ) => ({
       id: `id-${slug}`,
       slug,
       title,
@@ -611,6 +616,7 @@ describe("public catalog pages", () => {
       placeCount: 9,
       cover: null,
       sharedPlaces,
+      placesInRelated,
     });
     const land = { ...collection, kind: "land", title: "Warmia" };
 
@@ -703,11 +709,24 @@ describe("public catalog pages", () => {
       expect(html.indexOf("Część krainy")).toBeLessThan(html.indexOf("Kurator: Gmina A"));
     });
 
+    it("counts a place lying in two lands once", async () => {
+      mocks.collection.mockResolvedValue({ status: "ok", value: { ...collection, placeCount: 6 } });
+      // 3 + 3 = 6 would read as "all places"; two of them lie in both lands, so 4 distinct.
+      mocks.related.mockResolvedValue([
+        card("warmia-cccccc", "Warmia", 3, 4),
+        card("torun-dddddd", "Toruń i Ziemia Dobrzyńska", 3, 4),
+      ]);
+
+      const html = await render();
+
+      expect(html).toContain("4 z 6 miejsc kolekcji leżą w krainach: ");
+    });
+
     it("lists the lands, the one with the most common places first, when the places are spread", async () => {
       mocks.collection.mockResolvedValue({ status: "ok", value: { ...collection, placeCount: 6 } });
       mocks.related.mockResolvedValue([
-        card("warmia-cccccc", "Warmia", 3),
-        card("torun-dddddd", "Toruń i Ziemia Dobrzyńska", 2),
+        card("warmia-cccccc", "Warmia", 3, 5),
+        card("torun-dddddd", "Toruń i Ziemia Dobrzyńska", 2, 5),
       ]);
 
       const html = await render();

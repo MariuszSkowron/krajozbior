@@ -162,6 +162,24 @@ describe("related collections (land <-> theme, guest context, RLS on)", () => {
     expect(titlesOf(await related(warmia, "land"))).toEqual(["Wieże 2", "Inny temat 2"]);
   });
 
+  it("counts a place lying in two lands once in placesInRelated", async () => {
+    const warmia = await collection("Warmia 3", "land");
+    const mazury = await collection("Mazury 3", "land");
+    const temat = await collection("Temat 3", "theme");
+
+    await place("E1", [warmia, mazury, temat]);
+    await place("E2", [warmia, temat]);
+    await place("E3", [mazury, temat]);
+    await place("E4", [temat]);
+
+    const rows = await related(temat, "theme");
+
+    expect(rows.map((row) => [row.title, row.sharedPlaces, row.placesInRelated])).toEqual([
+      ["Mazury 3", 2, 3],
+      ["Warmia 3", 2, 3],
+    ]);
+  });
+
   it("does not list a draft, and a place shared with a draft adds nothing", async () => {
     const land = await collection("Kraina z wersją roboczą", "land");
     const published = await collection("Temat opublikowany", "theme");

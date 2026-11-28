@@ -703,7 +703,11 @@ export const postgresCatalogRepository: CatalogRepository = {
     // columns (the cover lateral stays outside any aggregation). The guest policies of `places`
     // and `collection_places` show only rows of published collections of approved organizations;
     // the other side is also checked here. Only collections of the organization of the asked one.
-    const rows = await tx.em.execute<(CollectionCardRow & { sharedPlaces: number })[]>(
+    // `placesInRelated` counts each place of the asked collection once, however many of the
+    // related collections it lies in (nothing in the database keeps a place in one land only).
+    const rows = await tx.em.execute<
+      (CollectionCardRow & { sharedPlaces: number; placesInRelated: number })[]
+    >(
       `with shared as (
          select b.collection_id, count(distinct a.place_id)::int as shared_places
            from public.collection_places a
@@ -712,8 +716,26 @@ export const postgresCatalogRepository: CatalogRepository = {
              on b.place_id = a.place_id and b.collection_id <> a.collection_id
           where a.collection_id = ?
           group by b.collection_id
+       ),
+       listed as (
+         select c.id
+           from shared s
+           join public.collections c on c.id = s.collection_id
+           join public.organizations o on o.id = c.organization_id
+          where c.status = 'published' and o.status = 'approved'
+            and c.kind <> ?::text
+            and c.organization_id = (select organization_id from public.collections where id = ?)
+          order by s.shared_places desc, c.title, c.slug
+          limit ?
+       ),
+       union_places as (
+         select count(distinct a.place_id)::int as places_in_related
+           from public.collection_places a
+           join public.collection_places b on b.place_id = a.place_id
+          where a.collection_id = ? and b.collection_id in (select id from listed)
        )
-       select ${collectionCardColumns}, s.shared_places as "sharedPlaces"
+       select ${collectionCardColumns}, s.shared_places as "sharedPlaces",
+              (select places_in_related from union_places) as "placesInRelated"
          from shared s
          join public.collections c on c.id = s.collection_id
          join public.organizations o on o.id = c.organization_id
@@ -723,10 +745,19 @@ export const postgresCatalogRepository: CatalogRepository = {
           and c.organization_id = (select organization_id from public.collections where id = ?)
         order by s.shared_places desc, c.title, c.slug
         limit ?`,
-      [collectionId, kind, collectionId, MAX_RELATED_COLLECTIONS],
+      [
+        collectionId,
+        kind,
+        collectionId,
+        MAX_RELATED_COLLECTIONS,
+        collectionId,
+        kind,
+        collectionId,
+        MAX_RELATED_COLLECTIONS,
+      ],
     );
 
-    return rows.map(({ sharedPlaces, ...row }) => {
+    return rows.map(({ sharedPlaces, placesInRelated, ...row }) => {
       const card = toRecentCollection(row);
 
       return {
@@ -738,6 +769,7 @@ export const postgresCatalogRepository: CatalogRepository = {
         placeCount: card.placeCount,
         cover: card.cover,
         sharedPlaces,
+        placesInRelated,
       };
     });
   },

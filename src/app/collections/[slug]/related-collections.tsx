@@ -88,7 +88,8 @@ export function RelatedCollections({
 export function LandLineText({
   line,
   placeCount,
-}: Readonly<{ line: LandLine; placeCount: number }>) {
+  placesInLands,
+}: Readonly<{ line: LandLine; placeCount: number; placesInLands: number }>) {
   if (line.kind === "part_of") {
     return (
       <p className={panelStyles.landLine}>
@@ -102,11 +103,8 @@ export function LandLineText({
       {landLineLabel(
         placeCount,
         line.lands.length,
-        // Suma miejsc w krainach (krainy się nie nakładają); więcej niż miejsc kolekcji to całość.
-        Math.min(
-          placeCount,
-          line.lands.reduce((sum, land) => sum + land.sharedPlaces, 0),
-        ),
+        // Różne miejsca kolekcji leżące w którejkolwiek z krain (miejsce w dwóch krainach liczy się raz).
+        Math.min(placeCount, placesInLands),
       )}
       {line.lands.map((land, index) => (
         <Fragment key={land.slug}>

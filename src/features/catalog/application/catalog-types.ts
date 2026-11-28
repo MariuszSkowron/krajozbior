@@ -181,6 +181,8 @@ export type RelatedCollection = Readonly<{
   cover: CollectionCover | null;
   /** How many places this collection has in common with the collection asked about. */
   sharedPlaces: number;
+  /** Distinct places of the asked collection lying in any of the listed related collections. */
+  placesInRelated: number;
 }>;
 
 // One place found by the public search: the first public collection (alphabetically) it lies in.
