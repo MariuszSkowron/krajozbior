@@ -25,7 +25,7 @@ describe("renderSignInCodeEmail", () => {
   });
 
   it("warns in both bodies not to give the code to anyone (D-08)", () => {
-    const warning = `Nie podawaj tego kodu nikomu — ${APP_NAME} nigdy o niego nie prosi.`;
+    const warning = `Wpisz go tylko na stronie ${APP_NAME} i nie podawaj nikomu — nie poprosimy o niego e-mailem, telefonem ani wiadomością.`;
 
     expect(email.text).toContain(warning);
     expect(email.html).toContain(warning);

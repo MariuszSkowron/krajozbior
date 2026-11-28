@@ -35,7 +35,7 @@ export function renderSignInCodeEmail(input: SignInCodeEmailInput): RenderedEmai
   const { code, siteUrl } = input;
   const subject = `${code.replace(/[\r\n]+/g, " ")} — kod logowania (${APP_NAME})`;
   const rest = `Kod jest ważny ${SIGN_IN_CODE_VALIDITY_MINUTES} minut. To nie Ty prosisz o kod? Zignoruj tę wiadomość — bez kodu nikt nie zaloguje się na Twoje konto.`;
-  const warning = `Nie podawaj tego kodu nikomu — ${APP_NAME} nigdy o niego nie prosi.`;
+  const warning = `Wpisz go tylko na stronie ${APP_NAME} i nie podawaj nikomu — nie poprosimy o niego e-mailem, telefonem ani wiadomością.`;
   const privacy = `Polityka prywatności: ${siteUrl.replace(/\/+$/, "")}${PRIVACY_POLICY_PATH}`;
 
   const text = [
