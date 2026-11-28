@@ -60,6 +60,73 @@ export function isRegion(value: unknown): value is Region {
   return typeof value === "string" && (REGIONS as readonly string[]).includes(value);
 }
 
+// A collection has one main voivodeship (`region`) and 0-3 extra ones (`extra_regions`).
+export const MAX_EXTRA_REGIONS = 3;
+
+export type ExtraRegionsError = "bad_value" | "duplicate" | "same_as_region" | "too_many";
+
+export type ExtraRegionsValidation =
+  | Readonly<{ ok: true; value: readonly Region[] }>
+  | Readonly<{
+      ok: false;
+      errors: readonly Readonly<{ code: ExtraRegionsError; index: number | null }>[];
+    }>;
+
+// Validates the extra voivodeships of a collection: every element is a known code,
+// no repeats, none equal to the main one, at most MAX_EXTRA_REGIONS. The result is in
+// the order of REGIONS. `index` points at the element (null for the whole list).
+export function normalizeExtraRegions(
+  primary: Region,
+  raw: readonly unknown[],
+): ExtraRegionsValidation {
+  const errors: { code: ExtraRegionsError; index: number | null }[] = [];
+  const seen = new Set<Region>();
+
+  raw.forEach((item, index) => {
+    if (!isRegion(item)) {
+      errors.push({ code: "bad_value", index });
+
+      return;
+    }
+
+    if (item === primary) {
+      errors.push({ code: "same_as_region", index });
+    } else if (seen.has(item)) {
+      errors.push({ code: "duplicate", index });
+    }
+
+    seen.add(item);
+  });
+
+  if (seen.size > MAX_EXTRA_REGIONS) {
+    errors.push({ code: "too_many", index: null });
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return { ok: true, value: REGIONS.filter((region) => seen.has(region)) };
+}
+
+/** Main voivodeship first, then the extra ones (already in the order of REGIONS). */
+export function regionsOf(collection: {
+  region: Region;
+  extraRegions: readonly Region[];
+}): readonly Region[] {
+  return [collection.region, ...collection.extraRegions];
+}
+
+/** Label for a card or a heading: "Dolnośląskie · Opolskie". */
+export function regionsLabelOf(collection: {
+  region: Region;
+  extraRegions: readonly Region[];
+}): string {
+  return regionsOf(collection)
+    .map((region) => REGION_LABELS[region])
+    .join(" · ");
+}
+
 /** CRLF and lone CR become LF, so a form's line breaks count once. */
 export function normalizeLineBreaks(text: string): string {
   return text.replace(/\r\n?/g, "\n");

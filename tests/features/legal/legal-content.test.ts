@@ -122,6 +122,16 @@ describe("the texts agree with the code (finding 15 of the review)", () => {
     expect(LEGAL_DOCUMENTS.zasady.markdown).toContain("Z kopii zapasowych znikną po 30 dniach.");
   });
 
+  it("names only role addresses in the krajozbior.pl domain, never a private one", () => {
+    for (const document of documents) {
+      expect(document.markdown, document.slug).not.toMatch(/mariuszskowron/i);
+
+      for (const address of document.markdown.match(/[\w.+-]+@\w[\w-]*(?:\.\w[\w-]*)+/g) ?? []) {
+        expect(address, document.slug).toMatch(/^[a-z]+@krajozbior\.pl$/);
+      }
+    }
+  });
+
   it("does not describe the rejected photos, which do not exist before E4", () => {
     for (const document of documents) {
       expect(document.markdown, document.slug).not.toMatch(/odrzucon\w+ przez kuratora/);

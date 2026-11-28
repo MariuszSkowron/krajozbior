@@ -53,6 +53,7 @@ async function collection(
     organization?: string;
     status?: "draft" | "published";
     region?: string;
+    extraRegions?: readonly string[];
     summary?: string;
   } = {},
 ) {
@@ -60,8 +61,8 @@ async function collection(
 
   return (
     await admin$<{ id: string }>(
-      `insert into public.collections (slug, organization_id, title, summary, region, status)
-       values ($1, $2, $3, $4, $5, $6) returning id`,
+      `insert into public.collections (slug, organization_id, title, summary, region, status, extra_regions)
+       values ($1, $2, $3, $4, $5, $6, $7::text[]) returning id`,
       [
         `szukaj-${counter}`,
         options.organization ?? orgId,
@@ -69,6 +70,7 @@ async function collection(
         options.summary ?? "",
         options.region ?? "pomorskie",
         options.status ?? "published",
+        options.extraRegions ?? [],
       ],
     )
   )[0]!.id;
@@ -201,6 +203,47 @@ describe("public search (guest context, RLS on)", () => {
 
     expect(titles(silesian)).toEqual(["Bunkry. Zamek na wzgórzu"]);
     expect(titles(await search("zamek", "nie-ma-takiego"))).toEqual(titles(all));
+  });
+
+  it("shows a collection in the filter of each of its voivodeships, main and extra", async () => {
+    // "lubuskie" is used only here, so the counts of other tests stay as they are.
+    const sudety = await collection("Sudety graniczne", {
+      region: "dolnoslaskie",
+      extraRegions: ["lubuskie"],
+    });
+    const draft = await collection("Sudety szkic graniczny", {
+      region: "dolnoslaskie",
+      extraRegions: ["lubuskie"],
+      status: "draft",
+    });
+
+    await place("Szczyt na granicy", [sudety], orgId, "Sudety");
+    await place("Szczyt w szkicu", [draft], orgId, "Sudety");
+
+    for (const region of ["dolnoslaskie", "lubuskie"]) {
+      const outcome = await search("sudety", region);
+
+      expect(titles(outcome), region).toEqual(["Sudety graniczne"]);
+      expect(names(outcome), region).toEqual(["Szczyt na granicy"]);
+      expect(outcome.status === "ok" && outcome.collections[0]?.extraRegions, region).toEqual([
+        "lubuskie",
+      ]);
+    }
+
+    // Another voivodeship, and a draft in the filter of its extra voivodeship, show nothing.
+    expect(titles(await search("sudety", "slaskie"))).toEqual([]);
+    expect(names(await search("sudety", "slaskie"))).toEqual([]);
+
+    const listed = async (region: string) =>
+      (await listAllPublishedCollections(region, deps)).collections.map((c) => c.title);
+
+    expect(await listed("lubuskie")).toEqual(["Sudety graniczne"]);
+    expect(await listed("dolnoslaskie")).toContain("Sudety graniczne");
+    expect(await listed("dolnoslaskie")).not.toContain("Sudety szkic graniczny");
+    expect(await listed("slaskie")).not.toContain("Sudety graniczne");
+
+    // A phrase naming the extra voivodeship finds the collection without a filter.
+    expect(titles(await search("lubus"))).toEqual(["Sudety graniczne"]);
   });
 
   it("does not show a draft, a withdrawn collection, one of a suspended organization or a place only in them", async () => {

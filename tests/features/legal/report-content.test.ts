@@ -21,8 +21,8 @@ describe("reportContentMailto (E5-0)", () => {
     );
     const { address, subject, body } = parts(href);
 
-    expect(href.startsWith("mailto:kontakt@mariuszskowron.pl?")).toBe(true);
-    expect(address).toBe("kontakt@mariuszskowron.pl");
+    expect(href.startsWith("mailto:zgloszenia@krajozbior.pl?")).toBe(true);
+    expect(address).toBe("zgloszenia@krajozbior.pl");
     expect(subject).toBe("Zgłoszenie treści: Most Tczewski");
     expect(body).toContain("https://krajozbior.example/places/abc (Most Tczewski)");
   });
@@ -72,7 +72,7 @@ describe("reportContentMailto (E5-0)", () => {
     ]) {
       expect(body).toContain(point);
     }
-    expect(body).not.toMatch(/@(?!mariuszskowron)/);
+    expect(body).not.toContain("@");
     expect(reportContentSubject({ path: "/" })).toBe("Zgłoszenie treści: /");
   });
 });

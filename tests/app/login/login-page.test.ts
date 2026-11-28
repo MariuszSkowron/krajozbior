@@ -157,7 +157,14 @@ describe("login page, step 2", () => {
     expect(html).not.toMatch(/<input id="code-verify-code"[^>]*autofocus/);
   });
 
-  it.each(["code_unavailable", "code_too_many_attempts"])(
+  it("says to try tomorrow at the daily code limit and a few minutes at the short one", async () => {
+    expect(await render({ error: "code_daily_limit" })).toContain(
+      "Dziś nie wyślemy już więcej kodów. Spróbuj jutro rano.",
+    );
+    expect(await render({ error: "code_too_many_attempts" })).toContain("za kilka minut");
+  });
+
+  it.each(["code_unavailable", "code_too_many_attempts", "code_daily_limit"])(
     "focuses the %s error but does not mark the code field invalid",
     async (error) => {
       const html = await render({ error });

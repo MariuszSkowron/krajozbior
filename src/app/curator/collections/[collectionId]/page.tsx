@@ -60,6 +60,13 @@ export default async function CollectionEditorPage({
               </span>{" "}
               <span className={styles.muted}>{REGION_LABELS[collection.region]}</span>
             </p>
+            {collection.extraRegions.length > 0 ? (
+              <p className={styles.muted}>
+                Także w:{" "}
+                {collection.extraRegions.map((region) => REGION_LABELS[region]).join(" · ")}.
+                Zmienisz to w pliku kolekcji.
+              </p>
+            ) : null}
             {collection.status === "published" ? (
               <p>
                 <Link href={`/collections/${collection.slug}`} target="_blank" rel="noopener">
@@ -85,6 +92,7 @@ export default async function CollectionEditorPage({
               summary: collection.summary,
               region: collection.region,
               version: collection.version,
+              hasExtraRegions: collection.extraRegions.length > 0,
             }}
           />
         </section>

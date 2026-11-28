@@ -92,7 +92,7 @@ describe("PostgresOtpSendLimiter", () => {
     }
 
     expect(decisions.slice(0, otpSendLimits.daily.email).every((d) => d.allowed)).toBe(true);
-    expect(decisions.at(-1)).toMatchObject({ allowed: false, reason: "rate" });
+    expect(decisions.at(-1)).toMatchObject({ allowed: false, reason: "daily" });
     // Another mailbox is not affected.
     expect(await limiter().reserve({ email: "ola@gmail.com", ip: "198.51.100.200" })).toEqual({
       allowed: true,
@@ -109,7 +109,7 @@ describe("PostgresOtpSendLimiter", () => {
     }
 
     expect(decisions.slice(0, otpSendLimits.daily.ip).every((d) => d.allowed)).toBe(true);
-    expect(decisions.at(-1)).toMatchObject({ allowed: false, reason: "rate" });
+    expect(decisions.at(-1)).toMatchObject({ allowed: false, reason: "daily" });
   });
 
   it("stops every request at the global daily limit, with the same answer for all", async () => {

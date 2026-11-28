@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { CollectionProgress } from "@/design-system/components/collection-progress";
 import type { PlaceCollection } from "@/features/catalog/application/catalog-types";
-import { REGION_LABELS } from "@/features/catalog/domain/collection";
+import { regionsLabelOf } from "@/features/catalog/domain/collection";
 import { formatUpdateDate } from "@/features/catalog/domain/album-view";
 import { formatPlaceCount } from "@/features/catalog/domain/place-count";
 import { THUMB_WIDTH } from "@/features/media/domain/limits";
@@ -52,7 +52,7 @@ export function PlaceCollections({
                 )}
               </div>
               <div className={styles.body}>
-                <span className={styles.region}>Kolekcja · {REGION_LABELS[collection.region]}</span>
+                <span className={styles.region}>Kolekcja · {regionsLabelOf(collection)}</span>
                 <h3 className={styles.title}>{collection.title}</h3>
                 {mine === undefined ? null : (
                   <CollectionProgress {...mine} label={`Postęp w kolekcji ${collection.title}`} />
