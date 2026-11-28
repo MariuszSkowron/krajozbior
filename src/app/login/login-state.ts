@@ -12,7 +12,7 @@ const CODE_ERRORS: Readonly<Record<string, string>> = {
   code_unavailable: "Logowanie kodem jest chwilowo niedostępne. Spróbuj ponownie.",
   code_too_many_attempts: "Zbyt wiele prób. Spróbuj ponownie za kilka minut.",
   // The daily limit of codes; the counters reset at UTC midnight (night in Poland).
-  code_daily_limit: "Na dziś wysłaliśmy już najwięcej kodów, ile się da. Spróbuj jutro rano.",
+  code_daily_limit: "Dziś nie wyślemy już więcej kodów. Spróbuj jutro rano.",
 };
 
 export function passwordMessage(errorCode: string | undefined): string | undefined {
