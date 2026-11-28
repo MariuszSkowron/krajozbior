@@ -163,6 +163,22 @@ const collectionCardColumns = `c.id, c.slug, c.title, c.region, c.extra_regions 
 // The cover lateral lives in `collection-cover-sql.ts` (shared with the news).
 const collectionCardJoin = collectionCoverLateral("cph");
 
+// Kandydat na „Miejsce dnia” (miejsce `p`): opis, gotowe zdjęcie, zatwierdzona organizacja i
+// opublikowana kolekcja. Licznik i wybór używają tego samego warunku, więc numer zawsze trafia.
+// Ukryte zdjęcie (`hidden_at`) odcina polityka `place_photos_select` w kontekście gościa; warunku
+// nie da się tu wypisać, bo rola aplikacji nie ma uprawnienia do odczytu kolumn `hidden_*`
+// (`Migration20261121170000_place_photos`). Pilnuje tego test integracyjny z ukrytym zdjęciem.
+const placeOfDayCandidate = `
+  p.description <> ''
+  and p.access_restriction = 'none'
+  and exists (select from public.organizations po where po.id = p.organization_id and po.status = 'approved')
+  and exists (select from public.place_photos x
+               where x.place_id = p.id and x.file_state = 'ready' and x.storage_key is not null)
+  and exists (select from public.collection_places cp
+                join public.collections c on c.id = cp.collection_id
+                join public.organizations co on co.id = c.organization_id
+               where cp.place_id = p.id and c.status = 'published' and co.status = 'approved')`;
+
 const LIKE = `like ? escape '\\'`;
 
 export const postgresCatalogRepository: CatalogRepository = {
@@ -741,6 +757,93 @@ export const postgresCatalogRepository: CatalogRepository = {
     return rows.map(toRecentCollection);
   },
 
+  async listCollectionsPublishedSince(tx: TransactionContext, since, limit) {
+    const rows = await tx.em.execute<(CollectionCardRow & { firstPublishedAt: Date | string })[]>(
+      `select ${collectionCardColumns}, c.first_published_at as "firstPublishedAt"
+         from public.collections c
+         join public.organizations o on o.id = c.organization_id
+         ${collectionCardJoin}
+        where c.status = 'published' and o.status = 'approved'
+          and c.first_published_at >= ?
+        order by c.first_published_at desc, c.id
+        limit ?`,
+      [since, limit],
+    );
+
+    return rows.map(({ firstPublishedAt, ...row }) => ({
+      ...toRecentCollection(row),
+      firstPublishedAt: new Date(firstPublishedAt),
+    }));
+  },
+
+  async countPlaceOfDayCandidates(tx: TransactionContext) {
+    const rows = await tx.em.execute<{ count: number }[]>(
+      `select count(*)::int as count
+         from public.places p
+        where ${placeOfDayCandidate}`,
+    );
+
+    return rows[0]?.count ?? 0;
+  },
+
+  async findPlaceOfDayAt(tx: TransactionContext, offset) {
+    // Zdjęcie: pierwsze gotowe i widoczne dla gościa; kolekcja: pierwsza publiczna wg tytułu.
+    const rows = await tx.em.execute<
+      {
+        id: string;
+        name: string;
+        description: string;
+        collectionSlug: string;
+        collectionTitle: string;
+        photoId: string;
+        width: number;
+        height: number;
+        altText: string;
+      }[]
+    >(
+      `select p.id, p.name, p.description,
+              pc.slug as "collectionSlug", pc.title as "collectionTitle",
+              ph.id as "photoId", ph.width, ph.height, ph.alt_text as "altText"
+         from public.places p
+         join lateral (
+           select c.slug, c.title
+             from public.collection_places cp
+             join public.collections c on c.id = cp.collection_id
+             join public.organizations co on co.id = c.organization_id
+            where cp.place_id = p.id and c.status = 'published' and co.status = 'approved'
+            order by c.title, c.id
+            limit 1
+         ) pc on true
+         join lateral (
+           select x.id, x.width, x.height, x.alt_text
+             from public.place_photos x
+            where x.place_id = p.id and x.file_state = 'ready' and x.storage_key is not null
+            order by x.position
+            limit 1
+         ) ph on true
+        where ${placeOfDayCandidate}
+        order by p.id
+        offset ? limit 1`,
+      [offset],
+    );
+    const row = rows[0];
+
+    return row === undefined
+      ? null
+      : {
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          collection: { slug: row.collectionSlug, title: row.collectionTitle },
+          photo: {
+            photoId: row.photoId,
+            width: row.width,
+            height: row.height,
+            altText: row.altText,
+          },
+        };
+  },
+
   async findCollectionBanner(tx: TransactionContext, slug) {
     // Okładka opublikowanej kolekcji z pełnym podpisem i miejscem zdjęcia (baner strony głównej).
     // Kontekst gościa zostawia tylko zdjęcie, które wolno zobaczyć każdemu.
@@ -767,7 +870,8 @@ export const postgresCatalogRepository: CatalogRepository = {
     // Pula banera (R3, PR 4): miejsce z listy QID, w opublikowanej kolekcji zatwierdzonej
     // organizacji, z pierwszym gotowym zdjęciem nadającym się na baner (>= 1100 px, nie szersze niż
     // 16:9). Kontekst gościa zostawia tylko zdjęcie, które wolno zobaczyć każdemu; kolumny
-    // `hidden_*` nie są czytane. Ten sam QID u kilku miejsc daje jedno (najmniejsze `id`, stały wybór).
+    // `hidden_*` nie są czytane. Miejsce z ograniczeniem dostępu (`access_restriction` inne niż
+    // `none`) odpada, jak w „Miejscu dnia” (C-01). Ten sam QID u kilku miejsc daje jedno (najmniejsze `id`, stały wybór).
     return tx.em.execute<HomeBannerCandidate[]>(
       `select distinct on (s.wikidata_qid)
               s.wikidata_qid as qid,
@@ -790,6 +894,7 @@ export const postgresCatalogRepository: CatalogRepository = {
             limit 1
          ) ph on true
         where s.wikidata_qid in (${qids.map(() => "?").join(", ")})
+          and p.access_restriction = 'none'
           and o.status = 'approved'
           and exists (
             select

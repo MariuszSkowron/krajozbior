@@ -1,4 +1,5 @@
 import { isUuid } from "@/features/catalog/domain/uuid";
+import { warsawToday } from "@/lib/time/warsaw-today";
 
 import { MAX_PAST_VISITS_PER_REQUEST } from "./limits";
 import { DATE_PRECISIONS } from "./visit-outcome";
@@ -19,20 +20,6 @@ export type PastVisitRequest = Readonly<{
 
 /** The earliest date accepted. */
 export const EARLIEST_VISIT_DATE = "1900-01-01";
-
-const TIME_ZONE = "Europe/Warsaw";
-
-const warsawDay = new Intl.DateTimeFormat("en-CA", {
-  timeZone: TIME_ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
-
-/** Today's date (YYYY-MM-DD) in Poland. The clock is a parameter, so tests can set it. */
-export function warsawToday(now: Date): string {
-  return warsawDay.format(now);
-}
 
 const DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
 const MONTH = /^(\d{4})-(\d{2})$/;
