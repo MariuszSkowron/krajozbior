@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CONTACT_ADDRESSES,
   CONTACT_EMAIL,
   LEGAL_PAGES,
   isLegalPath,
@@ -26,8 +27,16 @@ describe("the legal pages", () => {
     });
   });
 
-  it("name the contact address of the decision D-36", () => {
-    expect(CONTACT_EMAIL).toBe("kontakt@mariuszskowron.pl");
+  it("name the contact address of the decision D-63", () => {
+    expect(CONTACT_EMAIL).toBe("kontakt@krajozbior.pl");
+    expect(Object.values(CONTACT_ADDRESSES).sort()).toEqual([
+      "bezpieczenstwo@krajozbior.pl",
+      "kontakt@krajozbior.pl",
+      "partnerzy@krajozbior.pl",
+      "prywatnosc@krajozbior.pl",
+      "reklamacje@krajozbior.pl",
+      "zgloszenia@krajozbior.pl",
+    ]);
   });
 });
 
