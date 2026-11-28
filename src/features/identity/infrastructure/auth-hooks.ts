@@ -1,5 +1,7 @@
 import "server-only";
 
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { APIError, type BetterAuthOptions } from "better-auth";
 
 import type { EmailSender } from "@/lib/email/email-sender";
@@ -147,9 +149,21 @@ export function createSendSignInCode(deps: SignInCodeDeps) {
       return;
     }
 
-    void deliverSignInCode(deps, data.email, data.otp);
+    // A full daily pool (otp-send-limits.ts): the code is already stored, only
+    // the hand-over is skipped, at the same point as for an admin address. No
+    // context (another call path) means deliver.
+    if (signInCodeDelivery.getStore()?.deliver === false) {
+      return;
+    }
+
+    // A macrotask: rendering and the start of the hand-over run after the
+    // callback has returned, off the answer's path, whatever is delivered.
+    setImmediate(() => void deliverSignInCode(deps, data.email, data.otp));
   };
 }
+
+// Set by BetterAuthIdentityProvider.requestSignInCode around the call into better-auth.
+export const signInCodeDelivery = new AsyncLocalStorage<{ deliver: boolean }>();
 
 async function deliverSignInCode(deps: SignInCodeDeps, to: string, code: string): Promise<void> {
   try {

@@ -25,10 +25,13 @@ describe("sign-in code request keys", () => {
       expect(name).not.toContain("203.0.113.7");
     }
     expect(keys.daily.map(({ scope }) => scope).sort()).toEqual([
+      "accounts",
       "email",
       "emailIp",
       "global",
       "ip",
+      "newAccounts",
+      "sentEmail",
     ]);
   });
 
