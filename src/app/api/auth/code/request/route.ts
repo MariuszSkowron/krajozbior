@@ -31,8 +31,9 @@ const requestSchema = z.object({ email: z.email().max(254) });
 // gets a code), so it reveals nothing about accounts.
 //
 // Requests have limits of their own (otp-send-limits.ts): per address (aliases
-// such as `+tag` count as one address), per address from one IP, per IP and a
-// global daily limit of the application. They are counted apart from password
+// such as `+tag` count as one address), per address from one IP, per IP and daily
+// pools of codes that go out (accounts, new addresses); a full pool never changes the answer,
+// only whether the message is sent. They are counted apart from password
 // sign-in, so asking for codes to an admin's address never uses up the admin's
 // password attempts.
 export async function POST(request: Request) {
@@ -70,16 +71,23 @@ export async function POST(request: Request) {
       });
 
       if (!decision.allowed) {
-        const retryAfter = { "Retry-After": String(decision.retryAfterSeconds) };
-
-        return decision.reason === "global"
-          ? failure(request, returnTo, 503, "code_unavailable", retryAfter, entry)
-          : failure(request, returnTo, 429, "code_too_many_attempts", retryAfter, entry);
+        return failure(
+          request,
+          returnTo,
+          429,
+          decision.reason === "daily" ? "code_daily_limit" : "code_too_many_attempts",
+          { "Retry-After": String(decision.retryAfterSeconds) },
+          entry,
+        );
       }
 
       // Best effort and bounded; its failure never blocks the code.
       await cleanupExpiredSessions();
-      await getIdentityProvider().requestSignInCode(parsed.data.email, request.headers);
+      // The same work and the same answer whether or not the message goes out
+      // (a full daily pool skips only the hand-over to the mail provider).
+      await getIdentityProvider().requestSignInCode(parsed.data.email, request.headers, {
+        deliver: decision.deliver,
+      });
     } catch (error) {
       logFailure("Sign-in code request", error);
       return failure(request, returnTo, 503, "code_unavailable", {}, entry);

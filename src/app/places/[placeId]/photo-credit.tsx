@@ -40,7 +40,7 @@ export function PhotoCreditLine({
       {credit.author.url === null ? (
         credit.author.text
       ) : (
-        <a className={link} href={credit.author.url} rel="noopener noreferrer">
+        <a className={link} href={credit.author.url} rel="ugc nofollow noopener noreferrer">
           {credit.author.text}
         </a>
       )}
@@ -80,7 +80,7 @@ export function PhotoCredit({ photo }: Readonly<{ photo: PhotoCreditInput }>) {
         {credit.author.url === null ? (
           credit.author.text
         ) : (
-          <a href={credit.author.url} rel="noopener noreferrer">
+          <a href={credit.author.url} rel="ugc nofollow noopener noreferrer">
             {credit.author.text}
           </a>
         )}

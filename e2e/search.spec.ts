@@ -16,6 +16,8 @@ const TAG = "(e2e-search)";
 const LODZ = `Łódź włókniarzy ${TAG}`;
 const ZULAWY = `Żuławy ${TAG}`;
 const DRAFT = `Szkic wieży ${TAG}`;
+const SUDETY = `Sudety graniczne ${TAG}`;
+const SUDETY_PLACE = `Szczyt sudecki ${TAG}`;
 const TOWER = `Wieża ciśnień ${TAG}`;
 const DRAFT_PLACE = `Wieża tylko w szkicu ${TAG}`;
 const CURATOR = "curator-a@demo.krajozbior.local";
@@ -51,17 +53,23 @@ async function createFixtures() {
        join auth.users u on u.id = m.user_id where u.email = $1 limit 1`,
     [CURATOR],
   );
-  const collection = async (title: string, region: string, status: string) =>
+  const collection = async (
+    title: string,
+    region: string,
+    status: string,
+    extraRegions: readonly string[] = [],
+  ) =>
     (
       await adminQuery<{ id: string }>(
-        `insert into public.collections (slug, organization_id, title, summary, region, status)
-         values ($1, $2, $3, '', $4, $5) returning id`,
+        `insert into public.collections (slug, organization_id, title, summary, region, status, extra_regions)
+         values ($1, $2, $3, '', $4, $5, $6::text[]) returning id`,
         [
           `e2e-search-${Math.random().toString(36).slice(2, 10)}`,
           organizationId,
           title,
           region,
           status,
+          extraRegions,
         ],
       )
     )[0]!.id;
@@ -82,7 +90,10 @@ async function createFixtures() {
   const lodz = await collection(LODZ, "lodzkie", "published");
   const zulawy = await collection(ZULAWY, "pomorskie", "published");
   const draft = await collection(DRAFT, "pomorskie", "draft");
+  // A land on the border of two voivodeships: the main one and one extra (D-63).
+  const sudety = await collection(SUDETY, "dolnoslaskie", "published", ["opolskie"]);
 
+  await place(SUDETY_PLACE, "ul. Górska, Nowa Ruda", sudety);
   await place(TOWER, "ul. Żurawia 3, Tczew", zulawy);
   await place(`Fabryka Poznańskiego ${TAG}`, "ul. Ogrodowa, Łódź", lodz);
   await place(DRAFT_PLACE, "ul. Szkicowa", draft);
@@ -247,6 +258,33 @@ test.describe("search", () => {
     // A phrase with a region: the region of a collection can also be the phrase.
     await page.goto("/search?q=pomor");
     await expect(page.getByRole("link", { name: /Żuławy/ })).toBeVisible();
+  });
+
+  test("shows a collection of two voivodeships in the filter of each, with both names on the card", async ({
+    page,
+  }) => {
+    for (const region of ["dolnoslaskie", "opolskie"]) {
+      await page.goto(`/search?region=${region}`);
+      await waitForHydration(page);
+
+      const card = page.getByRole("link", { name: /Sudety graniczne/ });
+
+      await expect(card).toBeVisible();
+      // Nazwy są osobnymi elementami (kropka ukryta przed czytnikiem, przecinek tylko dla niego):
+      // nazwa dostępna karty ma je w tej kolejności, po przecinku (Chromium wstawia spację przed
+      // przecinkiem, bo nazwy są osobnymi elementami blokowymi w wierszu, więc `\s*`).
+      await expect(card).toHaveAccessibleName(/Dolnośląskie\s*,\s*Opolskie/);
+    }
+
+    await page.goto("/search?region=slaskie");
+    await expect(page.getByRole("link", { name: /Sudety graniczne/ })).toHaveCount(0);
+
+    // The phrase names the extra voivodeship: the collection is found without a filter, and the
+    // collection page names both.
+    await page.goto("/search?q=opol");
+    await expect(page.getByRole("link", { name: /Sudety graniczne/ })).toBeVisible();
+    await page.getByRole("link", { name: /Sudety graniczne/ }).click();
+    await expect(page.getByText("Kolekcja · Dolnośląskie · Opolskie")).toBeVisible();
   });
 
   test("announces the number of results in a status region", async ({ page }) => {

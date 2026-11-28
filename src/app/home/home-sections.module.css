@@ -209,3 +209,67 @@
   align-items: center;
   gap: var(--space-sm);
 }
+
+/* „Miejsce dnia”: zdjęcie nad tekstem na telefonie, obok na komputerze. */
+.day {
+  display: grid;
+  overflow: hidden;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.dayImage {
+  display: block;
+  width: 100%;
+  height: 12rem;
+  object-fit: cover;
+}
+
+.dayBody {
+  display: grid;
+  gap: var(--space-sm);
+  justify-items: start;
+  padding: var(--space-md);
+}
+
+.dayBody p,
+.dayBody h3 {
+  margin: 0;
+}
+
+.dayTitle {
+  color: var(--color-text-strong);
+}
+
+@media (min-width: 48rem) {
+  .day {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  }
+
+  .dayImage {
+    height: 100%;
+    min-height: 14rem;
+  }
+
+  .dayBody {
+    align-content: center;
+    padding: var(--space-lg);
+  }
+}
+
+/* Zachęta do zapisu: dwa przyciski w jednym rzędzie, komunikat pod spodem (pusty bez wysokości). */
+.nudgeActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.nudgeStatus {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}

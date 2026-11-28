@@ -9,7 +9,11 @@
 
 import { z } from "zod";
 
-import { isRegion, validateCollectionInput } from "@/features/catalog/domain/collection";
+import {
+  isRegion,
+  normalizeExtraRegions,
+  validateCollectionInput,
+} from "@/features/catalog/domain/collection";
 import type { Region } from "@/features/catalog/domain/collection";
 import {
   ACCESS_RESTRICTIONS,
@@ -124,6 +128,9 @@ const collectionSchema = z.strictObject({
   title: z.string(),
   summary: z.string(),
   region: z.string(),
+  // Absent: the collection keeps what it has; `[]` clears; a list sets exactly that list. The
+  // count rule (at most 3) is the domain's `too_many`; the bound here only caps absurd input.
+  extra_regions: z.array(z.string()).max(16).optional(),
   places: z.array(importKey).min(1).max(MAX_PLACES_IN_FILE_COLLECTION),
   publish: z.boolean().optional(),
   review: z.strictObject({ status: z.literal("approved") }),
@@ -251,6 +258,8 @@ export type ImportCollection = Readonly<{
   title: string;
   summary: string;
   region: Region;
+  /** `null`: the file does not say (the collection keeps its extra regions); `[]` clears them. */
+  extraRegions: readonly Region[] | null;
   placeKeys: readonly string[];
   publish: boolean;
 }>;
@@ -537,12 +546,33 @@ export function parseImportFile(
         return;
       }
 
+      let extraRegions: readonly Region[] | null = null;
+
+      if (parsed.data.extra_regions !== undefined) {
+        const extra = normalizeExtraRegions(checked.value.region, parsed.data.extra_regions);
+
+        if (!extra.ok) {
+          extra.errors.forEach(({ code, index }) =>
+            fail(
+              line,
+              index === null || code !== "bad_value" ? "extra_regions" : `extra_regions[${index}]`,
+              code,
+            ),
+          );
+
+          return;
+        }
+
+        extraRegions = extra.value;
+      }
+
       collections.push({
         line,
         importKey: parsed.data.import_key,
         title: checked.value.title,
         summary: checked.value.summary,
         region: checked.value.region,
+        extraRegions,
         placeKeys: parsed.data.places,
         publish: parsed.data.publish ?? false,
       });

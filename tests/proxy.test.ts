@@ -42,6 +42,7 @@ describe("proxy coverage and caching", () => {
     "/favicon.ico",
     "/next.svg",
     "/robots.txt",
+    "/.well-known/security.txt",
     "/fonts/inter.woff2",
   ])("skips %s", (url) => {
     expect(unstable_doesMiddlewareMatch({ config, url })).toBe(false);

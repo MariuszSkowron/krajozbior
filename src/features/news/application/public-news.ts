@@ -39,6 +39,16 @@ export async function listPublicNews(
   return filter === "events" ? currentEvents(cards, now).slice(0, NEWS_LIST_LIMIT) : cards;
 }
 
+/** The newest `limit` published items (the home page reads three, not the whole list). */
+export async function listLatestNews(
+  limit: number,
+  deps: NewsReadDeps,
+): Promise<readonly PublicNewsCard[]> {
+  const rows = await deps.withGuestContext((tx) => deps.repository.listPublished(tx, null, limit));
+
+  return rows.map((row) => ({ ...row, verification: verificationOf(row.organization.slug) }));
+}
+
 export type PublicNewsResult =
   Readonly<{ status: "ok"; value: PublicNewsItem }> | Readonly<{ status: "not_found" }>;
 

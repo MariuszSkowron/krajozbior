@@ -20,6 +20,7 @@ export function FavoriteCollections({
   banner,
   fallbackBanner,
   hasVisits = false,
+  hasSaveNudge = false,
 }: Readonly<{
   collections: readonly SavedCollectionSummary[];
   /** Okładka pierwszej zapisanej kolekcji (`null`: brak zdjęcia albo nieudany odczyt). */
@@ -28,6 +29,11 @@ export function FavoriteCollections({
   fallbackBanner: CollectionBanner | null;
   /** Odkrywca ma już wizytę: pusty stan nie twierdzi, że nie ma nic, tylko zachęca do zapisu. */
   hasVisits?: boolean;
+  /**
+   * Pod banerem stoi zachęta „Masz już miejsca z tej kolekcji” (zapis zaczętej kolekcji); ona
+   * zastępuje zdanie stanu pustego, żeby odkrywca nie czytał go dwa razy.
+   */
+  hasSaveNudge?: boolean;
 }>) {
   const [first] = collections;
 
@@ -43,11 +49,13 @@ export function FavoriteCollections({
       </div>
       {first === undefined ? (
         <HomeBanner cover={fallbackBanner} size="short">
-          <p className={bannerStyles.lead}>
-            {hasVisits
-              ? "Zapisz kolekcję, a pokażemy tu Twój postęp w niej."
-              : "Nie masz jeszcze zapisanych kolekcji. Zapisz pierwszą, a pojawi się tutaj."}
-          </p>
+          {hasVisits && hasSaveNudge ? null : (
+            <p className={bannerStyles.lead}>
+              {hasVisits
+                ? "Zapisz kolekcję, a pokażemy tu Twój postęp w niej."
+                : "Nie masz jeszcze zapisanych kolekcji. Zapisz pierwszą, a pojawi się tutaj."}
+            </p>
+          )}
           <div className={bannerStyles.actions}>
             <Link className="button button--primary" href="#do-odkrycia">
               Zobacz kolekcje

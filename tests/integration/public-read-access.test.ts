@@ -160,6 +160,7 @@ describe("public read of collections and places (guest context)", () => {
         title: "Publiczna",
         summary: "Opis kolekcji",
         region: "pomorskie",
+        extraRegions: [],
         organization: { name: "Gmina A", slug: "gmina-a" },
         places: [
           {
@@ -208,6 +209,7 @@ describe("public read of collections and places (guest context)", () => {
             slug: collection.slug,
             title: "Publiczna",
             region: "pomorskie",
+            extraRegions: [],
             position: 1,
             placeCount: 2,
             contentUpdatedAt: expect.any(Date),
@@ -538,6 +540,7 @@ describe("public read of collections and places (guest context)", () => {
       slug: open.slug,
       title: "Publiczna strony głównej",
       region: "pomorskie",
+      extraRegions: [],
       organization: { name: "Gmina B" },
       placeCount: 2,
       cover: null,
@@ -545,6 +548,7 @@ describe("public read of collections and places (guest context)", () => {
     // The fields are public ones only: no organization id, no version, no status.
     expect(Object.keys(list[0]!).sort()).toEqual([
       "cover",
+      "extraRegions",
       "id",
       "organization",
       "placeCount",
@@ -723,6 +727,7 @@ describe("public read of collections and places (guest context)", () => {
       expect(result.status === "ok" ? Object.keys(result.value).sort() : []).toEqual([
         "contentUpdatedAt",
         "cover",
+        "extraRegions",
         "id",
         "organization",
         "placeCount",

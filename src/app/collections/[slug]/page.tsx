@@ -19,7 +19,7 @@ import {
   parseView,
   type VisitKind,
 } from "@/features/catalog/domain/album-view";
-import { REGION_LABELS } from "@/features/catalog/domain/collection";
+import { regionsLabelOf } from "@/features/catalog/domain/collection";
 import { ogCoverDescription, ogImageUrl } from "@/features/catalog/domain/collection-cover";
 import { formatPlaceCount } from "@/features/catalog/domain/place-count";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
@@ -179,7 +179,7 @@ export default async function CollectionPage({
     <div className={`content-width-wide ${styles.page}`}>
       <CollectionCover
         cover={collection.cover}
-        eyebrow={`Kolekcja · ${REGION_LABELS[collection.region]}`}
+        eyebrow={`Kolekcja · ${regionsLabelOf(collection)}`}
       >
         <h1>{collection.title}</h1>
         {album.kind === "explorer" ? (

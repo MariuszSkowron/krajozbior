@@ -4,8 +4,9 @@
 # below 20%, available memory below 10%, a service is not running, the TLS certificate expires
 # in less than 14 days, or Brevo refused at least one e-mail in the last hour
 # (`email.brevo_rejected`), the daily pool of sign-in codes reached 80% or 100%
-# (`auth.otp_global_limit_*`), or the newest backup is older than 26 hours. Prints only counts and
-# names. Keep this file ASCII-only.
+# (`auth.otp_global_limit_*`, `auth.otp_accounts_limit_*`, `auth.otp_new_account_limit_*`) or codes
+# were skipped because a pool was full (`auth.otp_send_skipped`), or the newest backup is older
+# than 26 hours. Prints only counts and names. Keep this file ASCII-only.
 set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
@@ -50,9 +51,21 @@ rejected="$(journalctl CONTAINER_NAME="$KZ_PROJECT-app-1" --since '-1h' -o cat -
 # owner learns about it from the e-mail; the check runs hourly, so an alarm logged earlier in the
 # same day shows up for one hour only. The window is 65 minutes, so a timer that fires a little
 # late cannot leave a gap in which the one-off alarm would be missed (a double e-mail is harmless).
-otp_alarms="$(journalctl CONTAINER_NAME="$KZ_PROJECT-app-1" --since '-65min' -o cat --no-pager 2>/dev/null |
-  grep -c 'auth\.otp_global_limit_' || true)"
+# The same for the two separate pools (`auth.otp_accounts_limit_*` for existing accounts and
+# `auth.otp_new_account_limit_*` for new addresses), each on its own line, and the number of codes
+# skipped silently because a pool or the per-IP limit of new addresses was full
+# (`auth.otp_send_skipped` with pool accounts, new or new_ip; pool sent, the per-mailbox limit,
+# is not counted).
+otp_log="$(journalctl CONTAINER_NAME="$KZ_PROJECT-app-1" --since '-65min' -o cat --no-pager 2>/dev/null || true)"
+otp_count() { printf '%s\n' "$otp_log" | grep -cE "$1" || true; }
+otp_alarms="$(otp_count 'auth\.otp_global_limit_')"
 [ "${otp_alarms:-0}" -eq 0 ] || problems+=("pula dziennych kodow logowania wyczerpana w co najmniej 80% (alarm $otp_alarms razy w ostatniej godzinie)")
+otp_accounts_alarms="$(otp_count 'auth\.otp_accounts_limit_')"
+[ "${otp_accounts_alarms:-0}" -eq 0 ] || problems+=("pula kodow dla kont wyczerpana w co najmniej 80% (alarm $otp_accounts_alarms razy w ostatniej godzinie)")
+otp_new_alarms="$(otp_count 'auth\.otp_new_account_limit_')"
+[ "${otp_new_alarms:-0}" -eq 0 ] || problems+=("pula kodow dla nowych adresow wyczerpana w co najmniej 80% (alarm $otp_new_alarms razy w ostatniej godzinie)")
+otp_skipped="$(otp_count '"event":"auth\.otp_send_skipped","pool":"(accounts|new|new_ip)"')"
+[ "${otp_skipped:-0}" -eq 0 ] || problems+=("pominieto wysylke kodu logowania $otp_skipped razy w ostatniej godzinie (pelna pula albo limit nowych adresow z jednego IP)")
 
 if [ "${#problems[@]}" -eq 0 ]; then
   kz_step "zasoby w porzadku (dysk ${used}%, pamiec wolna ${mem}%)"

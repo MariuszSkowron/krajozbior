@@ -19,7 +19,7 @@ import type {
   SignInResult,
 } from "../domain/identity-provider";
 import { SESSION_LIMIT_MS } from "../domain/session-policy";
-import { createDatabaseHooks, createSendSignInCode } from "./auth-hooks";
+import { createDatabaseHooks, createSendSignInCode, signInCodeDelivery } from "./auth-hooks";
 import { authLogger } from "./auth-logger";
 import { deleteAccountRows } from "./delete-account-rows";
 
@@ -265,8 +265,15 @@ export class BetterAuthIdentityProvider implements IdentityProvider {
     return toSignInResult(response);
   }
 
-  async requestSignInCode(email: string, headers: Headers): Promise<void> {
-    await this.auth().api.sendVerificationOTP({ body: { email, type: "sign-in" }, headers });
+  async requestSignInCode(
+    email: string,
+    headers: Headers,
+    options: { deliver?: boolean } = {},
+  ): Promise<void> {
+    // The flag reaches the sendVerificationOTP callback through async local storage.
+    await signInCodeDelivery.run({ deliver: options.deliver ?? true }, () =>
+      this.auth().api.sendVerificationOTP({ body: { email, type: "sign-in" }, headers }),
+    );
   }
 
   async signInWithCode(

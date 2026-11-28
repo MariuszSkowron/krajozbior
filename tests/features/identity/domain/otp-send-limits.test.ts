@@ -4,6 +4,9 @@ import {
   decideOtpSend,
   globalLimitAlarm,
   msUntilNextUtcDay,
+  NEW_ACCOUNTS_PER_IP_DAILY,
+  otpPools,
+  SENT_PER_EMAIL_DAILY,
   OTP_SEND_WINDOW_SECONDS,
   otpSendLimits,
   type OtpDailyBucket,
@@ -24,15 +27,28 @@ function win(overrides: Partial<OtpWindowBucket> = {}): OtpWindowBucket {
   };
 }
 
-const decide = (window: OtpWindowBucket[], daily: OtpDailyBucket[] = [], globalLimit = 250) =>
-  decideOtpSend({ window, daily, globalLimit, now });
+const SENT = { allowed: true, deliver: true, skipped: null } as const;
+const skipped = (reason: "accounts" | "new" | "new_ip" | "sent") =>
+  ({ allowed: true, deliver: false, skipped: reason }) as const;
+
+const decide = (
+  window: OtpWindowBucket[],
+  daily: OtpDailyBucket[] = [],
+  options: { globalLimit?: number; newAccountLimit?: number; hasAccount?: boolean } = {},
+) =>
+  decideOtpSend({
+    window,
+    daily,
+    globalLimit: options.globalLimit ?? 250,
+    newAccountLimit: options.newAccountLimit ?? 100,
+    hasAccount: options.hasAccount ?? false,
+    now,
+  });
 
 describe("decideOtpSend: limits of sign-in code requests", () => {
   it("allows a request with room everywhere, also with no stored rows", () => {
-    expect(decide([])).toEqual({ allowed: true });
-    expect(decide([win({ attempts: 2 })], [{ scope: "global", count: 249 }])).toEqual({
-      allowed: true,
-    });
+    expect(decide([])).toEqual(SENT);
+    expect(decide([win({ attempts: 2 })], [{ scope: "global", count: 249 }])).toEqual(SENT);
   });
 
   it.each([
@@ -45,13 +61,13 @@ describe("decideOtpSend: limits of sign-in code requests", () => {
       reason: "rate",
       retryAfterSeconds: OTP_SEND_WINDOW_SECONDS - 300,
     });
-    expect(decide([win({ scope, attempts: limit - 1 })])).toEqual({ allowed: true });
+    expect(decide([win({ scope, attempts: limit - 1 })])).toEqual(SENT);
   });
 
   it("counts an ended window as empty", () => {
-    expect(decide([win({ attempts: 99, windowStartedAt: ago(OTP_SEND_WINDOW_SECONDS) })])).toEqual({
-      allowed: true,
-    });
+    expect(decide([win({ attempts: 99, windowStartedAt: ago(OTP_SEND_WINDOW_SECONDS) })])).toEqual(
+      SENT,
+    );
   });
 
   it("refuses during an operator block and ignores an ended one", () => {
@@ -62,7 +78,7 @@ describe("decideOtpSend: limits of sign-in code requests", () => {
       reason: "rate",
       retryAfterSeconds: 600,
     });
-    expect(decide([win({ lockedUntil: ago(1) })])).toEqual({ allowed: true });
+    expect(decide([win({ lockedUntil: ago(1) })])).toEqual(SENT);
   });
 
   it.each([
@@ -72,34 +88,128 @@ describe("decideOtpSend: limits of sign-in code requests", () => {
   ] as const)("refuses a full daily %s bucket until UTC midnight", (scope, limit) => {
     expect(decide([], [{ scope, count: limit }])).toEqual({
       allowed: false,
-      reason: "rate",
+      reason: "daily",
       retryAfterSeconds: HOUR,
     });
-    expect(decide([], [{ scope, count: limit - 1 }])).toEqual({ allowed: true });
+    // An account: the IP threshold for new addresses (30) does not apply to it.
+    expect(decide([], [{ scope, count: limit - 1 }], { hasAccount: true })).toEqual(SENT);
   });
 
   it("takes the longest wait of several full buckets", () => {
     expect(
       decide(
         [win({ scope: "email", attempts: 5, windowStartedAt: ago(60) })],
-        [{ scope: "ip", count: 30 }],
+        [{ scope: "ip", count: 100 }],
       ),
-    ).toEqual({ allowed: false, reason: "rate", retryAfterSeconds: HOUR });
+    ).toEqual({ allowed: false, reason: "daily", retryAfterSeconds: HOUR });
     expect(
       decide(
         [win({ scope: "email", attempts: 5, windowStartedAt: ago(60) })],
-        [{ scope: "ip", count: 29 }],
+        [{ scope: "ip", count: 99 }],
       ),
     ).toEqual({ allowed: false, reason: "rate", retryAfterSeconds: OTP_SEND_WINDOW_SECONDS - 60 });
   });
 
-  it("answers with the global limit first, whatever the other buckets say", () => {
-    expect(decide([win({ attempts: 99 })], [{ scope: "global", count: 250 }])).toEqual({
+  it("answers 429 identically for an address with and without an account", () => {
+    const daily: OtpDailyBucket[] = [{ scope: "email", count: otpSendLimits.daily.email }];
+
+    expect(decide([], daily, { hasAccount: true })).toEqual(
+      decide([], daily, { hasAccount: false }),
+    );
+    expect(decide([], daily, { hasAccount: true })).toMatchObject({
       allowed: false,
-      reason: "global",
-      retryAfterSeconds: HOUR,
+      reason: "daily",
     });
-    expect(decide([], [{ scope: "global", count: 10 }], 10).allowed).toBe(false);
+  });
+});
+
+describe("decideOtpSend: pools of codes that go out", () => {
+  const full = (scope: OtpDailyBucket["scope"], count: number): OtpDailyBucket => ({
+    scope,
+    count,
+  });
+
+  it("sends to an account while the accounts pool (total minus new) has room", () => {
+    const options = { globalLimit: 10, newAccountLimit: 4, hasAccount: true };
+
+    expect(decide([], [full("accounts", 5)], options)).toEqual(SENT);
+    expect(decide([], [full("accounts", 6)], options)).toEqual(skipped("accounts"));
+  });
+
+  it("sends to a new address while the new pool has room", () => {
+    const options = { globalLimit: 10, newAccountLimit: 4 };
+
+    expect(decide([], [full("newAccounts", 3)], options)).toEqual(SENT);
+    expect(decide([], [full("newAccounts", 4)], options)).toEqual(skipped("new"));
+  });
+
+  it("keeps the pools apart: a full pool does not touch the other one", () => {
+    const options = { globalLimit: 10, newAccountLimit: 4 };
+
+    expect(decide([], [full("newAccounts", 4)], { ...options, hasAccount: true })).toEqual(SENT);
+    expect(decide([], [full("accounts", 6)], options)).toEqual(SENT);
+  });
+
+  it("never refuses when every pool is full", () => {
+    const daily = [full("accounts", 6), full("newAccounts", 4), full("global", 10)];
+
+    expect(decide([], daily, { globalLimit: 10, newAccountLimit: 4, hasAccount: true })).toEqual(
+      skipped("accounts"),
+    );
+    expect(decide([], daily, { globalLimit: 10, newAccountLimit: 4 })).toEqual(skipped("new"));
+  });
+
+  it("uses one shared pool when the new share is not smaller than the total", () => {
+    const options = { globalLimit: 10, newAccountLimit: 10 };
+
+    expect(decide([], [full("global", 9)], options)).toEqual(SENT);
+    expect(decide([], [full("global", 10)], options)).toEqual(skipped("new"));
+    expect(decide([], [full("global", 10)], { ...options, hasAccount: true })).toEqual(
+      skipped("accounts"),
+    );
+  });
+
+  it("skips a new address from an IP with 30 requests today, but not an account", () => {
+    // The threshold is a parameter of the state, so the branch is reachable
+    // whatever the daily IP limit (which is 100 today and answers 429 first).
+    const ipThreshold = (hasAccount: boolean, count: number) =>
+      decideOtpSend({
+        window: [],
+        daily: [full("ip", count)],
+        globalLimit: 250,
+        newAccountLimit: 100,
+        newAccountsPerIp: 20,
+        hasAccount,
+        now,
+      });
+
+    expect(ipThreshold(false, 19)).toEqual(SENT);
+    expect(ipThreshold(false, 20)).toEqual(skipped("new_ip"));
+    expect(ipThreshold(true, 20)).toEqual(SENT);
+    expect(NEW_ACCOUNTS_PER_IP_DAILY).toBe(30);
+  });
+
+  it("uses the default threshold of 30 requests per IP when the state gives none", () => {
+    expect(decide([], [full("ip", NEW_ACCOUNTS_PER_IP_DAILY - 1)])).toEqual(SENT);
+    expect(decide([], [full("ip", NEW_ACCOUNTS_PER_IP_DAILY)])).toEqual(skipped("new_ip"));
+  });
+
+  it("has no IP threshold without an IP bucket", () => {
+    expect(decide([], [])).toEqual(SENT);
+  });
+
+  it("skips codes to a mailbox that already got five today, whatever the pools", () => {
+    const daily = [full("sentEmail", SENT_PER_EMAIL_DAILY)];
+
+    expect(decide([], daily, { hasAccount: true })).toEqual(skipped("sent"));
+    expect(decide([], daily)).toEqual(skipped("sent"));
+    expect(decide([], [full("sentEmail", SENT_PER_EMAIL_DAILY - 1)])).toEqual(SENT);
+  });
+
+  it("computes the pool sizes", () => {
+    expect(otpPools(250, 100)).toEqual({ shared: false, accounts: 150, newAccounts: 100 });
+    expect(otpPools(10, 10)).toEqual({ shared: true, accounts: 10, newAccounts: 10 });
+    expect(otpPools(10, 50)).toEqual({ shared: true, accounts: 10, newAccounts: 10 });
   });
 });
 
@@ -107,6 +217,48 @@ describe("msUntilNextUtcDay", () => {
   it("counts to the next UTC midnight", () => {
     expect(msUntilNextUtcDay(now)).toBe(HOUR * 1000);
     expect(msUntilNextUtcDay(new Date("2026-11-15T00:00:00Z"))).toBe(24 * HOUR * 1000);
+  });
+});
+
+describe("day boundary (UTC, not Polish time)", () => {
+  const HOUR_MS = 3_600_000;
+
+  it("the day ends at UTC midnight: 01:00 in winter and 02:00 in summer in Poland", () => {
+    // 28.11 23:59:30 UTC (winter, 00:59:30 in Poland): 30 s to the reset.
+    expect(msUntilNextUtcDay(new Date("2026-11-28T23:59:30Z"))).toBe(30_000);
+    // Exactly UTC midnight: a new day starts, the next reset is 24 h away.
+    expect(msUntilNextUtcDay(new Date("2026-11-29T00:00:00Z"))).toBe(24 * HOUR_MS);
+    // Polish midnight in winter (23:00 UTC) is not the boundary: one hour left.
+    expect(msUntilNextUtcDay(new Date("2026-11-28T23:00:00Z"))).toBe(HOUR_MS);
+    // Summer: Polish midnight is 22:00 UTC; two hours left.
+    expect(msUntilNextUtcDay(new Date("2026-07-15T22:00:00Z"))).toBe(2 * HOUR_MS);
+  });
+
+  it("a full daily bucket sends Retry-After to UTC midnight, as a daily refusal", () => {
+    // Polish noon (11:00 UTC in winter): 13 h to 00:00 UTC.
+    const decision = decideOtpSend({
+      window: [],
+      daily: [{ scope: "email", count: otpSendLimits.daily.email }],
+      globalLimit: 250,
+      newAccountLimit: 100,
+      hasAccount: false,
+      now: new Date("2026-11-28T11:00:00Z"),
+    });
+
+    expect(decision).toEqual({ allowed: false, reason: "daily", retryAfterSeconds: 13 * 3600 });
+  });
+
+  it("the first second of a new UTC day lets the request in (no row for the new day)", () => {
+    expect(
+      decideOtpSend({
+        window: [],
+        daily: [],
+        globalLimit: 250,
+        newAccountLimit: 100,
+        hasAccount: false,
+        now: new Date("2026-11-29T00:00:01Z"),
+      }),
+    ).toEqual(SENT);
   });
 });
 

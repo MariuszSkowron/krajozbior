@@ -28,6 +28,11 @@ export default function CuratorLayout({ children }: Readonly<{ children: ReactNo
               <li>
                 <CuratorMenuLink className={styles.menuLink}>Kolekcje</CuratorMenuLink>
               </li>
+              <li>
+                <CuratorMenuLink className={styles.menuLink} href="/curator/reports">
+                  Zgłoszenia
+                </CuratorMenuLink>
+              </li>
             </ul>
             <Link className={`${styles.menuLink} ${styles.menuProfile}`} href="/my">
               Mój album

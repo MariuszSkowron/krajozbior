@@ -30,7 +30,12 @@ type CollectionFormProps = Readonly<
   | { mode: "create"; organizationId: string }
   | {
       mode: "edit";
-      collection: CollectionValues & { id: string; version: number };
+      collection: CollectionValues & {
+        id: string;
+        version: number;
+        /** Kolekcja ma dodatkowe województwa (lista „Także w”): pole województwa dostaje podpowiedź. */
+        hasExtraRegions?: boolean;
+      };
     }
 >;
 
@@ -204,7 +209,16 @@ function CollectionFields({
           />
         )}
       </Field>
-      <Field id={FIELDS.region[0]} label="Województwo" invalidHint={hint("region")}>
+      <Field
+        id={FIELDS.region[0]}
+        label="Województwo"
+        help={
+          props.mode === "edit" && props.collection.hasExtraRegions
+            ? "Gdy wybierzesz województwo z listy „Także w”, po zapisaniu zniknie ono z tej listy, a obecne główne na nią nie trafi."
+            : undefined
+        }
+        invalidHint={hint("region")}
+      >
         {(aria) => (
           <select {...aria} name="region" defaultValue={initial.region} required>
             {REGIONS.map((region) => (

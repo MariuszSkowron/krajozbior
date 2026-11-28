@@ -25,7 +25,7 @@ import type {
   RecentCollection,
   SearchPlaceHit,
 } from "../application/catalog-types";
-import type { CollectionStatus, Region } from "../domain/collection";
+import { isRegion, type CollectionStatus, type Region } from "../domain/collection";
 import {
   MAX_COLLECTIONS_PER_LIST,
   MAX_COVER_CANDIDATES,
@@ -39,14 +39,37 @@ import { SEARCH_TIME_BUDGET_MS, foldSql, remainingBudgetMs } from "../domain/sea
 // Coordinates are bound parameters of a curator's own place, never a log field.
 
 const collectionColumns = `c.id, c.slug, c.organization_id as "organizationId", c.title,
-  c.summary, c.region, c.status, c.first_published_at as "firstPublishedAt", c.version`;
+  c.summary, c.region, c.extra_regions as "extraRegions", c.status,
+  c.first_published_at as "firstPublishedAt", c.version`;
 const returningCollection = `id, slug, organization_id as "organizationId", title,
-  summary, region, status, first_published_at as "firstPublishedAt", version`;
+  summary, region, extra_regions as "extraRegions", status,
+  first_published_at as "firstPublishedAt", version`;
 const placeColumns = `id, organization_id as "organizationId", name, description, address,
   access_info as "accessInfo", access_restriction as "accessRestriction", latitude, longitude,
   visit_radius_m as "visitRadiusM", version`;
 
 const first = <T>(rows: readonly T[]): T | null => rows[0] ?? null;
+
+// The CHECK keeps `extra_regions` clean; an unknown value is still dropped on the way out.
+const knownRegions = (raw: unknown): Region[] => (Array.isArray(raw) ? raw.filter(isRegion) : []);
+
+const withKnownRegions = <T extends { extraRegions: unknown }>(
+  row: T,
+): Omit<T, "extraRegions"> & { extraRegions: Region[] } => ({
+  ...row,
+  extraRegions: knownRegions(row.extraRegions),
+});
+
+const firstCollection = (rows: readonly CollectionRow[]): CollectionRow | null => {
+  const row = first(rows);
+
+  return row === null ? null : withKnownRegions(row);
+};
+
+// The filter of the region form: the main voivodeship or one of the extra ones. The code is
+// bound twice (the order of the bindings follows the SQL).
+const collectionInRegion = (collection: string) =>
+  `(${collection}.region = ?::text or ?::text = any(${collection}.extra_regions))`;
 
 const SLUG_CONSTRAINT = "collections_slug_key";
 
@@ -94,6 +117,7 @@ type CollectionCardRow = {
   slug: string;
   title: string;
   region: Region;
+  extraRegions: unknown;
   organizationName: string;
   placeCount: number;
   coverPhotoId: string | null;
@@ -108,9 +132,11 @@ const toRecentCollection = ({
   coverWidth,
   coverHeight,
   coverAltText,
+  extraRegions,
   ...rest
 }: CollectionCardRow): RecentCollection => ({
   ...rest,
+  extraRegions: knownRegions(extraRegions),
   organization: { name: organizationName },
   cover: toCardCover({ coverPhotoId, coverWidth, coverHeight, coverAltText }),
 });
@@ -118,13 +144,30 @@ const toRecentCollection = ({
 // The columns of a collection card (public fields only); the collection is `c`, its organization
 // `o`, its cover photo `cph` (see `collectionCardJoin`). A card shows the id, size and description
 // of the cover photo, never the author or any column the application role cannot read.
-const collectionCardColumns = `c.id, c.slug, c.title, c.region, o.name as "organizationName",
+const collectionCardColumns = `c.id, c.slug, c.title, c.region, c.extra_regions as "extraRegions",
+  o.name as "organizationName",
   (select count(*)::int from public.collection_places cp
     where cp.collection_id = c.id) as "placeCount",
   ${coverCardColumns("cph")}`;
 
 // The cover lateral lives in `collection-cover-sql.ts` (shared with the news).
 const collectionCardJoin = collectionCoverLateral("cph");
+
+// Kandydat na „Miejsce dnia” (miejsce `p`): opis, gotowe zdjęcie, zatwierdzona organizacja i
+// opublikowana kolekcja. Licznik i wybór używają tego samego warunku, więc numer zawsze trafia.
+// Ukryte zdjęcie (`hidden_at`) odcina polityka `place_photos_select` w kontekście gościa; warunku
+// nie da się tu wypisać, bo rola aplikacji nie ma uprawnienia do odczytu kolumn `hidden_*`
+// (`Migration20261121170000_place_photos`). Pilnuje tego test integracyjny z ukrytym zdjęciem.
+const placeOfDayCandidate = `
+  p.description <> ''
+  and p.access_restriction = 'none'
+  and exists (select from public.organizations po where po.id = p.organization_id and po.status = 'approved')
+  and exists (select from public.place_photos x
+               where x.place_id = p.id and x.file_state = 'ready' and x.storage_key is not null)
+  and exists (select from public.collection_places cp
+                join public.collections c on c.id = cp.collection_id
+                join public.organizations co on co.id = c.organization_id
+               where cp.place_id = p.id and c.status = 'published' and co.status = 'approved')`;
 
 const LIKE = `like ? escape '\\'`;
 
@@ -141,7 +184,7 @@ export const postgresCatalogRepository: CatalogRepository = {
   },
 
   async findEditableCollection(tx, id, options) {
-    return first(
+    return firstCollection(
       await tx.em.execute<CollectionRow[]>(
         `select ${collectionColumns}
            from public.collections c
@@ -153,7 +196,7 @@ export const postgresCatalogRepository: CatalogRepository = {
   },
 
   async insertCollection(tx, values) {
-    return first(
+    return firstCollection(
       await tx.em.execute<CollectionRow[]>(
         `insert into public.collections (slug, organization_id, title, summary, region, status)
          values (?, ?, ?, ?, ?, 'draft')
@@ -165,19 +208,42 @@ export const postgresCatalogRepository: CatalogRepository = {
   },
 
   async updateCollection(tx, id, version, values) {
-    return first(
+    // A new main voivodeship leaves the extra ones in the same statement (the CHECK forbids it
+    // in both), so the change also holds when the main one becomes one of the extra ones.
+    return firstCollection(
       await tx.em.execute<CollectionRow[]>(
         `update public.collections
-            set title = ?, summary = ?, region = ?, version = version + 1, updated_at = now()
+            set title = ?, summary = ?, region = ?::text,
+                extra_regions = array_remove(extra_regions, ?::text),
+                version = version + 1, updated_at = now()
           where id = ? and version = ?
           returning ${returningCollection}`,
-        [values.title, values.summary, values.region, id, version],
+        [values.title, values.summary, values.region, values.region, id, version],
       ),
     );
   },
 
+  async setExtraRegions(tx, id, regions) {
+    // The order of the list is kept (`with ordinality`); the import passes it in the order of
+    // `REGIONS` (`normalizeExtraRegions`). The main voivodeship is dropped here,
+    // so a parallel change of the main one in the panel never breaks the CHECK (23514).
+    const rows = await tx.em.execute<{ id: string }[]>(
+      `update public.collections
+          set extra_regions = array(
+            select r.code
+              from jsonb_array_elements_text(?::jsonb) with ordinality as r(code, ord)
+             where r.code <> region
+             order by r.ord)
+        where id = ?
+        returning id`,
+      [JSON.stringify(regions), id],
+    );
+
+    return rows.length > 0;
+  },
+
   async setCollectionStatus(tx, id, version, status: CollectionStatus) {
-    return first(
+    return firstCollection(
       await tx.em.execute<CollectionRow[]>(
         `update public.collections
             set status = ?, version = version + 1, updated_at = now()
@@ -195,7 +261,7 @@ export const postgresCatalogRepository: CatalogRepository = {
     await tx.em.execute(`savepoint first_publication_slug`);
 
     try {
-      const row = first(
+      const row = firstCollection(
         await tx.em.execute<CollectionRow[]>(
           `update public.collections
               set status = 'published', slug = ?, version = version + 1, updated_at = now()
@@ -523,7 +589,7 @@ export const postgresCatalogRepository: CatalogRepository = {
         // The count and the date read the same rows as the list of places below (a place
         // joined through `collection_places`, in the guest context), so they never show more
         // than the page lists. `greatest` skips a null (a collection without places).
-        `select c.id, c.slug, c.title, c.summary, c.region,
+        `select c.id, c.slug, c.title, c.summary, c.region, c.extra_regions as "extraRegions",
                 o.name as "organizationName", o.slug as "organizationSlug",
                 (select count(*)::int
                    from public.collection_places cp
@@ -604,6 +670,7 @@ export const postgresCatalogRepository: CatalogRepository = {
 
     return {
       ...rest,
+      extraRegions: knownRegions(rest.extraRegions),
       contentUpdatedAt: new Date(contentUpdatedAt),
       organization: { name: organizationName, slug: organizationSlug },
       places,
@@ -624,6 +691,93 @@ export const postgresCatalogRepository: CatalogRepository = {
     );
 
     return rows.map(toRecentCollection);
+  },
+
+  async listCollectionsPublishedSince(tx: TransactionContext, since, limit) {
+    const rows = await tx.em.execute<(CollectionCardRow & { firstPublishedAt: Date | string })[]>(
+      `select ${collectionCardColumns}, c.first_published_at as "firstPublishedAt"
+         from public.collections c
+         join public.organizations o on o.id = c.organization_id
+         ${collectionCardJoin}
+        where c.status = 'published' and o.status = 'approved'
+          and c.first_published_at >= ?
+        order by c.first_published_at desc, c.id
+        limit ?`,
+      [since, limit],
+    );
+
+    return rows.map(({ firstPublishedAt, ...row }) => ({
+      ...toRecentCollection(row),
+      firstPublishedAt: new Date(firstPublishedAt),
+    }));
+  },
+
+  async countPlaceOfDayCandidates(tx: TransactionContext) {
+    const rows = await tx.em.execute<{ count: number }[]>(
+      `select count(*)::int as count
+         from public.places p
+        where ${placeOfDayCandidate}`,
+    );
+
+    return rows[0]?.count ?? 0;
+  },
+
+  async findPlaceOfDayAt(tx: TransactionContext, offset) {
+    // Zdjęcie: pierwsze gotowe i widoczne dla gościa; kolekcja: pierwsza publiczna wg tytułu.
+    const rows = await tx.em.execute<
+      {
+        id: string;
+        name: string;
+        description: string;
+        collectionSlug: string;
+        collectionTitle: string;
+        photoId: string;
+        width: number;
+        height: number;
+        altText: string;
+      }[]
+    >(
+      `select p.id, p.name, p.description,
+              pc.slug as "collectionSlug", pc.title as "collectionTitle",
+              ph.id as "photoId", ph.width, ph.height, ph.alt_text as "altText"
+         from public.places p
+         join lateral (
+           select c.slug, c.title
+             from public.collection_places cp
+             join public.collections c on c.id = cp.collection_id
+             join public.organizations co on co.id = c.organization_id
+            where cp.place_id = p.id and c.status = 'published' and co.status = 'approved'
+            order by c.title, c.id
+            limit 1
+         ) pc on true
+         join lateral (
+           select x.id, x.width, x.height, x.alt_text
+             from public.place_photos x
+            where x.place_id = p.id and x.file_state = 'ready' and x.storage_key is not null
+            order by x.position
+            limit 1
+         ) ph on true
+        where ${placeOfDayCandidate}
+        order by p.id
+        offset ? limit 1`,
+      [offset],
+    );
+    const row = rows[0];
+
+    return row === undefined
+      ? null
+      : {
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          collection: { slug: row.collectionSlug, title: row.collectionTitle },
+          photo: {
+            photoId: row.photoId,
+            width: row.width,
+            height: row.height,
+            altText: row.altText,
+          },
+        };
   },
 
   async findCollectionBanner(tx: TransactionContext, slug) {
@@ -652,7 +806,8 @@ export const postgresCatalogRepository: CatalogRepository = {
     // Pula banera (R3, PR 4): miejsce z listy QID, w opublikowanej kolekcji zatwierdzonej
     // organizacji, z pierwszym gotowym zdjęciem nadającym się na baner (>= 1100 px, nie szersze niż
     // 16:9). Kontekst gościa zostawia tylko zdjęcie, które wolno zobaczyć każdemu; kolumny
-    // `hidden_*` nie są czytane. Ten sam QID u kilku miejsc daje jedno (najmniejsze `id`, stały wybór).
+    // `hidden_*` nie są czytane. Miejsce z ograniczeniem dostępu (`access_restriction` inne niż
+    // `none`) odpada, jak w „Miejscu dnia” (C-01). Ten sam QID u kilku miejsc daje jedno (najmniejsze `id`, stały wybór).
     return tx.em.execute<HomeBannerCandidate[]>(
       `select distinct on (s.wikidata_qid)
               s.wikidata_qid as qid,
@@ -675,6 +830,7 @@ export const postgresCatalogRepository: CatalogRepository = {
             limit 1
          ) ph on true
         where s.wikidata_qid in (${qids.map(() => "?").join(", ")})
+          and p.access_restriction = 'none'
           and o.status = 'approved'
           and exists (
             select
@@ -736,7 +892,7 @@ export const postgresCatalogRepository: CatalogRepository = {
         coverAltText: string | null;
       })[]
     >(
-      `select c.id, c.slug, c.title, c.region,
+      `select c.id, c.slug, c.title, c.region, c.extra_regions as "extraRegions",
               (select count(*)::int from public.collection_places x
                 where x.collection_id = c.id and x.position <= cp.position) as position,
               (select count(*)::int from public.collection_places x
@@ -766,6 +922,7 @@ export const postgresCatalogRepository: CatalogRepository = {
     const collections: PlaceCollection[] = collectionRows.map(
       ({ contentUpdatedAt, coverPhotoId, coverWidth, coverHeight, coverAltText, ...rest }) => ({
         ...rest,
+        extraRegions: knownRegions(rest.extraRegions),
         contentUpdatedAt: new Date(contentUpdatedAt),
         cover: toCardCover({ coverPhotoId, coverWidth, coverHeight, coverAltText }),
       }),
@@ -843,10 +1000,10 @@ export const postgresCatalogRepository: CatalogRepository = {
          from public.collections c
          join public.organizations o on o.id = c.organization_id
          ${collectionCardJoin}
-        where ${publishedCollection} ${region === null ? "" : "and c.region = ?"}
+        where ${publishedCollection} ${region === null ? "" : `and ${collectionInRegion("c")}`}
         order by c.title, c.id
         limit ?`,
-      region === null ? [limit] : [region, limit],
+      region === null ? [limit] : [region, region, limit],
     );
 
     return rows.map(toRecentCollection);
@@ -865,7 +1022,10 @@ export const postgresCatalogRepository: CatalogRepository = {
     await limitStatement();
 
     const region = criteria.region;
-    const regionFilter = region === null ? [] : [region];
+    // The code is bound twice: the filter names it twice (main or extra voivodeship).
+    const regionFilter = region === null ? [] : [region, region];
+    const regionClause = region === null ? "" : `and ${collectionInRegion("c")}`;
+    const namedRegions = JSON.stringify(criteria.namedRegions);
     // One more than shown: the extra row only says "there is more".
     const take = limit + 1;
     const collections = await tx.em.execute<CollectionCardRow[]>(
@@ -873,17 +1033,19 @@ export const postgresCatalogRepository: CatalogRepository = {
          from public.collections c
          join public.organizations o on o.id = c.organization_id
          ${collectionCardJoin}
-        where ${publishedCollection} ${region === null ? "" : "and c.region = ?"}
+        where ${publishedCollection} ${regionClause}
           and (${foldSql("c.title")} ${LIKE}
             or ${foldSql("c.summary")} ${LIKE}
-            or c.region in (select jsonb_array_elements_text(?::jsonb)))
+            or c.region in (select jsonb_array_elements_text(?::jsonb))
+            or c.extra_regions && array(select jsonb_array_elements_text(?::jsonb)))
         order by (${foldSql("c.title")} ${LIKE}) desc, c.title, c.id
         limit ?`,
       [
         ...regionFilter,
         criteria.contains,
         criteria.contains,
-        JSON.stringify(criteria.namedRegions),
+        namedRegions,
+        namedRegions,
         criteria.prefix,
         take,
       ],
@@ -902,7 +1064,7 @@ export const postgresCatalogRepository: CatalogRepository = {
             join public.collections c on c.id = cp.collection_id
             join public.organizations o on o.id = c.organization_id
            where cp.place_id = p.id and ${publishedCollection}
-             ${region === null ? "" : "and c.region = ?"}
+             ${regionClause}
            order by c.title, c.slug
            limit 1
         ) pc

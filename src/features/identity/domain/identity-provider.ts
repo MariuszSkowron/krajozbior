@@ -34,7 +34,14 @@ export interface IdentityProvider {
   signIn(credentials: Credentials, headers: Headers): Promise<SignInResult | null>;
   // Asks for a sign-in code sent to the address. Resolves the same way whether
   // or not an account exists, so the answer reveals nothing about accounts.
-  requestSignInCode(email: string, headers: Headers): Promise<void>;
+  // With `deliver: false` the code is created and stored the same way, but the
+  // message is not handed to the mail provider (a full daily pool); the work
+  // and the answer stay the same. Default: deliver.
+  requestSignInCode(
+    email: string,
+    headers: Headers,
+    options?: { deliver?: boolean },
+  ): Promise<void>;
   // Signs in (and on first use creates a `user` account) with a code from the
   // e-mail. Null for a wrong, expired or used-up code.
   signInWithCode(credentials: CodeCredentials, headers: Headers): Promise<SignInResult | null>;
