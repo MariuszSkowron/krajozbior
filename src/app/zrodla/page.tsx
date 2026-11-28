@@ -89,9 +89,10 @@ export default function SourcesPage() {
       <section aria-labelledby="wikipedia" className={styles.section}>
         <h2 id="wikipedia">Wikipedia</h2>
         <p>
-          Przy miejscach, które mają artykuł w polskiej Wikipedii, dajemy tylko odnośnik „Więcej w
-          Wikipedii”. Nie kopiujemy i nie przerabiamy tekstów artykułów. Autorów artykułu i jego
-          licencję (CC BY-SA 4.0) zobaczysz na stronie samego artykułu.
+          Przy miejscach, które mają artykuł w polskiej Wikipedii, dajemy odnośnik „Więcej w
+          Wikipedii”. Fakty z artykułów Wikipedii wykorzystujemy jako jedno ze źródeł; nie kopiujemy
+          tekstu artykułów. Autorów artykułu i jego licencję (CC BY-SA 4.0) zobaczysz na stronie
+          samego artykułu.
         </p>
       </section>
 
@@ -116,10 +117,10 @@ export default function SourcesPage() {
       <section aria-labelledby="opisy" className={styles.section}>
         <h2 id="opisy">Opisy miejsc</h2>
         <p>
-          Opisy układamy sami, z faktów podanych w źródłach powyżej. Część zdań składamy ze wzorów,
-          do których wstawiamy dane z rejestrów i otwartych źródeł; każdy opis przed publikacją
-          czyta i poprawia redakcja serwisu. Kurator może opis poprawić; wtedy tekst jest już jego
-          autorstwa.
+          Opisy miejsc przygotowuje redakcja serwisu na podstawie źródeł wymienionych na tej
+          stronie, korzystając z narzędzi, w tym ze sztucznej inteligencji. Redakcja na bieżąco
+          przegląda i poprawia opisy, także po zgłoszeniach odkrywców. Kurator może opis poprawić;
+          wtedy tekst jest już jego autorstwa.
         </p>
       </section>
 

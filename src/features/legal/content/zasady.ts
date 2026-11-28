@@ -13,7 +13,7 @@ To streszczenie regulaminu i polityki prywatności napisane prostym językiem. N
 - **Nasz serwer i kopie zapasowe są w Niemczech.**
 - **Mapa** pochodzi z OpenStreetMap. Gdy wybierzesz widok „Mapa”, Twoja przeglądarka łączy się z serwerami OpenStreetMap i przekazuje im Twój adres IP. Lista miejsc działa bez tego.
 - **Nie śledzimy Cię.** Nie używamy narzędzi analitycznych ani reklamowych. W przeglądarce zapisujemy tylko to, co niezbędne: pliki cookies logowania (także adres e-mail na 10 minut między krokami logowania), wyglądu i szkicu profilu oraz, do zamknięcia karty, informację o zamkniętym pasku informacyjnym.
-- **Opisy miejsc** powstają z faktów podanych w źródłach, które wymieniamy na stronie „Źródła danych”. Część składamy ze wzorów zdań, do których wstawiamy dane z rejestrów i otwartych źródeł; każdy opis przed publikacją czyta i poprawia człowiek — redakcja serwisu.
+- **Opisy miejsc** przygotowuje redakcja serwisu na podstawie źródeł wymienionych na stronie „Źródła danych”, korzystając z narzędzi, w tym ze sztucznej inteligencji. Redakcja na bieżąco przegląda i poprawia opisy, także po zgłoszeniach odkrywców.
 - **Widzisz treść niezgodną z prawem albo z regulaminem?** Napisz na adres ${ADDRESS.reports}, podaj dokładny adres URL miejsca, opisz treść i podaj swoje imię, nazwisko oraz adres e-mail (wyjątek dla zgłoszeń anonimowych w najpoważniejszych sprawach opisuje rozdział 8 regulaminu).
 - **Odwiedzaj miejsca rozważnie.** Nie wchodź na teren prywatny ani ogrodzony i uważaj w ruinach oraz na wieżach. Do potwierdzenia wizyty wystarczy, że będziesz w pobliżu.
 
