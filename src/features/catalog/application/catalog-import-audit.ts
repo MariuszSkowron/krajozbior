@@ -69,9 +69,14 @@ export function resultOfOutcome(
       const collections: Record<string, number> = {};
       const places: Record<string, number> = {};
       const photos: Record<string, number> = {};
+      let extraRegionsUpdated = 0;
 
       for (const collection of outcome.collections) {
         count(collections, collection.result);
+
+        if (collection.extraRegions === "updated") {
+          extraRegionsUpdated += 1;
+        }
 
         for (const place of collection.places) {
           count(places, place.result);
@@ -95,6 +100,8 @@ export function resultOfOutcome(
           photos_removed: photos.removed ?? 0,
           photos_kept_manual: (photos.kept_manual_edit ?? 0) + (photos.kept_manual_delete ?? 0),
           photos_skipped_unknown_license: photos.skipped_unknown_license ?? 0,
+          // Only a count, no region codes; absent when no collection changed (as before).
+          ...(extraRegionsUpdated > 0 ? { extra_regions_updated: extraRegionsUpdated } : {}),
         },
       };
     }

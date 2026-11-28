@@ -6,7 +6,7 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import { CollectionCard } from "@/design-system/components/collection-card";
 import { StatusBadge } from "@/design-system/components/status-badge";
 import type { RecentCollection } from "@/features/catalog/application/catalog-types";
-import { REGION_LABELS } from "@/features/catalog/domain/collection";
+import { regionsLabelOf } from "@/features/catalog/domain/collection";
 import { cardCoverImage } from "@/features/catalog/domain/collection-cover";
 import {
   NEARBY_COARSE_ACCURACY_M,
@@ -225,7 +225,7 @@ export function CollectionsToDiscover({
                   <CollectionCard
                     href={`/collections/${collection.slug}`}
                     title={collection.title}
-                    regionLabel={REGION_LABELS[collection.region]}
+                    regionLabel={regionsLabelOf(collection)}
                     cover={cardCoverImage(collection.cover)}
                     note={
                       <>

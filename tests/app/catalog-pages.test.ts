@@ -54,6 +54,7 @@ const collection = {
   title: "Wieże <Tczewa>",
   summary: "Krótki opis",
   region: "pomorskie",
+  extraRegions: [] as string[],
   organization: { name: "Gmina A", slug: "gmina-a" },
   places: [
     {
@@ -88,6 +89,7 @@ const place = {
       slug: "kolekcja-a1b2c3",
       title: "Wieże Tczewa",
       region: "pomorskie",
+      extraRegions: [],
       position: 2,
       placeCount: 13,
       contentUpdatedAt: new Date("2026-11-22T10:00:00Z"),
@@ -123,6 +125,19 @@ describe("public catalog pages", () => {
   it("are rendered on every request", () => {
     expect(collectionPage.dynamic).toBe("force-dynamic");
     expect(placePage.dynamic).toBe("force-dynamic");
+  });
+
+  it("name every voivodeship of a collection in the heading, the main one first", async () => {
+    mocks.collection.mockResolvedValue({
+      status: "ok",
+      value: { ...collection, region: "dolnoslaskie", extraRegions: ["opolskie"] },
+    });
+
+    const html = renderToStaticMarkup(
+      await collectionPage.default({ params: Promise.resolve({ slug: next() }) }),
+    );
+
+    expect(html).toContain("Kolekcja · Dolnośląskie · Opolskie");
   });
 
   it("show a collection with region, organization and places linking to place pages", async () => {
