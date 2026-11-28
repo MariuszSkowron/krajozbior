@@ -91,7 +91,8 @@ describe("decideOtpSend: limits of sign-in code requests", () => {
       reason: "daily",
       retryAfterSeconds: HOUR,
     });
-    expect(decide([], [{ scope, count: limit - 1 }])).toEqual(SENT);
+    // An account: the IP threshold for new addresses (30) does not apply to it.
+    expect(decide([], [{ scope, count: limit - 1 }], { hasAccount: true })).toEqual(SENT);
   });
 
   it("takes the longest wait of several full buckets", () => {
@@ -117,7 +118,7 @@ describe("decideOtpSend: limits of sign-in code requests", () => {
     );
     expect(decide([], daily, { hasAccount: true })).toMatchObject({
       allowed: false,
-      reason: "rate",
+      reason: "daily",
     });
   });
 });
@@ -170,7 +171,7 @@ describe("decideOtpSend: pools of codes that go out", () => {
 
   it("skips a new address from an IP with 30 requests today, but not an account", () => {
     // The threshold is a parameter of the state, so the branch is reachable
-    // whatever the daily IP limit (which is 30 today and answers 429 first).
+    // whatever the daily IP limit (which is 100 today and answers 429 first).
     const ipThreshold = (hasAccount: boolean, count: number) =>
       decideOtpSend({
         window: [],
@@ -234,6 +235,8 @@ describe("day boundary (UTC, not Polish time)", () => {
       window: [],
       daily: [{ scope: "email", count: otpSendLimits.daily.email }],
       globalLimit: 250,
+      newAccountLimit: 100,
+      hasAccount: false,
       now: new Date("2026-11-28T11:00:00Z"),
     });
 
@@ -246,9 +249,11 @@ describe("day boundary (UTC, not Polish time)", () => {
         window: [],
         daily: [],
         globalLimit: 250,
+        newAccountLimit: 100,
+        hasAccount: false,
         now: new Date("2026-11-29T00:00:01Z"),
       }),
-    ).toEqual({ allowed: true });
+    ).toEqual(SENT);
   });
 });
 
