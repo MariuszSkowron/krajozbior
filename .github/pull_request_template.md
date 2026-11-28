@@ -33,7 +33,7 @@ Wynik lokalny / ograniczenia:
 ## Przegląd
 
 - [ ] Ścieżki z `.github/CODEOWNERS`: PR czeka na zatwierdzenie właściciela (bez auto-merge).
-- Statusy `agent-review` i `security-review` ustawiają agenci przeglądu (`docs/agent-workflow.md`).
+- Statusy `agent-review` i `security-review` ustawia orkiestrator po przeglądach (`docs/agent-workflow.md`).
 
 ## Szczegóły techniczne
 
