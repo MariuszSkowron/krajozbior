@@ -31,6 +31,19 @@
   font-size: var(--font-size-sm);
 }
 
+/* Linia „Część krainy” pod opisem kolekcji tematycznej: tekst jak linia kuratora, linki podkreślone. */
+.landLine {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.landLine a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
 .updated {
   color: var(--color-text-meta);
   font-size: var(--font-size-sm);

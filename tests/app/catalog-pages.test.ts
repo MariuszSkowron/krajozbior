@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   collection: vi.fn(),
+  related: vi.fn(),
   place: vi.fn(),
   actor: vi.fn(),
   visited: vi.fn(),
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/features/catalog/application/public-catalog", () => ({
   getPublishedCollection: mocks.collection,
+  listRelatedCollections: mocks.related,
   getPublishedPlace: mocks.place,
 }));
 vi.mock("@/features/catalog/infrastructure/catalog-deps", () => ({ getCatalogDeps: () => ({}) }));
@@ -55,6 +57,7 @@ const collection = {
   summary: "Krótki opis",
   region: "pomorskie",
   extraRegions: [] as string[],
+  kind: "theme",
   organization: { name: "Gmina A", slug: "gmina-a" },
   places: [
     {
@@ -112,6 +115,8 @@ const next = () => `adres-${(counter += 1)}`;
 beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   mocks.collection.mockReset();
+  // Default: no related collections (the page of a collection looks as before the second layer).
+  mocks.related.mockReset().mockResolvedValue([]);
   mocks.place.mockReset();
   mocks.visited.mockReset();
   mocks.kinds.mockReset();
@@ -589,6 +594,152 @@ describe("public catalog pages", () => {
       expect(html).not.toContain("Masz już zapisaną wizytę");
       expect(html).not.toContain("Z przeszłości");
       expect(html).not.toContain("Usuń wizytę z przeszłości");
+    });
+  });
+
+  describe("the second layer: lands and theme collections", () => {
+    const render = async () =>
+      renderToStaticMarkup(
+        await collectionPage.default({ params: Promise.resolve({ slug: next() }) }),
+      );
+    const card = (slug: string, title: string, sharedPlaces: number) => ({
+      id: `id-${slug}`,
+      slug,
+      title,
+      region: "warminsko_mazurskie",
+      extraRegions: [] as string[],
+      placeCount: 9,
+      cover: null,
+      sharedPlaces,
+    });
+    const land = { ...collection, kind: "land", title: "Warmia" };
+
+    it("shows nothing extra for a collection without related collections (characterization)", async () => {
+      for (const kind of ["land", "theme"]) {
+        mocks.collection.mockResolvedValue({ status: "ok", value: { ...collection, kind } });
+
+        const html = await render();
+
+        expect(html).toContain(">Miejsca w kolekcji</h2>");
+        expect(html).toContain("Kurator: Gmina A");
+        expect(html).not.toContain("W tej krainie są też kolekcje");
+        expect(html).not.toContain("Część krainy");
+        expect(html).not.toContain("Miejsca z tej kolekcji leżą");
+      }
+    });
+
+    it("lists the theme collections on the page of a land, with the common places", async () => {
+      mocks.collection.mockResolvedValue({ status: "ok", value: land });
+      mocks.related.mockResolvedValue([
+        card("wieze-aaaaaa", "Wieże ciśnień", 3),
+        card("zamki-bbbbbb", "Zamki", 1),
+      ]);
+
+      const html = await render();
+
+      expect(html).toContain('<h2 id="tez-kolekcje">W tej krainie są też kolekcje</h2>');
+      expect(html).toContain('href="/collections/wieze-aaaaaa"');
+      expect(html).toContain('href="/collections/zamki-bbbbbb"');
+      expect(html).toContain("3 miejsca z tej krainy");
+      expect(html).toContain("1 miejsce z tej krainy");
+      expect(html.indexOf("Wieże ciśnień")).toBeLessThan(html.indexOf("Zamki"));
+      // The section comes after the places.
+      expect(html.indexOf("Miejsca w kolekcji")).toBeLessThan(html.indexOf("tez-kolekcje"));
+      expect(mocks.related).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "c1", kind: "land" }),
+        expect.anything(),
+      );
+    });
+
+    it("shows the progress of an explorer on every card, and hides only the card that failed", async () => {
+      mocks.collection.mockResolvedValue({ status: "ok", value: land });
+      mocks.related.mockResolvedValue([
+        card("wieze-aaaaaa", "Wieże ciśnień", 3),
+        card("zamki-bbbbbb", "Zamki", 1),
+      ]);
+      mocks.actor.mockResolvedValue({ id: "u1", role: "user" });
+      mocks.progress.mockImplementation(async (_actor: unknown, id: string) => {
+        if (id === "id-zamki-bbbbbb") {
+          throw new Error("db down");
+        }
+
+        return {
+          status: "ok",
+          value: {
+            saved: false,
+            progress: { kind: "progress", visited: id === "c1" ? 1 : 2, total: 9 },
+          },
+        };
+      });
+
+      const html = await render();
+
+      expect(html).toContain("Postęp w kolekcji Wieże ciśnień");
+      expect(html).not.toContain("Postęp w kolekcji Zamki");
+      expect(html).toContain("Zamki");
+    });
+
+    it("shows no progress on the cards for a guest", async () => {
+      mocks.collection.mockResolvedValue({ status: "ok", value: land });
+      mocks.related.mockResolvedValue([card("wieze-aaaaaa", "Wieże ciśnień", 3)]);
+      mocks.actor.mockResolvedValue(null);
+
+      const html = await render();
+
+      expect(html).toContain("Wieże ciśnień");
+      expect(html).not.toContain("Postęp w kolekcji Wieże ciśnień");
+    });
+
+    it("says 'Część krainy' when every place of a theme collection lies in one land", async () => {
+      mocks.collection.mockResolvedValue({ status: "ok", value: { ...collection, placeCount: 4 } });
+      mocks.related.mockResolvedValue([card("warmia-cccccc", "Warmia", 4)]);
+
+      const html = await render();
+
+      expect(html).toContain("Część krainy: ");
+      expect(html).toContain('<a href="/collections/warmia-cccccc">Warmia</a>');
+      expect(html).not.toContain("Miejsca z tej kolekcji leżą");
+      expect(html.indexOf("Część krainy")).toBeLessThan(html.indexOf("Kurator: Gmina A"));
+    });
+
+    it("lists the lands, the one with the most common places first, when the places are spread", async () => {
+      mocks.collection.mockResolvedValue({ status: "ok", value: { ...collection, placeCount: 6 } });
+      mocks.related.mockResolvedValue([
+        card("warmia-cccccc", "Warmia", 3),
+        card("torun-dddddd", "Toruń i Ziemia Dobrzyńska", 2),
+      ]);
+
+      const html = await render();
+
+      expect(html).toContain("Miejsca z tej kolekcji leżą w krainach: ");
+      expect(html).toContain('<a href="/collections/warmia-cccccc">Warmia</a>');
+      expect(html).toContain('<a href="/collections/torun-dddddd">Toruń i Ziemia Dobrzyńska</a>');
+      expect(html.indexOf(">Warmia<")).toBeLessThan(html.indexOf(">Toruń i Ziemia"));
+      expect(html).not.toContain("Część krainy");
+    });
+
+    it("says 'w krainie' for one land that holds only part of the places", async () => {
+      mocks.collection.mockResolvedValue({ status: "ok", value: { ...collection, placeCount: 6 } });
+      mocks.related.mockResolvedValue([card("warmia-cccccc", "Warmia", 1)]);
+
+      const html = await render();
+
+      expect(html).toContain("Miejsca z tej kolekcji leżą w krainie: ");
+      expect(html).not.toContain("Część krainy");
+    });
+
+    it("keeps the page whole when the read of the related collections fails", async () => {
+      mocks.related.mockRejectedValue(new Error("db down"));
+
+      for (const kind of ["land", "theme"]) {
+        mocks.collection.mockResolvedValue({ status: "ok", value: { ...collection, kind } });
+
+        const html = await render();
+
+        expect(html).toContain(">Miejsca w kolekcji</h2>");
+        expect(html).not.toContain("W tej krainie są też kolekcje");
+        expect(html).not.toContain("Część krainy");
+      }
     });
   });
 
