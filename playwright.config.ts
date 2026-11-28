@@ -66,6 +66,8 @@ export default defineConfig({
       DEMO_ACCOUNTS_TEST_ONLY: "1",
       // Reports of a problem with a place (P4b) are off by default; the specs need them on.
       FEATURE_PLACE_REPORTS: "true",
+      // No memory of "Miejsce dnia": specs delete the places they seed.
+      PLACE_OF_DAY_CACHE_TTL_MS: "0",
     },
   },
 });

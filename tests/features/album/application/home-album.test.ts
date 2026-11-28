@@ -17,6 +17,12 @@ function makeDeps(over: Partial<AlbumRepository> = {}) {
       { id: "b", slug: "b", title: "B", region: "lodzkie" as const, total: 0, visited: 0 },
     ]),
     homeRecentVisits: vi.fn(async () => []),
+    homeIncompleteSaved: vi.fn(async () => [
+      { id: "a", slug: "a", title: "A", total: 4, visited: 1 },
+    ]),
+    homeUnvisitedPlaces: vi.fn(async () => [{ collectionId: "a", name: "Zamek", position: 2 }]),
+    homeStartedUnsaved: vi.fn(async () => []),
+    homeHasSavedWithPlaces: vi.fn(async () => true),
     ...over,
   } as unknown as AlbumRepository;
 
@@ -35,14 +41,17 @@ describe("getHomeAlbum", () => {
     expect(withUserContext).not.toHaveBeenCalled();
   });
 
-  it("reads summary, favourites and visits in one user context with the limits 6 and 5", async () => {
+  it("reads summary, favourites, visits and reasons to return in one user context", async () => {
     const { deps, repository, withUserContext } = makeDeps();
     const result = await getHomeAlbum(actor, deps);
 
     expect(withUserContext).toHaveBeenCalledTimes(1);
     expect(withUserContext).toHaveBeenCalledWith(actor, expect.any(Function));
+    expect(repository.homeFavorites).toHaveBeenCalledTimes(1);
     expect(repository.homeFavorites).toHaveBeenCalledWith(expect.anything(), 6);
     expect(repository.homeRecentVisits).toHaveBeenCalledWith(expect.anything(), 5);
+    expect(repository.homeIncompleteSaved).toHaveBeenCalledWith(expect.anything(), 4);
+    expect(repository.homeUnvisitedPlaces).toHaveBeenCalledWith(expect.anything(), ["a"], 2);
     expect(result).toEqual({
       status: "ok",
       value: {
@@ -58,8 +67,72 @@ describe("getHomeAlbum", () => {
           { id: "b", slug: "b", title: "B", region: "lodzkie", progress: { kind: "empty" } },
         ],
         recentVisits: [],
+        homeReturn: {
+          hasSaved: true,
+          remaining: [{ slug: "a", title: "A", remaining: 3, names: ["Zamek"] }],
+          saveNudge: null,
+        },
       },
     });
+  });
+
+  it("skips the places read when nothing is left and passes the nudge on", async () => {
+    const nudge = { id: "n", slug: "n", title: "N", visited: 1, total: 3 };
+    const { deps, repository } = makeDeps({
+      homeIncompleteSaved: vi.fn(async () => []),
+      homeStartedUnsaved: vi.fn(async () => [nudge]),
+    });
+    const result = await getHomeAlbum(actor, deps);
+
+    expect(result).toEqual({
+      status: "ok",
+      value: expect.objectContaining({
+        homeReturn: { hasSaved: true, remaining: [], saveNudge: nudge },
+      }),
+    });
+    expect(repository.homeUnvisitedPlaces).not.toHaveBeenCalled();
+  });
+
+  it("has nothing saved for a new explorer", async () => {
+    const { deps } = makeDeps({
+      homeSummary: vi.fn(async () => ({ discoveredPlaces: 0, regions: 0, savedCollections: 0 })),
+      homeFavorites: vi.fn(async () => []),
+      homeIncompleteSaved: vi.fn(async () => []),
+    });
+
+    expect(await getHomeAlbum(actor, deps)).toEqual({
+      status: "ok",
+      value: expect.objectContaining({
+        homeReturn: { hasSaved: false, remaining: [], saveNudge: null },
+      }),
+    });
+  });
+
+  it("counts a saved collection without places neither as complete nor as open (N4)", async () => {
+    const { deps, repository } = makeDeps({
+      homeSummary: vi.fn(async () => ({ discoveredPlaces: 0, regions: 0, savedCollections: 1 })),
+      homeIncompleteSaved: vi.fn(async () => []),
+      homeHasSavedWithPlaces: vi.fn(async () => false),
+    });
+
+    expect(await getHomeAlbum(actor, deps)).toEqual({
+      status: "ok",
+      value: expect.objectContaining({
+        homeReturn: { hasSaved: false, remaining: [], saveNudge: null },
+      }),
+    });
+    expect(repository.homeHasSavedWithPlaces).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not ask for saved collections with places when nothing is saved", async () => {
+    const { deps, repository } = makeDeps({
+      homeSummary: vi.fn(async () => ({ discoveredPlaces: 0, regions: 0, savedCollections: 0 })),
+      homeIncompleteSaved: vi.fn(async () => []),
+    });
+
+    await getHomeAlbum(actor, deps);
+
+    expect(repository.homeHasSavedWithPlaces).not.toHaveBeenCalled();
   });
 
   it("does not hide an unexpected failure as a refusal", async () => {

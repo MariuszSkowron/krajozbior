@@ -302,6 +302,8 @@ try {
     DEMO_ACCOUNTS_TEST_ONLY = '1'
     # Reports of a problem with a place (P4b) are off by default; the E2E specs need them on.
     FEATURE_PLACE_REPORTS   = 'true'
+    # No memory of "Miejsce dnia": specs delete the places they seed.
+    PLACE_OF_DAY_CACHE_TTL_MS = '0'
     # Sign-in codes to a local outbox, like playwright.config.ts.
     EMAIL_TRANSPORT         = 'outbox'
     EMAIL_OUTBOX_DIR        = '.data/e2e-email-outbox'

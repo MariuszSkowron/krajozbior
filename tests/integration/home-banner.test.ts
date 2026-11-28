@@ -178,6 +178,26 @@ describe("home banner pool", () => {
     expect(await getHomeBanner(deps, () => 0, pool("Q111"))).toBeNull();
   });
 
+  // C-01 / X4: serwis nie poleca na Starcie terenu prywatnego, ogrodzonego ani ruiny; baner jest
+  // najbardziej widocznym poleceniem miejsca. To samo miejsce bez ograniczenia wraca do puli.
+  for (const [index, restriction] of (["private", "fenced", "ruin"] as const).entries()) {
+    it(`never draws a place with access restriction "${restriction}" as the banner`, async () => {
+      const qid = `Q15${index}`;
+      const { placeId } = await ready(qid);
+
+      await admin$(`update public.places set access_restriction = $2 where id = $1`, [
+        placeId,
+        restriction,
+      ]);
+
+      expect(await getHomeBanner(deps, () => 0, pool(qid))).toBeNull();
+
+      await admin$(`update public.places set access_restriction = 'none' where id = $1`, [placeId]);
+
+      expect(await getHomeBanner(deps, () => 0, pool(qid))).toMatchObject({ placeId });
+    });
+  }
+
   it("does not choose a place whose photo is not ready", async () => {
     const placeId = await place(orgA, "Q112");
 
