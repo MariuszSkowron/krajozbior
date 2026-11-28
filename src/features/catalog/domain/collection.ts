@@ -53,6 +53,43 @@ export const COLLECTION_STATUS_LABELS: Readonly<Record<CollectionStatus, string>
   published: "Opublikowana",
 };
 
+// Two layers of the catalog: a land (`land`, e.g. "Warmia") and a smaller collection with one
+// theme or story (`theme`). A frozen copy of the list lives in the migration CHECK.
+export const COLLECTION_KINDS = ["land", "theme"] as const;
+
+export type CollectionKind = (typeof COLLECTION_KINDS)[number];
+
+export function isCollectionKind(value: unknown): value is CollectionKind {
+  return typeof value === "string" && (COLLECTION_KINDS as readonly string[]).includes(value);
+}
+
+/** A land that shares places with a theme collection; `sharedPlaces` counts the common ones. */
+export type LandOfCollection = Readonly<{ slug: string; title: string; sharedPlaces: number }>;
+
+export type LandLine =
+  | Readonly<{ kind: "part_of"; land: LandOfCollection }>
+  | Readonly<{ kind: "spread"; lands: readonly LandOfCollection[] }>;
+
+/**
+ * Which line the page of a theme collection shows under the description. `lands` come ordered
+ * by the number of shared places. "Part of a land" only when every place of the collection lies
+ * in that one land; otherwise the lands are listed (one common place of a dozen is no "part").
+ * No lands (or no places): no line.
+ */
+export function landLine(placeCount: number, lands: readonly LandOfCollection[]): LandLine | null {
+  const [first] = lands;
+
+  if (first === undefined) {
+    return null;
+  }
+
+  if (lands.length === 1 && placeCount > 0 && first.sharedPlaces === placeCount) {
+    return { kind: "part_of", land: first };
+  }
+
+  return { kind: "spread", lands };
+}
+
 export const COLLECTION_TITLE_MAX_LENGTH = 120;
 export const COLLECTION_SUMMARY_MAX_LENGTH = 280;
 
