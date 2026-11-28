@@ -181,7 +181,7 @@ describe("place_reports: limits, duplicates and the deletion of the author's acc
     // daily limit does not count them, the open limit does
     await f.admin$(
       `insert into public.place_reports (place_id, category, message, author_id, created_at)
-       select p.id, c.category, '', $1, now() - interval '3 days'
+       select p.id, c.category, 'opis zgłoszenia', $1, now() - interval '3 days'
          from unnest($2::uuid[]) as p(id)
          cross join (values ('missing'), ('closed'), ('private_or_unsafe'), ('wrong_location'), ('other')) as c(category)`,
       [author.id, places.slice(0, 10)],
