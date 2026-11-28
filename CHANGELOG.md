@@ -103,4 +103,5 @@ Na razie nie ma zmian w przygotowaniu: wszystkie scalone zmiany są opisane w wy
 - Dokumentacja dla oceniających: mapa wymogów konkursu, lista pozostałej pracy i opis planowanego epiku (#68).
 - Szkic tego dziennika zmian (#69) i jego uzupełnienie o #59–#88 (#92).
 - Cztery skille przeglądu tekstów i ekranów oraz zasada przeglądu zmian widocznych dla użytkownika (#96).
+- Jedna wersja zasad przeglądów, testów i statusów dla agentów (#139).
 - Założenie projektu i przygotowanie narzędzi agentów (#7).

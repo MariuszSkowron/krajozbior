@@ -2,7 +2,7 @@
 
 ## W skrócie
 
-Ten plik mówi, co w Krajozbiorze już działa (każdy punkt to scalony PR, czyli zmiana w kodzie, którą można otworzyć na GitHubie), co jest w toku i co przyjdzie później. Działa pełna ścieżka konkursowa: kurator tworzy i publikuje kolekcję, gość znajduje ją na stronie głównej albo w wyszukiwarce, odkrywca zakłada konto, zapisuje kolekcję, potwierdza wizytę lokalizacją (albo zapisuje wizytę z przeszłości) i widzi postęp, a testy sprawdzają, że kurator innej organizacji i inny odkrywca dostają odmowę. Wokół tej ścieżki działają też zdjęcia miejsc z Wikimedia Commons, aktualności redakcji, własne prywatne kolekcje odkrywców, profil ze statystykami i usunięcie konta. Stan na 28 listopada 2026 roku (ostatni scalony PR: #138).
+Ten plik mówi, co w Krajozbiorze już działa (każdy punkt to scalony PR, czyli zmiana w kodzie, którą można otworzyć na GitHubie), co jest w toku i co przyjdzie później. Działa pełna ścieżka konkursowa: kurator tworzy i publikuje kolekcję, gość znajduje ją na stronie głównej albo w wyszukiwarce, odkrywca zakłada konto, zapisuje kolekcję, potwierdza wizytę lokalizacją (albo zapisuje wizytę z przeszłości) i widzi postęp, a testy sprawdzają, że kurator innej organizacji i inny odkrywca dostają odmowę. Wokół tej ścieżki działają też zdjęcia miejsc z Wikimedia Commons, aktualności redakcji, własne prywatne kolekcje odkrywców, profil ze statystykami i usunięcie konta. Stan na 28 listopada 2026 roku; pełna, bieżąca lista scalonych zmian jest w [historii PR-ów repozytorium](https://github.com/MariuszSkowron/krajozbior/pulls?q=is%3Apr+is%3Amerged).
 
 Epiki (E1–E12) i ich historyjki opisuje [Backlog](backlog.md); listę zmian w formie dziennika: [CHANGELOG.md](../../CHANGELOG.md).
 
@@ -38,7 +38,7 @@ Epiki (E1–E12) i ich historyjki opisuje [Backlog](backlog.md); listę zmian w 
 - Nawigacja (dolny pasek na telefonie, menu boczne na komputerze), menu kuratora i wspólne elementy (#28).
 - Ekrany ścieżki w nowym wyglądzie z testem dostępności w obu motywach (#31) i przypięty przycisk wizyty na telefonie (#32).
 - Wspólna rama strony do 1440 px (#127).
-- Nowy wygląd strony kolekcji: okładka ze zdjęciem, duży postęp i kafelki miejsc (#129); strony miejsca: dwie kolumny i karty kolekcji (#130); strony głównej: baner ze zdjęciem na całą szerokość (#132), losowane z listy wybranych miejsc (#133).
+- Nowy wygląd strony kolekcji (okładka ze zdjęciem, duży postęp i kafelki miejsc, #129), strony miejsca (dwie kolumny i karty kolekcji, #130) i strony głównej (baner ze zdjęciem na całą szerokość, #132, losowanym z listy wybranych miejsc, #133).
 
 ### Pierwszy kontakt i ścieżka po wizycie (decyzja D-58, poprawki po pokazie)
 
@@ -104,16 +104,16 @@ Epiki (E1–E12) i ich historyjki opisuje [Backlog](backlog.md); listę zmian w 
 - Strażnik bazy we wszystkich testach E2E (#35), testy z bazą na kilku stanowiskach naraz (#67, #80), stabilniejsze testy (#51, #72, #73, #75, #87, #94, #99, #113, #118, #119).
 - Reguła lint i analiza CodeQL także dla szkiców PR (#44, #45, #48).
 - Publiczne notatki bezpieczeństwa i wynik powtórzonej próby prompt injection (#63, #65).
+- Jedna wersja zasad przeglądów, testów i statusów dla agentów (#139).
 
 ## W toku
 
-Otwarte PR-y (stan na 28 listopada 2026 roku):
+Otwarte PR-y (stan na 28 listopada 2026 roku, aktualna lista jest w [zakładce PR-ów](https://github.com/MariuszSkowron/krajozbior/pulls)):
 
-- #139: jedna wersja zasad przeglądów, testów i statusów dla agentów.
 - #140: stabilny test filtra „Moich kolekcji” i wyglądu listy „Chcę zobaczyć”.
 - #141: wyższy dzienny limit kodów logowania na adres IP, komunikat po jego wyczerpaniu i liczba zapisów kolekcji „mniej niż 3” (D-62).
 
-Poza PR-ami: uruchomienie aplikacji pod publicznym adresem (adres dopiszemy w [README](README.md)) i oznaczenie wydania 1.0.0 ([CHANGELOG.md](../../CHANGELOG.md)).
+Poza PR-ami: uruchomienie aplikacji pod publicznym adresem (adres dopiszemy w [Dla oceniających](README.md)) i oznaczenie wydania 1.0.0 ([CHANGELOG.md](../../CHANGELOG.md)).
 
 ## Planowane (zakres pierwszej wersji)
 

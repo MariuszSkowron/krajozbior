@@ -95,4 +95,4 @@ Kierunek zależności jest zawsze ten sam: **zadanie (`docs#N`) → specyfikacja
 
 Część kodu pochodzi z wcześniejszego projektu właściciela.
 
-Dokumentacja opisuje stan z 28 listopada 2026 roku (ostatni scalony PR: #138). Gdy opis i kod się różnią, rozstrzyga kod i testy.
+Dokumentacja opisuje stan z 28 listopada 2026 roku ; pełna, bieżąca lista scalonych zmian jest w [historii PR-ów repozytorium](https://github.com/MariuszSkowron/krajozbior/pulls?q=is%3Apr+is%3Amerged). Gdy opis i kod się różnią, rozstrzyga kod i testy.

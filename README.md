@@ -30,7 +30,7 @@ Jeden punkt wejścia: **[docs/dla-oceniajacych/](docs/dla-oceniajacych/README.md
 - **Wizyty.** Odkrywca potwierdza wizytę lokalizacją telefonu na miejscu albo dopisuje wcześniejsze wizyty. Postęp w kolekcji widzi jako liczbę zebranych miejsc, np. 9/24.
 - **Kuratorzy.** Gotowe kolekcje przygotowują kuratorzy: gminy, organizacje turystyczne i lokalni przewodnicy. Użytkownicy mogą też tworzyć własne kolekcje.
 
-Działa pełna ścieżka: kurator publikuje kolekcję, gość ją ogląda, a odkrywca zakłada konto, zapisuje kolekcję, potwierdza wizytę lokalizacją i widzi postęp. Do tego strona główna, wyszukiwarka, mapa, zdjęcia miejsc z Wikimedia Commons, aktualności, profil ze statystykami i usunięcie konta. Szczegóły i lista PR-ów: [Stan realizacji](docs/dla-oceniajacych/stan-realizacji.md). Aplikacja działa w przeglądarce na komputerze i telefonie.
+Działa pełna ścieżka: kurator publikuje kolekcję, gość ją ogląda, a odkrywca zakłada konto, zapisuje kolekcję, potwierdza wizytę lokalizacją i widzi postęp. Do tego działają strona główna, wyszukiwarka, mapa, zdjęcia miejsc z Wikimedia Commons, aktualności, profil ze statystykami i usunięcie konta. Szczegóły i lista PR-ów: [Stan realizacji](docs/dla-oceniajacych/stan-realizacji.md). Aplikacja działa w przeglądarce na komputerze i telefonie.
 
 ## Codzienny start (Visual Studio Code)
 
