@@ -2,14 +2,14 @@
 
 ## W skrócie
 
-Krajozbiór to jedna aplikacja internetowa (zbudowana na popularnych narzędziach Next.js, React 19 i TypeScript) z bazą PostgreSQL 17, bez osobnych usług. Dane użytkowników chronią dwie niezależne bariery: serwer sprawdza, kto wysyła żądanie i co mu wolno, a sama baza danych ma reguły dostępu do wierszy (RLS), które obowiązują nawet wtedy, gdyby kod aplikacji się pomylił. Każda taka reguła ma test, który próbuje ją obejść i oczekuje odmowy.
+Ten plik streszcza, jak zbudowana jest aplikacja i kto widzi jakie dane. Krajozbiór to jedna aplikacja internetowa (zbudowana na popularnych narzędziach Next.js, React 19 i TypeScript) z bazą PostgreSQL 17, bez osobnych usług. Dane użytkowników chronią dwie niezależne bariery: serwer sprawdza, kto wysyła żądanie i co mu wolno, a sama baza danych ma reguły dostępu do wierszy (RLS), które obowiązują nawet wtedy, gdyby kod aplikacji się pomylił. Każda taka reguła ma test, który próbuje ją obejść i oczekuje odmowy.
 
 Pełne dokumenty techniczne: [docs/architecture.md](../architecture.md) (budowa aplikacji) i [docs/data-isolation.md](../data-isolation.md) (klasy danych, role bazy, macierz reguł, wymagane testy). Ten plik je streszcza.
 
 ## Budowa aplikacji
 
 - `src/app`: strony i trasy API. Trasa sprawdza dane wejściowe, ustala, kto pyta, i wywołuje przypadek użycia.
-- `src/features`: obszary produktu z własną logiką: tożsamość (logowanie), organizacje, katalog (kolekcje i miejsca), album, wizyty, „Chcę zobaczyć”, profil, konto (usunięcie), regulamin i strony prawne. Reguły domeny są czystymi funkcjami z pełnym pokryciem testami.
+- `src/features`: obszary produktu z własną logiką: tożsamość (logowanie), organizacje, katalog (kolekcje i miejsca, zdjęcia z Wikimedia Commons), album, wizyty, „Chcę zobaczyć”, własne kolekcje, aktualności, profil, konto (usunięcie), regulamin i strony prawne oraz przygotowane reguły wydarzeń. Reguły domeny są czystymi funkcjami z pełnym pokryciem testami.
 - `src/design-system`: tokeny wyglądu, motywy i wspólne elementy interfejsu, bez reguł domeny.
 - `src/lib`: baza, konfiguracja, nagłówki bezpieczeństwa, logowanie błędów.
 
@@ -23,9 +23,9 @@ Konto zakłada każdy, logując się jednorazowym kodem wysłanym na e-mail. Log
 
 Dane dzielimy na klasy:
 
-- **Publiczne:** opublikowane kolekcje i miejsca zatwierdzonych organizacji. Widzi je każdy, także gość.
+- **Publiczne:** opublikowane kolekcje i miejsca zatwierdzonych organizacji, ich zdjęcia i opublikowane aktualności. Widzi je każdy, także gość.
 - **Dane kuratora:** szkice kolekcji i członkostwa w organizacji. Widzą je tylko członkowie tej organizacji.
-- **Prywatne odkrywcy:** zapisane kolekcje, historia wizyt, lista „Chcę zobaczyć”. Widzi je wyłącznie właściciel konta; kurator nie ma do nich żadnej drogi, także dla miejsc własnej organizacji.
+- **Prywatne odkrywcy:** zapisane kolekcje, historia wizyt, lista „Chcę zobaczyć”, własne kolekcje. Widzi je wyłącznie właściciel konta; kurator nie ma do nich żadnej drogi, także dla miejsc własnej organizacji.
 - **Systemowe:** dziennik operacji administracyjnych. Aplikacja nie ma do niego dostępu.
 
 Szkic i nieistniejąca kolekcja dają tę samą odpowiedź „nie znaleziono”, więc z zewnątrz nie da się nawet ustalić, że szkic istnieje.

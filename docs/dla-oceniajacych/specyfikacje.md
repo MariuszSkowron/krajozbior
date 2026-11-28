@@ -2,7 +2,7 @@
 
 ## W skrócie
 
-Każda większa zmiana zaczyna się od specyfikacji: opisu celu, wymagań, rozwiązania, testów i podziału pracy na małe PR-y (propozycje zmian w kodzie). Specyfikację pisze jeden model AI, a przegląda inny; pytania otwarte rozstrzyga właściciel, zanim powstanie kod. Poniżej są streszczenia specyfikacji, według których powstała ścieżka konkursowa, dziennik operacji i wygląd aplikacji. Specyfikacja epiku E12 („Odkrywanie”) ma osobny, dokładniejszy plik: [Specyfikacja E12](specyfikacja-e12-odkrywanie.md). Specyfikacje kolejnych epików (zdjęcia, zgłoszenia, wydarzenia, aktualności, własne kolekcje, profil, administracja, wdrożenie) też przeszły przegląd innego modelu, ale jeszcze nie mają jawnych streszczeń. Pełne wersje wszystkich specyfikacji są w prywatnym repozytorium dokumentacji, bo zawierają decyzje i plany właściciela.
+Każda większa zmiana zaczyna się od specyfikacji: opisu celu, wymagań, rozwiązania, testów i podziału pracy na małe PR-y (propozycje zmian w kodzie). Specyfikację pisze jeden model AI, a przegląda inny; pytania otwarte rozstrzyga właściciel, zanim powstanie kod. Poniżej są streszczenia specyfikacji, według których powstała ścieżka konkursowa, dziennik operacji i wygląd aplikacji. Specyfikacja epiku E12 („Odkrywanie”) ma osobny, dokładniejszy plik: [Specyfikacja E12](specyfikacja-e12-odkrywanie.md). Specyfikacje kolejnych epików (zdjęcia, zgłoszenia, wydarzenia, aktualności, własne kolekcje, profil, administracja, wdrożenie) też przeszły przegląd innego modelu, ale jeszcze nie mają jawnych streszczeń; sekcja [Kolejne specyfikacje i ich PR-y](#kolejne-specyfikacje-i-ich-pr-y) pokazuje przynajmniej, które PR-y z nich wynikają. Pełne wersje wszystkich specyfikacji są w prywatnym repozytorium dokumentacji, bo zawierają decyzje i plany właściciela.
 
 Oznaczenia z pełnych specyfikacji: wymaganie właściciela, propozycja agenta (czeka na akceptację) i decyzja techniczna są zawsze rozdzielone.
 
@@ -50,3 +50,18 @@ Oznaczenia z pełnych specyfikacji: wymaganie właściciela, propozycja agenta (
 **Poza zakresem:** efekty kart legendarnych i skrytki, zdjęcia, pełne ustawienia wyglądu; przyjdą razem z funkcjami, które ich potrzebują.
 
 Publiczny opis design systemu: [docs/design/](../design/README.md).
+
+## Kolejne specyfikacje i ich PR-y
+
+Specyfikacje kolejnych epików dzielą pracę na fazy. Kod fazy zaczyna się w tytule PR-a (np. `E4-2b`), więc z listy PR-ów widać, z której specyfikacji wynika każda zmiana. Poniżej fazy scalone do 28 listopada 2026 roku. Część zmian wynika nie ze specyfikacji epiku, tylko z decyzji właściciela po obejrzeniu aplikacji (oznaczenia `D-NN` w tytułach PR-ów, np. D-49 dla poprawek tekstów i ekranów, D-57 dla nowego wyglądu, D-58 dla poprawek po pokazie).
+
+| Specyfikacja                      | Fazy i PR-y                                                                                               |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| E4. Zdjęcia                       | E4-0b1 (#81), E4-0a (#82), E4-2a (#86), E4-2b (#88), E4-2z (#89), E4-3 (#100)                             |
+| E5. Zgłoszenia                    | E5-0 (#97)                                                                                                |
+| E6. Wydarzenia i karty legendarne | E6-0 (#126), E6-4a (#128)                                                                                 |
+| E7. Aktualności                   | E7-0 (#93), E7-R1 (#101), E7-R2a (#107), E7-R2b (#110), E7-R3 (#111)                                      |
+| E8. Własne kolekcje               | E8-1a (#105)                                                                                              |
+| E9. Profil i ustawienia           | motyw zapamiętany na koncie (#78), E9-6a (#95)                                                            |
+| E10. Administrator                | E10-S0 (#103)                                                                                             |
+| E12. Odkrywanie                   | E12-1–E12-6 (#38, #39, #40, #41, #49, #79); szczegóły: [Specyfikacja E12](specyfikacja-e12-odkrywanie.md) |
