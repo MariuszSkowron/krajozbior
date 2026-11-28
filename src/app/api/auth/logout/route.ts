@@ -11,17 +11,10 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store" };
 
 // What a form post asks for: `returnTo` is a same-site path (safeReturnTo falls back to "/"
-// for anything else) or null when the form names none; `termsDeclined` is the signal of the
-// "Nie akceptuję" button of the terms screen (F-K3). Any other value changes nothing.
-function formRequest(form: FormData | null): { returnTo: string | null; termsDeclined: boolean } {
-  if (form === null) {
-    return { returnTo: null, termsDeclined: false };
-  }
-
-  return {
-    returnTo: requestedReturnTo(form.get("returnTo") ?? undefined),
-    termsDeclined: form.get("reason") === "terms-declined",
-  };
+// for anything else) or null when the form names none. The declined terms have their own route
+// (/api/me/terms-decline); an old `reason` field is ignored, so no message claims a deletion.
+function formReturnTo(form: FormData | null): string | null {
+  return form === null ? null : requestedReturnTo(form.get("returnTo") ?? undefined);
 }
 
 // The form holds a return path and a signal: far less than this.
@@ -79,14 +72,12 @@ export async function POST(request: Request) {
   if (isForm) {
     // The deletion screen asks for a fresh sign-in (E9-5, Q7): its logout form
     // names a same-site path to come back to after signing in again. Without it,
-    // only a signal for the home page message; any other value changes nothing.
-    const { returnTo, termsDeclined } = formRequest(form);
+    // only a signal for the home page message.
+    const returnTo = formReturnTo(form);
 
     headers.set(
       "Location",
-      returnTo === null
-        ? `/?wylogowano=${termsDeclined ? "odmowa" : "1"}`
-        : `/login?returnTo=${encodeURIComponent(returnTo)}`,
+      returnTo === null ? "/?wylogowano=1" : `/login?returnTo=${encodeURIComponent(returnTo)}`,
     );
 
     return new Response(null, { status: 303, headers });

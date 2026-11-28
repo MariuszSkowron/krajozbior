@@ -1,7 +1,7 @@
 import { unstable_rethrow } from "next/navigation";
 
 import { getRequestActor } from "@/app/request-actor";
-import { hasAcceptedCurrentTerms } from "@/features/terms/application/terms";
+import { hasAcceptedCurrentTerms, hasEverAcceptedTerms } from "@/features/terms/application/terms";
 import { getTermsDeps } from "@/features/terms/infrastructure/terms-deps";
 import { logFailure } from "@/lib/log-failure";
 
@@ -27,5 +27,29 @@ export async function shellTermsAccepted(): Promise<boolean> {
     logFailure("Terms acceptance lookup", error);
 
     return false;
+  }
+}
+
+/**
+ * Whether the signed-in account has accepted any version of the terms before (it then stays
+ * after declining a new version; the screen must not promise deletion). A failed lookup counts
+ * as "yes": the safer wording promises nothing.
+ */
+export async function shellTermsEverAccepted(): Promise<boolean> {
+  try {
+    const actor = await getRequestActor();
+
+    if (actor === null) {
+      return true;
+    }
+
+    const outcome = await hasEverAcceptedTerms(actor, getTermsDeps());
+
+    return outcome.status !== "ok" || outcome.value;
+  } catch (error) {
+    unstable_rethrow(error);
+    logFailure("Terms acceptance history lookup", error);
+
+    return true;
   }
 }

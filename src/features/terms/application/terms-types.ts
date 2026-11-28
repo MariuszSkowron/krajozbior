@@ -7,6 +7,8 @@ import type { TransactionContext } from "@/lib/db/user-context";
 export interface TermsAcceptanceRepository {
   /** Czy konto aktora zaakceptowało podaną wersję regulaminu. */
   hasAccepted(tx: TransactionContext, version: string): Promise<boolean>;
+  /** Czy konto aktora zaakceptowało jakąkolwiek wersję regulaminu. */
+  hasAnyAcceptance(tx: TransactionContext): Promise<boolean>;
   /** Zapisuje akceptację podanej wersji; powtórna akceptacja tej samej wersji nic nie zmienia. */
   accept(tx: TransactionContext, version: string): Promise<void>;
 }

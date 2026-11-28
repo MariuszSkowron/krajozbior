@@ -24,6 +24,25 @@ export async function hasAcceptedCurrentTerms(
 }
 
 /**
+ * Czy konto aktora zaakceptowało kiedykolwiek jakąkolwiek wersję regulaminu. Ekran „Zanim
+ * zaczniesz” używa tego do treści przycisku odmowy: konto bez żadnej akceptacji usuwamy, a konto
+ * ze starszą akceptacją tylko wylogowujemy.
+ */
+export async function hasEverAcceptedTerms(
+  actor: Actor | null,
+  deps: TermsDeps,
+): Promise<TermsOutcome<boolean>> {
+  if (actor === null) {
+    return { status: "unauthenticated" };
+  }
+
+  return deps.withUserContext(actor, async (tx) => ({
+    status: "ok",
+    value: await deps.repository.hasAnyAcceptance(tx),
+  }));
+}
+
+/**
  * Zapisuje akceptację bieżącej wersji regulaminu przez aktora. Wersji nie podaje wywołujący:
  * konto akceptuje to, co serwis pokazał jako bieżące. Brak zaznaczonego pola to `invalid`
  * i nic nie trafia do bazy.

@@ -14,6 +14,8 @@ import type { SignInThrottle } from "../domain/sign-in-throttle";
 import { BetterAuthIdentityProvider, getAuthPool } from "./better-auth";
 import { logFailure } from "@/lib/log-failure";
 
+import { deleteAccountRows } from "./delete-account-rows";
+import { deleteAbandonedAccounts } from "./postgres-abandoned-accounts-cleanup";
 import { PostgresActionRateLimiter } from "./postgres-action-rate-limiter";
 import { deleteExpiredSessions } from "./postgres-expired-sessions-cleanup";
 import { otpSendHmacKey, PostgresOtpSendLimiter } from "./postgres-otp-send-limiter";
@@ -80,6 +82,39 @@ export async function cleanupExpiredSessions(): Promise<void> {
   } catch (error) {
     logFailure("Expired sessions cleanup", error);
   }
+}
+
+// At most one pass per process and hour: the pass looks at accounts, not at one request.
+const ABANDONED_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+let lastAbandonedCleanup = 0;
+
+/**
+ * Deletes accounts that never accepted the terms and are older than 7 days (privacy policy 1.1,
+ * section 9). Runs at most once an hour per process, never throws: a failed pass is logged by
+ * class only and must not block sign-in. The operator can run the same pass with
+ * `npm run auth:cleanup-abandoned`.
+ */
+export async function cleanupAbandonedAccounts(now: number = Date.now()): Promise<void> {
+  if (now - lastAbandonedCleanup < ABANDONED_CLEANUP_INTERVAL_MS) {
+    return;
+  }
+
+  lastAbandonedCleanup = now;
+
+  try {
+    await deleteAbandonedAccounts(await getAuthPool());
+  } catch (error) {
+    logFailure("Abandoned accounts cleanup", error);
+  }
+}
+
+/**
+ * The person declined the terms: deletes the account at once, but only when it never accepted any
+ * version, has the plain role and no organization (the database checks it too). Returns false when
+ * the account stayed.
+ */
+export async function deleteNeverAcceptedAccount(accountId: string): Promise<boolean> {
+  return deleteAccountRows(await getAuthPool(), accountId, { onlyAbandonedOlderThanDays: 0 });
 }
 
 let actionRateLimiter: ActionRateLimiter | undefined;
