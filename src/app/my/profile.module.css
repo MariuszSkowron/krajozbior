@@ -124,6 +124,38 @@
   margin: 0;
 }
 
+/* D-66: blok „Zostań kuratorem” z etykietą „W przygotowaniu”; bez przycisku, sam tekst i link. */
+.invite {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.invite p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.inviteTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0;
+}
+
+.soon {
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
 .links {
   display: grid;
   gap: var(--space-sm);

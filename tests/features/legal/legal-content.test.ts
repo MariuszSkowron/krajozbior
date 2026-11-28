@@ -27,22 +27,9 @@ function inlinesOf(blocks: readonly Block[]): Inline[] {
   });
 }
 
-// K-12: the working markers still open, each with who fills it and when (D-41 pt 2). The list
-// may only shrink: a new or changed marker fails the test below, and so does an item that is
-// no longer in the texts. The hard gate is `npm run legal:final` (no marker at all), run before
-// the password comes off the service (spec 5.4a, docs/deployment.md).
-const OPEN_LEGAL_MARKERS: readonly Readonly<{ marker: string; owner: string }>[] = [
-  {
-    marker: "regulamin: [DO UZUPEŁNIENIA: data pierwszego wdrożenia]",
-    owner: "w dniu wdrożenia (D-41 pkt 2)",
-  },
-];
-
 describe("the texts of the legal pages (K-12, E11-Q12)", () => {
-  it("have only the working markers on the explicit list of open items", () => {
-    expect(findLegalMarkers(documents).sort()).toEqual(
-      OPEN_LEGAL_MARKERS.map((item) => item.marker).sort(),
-    );
+  it("have no working marker at all: version 1.1 is final", () => {
+    expect(findLegalMarkers(documents)).toEqual([]);
   });
 
   it("find every kind of working marker, the lawyer's too", () => {
@@ -117,9 +104,26 @@ describe("the texts agree with the code (finding 15 of the review)", () => {
 
   it("gives the agreed periods of the backups and the technical logs (E11-Q12)", () => {
     expect(policy).toContain("| kopie zapasowe | najdłużej 30 dni;");
-    expect(policy).toContain("| dane techniczne (adres IP, zapisy błędów) | najdłużej 14 dni |");
+    expect(policy).toContain(
+      "| dane techniczne (adres IP, rodzaj przeglądarki, zapisy błędów) | najdłużej 14 dni |",
+    );
     expect(LEGAL_DOCUMENTS.zasady.markdown).toContain("Dane techniczne usuwamy po 14 dniach.");
-    expect(LEGAL_DOCUMENTS.zasady.markdown).toContain("Z kopii zapasowych znikną po 30 dniach.");
+    expect(LEGAL_DOCUMENTS.zasady.markdown).toContain(
+      "Z kopii zapasowych dane znikną po 30 dniach.",
+    );
+  });
+
+  it("has no draft traces and no forms that depend on gender (D-67)", () => {
+    for (const document of documents) {
+      expect(document.markdown, document.slug).not.toMatch(/wersj\w+ robocz|czeka na sprawdzenie/i);
+      expect(document.markdown, document.slug).not.toMatch(
+        /\b(?:byłeś|byłaś|zamknąłeś|zamknęłaś|zaznaczyłeś|podałeś|współtworzyłeś|współtworzyłaś|wybrałem|wybrałam|uzasadnego)\b/,
+      );
+    }
+  });
+
+  it("does not mention the register of nature protection forms (D-67 point 7)", () => {
+    expect(LEGAL_DOCUMENTS.regulamin.markdown).not.toMatch(/Centralnego Rejestru Form Ochrony/);
   });
 
   it("names only role addresses in the krajozbior.pl domain, never a private one", () => {

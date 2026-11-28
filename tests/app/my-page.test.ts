@@ -82,6 +82,25 @@ describe("profile page", () => {
     expect(html).not.toContain("profile-curator");
   });
 
+  it("invites an explorer to become a curator by e-mail, marked as in preparation, without a button (D-66)", async () => {
+    const html = renderToStaticMarkup(await MyPage());
+
+    expect(html).toMatch(
+      /<h2 id="curator-invite-title"[^>]*>Zostań kuratorem <span[^>]*>W przygotowaniu<\/span><\/h2>/,
+    );
+    expect(html).toContain('<a href="mailto:partnerzy@krajozbior.pl">partnerzy@krajozbior.pl</a>');
+    expect(html).not.toMatch(/<button[^>]*>[^<]*kurator/i);
+  });
+
+  it("does not invite a curator or an administrator to become one", async () => {
+    mocks.getApprovedOrganizations.mockResolvedValue([{ id: "o1", name: "Gmina" }]);
+    expect(renderToStaticMarkup(await MyPage())).not.toContain("curator-invite-title");
+
+    mocks.getApprovedOrganizations.mockResolvedValue([]);
+    mocks.getActor.mockResolvedValue({ id, role: "admin" });
+    expect(renderToStaticMarkup(await MyPage())).not.toContain("curator-invite-title");
+  });
+
   it("says Administrator to an administrator, without a sentence about a panel", async () => {
     mocks.getActor.mockResolvedValue({ id, role: "admin" });
 
@@ -236,7 +255,12 @@ describe("profile page", () => {
 
     // "Ustawienia" arrived with its screen (E9-5); "Napisz do nas" is a mailto link (E9-6a).
     // The main menu has "Moje kolekcje" and "Chcę zobaczyć", so the profile does not repeat them.
-    expect(hrefs).toEqual(["/my/settings", "mailto:kontakt@krajozbior.pl"]);
+    // The invitation to become a curator (D-66) is a mailto link to the partners' address.
+    expect(hrefs).toEqual([
+      "mailto:partnerzy@krajozbior.pl",
+      "/my/settings",
+      "mailto:kontakt@krajozbior.pl",
+    ]);
     expect(html).not.toContain("Moje kolekcje");
     expect(html).not.toContain("Chcę zobaczyć");
     expect(html).toContain("Ustawienia");
@@ -264,7 +288,12 @@ describe("profile page", () => {
     const on = renderToStaticMarkup(await MyPage());
     const hrefs = [...on.matchAll(/<a [^>]*href="([^"]+)"/g)].map((match) => match[1]);
 
-    expect(hrefs).toEqual(["/my/reports", "/my/settings", "mailto:kontakt@krajozbior.pl"]);
+    expect(hrefs).toEqual([
+      "mailto:partnerzy@krajozbior.pl",
+      "/my/reports",
+      "/my/settings",
+      "mailto:kontakt@krajozbior.pl",
+    ]);
     expect(on).toContain("Moje zgłoszenia");
     vi.unstubAllEnvs();
   });

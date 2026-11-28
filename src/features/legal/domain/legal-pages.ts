@@ -28,7 +28,12 @@ export const LEGAL_PAGES = [
   {
     slug: "oswiadczenie-o-zdjeciach",
     path: "/oswiadczenie-o-zdjeciach",
-    title: "Oświadczenie o zdjęciach",
+    title: "Oświadczenie o prawach do zdjęcia i licencja (załącznik nr 1)",
+  },
+  {
+    slug: "umowa-powierzenia",
+    path: "/umowa-powierzenia",
+    title: "Umowa powierzenia przetwarzania danych osobowych (załącznik nr 2)",
   },
 ] as const;
 

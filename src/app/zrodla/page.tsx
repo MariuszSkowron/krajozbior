@@ -116,8 +116,10 @@ export default function SourcesPage() {
       <section aria-labelledby="opisy" className={styles.section}>
         <h2 id="opisy">Opisy miejsc</h2>
         <p>
-          Opisy układamy sami, z faktów podanych w źródłach powyżej. Kurator może opis poprawić;
-          wtedy tekst jest już jego autorstwa.
+          Opisy układamy sami, z faktów podanych w źródłach powyżej. Część zdań składamy ze wzorów,
+          do których wstawiamy dane z rejestrów i otwartych źródeł; każdy opis przed publikacją
+          czyta i poprawia redakcja serwisu. Kurator może opis poprawić; wtedy tekst jest już jego
+          autorstwa.
         </p>
       </section>
 
@@ -125,8 +127,8 @@ export default function SourcesPage() {
         <h2 id="odpowiedzialnosc">Odpowiedzialność</h2>
         <p>
           Dane przetworzył Krajozbiór. Wydawcy danych nie odpowiadają za aplikację ani za to, jak
-          pokazujemy ich dane. Jeśli widzisz błąd w opisie miejsca, napisz do nas na adres z dołu
-          strony.
+          pokazujemy ich dane. Jeśli widzisz błąd w opisie miejsca, wybierz „Zgłoś problem z
+          miejscem” przy tym miejscu albo napisz do nas na adres z dołu strony.
         </p>
       </section>
     </article>
