@@ -26,5 +26,4 @@ describe("LogoutForm", () => {
 
     expect(html).toContain('<input type="hidden" name="returnTo" value="/my/delete-account"/>');
   });
-
 });

@@ -87,7 +87,13 @@ export default async function RootLayout({
         </div>
         {showNav ? <MainNav /> : null}
         <main id="tresc" tabIndex={-1} className={styles.main}>
-          {termsAccepted ? children : <TermsGuard photo={gatePhoto} acceptedBefore={acceptedBefore}>{children}</TermsGuard>}
+          {termsAccepted ? (
+            children
+          ) : (
+            <TermsGuard photo={gatePhoto} acceptedBefore={acceptedBefore}>
+              {children}
+            </TermsGuard>
+          )}
         </main>
         <SiteFooter />
       </body>

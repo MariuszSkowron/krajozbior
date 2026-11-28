@@ -269,7 +269,9 @@ describe("home page of a guest", () => {
     const kept = await render({ wylogowano: "odmowa-konto" });
 
     expect(kept).toContain("Konto zostaje, ale działa dopiero po akceptacji regulaminu.");
-    expect(kept).toContain('<a href="mailto:prywatnosc@krajozbior.pl">prywatnosc@krajozbior.pl</a>');
+    expect(kept).toContain(
+      '<a href="mailto:prywatnosc@krajozbior.pl">prywatnosc@krajozbior.pl</a>',
+    );
     expect(kept).not.toContain("w ustawieniach");
     expect(await render({ wylogowano: "odmowa-blad" })).toContain("nie udało się usunąć konta");
     // Nothing of the sign-out in the default page (the sorting status region is empty).
