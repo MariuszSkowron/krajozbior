@@ -6,6 +6,7 @@ import {
   normalizeLineBreaks,
   type Region,
 } from "@/features/catalog/domain/collection";
+import { hasForbiddenCharacter } from "@/lib/text/forbidden-characters";
 
 // Rules of an own collection that need no database (E8-S1). The region is one of the 16
 // voivodeships or "polska" (D-34); the frozen copy of this list is the CHECK of the migration
@@ -53,14 +54,18 @@ export function validateOwnCollectionInput(input: {
         ? normalizeLineBreaks(input.summary).trim()
         : null;
 
-  if (title.length < 1 || title.length > COLLECTION_TITLE_MAX_LENGTH || title.includes("\u0000")) {
+  if (
+    title.length < 1 ||
+    title.length > COLLECTION_TITLE_MAX_LENGTH ||
+    hasForbiddenCharacter(title, false)
+  ) {
     errors.push("title");
   }
 
   if (
     summary === null ||
     summary.length > COLLECTION_SUMMARY_MAX_LENGTH ||
-    summary.includes("\u0000")
+    hasForbiddenCharacter(summary, true)
   ) {
     errors.push("summary");
   }

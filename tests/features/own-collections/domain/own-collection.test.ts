@@ -80,6 +80,25 @@ describe("validateOwnCollectionInput", () => {
     }
   });
 
+  it("refuses hidden direction, zero-width and control characters (U-1)", () => {
+    const hidden = ["‮", "‎", "‏", "؜", "​", "‍", "﻿", "\u0007"];
+
+    for (const mark of hidden) {
+      expect(validateOwnCollectionInput({ title: `A${mark}B`, region: "polska" })).toEqual({
+        ok: false,
+        errors: ["title"],
+      });
+      expect(
+        validateOwnCollectionInput({ title: "A", summary: `a${mark}b`, region: "polska" }),
+      ).toEqual({ ok: false, errors: ["summary"] });
+    }
+
+    expect(validateOwnCollectionInput({ title: "A\nB", region: "polska" }).ok).toBe(false);
+    expect(
+      validateOwnCollectionInput({ title: "A", summary: "a\nb\n\nc", region: "polska" }).ok,
+    ).toBe(true);
+  });
+
   it("refuses a too long, NUL or non-text summary", () => {
     for (const summary of ["x".repeat(281), "a\u0000b", 5, null]) {
       expect(validateOwnCollectionInput({ title: "A", summary, region: "polska" })).toEqual({

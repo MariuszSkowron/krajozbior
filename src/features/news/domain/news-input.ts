@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { normalizeLineBreaks } from "@/features/catalog/domain/collection";
 import { isUuid } from "@/features/catalog/domain/uuid";
+import { HIDDEN_CHARACTERS_MESSAGE, hasForbiddenCharacter } from "@/lib/text/forbidden-characters";
 
 import { codePointLength, parseNewsBody, type NewsBodyError } from "./news-body";
 import {
@@ -88,39 +89,9 @@ const BODY_ERROR_MESSAGES: Readonly<Record<NewsBodyError, string>> = {
   credentials: "Adres w treści nie może zawierać nazwy użytkownika ani hasła.",
 };
 
-// Characters that change how text is read without being seen (text direction
-// overrides and marks) are refused: they can disguise an address or a name.
-function isHiddenDirection(code: number): boolean {
-  return (
-    code === 0x061c ||
-    code === 0x200e ||
-    code === 0x200f ||
-    (code >= 0x202a && code <= 0x202e) ||
-    (code >= 0x2066 && code <= 0x2069)
-  );
-}
-
-/**
- * True for a control character (a line feed only when `allowLineFeed`), a hidden
- * direction mark or a lone surrogate (N2: the database would store it as U+FFFD).
- */
-export function hasForbiddenCharacter(text: string, allowLineFeed: boolean): boolean {
-  for (const char of text) {
-    const code = char.codePointAt(0) as number;
-    const isControl = code <= 0x1f || (code >= 0x7f && code <= 0x9f);
-    const isLoneSurrogate = code >= 0xd800 && code <= 0xdfff;
-
-    if (
-      (isControl && !(allowLineFeed && code === 0x0a)) ||
-      isHiddenDirection(code) ||
-      isLoneSurrogate
-    ) {
-      return true;
-    }
-  }
-
-  return false;
-}
+// Control, format (direction marks, zero-width, BOM) and lone surrogate characters are
+// refused by the shared rule (N2: the database would store a lone surrogate as U+FFFD).
+export { hasForbiddenCharacter };
 
 // Characters with no visible shape: zero-width spaces and joiners, the word joiner,
 // the byte order mark, a soft hyphen, invisible operators, fillers, line and
@@ -191,7 +162,10 @@ function checkText(raw: string, rule: TextRule): Readonly<{ text: string; error:
   }
 
   if (hasForbiddenCharacter(text, multiline)) {
-    return { text, error: `${label} zawiera niedozwolone znaki sterujące.` };
+    return {
+      text,
+      error: `${label} zawiera niedozwolone znaki. ${HIDDEN_CHARACTERS_MESSAGE}`,
+    };
   }
 
   // The minimum counts only visible characters (S5).
@@ -370,7 +344,10 @@ export function validateNewsInput(
   if (rawBody.length > NEWS_BODY_MAX_LENGTH * 2) {
     errors.push({ field: "body", message: BODY_ERROR_MESSAGES.too_long });
   } else if (hasForbiddenCharacter(body, true)) {
-    errors.push({ field: "body", message: "Treść zawiera niedozwolone znaki sterujące." });
+    errors.push({
+      field: "body",
+      message: `Treść zawiera niedozwolone znaki. ${HIDDEN_CHARACTERS_MESSAGE}`,
+    });
   } else {
     const parsed = parseNewsBody(body);
 

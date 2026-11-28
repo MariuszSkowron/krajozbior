@@ -355,9 +355,10 @@ function zodCode(issue: z.core.$ZodIssue, root: unknown): string {
   }
 }
 
-// NUL, "<", DEL, C1 controls (U+0080–U+009F) and text direction characters
-// (U+202A–U+202E, U+2066–U+2069) never belong in a title or a text.
-const FORBIDDEN_CHARACTER = /[\u0000<\u007f-\u009f‪-‮⁦-⁩]/;
+// "<", control characters (Cc, but the tab and the line breaks of a text stay) and format
+// characters (Cf: direction marks, zero-width characters, the byte order mark) never belong in
+// a title or a text; the same set as the other text fields (src/lib/text/forbidden-characters.ts).
+const FORBIDDEN_CHARACTER = /[<\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\p{Cf}]/u;
 
 function hasForbiddenCharacter(value: unknown): boolean {
   if (typeof value === "string") {

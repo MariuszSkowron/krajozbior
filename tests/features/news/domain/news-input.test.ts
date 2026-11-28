@@ -13,6 +13,7 @@ import {
   validateNewsInput,
 } from "@/features/news/domain/news-input";
 
+const HIDDEN = "Usuń niewidoczne znaki skopiowane razem z tekstem.";
 const ID = "3f2b8c1e-5d4a-4b6f-9a7e-1c2d3e4f5a6b";
 
 const valid = {
@@ -240,15 +241,15 @@ describe("validateNewsInput: texts", () => {
 
   it("refuses control characters in a title, but allows a line feed in a lead and a body", () => {
     expect(fieldMessage({ ...valid, title: "Tytuł\nz łamaniem" }, "title")).toBe(
-      "Tytuł zawiera niedozwolone znaki sterujące.",
+      `Tytuł zawiera niedozwolone znaki. ${HIDDEN}`,
     );
     expect(fieldMessage({ ...valid, title: "Tytuł\u0000x" }, "title")).toBeDefined();
     expect(fieldMessage({ ...valid, lead: "Lead\ttab" }, "lead")).toBe(
-      "Krótki tekst zawiera niedozwolone znaki sterujące.",
+      `Krótki tekst zawiera niedozwolone znaki. ${HIDDEN}`,
     );
     expect(validateNewsInput({ ...valid, lead: "a\nb", body: "c\nd" }).ok).toBe(true);
     expect(fieldMessage({ ...valid, body: "a\u0007b" }, "body")).toBe(
-      "Treść zawiera niedozwolone znaki sterujące.",
+      `Treść zawiera niedozwolone znaki. ${HIDDEN}`,
     );
     expect(fieldMessage({ ...valid, body: "a\tb" }, "body")).toBeDefined();
   });
@@ -259,34 +260,45 @@ describe("validateNewsInput: texts", () => {
     }
   });
 
+  it("refuses zero-width, direction and byte order characters (U-1)", () => {
+    for (const mark of ["​", "‌", "⁠", "﻿", "­", "‎", "‏"]) {
+      expect(fieldMessage({ ...valid, title: `abcd${mark}e` }, "title")).toBe(
+        `Tytuł zawiera niedozwolone znaki. ${HIDDEN}`,
+      );
+      expect(fieldMessage({ ...valid, body: `abc${mark}d` }, "body")).toBe(
+        `Treść zawiera niedozwolone znaki. ${HIDDEN}`,
+      );
+    }
+  });
+
   it("refuses a title or a lead made only of invisible characters (S5)", () => {
     // Six characters, so only the visible count rejects it (trim drops the ﻿).
     const zeroWidth = "​‌‍⁠​‌﻿";
 
     expect(fieldMessage({ ...valid, title: zeroWidth }, "title")).toBe(
-      "Tytuł musi mieć co najmniej 5 widocznych znaków.",
+      `Tytuł zawiera niedozwolone znaki. ${HIDDEN}`,
     );
     expect(fieldMessage({ ...valid, title: `ab${zeroWidth}` }, "title")).toBe(
-      "Tytuł musi mieć co najmniej 5 widocznych znaków.",
+      `Tytuł zawiera niedozwolone znaki. ${HIDDEN}`,
     );
     expect(fieldMessage({ ...valid, title: "a­ㅤ  bc" }, "title")).toBe(
-      "Tytuł musi mieć co najmniej 5 widocznych znaków.",
+      `Tytuł zawiera niedozwolone znaki. ${HIDDEN}`,
     );
     expect(fieldMessage({ ...valid, lead: "​​" }, "lead")).toBe(
-      "Krótki tekst musi zawierać widoczne znaki.",
+      `Krótki tekst zawiera niedozwolone znaki. ${HIDDEN}`,
     );
-    expect(validateNewsInput({ ...valid, title: "abcd​e" }).ok).toBe(true);
+    expect(!validateNewsInput({ ...valid, title: "abcd​e" }).ok).toBe(true);
     // A joiner inside an emoji sequence is allowed.
     expect(validateNewsInput({ ...valid, title: "Rodzina 👨‍👩‍👧" }).ok).toBe(true);
   });
 
   it("refuses a lone surrogate in every text (N2)", () => {
     expect(fieldMessage({ ...valid, title: "Tytuł\ud800x" }, "title")).toBe(
-      "Tytuł zawiera niedozwolone znaki sterujące.",
+      `Tytuł zawiera niedozwolone znaki. ${HIDDEN}`,
     );
     expect(fieldMessage({ ...valid, lead: "a\udc00" }, "lead")).toBeDefined();
     expect(fieldMessage({ ...valid, body: "a\ud83d" }, "body")).toBe(
-      "Treść zawiera niedozwolone znaki sterujące.",
+      `Treść zawiera niedozwolone znaki. ${HIDDEN}`,
     );
     expect(parseHiddenReason("powód z \ud800 surogatem")).toBeNull();
     expect(hasForbiddenCharacter("pełna para \u{1F5FA}", false)).toBe(false);
