@@ -20,8 +20,14 @@ const LEGAL = [
   { path: "/regulamin", title: "Regulamin" },
   { path: "/polityka-prywatnosci", title: "Polityka prywatności" },
   { path: "/zasady", title: "Najważniejsze zasady" },
-  { path: "/oswiadczenie-o-zdjeciach", title: "Oświadczenie o zdjęciach" },
-  { path: "/umowa-powierzenia", title: "Umowa powierzenia (załącznik nr 2)" },
+  {
+    path: "/oswiadczenie-o-zdjeciach",
+    title: "Oświadczenie o prawach do zdjęcia i licencja (załącznik nr 1)",
+  },
+  {
+    path: "/umowa-powierzenia",
+    title: "Umowa powierzenia przetwarzania danych osobowych (załącznik nr 2)",
+  },
 ] as const;
 
 // Each address may ask for three codes in 15 minutes: every test makes its own.

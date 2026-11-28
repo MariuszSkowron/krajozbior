@@ -63,8 +63,8 @@ export function TermsForm({
           onChange={() => setClientProblem(null)}
         />
         <span>
-          Akceptuję Regulamin (wersja {termsVersion} z dnia {termsDate}) i potwierdzam zapoznanie
-          się z Polityką prywatności.
+          Mam ukończone 16 lat. Akceptuję Regulamin (wersja {termsVersion} z dnia {termsDate}) i
+          potwierdzam zapoznanie się z Polityką prywatności.
         </span>
       </label>
       <button type="submit" className={`button button--primary ${styles.submit}`}>

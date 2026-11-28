@@ -35,7 +35,7 @@ describe("the screen „Zanim zaczniesz” (E11-Q4 A)", () => {
       /<form [^>]*noValidate=""[^>]*action="\/api\/me\/terms-acceptance" method="post">.*<input type="checkbox" required="" name="accepted"\/>/,
     );
     expect(markup).toContain(
-      "Akceptuję Regulamin (wersja 1.1 z dnia 28 listopada 2026 r.) i potwierdzam zapoznanie się z Polityką prywatności.",
+      "Mam ukończone 16 lat. Akceptuję Regulamin (wersja 1.1 z dnia 28 listopada 2026 r.) i potwierdzam zapoznanie się z Polityką prywatności.",
     );
     expect(markup).toContain(">Akceptuję</button>");
   });

@@ -33,7 +33,7 @@ To streszczenie regulaminu i polityki prywatności napisane prostym językiem. N
 
 ## Gdzie znaleźć szczegóły
 
-- [Regulamin](/regulamin) (https://krajozbior.pl/regulamin)
-- [Polityka prywatności](/polityka-prywatnosci) (https://krajozbior.pl/polityka-prywatnosci)
-- [Oświadczenie o prawach do zdjęcia i licencja](/oswiadczenie-o-zdjeciach) (https://krajozbior.pl/oswiadczenie-o-zdjeciach)
+- [Regulamin](/regulamin)
+- [Polityka prywatności](/polityka-prywatnosci)
+- [Oświadczenie o prawach do zdjęcia i licencja](/oswiadczenie-o-zdjeciach)
 `;
