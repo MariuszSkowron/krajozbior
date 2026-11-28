@@ -30,13 +30,17 @@ import { Migration } from "@mikro-orm/migrations";
 // pattern); an integration test compares them.
 
 const organizationKinds = `'municipality', 'pttk', 'local_tourism_org', 'regional_tourism_org', 'person', 'other'`;
-// Unicode category Cc (C0, DEL, C1): no line breaks or terminal escapes; and the invisible
-// formatting characters of category Cf (soft hyphen, zero-width, direction marks and overrides,
-// word joiner, isolates, BOM, language tags), C-05 of the audit.
-const controlCharacters = String.raw`'[\u0001-\u001f\u007f-\u009f­؜᠎​-‏‪-‮⁠-⁯﻿\U000e0000-\U000e007f]'`;
+// Unicode category Cc (C0, DEL, C1): no line breaks or terminal escapes; and all invisible
+// formatting characters of category Cf (soft hyphen, Arabic marks, zero-width, direction marks and
+// overrides, word joiner, isolates, BOM, interlinear and musical format marks, language tags), as
+// the form refuses with /[\p{Cc}\p{Cf}]/u (C-05 of the audit). Escapes (\UXXXXXXXX) are read by the
+// PostgreSQL regex engine, so no invisible character sits in this file.
+const controlCharacters = String.raw`'[\U00000001-\U0000001f\U0000007f-\U0000009f\U000000ad\U00000600-\U00000605\U0000061c\U000006dd\U0000070f\U00000890-\U00000891\U000008e2\U0000180e\U0000200b-\U0000200f\U0000202a-\U0000202e\U00002060-\U00002064\U00002066-\U0000206f\U0000feff\U0000fff9-\U0000fffb\U000110bd\U000110cd\U00013430-\U0001343f\U0001bca0-\U0001bca3\U0001d173-\U0001d17a\U000e0001\U000e0020-\U000e007f]'`;
 // The organization name is a closed set (frozen copy of ORGANIZATION_NAME_PATTERN): Latin letters
-// with Polish marks, digits, a space and . , - ' ( ) & - no other script, so no look-alike letters.
-const organizationNamePattern = `'^[A-Za-z0-9ĄąĆćĘęŁłŃńÓóŚśŹźŻż .,''()&-]+$'`;
+// as explicit code ranges (Latin-1 without the signs x and division, Latin Extended-A and B without
+// U+01C0-U+01C3, Latin Extended Additional), digits, a space and . , : ; ! ? ' right quote " low
+// and right double quotes ( ) & / + en dash and hyphen. No other script, so no look-alike letters.
+const organizationNamePattern = String.raw`'^[A-Za-z0-9\U000000c0-\U000000d6\U000000d8-\U000000f6\U000000f8-\U000001bf\U000001c4-\U0000024f\U00001e00-\U00001eff .,:;!?''\U00002019"\U0000201e\U0000201d()&/+\U00002013-]+$'`;
 const slugPattern = `'^[a-z0-9]+(-[a-z0-9]+)*$'`;
 const maxApplicationsPerAccount = 20;
 const maxListedApplications = 200;
@@ -59,6 +63,7 @@ export class Migration20261128040000_curator_applications extends Migration {
           and char_length(organization_name) between 1 and 120
           and organization_name !~ ${controlCharacters}
           and organization_name ~ ${organizationNamePattern}
+          and organization_name !~ '  '
         ),
         organization_kind text not null check (organization_kind in (${organizationKinds})),
         applicant_role text not null check (
@@ -343,6 +348,7 @@ export class Migration20261128040000_curator_applications extends Migration {
                or char_length(btrim(p_organization_name)) not between 1 and 120
                or p_organization_name ~ ${controlCharacters}
                or btrim(p_organization_name) !~ ${organizationNamePattern}
+               or btrim(p_organization_name) ~ '  '
                or p_organization_slug is null
                or char_length(p_organization_slug) > 60
                or p_organization_slug !~ ${slugPattern} then

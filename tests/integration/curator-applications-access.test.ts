@@ -839,12 +839,29 @@ describe("curator applications: access, administrator functions, session and gat
 
     // C-05: invisible characters (Cf) and look-alike letters of another script in the name.
     const badNames: [string, string][] = [
-      ["zero-width space", "Gmina​Testowa"],
-      ["right-to-left override", "Gmina ‮atsetoT"],
+      ["zero-width space", "Gmina\u{200b}Testowa"],
+      ["right-to-left override", "Gmina \u{202e}atsetoT"],
       ["language tag", "Gmina\u{e0041}Testowa"],
-      ["Cyrillic a", "Gminа Testowa"],
-      ["Greek omicron", "Gmina Testοwa"],
-      ["combining mark", "Gmina Testowá"],
+      ["Cyrillic a", "Gmin\u{430} Testowa"],
+      ["Greek omicron", "Gmina Test\u{3bf}wa"],
+      ["combining mark", "Gmina Testowa\u{301}"],
+      ["emoji", "Gmina \u{1f332}"],
+      ["full-width letters", "\u{ff27}\u{ff4d}\u{ff49}\u{ff4e}\u{ff41}"],
+      ["a look-alike of the exclamation mark", "Gmina \u{1c3}"],
+      ["a multiplication sign", "Gmina \u{d7}"],
+      ["soft hyphen", "Gmina\u{ad}Testowa"],
+      ["Arabic number sign (Cf missing from the old list)", "Gmina\u{600}Testowa"],
+      ["double space", "Gmina  Testowa"],
+    ];
+    // Real names the first, narrower set refused.
+    const goodNames = [
+      "Koło PTTK nr 5 (Rumia), o'Neil & Co.-1",
+      "Stowarzyszenie \u{201e}Nasza Rumia\u{201d}",
+      "Koło PTTK nr 2 / Oddział Gdynia",
+      "Fundacja Müller",
+      "Café Literacka",
+      'Fundacja Na+ \u{2019}x\u{2019}: "y"; z!?',
+      "Towarzystwo Przyjaciół Ziemi Kłodzkiej \u{2013} Oddział Nysa",
     ];
 
     it("refuses invisible characters and look-alike letters in the name, in the table and in the function (C-05)", async () => {
@@ -857,12 +874,27 @@ describe("curator applications: access, administrator functions, session and gat
         ).rejects.toMatchObject({ code: "23514" });
       }
 
-      // The allowed set still goes through.
-      await expect(
-        inApp({ user: someone.id }, (client) =>
-          client.query(insertSql, ["Koło PTTK nr 5 (Rumia), o'Neil & Co.-1", "pttk"]),
-        ),
-      ).resolves.toBeDefined();
+      // The allowed set goes through the CHECK ...
+      for (const name of goodNames) {
+        await expect(
+          inApp({ user: someone.id }, (client) => client.query(insertSql, [name, "pttk"])),
+          name,
+        ).resolves.toBeDefined();
+      }
+
+      // ... and the other texts refuse every invisible Cf character, like the form (\p{Cf}).
+      for (const invisible of ["\u{600}", "\u{6dd}", "\u{fff9}", "\u{1d173}", "\u{e0001}"]) {
+        await expect(
+          inApp({ user: someone.id }, (client) =>
+            client.query(
+              `insert into public.curator_applications
+                 (organization_name, organization_kind, applicant_role, contact)
+               values ('Gmina Testowa', 'other', $1, 'kontakt@example.com')`,
+              [`rola${invisible}`],
+            ),
+          ),
+        ).rejects.toMatchObject({ code: "23514" });
+      }
 
       const id = await submit(await newAccount());
       const before = await snapshot();
@@ -877,6 +909,15 @@ describe("curator applications: access, administrator functions, session and gat
       }
 
       expect(await snapshot()).toEqual(before);
+
+      // The function accepts the same good names (a new organization is created).
+      for (const [index, name] of goodNames.entries()) {
+        const applicationId = await submit(await newAccount());
+
+        await inApp({ user: admin.id, token: adminToken }, (client) =>
+          client.query(decideSql, approveNew(applicationId, name, `nazwa-c05-dobra-${index}`)),
+        );
+      }
     });
 
     it("refuses a second decision with not_pending", async () => {

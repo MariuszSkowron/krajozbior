@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { normalizeLineBreaks } from "@/features/catalog/domain/collection";
 import {
+  collapseSpaces,
   ORGANIZATION_NAME_PATTERN,
   ORGANIZATION_KINDS,
   type OrganizationKind,
@@ -54,9 +55,9 @@ const line = (min: number, max: number) =>
         .refine((value) => !CONTROL_CHARACTER.test(value)),
     );
 
-const organizationName = line(1, ORGANIZATION_NAME_MAX).refine((value) =>
-  ORGANIZATION_NAME_PATTERN.test(value),
-);
+const organizationName = line(1, ORGANIZATION_NAME_MAX)
+  .transform(collapseSpaces)
+  .refine((value) => ORGANIZATION_NAME_PATTERN.test(value));
 
 function isHttpsAddress(value: string): boolean {
   if (!value.startsWith("https://") || /\s/.test(value)) {

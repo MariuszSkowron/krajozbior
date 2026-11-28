@@ -60,13 +60,17 @@ describe("validateCuratorApplicationInput", () => {
   });
 
   it.each([
-    ["zero-width space", "Gmina​Testowa"],
-    ["right-to-left override", "Gmina ‮atsetoT"],
+    ["zero-width space", "Gmina\u{200b}Testowa"],
+    ["right-to-left override", "Gmina \u{202e}atsetoT"],
     ["language tag", "Gmina\u{e0041}Testowa"],
-    ["Cyrillic a", "Gminа Testowa"],
-    ["Greek omicron", "Gmina Testοwa"],
-    ["emoji", "Gmina 🌲"],
+    ["Cyrillic a", "Gmin\u{430} Testowa"],
+    ["Greek omicron", "Gmina Test\u{3bf}wa"],
+    ["emoji", "Gmina \u{1f332}"],
     ["a forbidden mark", "Gmina <b>"],
+    ["full-width letters", "\u{ff27}\u{ff4d}\u{ff49}\u{ff4e}\u{ff41}"],
+    ["a look-alike of the exclamation mark", "Gmina \u{1c3}"],
+    ["a multiplication sign", "Gmina \u{d7}"],
+    ["a combining mark", "Gmina \u{301}"],
   ])("refuses %s in the organization name (C-05)", (_label, organizationName) => {
     expect(validateCuratorApplicationInput({ ...valid, organizationName })).toEqual({
       ok: false,
@@ -76,7 +80,7 @@ describe("validateCuratorApplicationInput", () => {
 
   it("refuses invisible characters in the other texts too", () => {
     for (const field of ["applicantRole", "contact"] as const) {
-      expect(validateCuratorApplicationInput({ ...valid, [field]: "ab​cd" })).toEqual({
+      expect(validateCuratorApplicationInput({ ...valid, [field]: "ab\u{200b}cd" })).toEqual({
         ok: false,
         fields: [field],
       });
@@ -94,6 +98,25 @@ describe("validateCuratorApplicationInput", () => {
     expect(
       validateCuratorApplicationInput({ ...valid, organizationName: "Koło Góra" }),
     ).toMatchObject({ ok: true, value: { organizationName: "Koło Góra" } });
+  });
+
+  it.each([
+    "Stowarzyszenie \u{201e}Nasza Rumia\u{201d}",
+    "Koło PTTK nr 2 / Oddział Gdynia",
+    "Fundacja Müller",
+    "Café Literacka",
+    "Towarzystwo Przyjaciół Ziemi Kłodzkiej \u{2013} Oddział Nysa",
+  ])("accepts the real name %s (C-05)", (organizationName) => {
+    expect(validateCuratorApplicationInput({ ...valid, organizationName })).toMatchObject({
+      ok: true,
+      value: { organizationName },
+    });
+  });
+
+  it("folds double spaces in the name to one", () => {
+    expect(
+      validateCuratorApplicationInput({ ...valid, organizationName: "Gmina   Testowa" }),
+    ).toMatchObject({ ok: true, value: { organizationName: "Gmina Testowa" } });
   });
 
   it("refuses control characters, also the line breaks of a single-line field", () => {

@@ -132,6 +132,6 @@ export type CuratorApplicationsOutcome<T> =
   | Readonly<{ status: "unauthenticated" }>
   | Readonly<{ status: "forbidden" }>
   | Readonly<{ status: "not_found" }>
-  | Readonly<{ status: "invalid"; fields?: readonly string[] }>
+  | Readonly<{ status: "invalid"; fields?: readonly string[]; message?: string }>
   | Readonly<{ status: "conflict"; code: ConflictCode }>
   | Readonly<{ status: "rate_limited"; retryAfterSeconds: number }>;

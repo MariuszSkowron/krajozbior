@@ -33,14 +33,21 @@ export function isOrganizationSlug(value: unknown): value is string {
   );
 }
 
-// The name is shown to everyone, so it is a closed set: Latin letters with Polish marks, digits,
-// a space and . , - ' ( ) &. No invisible, formatting or control character (Cc, Cf: zero-width,
-// right-to-left override, tags) and no letter of another script that looks like a Latin one
-// (C-05 of the audit). The migration `curator_applications` keeps a frozen copy of this set.
-export const ORGANIZATION_NAME_PATTERN = /^[A-Za-z0-9ĄąĆćĘęŁłŃńÓóŚśŹźŻż .,'()&-]+$/;
+// The name is shown to everyone, so it is a closed set: Latin letters as explicit code ranges (not
+// \p{Script=Latin}, which lets full-width letters through; PostgreSQL has no \p{...} either),
+// digits, a space and . , : ; ! ? ' right quote " low and right double quotes ( ) & / + en dash
+// and hyphen. No invisible, formatting or control character (Cc, Cf) and no letter of another
+// script (C-05 of the audit). The migration `curator_applications` keeps a frozen copy of this set.
+export const ORGANIZATION_NAME_PATTERN =
+  /^[A-Za-z0-9\u{C0}-\u{D6}\u{D8}-\u{F6}\u{F8}-\u{1BF}\u{1C4}-\u{24F}\u{1E00}-\u{1EFF} .,:;!?'\u{2019}"\u{201E}\u{201D}()&/+\u{2013}-]+$/u;
 
 export const ORGANIZATION_NAME_MESSAGE =
-  "Nazwa może zawierać litery, cyfry, spacje i znaki . , - ' ( ) &.";
+  "Nazwa może zawierać litery alfabetu łacińskiego (także z akcentami), cyfry, spacje i znaki interpunkcyjne. Usuń emotki i znaki specjalne.";
+
+/** The same text with every run of spaces folded to one (two look-alike names are one name). */
+export function collapseSpaces(value: string): string {
+  return value.replace(/ {2,}/g, " ");
+}
 
 /** NFC-normalized, trimmed name of 1-120 allowed characters, or null when it does not qualify. */
 export function normalizeOrganizationName(value: unknown): string | null {
@@ -48,7 +55,7 @@ export function normalizeOrganizationName(value: unknown): string | null {
     return null;
   }
 
-  const name = value.normalize("NFC").trim();
+  const name = collapseSpaces(value.normalize("NFC").trim());
 
   return name.length >= 1 &&
     name.length <= ORGANIZATION_NAME_MAX_LENGTH &&

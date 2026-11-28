@@ -15,6 +15,7 @@ import {
   withdrawCuratorApplication,
 } from "@/features/curator-applications/application/curator-applications";
 import type { Actor } from "@/features/identity/domain/actor";
+import { ORGANIZATION_NAME_MESSAGE } from "@/features/organizations/domain/organization";
 
 const user: Actor = { id: "11111111-1111-4111-8111-111111111111", role: "user" };
 const admin: Actor = { id: "22222222-2222-4222-8222-222222222222", role: "admin" };
@@ -159,6 +160,18 @@ describe("submitCuratorApplication", () => {
       fields: ["contact"],
     });
     expect(deps.limiter.reserve).not.toHaveBeenCalled();
+  });
+
+  it("explains a refused organization name (C-05)", async () => {
+    const { deps } = setup();
+
+    expect(
+      await submitCuratorApplication(user, { ...form, organizationName: "Gmina \u{1f332}" }, deps),
+    ).toEqual({
+      status: "invalid",
+      fields: ["organizationName"],
+      message: ORGANIZATION_NAME_MESSAGE,
+    });
   });
 
   it("answers rate_limited when the limiter refuses", async () => {
