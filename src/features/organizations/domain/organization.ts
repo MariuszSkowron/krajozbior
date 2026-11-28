@@ -33,15 +33,28 @@ export function isOrganizationSlug(value: unknown): value is string {
   );
 }
 
-/** Trimmed name of 1-120 characters, or null when it does not qualify. */
+// The name is shown to everyone, so it is a closed set: Latin letters with Polish marks, digits,
+// a space and . , - ' ( ) &. No invisible, formatting or control character (Cc, Cf: zero-width,
+// right-to-left override, tags) and no letter of another script that looks like a Latin one
+// (C-05 of the audit). The migration `curator_applications` keeps a frozen copy of this set.
+export const ORGANIZATION_NAME_PATTERN = /^[A-Za-z0-9ĄąĆćĘęŁłŃńÓóŚśŹźŻż .,'()&-]+$/;
+
+export const ORGANIZATION_NAME_MESSAGE =
+  "Nazwa może zawierać litery, cyfry, spacje i znaki . , - ' ( ) &.";
+
+/** NFC-normalized, trimmed name of 1-120 allowed characters, or null when it does not qualify. */
 export function normalizeOrganizationName(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
   }
 
-  const name = value.trim();
+  const name = value.normalize("NFC").trim();
 
-  return name.length >= 1 && name.length <= ORGANIZATION_NAME_MAX_LENGTH ? name : null;
+  return name.length >= 1 &&
+    name.length <= ORGANIZATION_NAME_MAX_LENGTH &&
+    ORGANIZATION_NAME_PATTERN.test(name)
+    ? name
+    : null;
 }
 
 /** A person (kind `person`) has at most one member; other kinds have no limit. */

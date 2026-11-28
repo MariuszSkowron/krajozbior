@@ -837,6 +837,48 @@ describe("curator applications: access, administrator functions, session and gat
       expect(await decide(randomUUID(), newOrg("nigdzie"))).toEqual({ status: "not_found" });
     });
 
+    // C-05: invisible characters (Cf) and look-alike letters of another script in the name.
+    const badNames: [string, string][] = [
+      ["zero-width space", "Gmina​Testowa"],
+      ["right-to-left override", "Gmina ‮atsetoT"],
+      ["language tag", "Gmina\u{e0041}Testowa"],
+      ["Cyrillic a", "Gminа Testowa"],
+      ["Greek omicron", "Gmina Testοwa"],
+      ["combining mark", "Gmina Testowá"],
+    ];
+
+    it("refuses invisible characters and look-alike letters in the name, in the table and in the function (C-05)", async () => {
+      const someone = await newAccount();
+
+      for (const [label, name] of badNames) {
+        await expect(
+          inApp({ user: someone.id }, (client) => client.query(insertSql, [name, "municipality"])),
+          label,
+        ).rejects.toMatchObject({ code: "23514" });
+      }
+
+      // The allowed set still goes through.
+      await expect(
+        inApp({ user: someone.id }, (client) =>
+          client.query(insertSql, ["Koło PTTK nr 5 (Rumia), o'Neil & Co.-1", "pttk"]),
+        ),
+      ).resolves.toBeDefined();
+
+      const id = await submit(await newAccount());
+      const before = await snapshot();
+
+      for (const [label, name] of badNames) {
+        await expect(
+          inApp({ user: admin.id, token: adminToken }, (client) =>
+            client.query(decideSql, approveNew(id, name, "nazwa-c05")),
+          ),
+          label,
+        ).rejects.toMatchObject({ code: "22023" });
+      }
+
+      expect(await snapshot()).toEqual(before);
+    });
+
     it("refuses a second decision with not_pending", async () => {
       const id = await submit(await newAccount());
       const session = sessionOf(admin, adminToken);

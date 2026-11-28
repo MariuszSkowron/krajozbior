@@ -13,7 +13,7 @@ import {
 
 export const REJECTION_REASON_MAX = 400;
 
-const CONTROL_CHARACTER = /\p{Cc}/u;
+const CONTROL_CHARACTER = /[\p{Cc}\p{Cf}]/u;
 
 // The reason of a rejection is shown to the applicant and is not written to the audit, so an
 // address is allowed (N5 of the review); control characters are refused, like in the CHECK.

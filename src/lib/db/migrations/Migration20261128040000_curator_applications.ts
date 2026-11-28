@@ -30,8 +30,13 @@ import { Migration } from "@mikro-orm/migrations";
 // pattern); an integration test compares them.
 
 const organizationKinds = `'municipality', 'pttk', 'local_tourism_org', 'regional_tourism_org', 'person', 'other'`;
-// Unicode category Cc (C0, DEL, C1): no line breaks or terminal escapes.
-const controlCharacters = String.raw`'[\u0001-\u001f\u007f-\u009f]'`;
+// Unicode category Cc (C0, DEL, C1): no line breaks or terminal escapes; and the invisible
+// formatting characters of category Cf (soft hyphen, zero-width, direction marks and overrides,
+// word joiner, isolates, BOM, language tags), C-05 of the audit.
+const controlCharacters = String.raw`'[\u0001-\u001f\u007f-\u009f­؜᠎​-‏‪-‮⁠-⁯﻿\U000e0000-\U000e007f]'`;
+// The organization name is a closed set (frozen copy of ORGANIZATION_NAME_PATTERN): Latin letters
+// with Polish marks, digits, a space and . , - ' ( ) & - no other script, so no look-alike letters.
+const organizationNamePattern = `'^[A-Za-z0-9ĄąĆćĘęŁłŃńÓóŚśŹźŻż .,''()&-]+$'`;
 const slugPattern = `'^[a-z0-9]+(-[a-z0-9]+)*$'`;
 const maxApplicationsPerAccount = 20;
 const maxListedApplications = 200;
@@ -53,6 +58,7 @@ export class Migration20261128040000_curator_applications extends Migration {
           organization_name = btrim(organization_name)
           and char_length(organization_name) between 1 and 120
           and organization_name !~ ${controlCharacters}
+          and organization_name ~ ${organizationNamePattern}
         ),
         organization_kind text not null check (organization_kind in (${organizationKinds})),
         applicant_role text not null check (
@@ -336,6 +342,7 @@ export class Migration20261128040000_curator_applications extends Migration {
             if p_organization_name is null
                or char_length(btrim(p_organization_name)) not between 1 and 120
                or p_organization_name ~ ${controlCharacters}
+               or btrim(p_organization_name) !~ ${organizationNamePattern}
                or p_organization_slug is null
                or char_length(p_organization_slug) > 60
                or p_organization_slug !~ ${slugPattern} then

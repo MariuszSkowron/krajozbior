@@ -45,6 +45,9 @@ describe("organization domain", () => {
     expect(normalizeOrganizationName("x".repeat(121))).toBeNull();
     expect(normalizeOrganizationName("   ")).toBeNull();
     expect(normalizeOrganizationName(null)).toBeNull();
+    expect(normalizeOrganizationName("Gminа")).toBeNull();
+    expect(normalizeOrganizationName("Gm​ina")).toBeNull();
+    expect(normalizeOrganizationName("Koło Góra")).toBe("Koło Góra");
   });
 
   it("lets a person have one member and other kinds any number", () => {

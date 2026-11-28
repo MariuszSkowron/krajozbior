@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { normalizeLineBreaks } from "@/features/catalog/domain/collection";
 import {
+  ORGANIZATION_NAME_PATTERN,
   ORGANIZATION_KINDS,
   type OrganizationKind,
 } from "@/features/organizations/domain/organization";
@@ -38,12 +39,13 @@ export type CuratorApplicationValidation =
   | Readonly<{ ok: true; value: CuratorApplicationInput }>
   | Readonly<{ ok: false; fields: readonly CuratorApplicationField[] }>;
 
-const CONTROL_CHARACTER = /\p{Cc}/u;
+// Control (Cc) and invisible formatting (Cf: zero-width, right-to-left override, tags) characters.
+const CONTROL_CHARACTER = /[\p{Cc}\p{Cf}]/u;
 
 const line = (min: number, max: number) =>
   z
     .string()
-    .transform((value) => normalizeLineBreaks(value).trim())
+    .transform((value) => normalizeLineBreaks(value).normalize("NFC").trim())
     .pipe(
       z
         .string()
@@ -51,6 +53,10 @@ const line = (min: number, max: number) =>
         .max(max)
         .refine((value) => !CONTROL_CHARACTER.test(value)),
     );
+
+const organizationName = line(1, ORGANIZATION_NAME_MAX).refine((value) =>
+  ORGANIZATION_NAME_PATTERN.test(value),
+);
 
 function isHttpsAddress(value: string): boolean {
   if (!value.startsWith("https://") || /\s/.test(value)) {
@@ -74,7 +80,7 @@ const websiteUrl = z.preprocess(
 );
 
 const formSchema = z.object({
-  organizationName: line(1, ORGANIZATION_NAME_MAX),
+  organizationName,
   organizationKind: z.enum(ORGANIZATION_KINDS),
   applicantRole: line(1, APPLICANT_ROLE_MAX),
   contact: line(CONTACT_MIN, CONTACT_MAX),

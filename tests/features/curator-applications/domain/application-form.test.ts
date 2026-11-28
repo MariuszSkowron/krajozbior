@@ -59,6 +59,43 @@ describe("validateCuratorApplicationInput", () => {
     });
   });
 
+  it.each([
+    ["zero-width space", "Gmina​Testowa"],
+    ["right-to-left override", "Gmina ‮atsetoT"],
+    ["language tag", "Gmina\u{e0041}Testowa"],
+    ["Cyrillic a", "Gminа Testowa"],
+    ["Greek omicron", "Gmina Testοwa"],
+    ["emoji", "Gmina 🌲"],
+    ["a forbidden mark", "Gmina <b>"],
+  ])("refuses %s in the organization name (C-05)", (_label, organizationName) => {
+    expect(validateCuratorApplicationInput({ ...valid, organizationName })).toEqual({
+      ok: false,
+      fields: ["organizationName"],
+    });
+  });
+
+  it("refuses invisible characters in the other texts too", () => {
+    for (const field of ["applicantRole", "contact"] as const) {
+      expect(validateCuratorApplicationInput({ ...valid, [field]: "ab​cd" })).toEqual({
+        ok: false,
+        fields: [field],
+      });
+    }
+  });
+
+  it("accepts Polish letters and the allowed signs, and normalizes to NFC", () => {
+    const name = "Koło PTTK nr 5 (Rumia), o'Neil & Co.-1 ĄąĆćĘęŁłŃńÓóŚśŹźŻż";
+
+    expect(validateCuratorApplicationInput({ ...valid, organizationName: name })).toMatchObject({
+      ok: true,
+      value: { organizationName: name },
+    });
+    // "o" + combining acute is composed to the single letter "ó" before the check.
+    expect(
+      validateCuratorApplicationInput({ ...valid, organizationName: "Koło Góra" }),
+    ).toMatchObject({ ok: true, value: { organizationName: "Koło Góra" } });
+  });
+
   it("refuses control characters, also the line breaks of a single-line field", () => {
     for (const field of ["organizationName", "applicantRole", "contact"] as const) {
       expect(validateCuratorApplicationInput({ ...valid, [field]: "a\r\nb" })).toEqual({
