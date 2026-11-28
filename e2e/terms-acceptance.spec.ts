@@ -146,12 +146,12 @@ test.describe("strony prawne, stopka i pasek", () => {
       await expect(footer.getByRole("link", { name: "Najważniejsze zasady" })).toBeVisible();
       await expect(footer.getByRole("link", { name: "Kontakt" })).toHaveAttribute(
         "href",
-        "mailto:kontakt@mariuszskowron.pl",
+        "mailto:kontakt@krajozbior.pl",
       );
 
       await expect(footer.getByRole("link", { name: "Zgłoś naruszenie" })).toHaveAttribute(
         "href",
-        /^mailto:kontakt@mariuszskowron\.pl\?subject=.+&body=.+/,
+        /^mailto:zgloszenia@krajozbior\.pl\?subject=.+&body=.+/,
       );
 
       await footer.getByRole("link", { name: "Regulamin" }).click();
@@ -348,7 +348,7 @@ test.describe("ekran „Zanim zaczniesz”", () => {
       .filter({ hasText: "Konto działa dopiero po akceptacji" });
 
     await expect(message).toContainText("po akceptacji regulaminu");
-    await expect(message.getByRole("link", { name: "kontakt@mariuszskowron.pl" })).toBeVisible();
+    await expect(message.getByRole("link", { name: "prywatnosc@krajozbior.pl" })).toBeVisible();
     await expect(page.getByRole("banner").getByRole("link", { name: "Zaloguj się" })).toBeVisible();
     expect(await acceptances(email)).toEqual([]);
 

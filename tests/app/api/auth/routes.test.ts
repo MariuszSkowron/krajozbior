@@ -443,6 +443,24 @@ describe("POST /api/auth/code/request limits", () => {
     expect(cleanup).not.toHaveBeenCalled();
   });
 
+  it("tells a daily limit from a 15-minute one, the same for every address", async () => {
+    otpLimiter.reserve.mockResolvedValue({
+      allowed: false,
+      reason: "daily",
+      retryAfterSeconds: 40_000,
+    });
+
+    for (const email of ["a@b.test", "nikt@example.com"]) {
+      const response = await requestCode(jsonPost("/api/auth/code/request", { email }));
+
+      expect(response.status).toBe(429);
+      expect(response.headers.get("retry-after")).toBe("40000");
+      expect(await response.json()).toEqual({ error: "code_daily_limit" });
+    }
+
+    expect(provider.requestSignInCode).not.toHaveBeenCalled();
+  });
+
   it("answers 429 with Retry-After at a limit of the address or IP and sends nothing", async () => {
     otpLimiter.reserve.mockResolvedValue({ allowed: false, reason: "rate", retryAfterSeconds: 60 });
 

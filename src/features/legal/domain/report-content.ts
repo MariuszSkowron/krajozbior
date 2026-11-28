@@ -3,7 +3,7 @@
 // zgłaszanej strony trafia do wiadomości, żeby zgłoszenie wskazywało treść. Nie ma tu żadnych
 // danych osobowych: imię, nazwisko i adres e-mail zgłaszający wpisuje sam w programie pocztowym.
 
-import { CONTACT_EMAIL } from "./legal-pages";
+import { CONTACT_ADDRESSES } from "./legal-pages";
 
 export type ReportTarget = Readonly<{
   // Adres zgłaszanej strony: ścieżka (`/places/…`) albo pełny adres. Zapytanie i fragment
@@ -58,5 +58,5 @@ export function reportContentMailto(target: ReportTarget, origin: string): strin
   const subject = encodeURIComponent(reportContentSubject(target));
   const body = encodeURIComponent(reportContentBody(url, target.title));
 
-  return `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
+  return `mailto:${CONTACT_ADDRESSES.reports}?subject=${subject}&body=${body}`;
 }

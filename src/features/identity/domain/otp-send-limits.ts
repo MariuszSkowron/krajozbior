@@ -17,7 +17,9 @@ export const otpSendLimits = {
   // 15-minute windows (rows in auth.sign_in_throttle, prefix `otp_send:`).
   window: { emailIp: 3, email: 5, ip: 30 },
   // UTC days (rows in auth.otp_send_counters).
-  daily: { emailIp: 10, email: 20, ip: 30 },
+  // ip: 100 per day, so a class, a mobile network or a jury in one room can
+  // sign in from one address (D-62); the address and the global limits stay.
+  daily: { emailIp: 10, email: 20, ip: 100 },
 } as const;
 
 // Codes that actually go out per UTC day come from configuration. The total
@@ -80,7 +82,10 @@ export type OtpSendDecision =
   // message really goes out (`skipped` says why not).
   | { allowed: true; deliver: boolean; skipped: OtpSkipReason | null }
   // A limit of the address or the IP (429), counted the same for every address.
-  | { allowed: false; reason: "rate"; retryAfterSeconds: number };
+  // `rate`: a 15-minute limit; `daily`: a daily limit (the wait lasts to UTC
+  // midnight). Which one was hit depends only on the counters of the address and
+  // the IP, never on the pools or on whether the address has an account.
+  | { allowed: false; reason: "rate" | "daily"; retryAfterSeconds: number };
 
 export interface OtpSendLimiter {
   // Counts the request in the address and IP buckets when all of them have room
@@ -168,14 +173,21 @@ export function decideOtpSend(state: OtpSendState): OtpSendDecision {
     }
   }
 
+  let dailyFull = false;
+
   for (const { scope, count } of state.daily) {
     if (scope in otpSendLimits.daily && count >= otpSendLimits.daily[scope as OtpSendScope]) {
+      dailyFull = true;
       retryAfterMs = Math.max(retryAfterMs, untilTomorrow);
     }
   }
 
   return retryAfterMs > 0
-    ? { allowed: false, reason: "rate", retryAfterSeconds: seconds(retryAfterMs) }
+    ? {
+        allowed: false,
+        reason: dailyFull ? "daily" : "rate",
+        retryAfterSeconds: seconds(retryAfterMs),
+      }
     : { allowed: true, ...decideDelivery(state) };
 }
 

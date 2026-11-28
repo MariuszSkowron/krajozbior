@@ -114,7 +114,7 @@ describe("PostgresOtpSendLimiter", () => {
     }
 
     expect(decisions.slice(0, otpSendLimits.daily.email).every((d) => d.allowed)).toBe(true);
-    expect(decisions.at(-1)).toMatchObject({ allowed: false, reason: "rate" });
+    expect(decisions.at(-1)).toMatchObject({ allowed: false, reason: "daily" });
     // Another mailbox is not affected.
     expect(await limiter().reserve({ email: "ola@gmail.com", ip: "198.51.100.200" })).toMatchObject(
       { allowed: true },
@@ -131,7 +131,7 @@ describe("PostgresOtpSendLimiter", () => {
     }
 
     expect(decisions.slice(0, otpSendLimits.daily.ip).every((d) => d.allowed)).toBe(true);
-    expect(decisions.at(-1)).toMatchObject({ allowed: false, reason: "rate" });
+    expect(decisions.at(-1)).toMatchObject({ allowed: false, reason: "daily" });
   });
 
   // (a) The pool of new addresses: the fifth gets the same answer, but no code.

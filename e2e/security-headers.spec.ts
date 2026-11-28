@@ -37,3 +37,12 @@ test("security headers are sent on pages, API, 404 and static assets", async ({ 
   expect(script.ok()).toBe(true);
   expectSecurityHeaders(script);
 });
+
+// RFC 9116: the contact for vulnerability reports is served as a plain static file.
+test("security.txt is served from /.well-known/", async ({ request }) => {
+  const response = await request.get("/.well-known/security.txt");
+
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toContain("text/plain");
+  expect(await response.text()).toContain("Contact: mailto:bezpieczenstwo@krajozbior.pl");
+});
