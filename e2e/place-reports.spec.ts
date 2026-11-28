@@ -15,8 +15,8 @@ import { waitForHydration } from "../tests/support/e2e-hydration";
 // handler and the pages (tests/features/reports/http, tests/app/place-reports-pages.test.ts) and on
 // the database (tests/integration/place-reports-limits.test.ts): one server runs with one value.
 //
-// It runs in its own Playwright project after the other specs (playwright.config.ts): it adds a
-// report to the queue that e2e/place-reports-curator.spec.ts counts.
+// It is independent of e2e/place-reports-curator.spec.ts: the report it adds to the queue is
+// decided (accepted) in the test itself, so the queue that spec counts is left as it was.
 const password = process.env.DEMO_ACCOUNT_PASSWORD;
 const DEMO_SLUG = "demo-mosty-i-zamki-nad-wisla";
 const CATEGORY = "Zła lokalizacja na mapie";

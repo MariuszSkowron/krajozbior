@@ -178,7 +178,8 @@ describe("POST /api/places/{placeId}/reports", () => {
       status: 409,
       body: {
         error: "place_queue_full",
-        message: "To miejsce ma już wiele zgłoszeń czekających na kuratora. Spróbuj za kilka dni.",
+        message:
+          "To miejsce ma już wiele zgłoszeń czekających na kuratora. Spróbuj ponownie później.",
       },
     });
   });
@@ -194,7 +195,8 @@ describe("POST /api/places/{placeId}/reports", () => {
       status: 429,
       body: {
         error: "rate_limited",
-        message: "Z Twojego konta wysłano w ciągu doby 10 zgłoszeń. Kolejne wyślesz jutro.",
+        message:
+          "W ciągu ostatniej doby wysłano z Twojego konta 10 zgłoszeń. Kolejne wyślesz najpóźniej za 24 godziny.",
       },
     });
     expect(daily.headers.get("retry-after")).toBeNull();

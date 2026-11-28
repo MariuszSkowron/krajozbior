@@ -9,6 +9,7 @@ import {
   formatMyReportState,
   formatPlaceName,
   formatRejectReason,
+  formatReportCount,
   formatSubmitFailure,
   formatSubmitted,
   OPEN_LIMIT_MESSAGE,
@@ -43,6 +44,26 @@ describe("texts of reports for the explorer", () => {
 
   it("states the limit of open reports with the number of the limit", () => {
     expect(OPEN_LIMIT_MESSAGE).toContain(String(OPEN_REPORTS_PER_AUTHOR_LIMIT));
+    expect(OPEN_LIMIT_MESSAGE).toBe(
+      "Masz już 50 zgłoszeń czekających na kuratorów. Nowe wyślesz, gdy część z nich zostanie rozpatrzona.",
+    );
+  });
+
+  it("states the rolling daily limit in words", () => {
+    expect(DAILY_LIMIT_MESSAGE).toBe(
+      "W ciągu ostatniej doby wysłano z Twojego konta 10 zgłoszeń. Kolejne wyślesz najpóźniej za 24 godziny.",
+    );
+  });
+
+  it.each([
+    [1, "1 zgłoszenie"],
+    [3, "3 zgłoszenia"],
+    [5, "5 zgłoszeń"],
+    [10, "10 zgłoszeń"],
+    [22, "22 zgłoszenia"],
+    [50, "50 zgłoszeń"],
+  ])("declines the number of reports: %i", (count, text) => {
+    expect(formatReportCount(count)).toBe(text);
   });
 
   it("says the state of a report in words", () => {

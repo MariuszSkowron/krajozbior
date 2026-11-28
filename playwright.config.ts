@@ -29,15 +29,6 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /place-reports\.spec\.ts$/,
-    },
-    {
-      // The explorer's reports (P4b) add a report to the queue that place-reports-curator.spec.ts
-      // counts, so this spec runs only after all the others have finished.
-      name: "place-reports",
-      use: { ...devices["Desktop Chrome"] },
-      testMatch: /place-reports\.spec\.ts$/,
-      dependencies: ["chromium"],
     },
   ],
   webServer: {

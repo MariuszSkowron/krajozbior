@@ -15,11 +15,18 @@ export const OWN_ORGANIZATION_NOTICE = "Prowadzisz to miejsce — popraw je w ed
 export const MESSAGE_REQUIRED_ERROR =
   "Opisz problem — przy tym rodzaju kurator potrzebuje kilku słów.";
 
-export const DAILY_LIMIT_MESSAGE = `Z Twojego konta wysłano w ciągu doby ${DAILY_REPORT_LIMIT} zgłoszeń. Kolejne wyślesz jutro.`;
+/** "1 zgłoszenie", "3 zgłoszenia", "10 zgłoszeń". */
+export function formatReportCount(count: number): string {
+  return `${count} ${polishPlural(count, "zgłoszenie", "zgłoszenia", "zgłoszeń")}`;
+}
+
+// The limit is a rolling 24 hours (the migration counts the reports of the last 24 hours), not a
+// calendar day, so "jutro" would be untrue for some authors.
+export const DAILY_LIMIT_MESSAGE = `W ciągu ostatniej doby wysłano z Twojego konta ${formatReportCount(DAILY_REPORT_LIMIT)}. Kolejne wyślesz najpóźniej za 24 godziny.`;
 export const BURST_LIMIT_MESSAGE = "Za dużo zgłoszeń w krótkim czasie. Spróbuj za chwilę.";
-export const OPEN_LIMIT_MESSAGE = `Masz już ${OPEN_REPORTS_PER_AUTHOR_LIMIT} zgłoszeń czekających na kuratorów. Nowe wyślesz, gdy część z nich zostanie rozpatrzona.`;
+export const OPEN_LIMIT_MESSAGE = `Masz już ${formatReportCount(OPEN_REPORTS_PER_AUTHOR_LIMIT)} czekających na kuratorów. Nowe wyślesz, gdy część z nich zostanie rozpatrzona.`;
 export const PLACE_QUEUE_FULL_MESSAGE =
-  "To miejsce ma już wiele zgłoszeń czekających na kuratora. Spróbuj za kilka dni.";
+  "To miejsce ma już wiele zgłoszeń czekających na kuratora. Spróbuj ponownie później.";
 export const DUPLICATE_OPEN_MESSAGE =
   "Twoje zgłoszenie tego rodzaju już czeka na kuratora. Znajdziesz je w „Moich zgłoszeniach”.";
 
