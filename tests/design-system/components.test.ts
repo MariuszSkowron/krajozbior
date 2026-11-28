@@ -99,6 +99,31 @@ describe("CollectionCard", () => {
     expect(html).toContain("1/3");
   });
 
+  it("kilka województw: każda nazwa osobno, kropka ukryta, czytnik ekranu słyszy przecinek", () => {
+    const html = render(
+      createElement(CollectionCard, {
+        href: "/collections/x",
+        title: "X",
+        regionLabel: "Kujawsko-pomorskie · Warmińsko-mazurskie",
+      }),
+    );
+
+    expect(html).toMatch(/<span class="[^"]*regionName[^"]*">Kujawsko-pomorskie<\/span>/);
+    expect(html).toMatch(/<span class="[^"]*regionName[^"]*">Warmińsko-mazurskie<\/span>/);
+    expect(html).toContain('<span aria-hidden="true"> · </span>');
+    expect(html).toMatch(/<span class="[^"]*visuallyHidden[^"]*">, <\/span>/);
+    expect(html.match(/visuallyHidden/g)).toHaveLength(1);
+  });
+
+  it("jedno województwo nie ma separatora ani przecinka", () => {
+    const html = render(
+      createElement(CollectionCard, { href: "/collections/x", title: "X", regionLabel: "Śląskie" }),
+    );
+
+    expect(html).not.toContain('aria-hidden="true"> · ');
+    expect(html).not.toContain("visuallyHidden");
+  });
+
   it.each([2, 4, 6] as const)("poziom nagłówka %i z właściwości headingLevel", (level) => {
     const html = render(
       createElement(CollectionCard, {

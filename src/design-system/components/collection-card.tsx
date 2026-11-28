@@ -1,9 +1,13 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import { PinIcon } from "../icons/icons";
 import { CollectionProgress } from "./collection-progress";
 import styles from "./collection-card.module.css";
+
+// Etykieta kilku województw to nazwy rozdzielone „ · ”. Każda nazwa jest niełamliwą całością
+// (łamanie tylko między nazwami); czytnik ekranu pomija kropkę i czyta nazwy po przecinku.
+const REGION_SEPARATOR = " · ";
 
 // Karta kolekcji: okładka (zdjęcie wybrane przez kuratora, E4-3) albo, gdy jej nie ma, pole
 // zastępcze (jasne tło z pinezką), region wersalikami w kroju mono, nazwa szeryfem i postęp
@@ -70,7 +74,19 @@ export function CollectionCard({
       <div className={styles.body}>
         <span className={styles.region}>
           <PinIcon className={styles.pin} />
-          {regionLabel}
+          <span className={styles.regionNames}>
+            {regionLabel.split(REGION_SEPARATOR).map((name, index) => (
+              <Fragment key={name}>
+                {index === 0 ? null : (
+                  <>
+                    <span className={styles.visuallyHidden}>, </span>
+                    <span aria-hidden="true">{REGION_SEPARATOR}</span>
+                  </>
+                )}
+                <span className={styles.regionName}>{name}</span>
+              </Fragment>
+            ))}
+          </span>
         </span>
         <Heading className={styles.title}>{title}</Heading>
         {note === undefined ? null : <p className={styles.note}>{note}</p>}

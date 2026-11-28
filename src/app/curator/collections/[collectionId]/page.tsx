@@ -92,6 +92,7 @@ export default async function CollectionEditorPage({
               summary: collection.summary,
               region: collection.region,
               version: collection.version,
+              hasExtraRegions: collection.extraRegions.length > 0,
             }}
           />
         </section>

@@ -8,6 +8,23 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+export const LongRegions: Story = {
+  name: "Cztery długie województwa na wąskiej karcie",
+  render: () => (
+    <main className={styles.page}>
+      <h1>CollectionCard: długie nazwy województw</h1>
+      <div style={{ width: "240px" }}>
+        <CollectionCard
+          href="/collections/szlak"
+          title="Szlak czterech województw"
+          regionLabel="Kujawsko-pomorskie · Warmińsko-mazurskie · Zachodniopomorskie · Świętokrzyskie"
+          note="12 miejsc · Gmina A"
+        />
+      </div>
+    </main>
+  ),
+};
+
 export const States: Story = {
   name: "Stany: z postępem, pusta, bez postępu, z okładką",
   render: () => (

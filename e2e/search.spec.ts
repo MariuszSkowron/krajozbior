@@ -270,7 +270,9 @@ test.describe("search", () => {
       const card = page.getByRole("link", { name: /Sudety graniczne/ });
 
       await expect(card).toBeVisible();
-      await expect(card).toContainText("Dolnośląskie · Opolskie");
+      // Nazwy są osobnymi elementami (kropka ukryta przed czytnikiem, przecinek tylko dla niego).
+      await expect(card).toContainText("Dolnośląskie");
+      await expect(card).toContainText("Opolskie");
     }
 
     await page.goto("/search?region=slaskie");
