@@ -298,6 +298,22 @@ describe("validateNewsInput: texts", () => {
     ).toBe(true);
   });
 
+  it("refuses a text made only of invisible characters that are not control or format ones (S5)", () => {
+    // Fillers (U+3164, U+115F) and the combining grapheme joiner (U+034F) are not caught by
+    // the forbidden-character rule, so only the visible count rejects them.
+    const fillers = "ㅤᅟ͏ㅤᅟ͏";
+
+    expect(fieldMessage({ ...valid, title: fillers }, "title")).toBe(
+      "Tytuł musi mieć co najmniej 5 widocznych znaków.",
+    );
+    expect(fieldMessage({ ...valid, title: `ab${fillers}` }, "title")).toBe(
+      "Tytuł musi mieć co najmniej 5 widocznych znaków.",
+    );
+    expect(fieldMessage({ ...valid, lead: fillers }, "lead")).toBe(
+      "Krótki tekst musi zawierać widoczne znaki.",
+    );
+  });
+
   it("allows only the three tag flags and refuses any other tag sequence (U-1)", () => {
     const tags = (text: string) =>
       [...text].map((c) => String.fromCodePoint(0xe0000 + c.charCodeAt(0))).join("");

@@ -7,7 +7,7 @@ import { Migration } from "@mikro-orm/migrations";
 // policy that narrows it). Deleting an account is not affected: it runs through the foreign key
 // `on delete cascade` of `auth.users`, which RLS does not apply to.
 
-export class Migration20261128050000_visits_delete_past_only extends Migration {
+export class Migration20261128125000_visits_delete_past_only extends Migration {
   override async up(): Promise<void> {
     this.addSql(`drop policy visits_owner_delete on public.visits;`);
     this.addSql(`
