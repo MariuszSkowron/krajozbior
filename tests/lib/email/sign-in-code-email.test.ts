@@ -24,6 +24,13 @@ describe("renderSignInCodeEmail", () => {
     expect(email.html).toContain('lang="pl"');
   });
 
+  it("warns in both bodies not to give the code to anyone (D-08)", () => {
+    const warning = `Nie podawaj tego kodu nikomu — ${APP_NAME} nigdy o niego nie prosi.`;
+
+    expect(email.text).toContain(warning);
+    expect(email.html).toContain(warning);
+  });
+
   it("has no remote images, scripts or other external resources", () => {
     expect(email.html).not.toMatch(/<img|<script|<link|<iframe|<video|<audio|<object|<embed/i);
     expect(email.html).not.toMatch(/\bsrc\s*=|url\(|@import/i);
