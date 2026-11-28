@@ -6,9 +6,12 @@ import type { Pool, PoolClient } from "pg";
 
 import { emailLimitKey } from "../domain/email-limit-key";
 import {
+  DEFAULT_OTP_NEW_ACCOUNT_DAILY_LIMIT,
   decideOtpSend,
   globalLimitAlarm,
+  NEW_ACCOUNTS_PER_IP_DAILY,
   OTP_SEND_WINDOW_SECONDS,
+  otpPools,
   type OtpDailyBucket,
   type OtpSendDecision,
   type OtpSendLimiter,
@@ -60,10 +63,15 @@ export function otpSendKeys(subject: OtpSendSubject, hmacKey: Buffer): OtpBucket
     { scope: "emailIp", key: `otp_send:email_ip:${emailIp}` },
     { scope: "email", key: `otp_send:email:${email}` },
   ];
+  // The pool rows and the per-mailbox sent counter are in the set for every
+  // request, so both kinds of address take the same locks and queries.
   const daily: OtpBucketKeys["daily"] = [
     { scope: "emailIp", key: `email_ip:${emailIp}` },
     { scope: "email", key: `email:${email}` },
     { scope: "global", key: "global" },
+    { scope: "accounts", key: "accounts" },
+    { scope: "newAccounts", key: "new_accounts" },
+    { scope: "sentEmail", key: `sent_email:${email}` },
   ];
 
   if (ip !== null) {
@@ -95,6 +103,21 @@ async function inTransaction<T>(pool: Pool, work: (client: PoolClient) => Promis
   }
 }
 
+const POOL_SCOPES: readonly OtpDailyBucket["scope"][] = [
+  "global",
+  "accounts",
+  "newAccounts",
+  "sentEmail",
+];
+const isPoolScope = (scope: OtpDailyBucket["scope"]) => POOL_SCOPES.includes(scope);
+
+// Alarm events per pool, logged once at 80% and once at 100% (no address, IP or hash).
+const POOL_ALARMS: Partial<Record<OtpDailyBucket["scope"], { prefix: string; field: string }>> = {
+  global: { prefix: "auth.otp_global_limit_", field: "globalLimit" },
+  accounts: { prefix: "auth.otp_accounts_limit_", field: "limit" },
+  newAccounts: { prefix: "auth.otp_new_account_limit_", field: "limit" },
+};
+
 type WindowRow = {
   key: string;
   attempts: number;
@@ -108,22 +131,49 @@ export class PostgresOtpSendLimiter implements OtpSendLimiter {
     private readonly pool: () => Promise<Pool>,
     private readonly hmacKey: Buffer,
     private readonly globalLimit: () => number,
+    private readonly newAccountLimit: () => number = () => DEFAULT_OTP_NEW_ACCOUNT_DAILY_LIMIT,
+    // Lowered only by tests, to reach the per-IP threshold of new addresses.
+    private readonly newAccountsPerIp: number = NEW_ACCOUNTS_PER_IP_DAILY,
   ) {}
 
   async reserve(subject: OtpSendSubject): Promise<OtpSendDecision> {
     const keys = otpSendKeys(subject, this.hmacKey);
     const windowNames = keys.window.map(({ key }) => key);
     const dailyNames = keys.daily.map(({ key }) => key);
+    const poolNames = keys.daily.filter(({ scope }) => isPoolScope(scope)).map(({ key }) => key);
+    const addressNames = keys.daily
+      .filter(({ scope }) => !isPoolScope(scope))
+      .map(({ key }) => key);
     const globalLimit = this.globalLimit();
+    const newAccountLimit = this.newAccountLimit();
+    const pools = otpPools(globalLimit, newAccountLimit);
 
     return inTransaction(await this.pool(), async (client) => {
       await client.query(`set local lock_timeout = '${COUNTER_LOCK_TIMEOUT}'`);
+      // One lookup for every request that passed the format check, whatever its
+      // outcome, so the work does not depend on whether the account exists. The
+      // address arrives lowercased, as better-auth stores and finds it.
+      const {
+        rows: [account],
+      } = await client.query<{ has_account: boolean }>(
+        `select exists (select 1 from auth.users where email = $1) as has_account`,
+        [subject.email.toLowerCase()],
+      );
+      const hasAccount = account?.has_account === true;
       // Locks first the 15-minute rows, then the daily rows, always in the
-      // same order. Daily rows that do not exist yet count as zero; they are
-      // created only by an accepted request, so a refusal leaves nothing behind.
+      // same order. The address and IP rows that do not exist yet count as zero
+      // and are created only by an accepted request. The pool rows and the
+      // mailbox counter are created at zero first, so two requests at
+      // `limit - 1` lock the same row instead of both passing.
       await client.query(
         `insert into auth.sign_in_throttle (key) select unnest($1::text[]) on conflict do nothing`,
         [windowNames],
+      );
+      await client.query(
+        `insert into auth.otp_send_counters (bucket, day, count)
+         select unnest($1::text[]), (now() at time zone 'utc')::date, 0
+         on conflict (bucket, day) do nothing`,
+        [poolNames],
       );
       const { rows: windowRows } = await client.query<WindowRow>(
         `select key, attempts, window_started_at, locked_until, now() as now
@@ -143,14 +193,18 @@ export class PostgresOtpSendLimiter implements OtpSendLimiter {
         windowStartedAt: row.window_started_at,
         lockedUntil: row.locked_until,
       }));
-      const daily: OtpDailyBucket[] = dailyRows.map((row) => ({
-        scope: keys.daily.find(({ key }) => key === row.bucket)?.scope ?? "global",
-        count: row.count,
-      }));
+      const daily: OtpDailyBucket[] = dailyRows.flatMap((row) => {
+        const scope = keys.daily.find(({ key }) => key === row.bucket)?.scope;
+
+        return scope === undefined ? [] : [{ scope, count: row.count }];
+      });
       const decision = decideOtpSend({
         window,
         daily,
         globalLimit,
+        newAccountLimit,
+        hasAccount,
+        newAccountsPerIp: this.newAccountsPerIp,
         now: windowRows[0]?.now ?? new Date(),
       });
 
@@ -164,18 +218,65 @@ export class PostgresOtpSendLimiter implements OtpSendLimiter {
             where key = any($1::text[])`,
           [windowNames, OTP_SEND_WINDOW_SECONDS],
         );
-        const { rows } = await client.query<{ count: number; global: boolean }>(
+        // (a) The address and IP counters grow for every accepted request, so
+        // the 429 limits do not depend on the account.
+        await client.query(
           `insert into auth.otp_send_counters (bucket, day, count)
            select unnest($1::text[]), (now() at time zone 'utc')::date, 1
-           on conflict (bucket, day) do update set count = auth.otp_send_counters.count + 1
-           returning count, bucket = 'global' as global`,
-          [dailyNames],
+           on conflict (bucket, day) do update set count = auth.otp_send_counters.count + 1`,
+          [addressNames],
         );
-        const globalCount = rows.find((row) => row.global)?.count;
-        const alarm = globalCount === undefined ? null : globalLimitAlarm(globalCount, globalLimit);
+        // (b) The pools and the mailbox counter grow only when the code goes
+        // out. The query runs for a skipped request too, with zero increments.
+        const increment = decision.deliver ? 1 : 0;
+        const increments = keys.daily
+          .filter(({ scope }) => isPoolScope(scope))
+          .map(({ scope, key }) => ({
+            scope,
+            key,
+            by:
+              scope === "global" || scope === "sentEmail"
+                ? increment
+                : !pools.shared && scope === (hasAccount ? "accounts" : "newAccounts")
+                  ? increment
+                  : 0,
+          }));
+        const { rows } = await client.query<{ bucket: string; count: number }>(
+          `insert into auth.otp_send_counters (bucket, day, count)
+           select n, (now() at time zone 'utc')::date, inc
+             from unnest($1::text[], $2::int[]) as t(n, inc)
+           on conflict (bucket, day) do update
+             set count = auth.otp_send_counters.count + excluded.count
+           returning bucket, count`,
+          [increments.map(({ key }) => key), increments.map(({ by }) => by)],
+        );
 
-        if (alarm !== null) {
-          console.warn(JSON.stringify({ event: `auth.otp_global_limit_${alarm}`, globalLimit }));
+        for (const { scope, key, by } of increments) {
+          const alarmOf = POOL_ALARMS[scope];
+          const count = rows.find((row) => row.bucket === key)?.count;
+
+          if (alarmOf === undefined || by === 0 || count === undefined) {
+            continue;
+          }
+
+          const limit =
+            scope === "global"
+              ? globalLimit
+              : scope === "accounts"
+                ? pools.accounts
+                : pools.newAccounts;
+          const alarm = globalLimitAlarm(count, limit);
+
+          if (alarm !== null) {
+            console.warn(
+              JSON.stringify({ event: `${alarmOf.prefix}${alarm}`, [alarmOf.field]: limit }),
+            );
+          }
+        }
+
+        if (!decision.deliver) {
+          // Never the address, the IP or their hashes.
+          console.warn(JSON.stringify({ event: "auth.otp_send_skipped", pool: decision.skipped }));
         }
       }
 
@@ -232,9 +333,11 @@ export async function unblockOtpSend(
             `delete from auth.sign_in_throttle where key = $1 or starts_with(key, $2)`,
             [`otp_send:email:${hash}`, `otp_send:email_ip:${hash}:`],
           ),
+          // Also the per-mailbox counter of codes sent.
           await pool.query(
-            `delete from auth.otp_send_counters where bucket = $1 or starts_with(bucket, $2)`,
-            [`email:${hash}`, `email_ip:${hash}:`],
+            `delete from auth.otp_send_counters
+              where bucket = any($1::text[]) or starts_with(bucket, $2)`,
+            [[`email:${hash}`, `sent_email:${hash}`], `email_ip:${hash}:`],
           ),
         ]
       : [

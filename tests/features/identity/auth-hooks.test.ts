@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createDatabaseHooks,
   createSendSignInCode,
+  signInCodeDelivery,
 } from "@/features/identity/infrastructure/auth-hooks";
 import { MemoryEmailSender } from "@/lib/email/memory-email-sender";
 
@@ -137,9 +138,39 @@ describe("sendVerificationOTP callback", () => {
 
     await send({ email: "a@example.com", otp: "123456", type: "sign-in" }, endpoint(null));
 
+    // Preparing the message is off the answer's path: nothing is sent yet when
+    // the callback has returned and the microtasks have run.
+    expect(sender.lastTo("a@example.com")).toBeUndefined();
     await vi.waitFor(() => expect(sender.lastTo("a@example.com")?.text).toContain("123456"));
     expect(sender.lastTo("a@example.com")).toMatchObject({ tag: "sign_in_code" });
     expect(sender.lastTo("a@example.com")?.text).toContain("http://localhost:3000");
+  });
+
+  it("hands the message over unless the request context says deliver: false", async () => {
+    const { send, sender } = setup();
+    const data = { email: "a@example.com", otp: "123456", type: "sign-in" };
+
+    await signInCodeDelivery.run({ deliver: false }, () => send(data, endpoint(null)));
+    await signInCodeDelivery.run({ deliver: false }, () => send(data, endpoint("user")));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(sender.all()).toEqual([]);
+
+    await signInCodeDelivery.run({ deliver: true }, () => send(data, endpoint(null)));
+    await vi.waitFor(() => expect(sender.lastTo("a@example.com")?.text).toContain("123456"));
+  });
+
+  it("looks the account up before skipping, as for every other request", async () => {
+    const { send } = setup();
+    const context = endpoint("user");
+
+    await signInCodeDelivery.run({ deliver: false }, () =>
+      send({ email: "a@example.com", otp: "123456", type: "sign-in" }, context),
+    );
+
+    const adapter = (
+      context as unknown as { context: { internalAdapter: { findUserByEmail: unknown } } }
+    ).context.internalAdapter;
+    expect(adapter.findUserByEmail).toHaveBeenCalledOnce();
   });
 
   it("sends nothing to staff, for other code types or without a context", async () => {
@@ -186,9 +217,9 @@ describe("sendVerificationOTP callback", () => {
     }
 
     expect(answers).toEqual(Array(6).fill(undefined));
-    // Only the non-admin requests reached the provider.
-    expect(hanging.send).toHaveBeenCalledTimes(2);
-    expect(failing.send).toHaveBeenCalledTimes(2);
+    // Only the non-admin requests reached the provider (after the answer).
+    await vi.waitFor(() => expect(hanging.send).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(failing.send).toHaveBeenCalledTimes(2));
   });
 
   it("logs a failed or throwing send without the address or the code", async () => {
