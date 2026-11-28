@@ -53,7 +53,7 @@ function failureText(status: number, reason: unknown): string {
       }
 
       if (reason === "duplicate_open") {
-        return "Autor zgłosił to samo ponownie i nowe zgłoszenie czeka na decyzję. Rozpatrz je zamiast cofać.";
+        return "Ta sama osoba wysłała to zgłoszenie ponownie i nowe czeka na decyzję. Rozpatrz je, zamiast cofać.";
       }
 
       if (reason === "own_report") {

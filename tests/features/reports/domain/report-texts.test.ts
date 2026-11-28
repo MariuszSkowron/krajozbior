@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   CURATOR_SEES_NOTICE,
+  DAILY_LIMIT_MESSAGE,
   DUPLICATE_OPEN_MESSAGE,
+  formatCharactersLeft,
   formatFormHeading,
   formatMyReportState,
   formatPlaceName,
@@ -24,8 +26,19 @@ describe("texts of reports for the explorer", () => {
 
   it("names the organization that will look at the report", () => {
     expect(formatSubmitted("Gmina Tczew")).toBe(
-      "Dziękujemy. Kurator Gmina Tczew sprawdzi zgłoszenie. Jego decyzję zobaczysz w „Moich zgłoszeniach”.",
+      "Dziękujemy. Zgłoszenie trafiło do: Gmina Tczew. Decyzję zobaczysz w „Moich zgłoszeniach”.",
     );
+  });
+
+  it("declines the number of characters left (1, 2-4, 5+, 12-14, 22)", () => {
+    expect(formatCharactersLeft(1)).toBe("Został 1 znak.");
+    expect(formatCharactersLeft(2)).toBe("Zostały 2 znaki.");
+    expect(formatCharactersLeft(4)).toBe("Zostały 4 znaki.");
+    expect(formatCharactersLeft(5)).toBe("Zostało 5 znaków.");
+    expect(formatCharactersLeft(12)).toBe("Zostało 12 znaków.");
+    expect(formatCharactersLeft(14)).toBe("Zostało 14 znaków.");
+    expect(formatCharactersLeft(22)).toBe("Zostały 22 znaki.");
+    expect(formatCharactersLeft(100)).toBe("Zostało 100 znaków.");
   });
 
   it("states the limit of open reports with the number of the limit", () => {
@@ -49,9 +62,7 @@ describe("texts of reports for the explorer", () => {
   });
 
   it("says why a send failed: the sentence of the route for a limit or a duplicate, else by the status", () => {
-    expect(formatSubmitFailure(429, "Wysłano już dużo zgłoszeń. Spróbuj jutro.")).toBe(
-      "Wysłano już dużo zgłoszeń. Spróbuj jutro.",
-    );
+    expect(formatSubmitFailure(429, DAILY_LIMIT_MESSAGE)).toBe(DAILY_LIMIT_MESSAGE);
     expect(formatSubmitFailure(409, DUPLICATE_OPEN_MESSAGE)).toBe(DUPLICATE_OPEN_MESSAGE);
     // a 409 or 429 without a sentence of its own falls back to the general failure
     expect(formatSubmitFailure(429, undefined)).toBe(SUBMIT_UNAVAILABLE_MESSAGE);
@@ -59,7 +70,12 @@ describe("texts of reports for the explorer", () => {
     expect(formatSubmitFailure(401, undefined)).toBe(
       "Zaloguj się ponownie, żeby wysłać zgłoszenie.",
     );
-    expect(formatSubmitFailure(403, undefined)).toBe(OWN_ORGANIZATION_NOTICE);
+    expect(formatSubmitFailure(403, undefined, "own_organization")).toBe(OWN_ORGANIZATION_NOTICE);
+    // a 403 for another reason (a foreign origin) must not say "you run this place"
+    expect(formatSubmitFailure(403, undefined, "forbidden_origin")).toBe(
+      SUBMIT_UNAVAILABLE_MESSAGE,
+    );
+    expect(formatSubmitFailure(403, undefined)).toBe(SUBMIT_UNAVAILABLE_MESSAGE);
     expect(formatSubmitFailure(404, undefined)).toBe("Nie znaleziono tego miejsca.");
     expect(formatSubmitFailure(413, undefined)).toBe("Popraw opis i spróbuj jeszcze raz.");
     expect(formatSubmitFailure(422, undefined)).toBe("Popraw opis i spróbuj jeszcze raz.");

@@ -513,7 +513,7 @@ describe("place_reports: limits, duplicates and the deletion of the author's acc
       expect(limited.status).toBe(429);
       expect(await limited.json()).toMatchObject({
         error: "rate_limited",
-        message: "Wysłano już dużo zgłoszeń. Spróbuj jutro.",
+        message: "Z Twojego konta wysłano w ciągu doby 10 zgłoszeń. Kolejne wyślesz jutro.",
       });
     });
   });

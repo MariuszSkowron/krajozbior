@@ -162,7 +162,8 @@ describe("POST /api/places/{placeId}/reports", () => {
       status: 409,
       body: {
         error: "duplicate_open",
-        message: "Masz już otwarte zgłoszenie tego rodzaju dla tego miejsca.",
+        message:
+          "Twoje zgłoszenie tego rodzaju już czeka na kuratora. Znajdziesz je w „Moich zgłoszeniach”.",
       },
     });
     expect(
@@ -177,8 +178,7 @@ describe("POST /api/places/{placeId}/reports", () => {
       status: 409,
       body: {
         error: "place_queue_full",
-        message:
-          "To miejsce ma już wiele zgłoszeń czekających na kuratora. Kurator się nimi zajmuje.",
+        message: "To miejsce ma już wiele zgłoszeń czekających na kuratora. Spróbuj za kilka dni.",
       },
     });
   });
@@ -192,7 +192,10 @@ describe("POST /api/places/{placeId}/reports", () => {
 
     expect(await answer(daily)).toEqual({
       status: 429,
-      body: { error: "rate_limited", message: "Wysłano już dużo zgłoszeń. Spróbuj jutro." },
+      body: {
+        error: "rate_limited",
+        message: "Z Twojego konta wysłano w ciągu doby 10 zgłoszeń. Kolejne wyślesz jutro.",
+      },
     });
     expect(daily.headers.get("retry-after")).toBeNull();
 

@@ -125,7 +125,7 @@ test.describe("reports of a problem with a place: the explorer", () => {
     await explorer.getByRole("radio", { name: "Inne" }).check();
     await send.click();
     await expect(
-      explorer.getByText("Opisz problem — przy tej kategorii kurator potrzebuje kilku słów."),
+      explorer.getByText("Opisz problem — przy tym rodzaju kurator potrzebuje kilku słów."),
     ).toBeVisible();
 
     // the real report
@@ -139,10 +139,10 @@ test.describe("reports of a problem with a place: the explorer", () => {
     const thanks = explorer
       .locator("main")
       .getByRole("status")
-      .filter({ hasText: "Dziękujemy. Kurator" });
+      .filter({ hasText: "Dziękujemy. Zgłoszenie trafiło do:" });
 
     await expect(thanks).toBeVisible();
-    await expect(thanks).toContainText("Jego decyzję zobaczysz w „Moich zgłoszeniach”.");
+    await expect(thanks).toContainText("Decyzję zobaczysz w „Moich zgłoszeniach”.");
     await expect(thanks).toBeFocused();
 
     // the same kind for the same place again: refused with a sentence, not a failure
@@ -153,9 +153,7 @@ test.describe("reports of a problem with a place: the explorer", () => {
 
     const refusal = explorer.locator("main").getByRole("alert");
 
-    await expect(refusal).toContainText(
-      "Masz już otwarte zgłoszenie tego rodzaju dla tego miejsca.",
-    );
+    await expect(refusal).toContainText("Twoje zgłoszenie tego rodzaju już czeka na kuratora.");
     await expect(refusal).toBeFocused();
 
     // "Moje zgłoszenia" from the profile: the report waits
@@ -171,7 +169,7 @@ test.describe("reports of a problem with a place: the explorer", () => {
     await expect(mine).toHaveCount(1);
     await expect(mine).toContainText("Most Tczewski");
     await expect(mine).toContainText("Czeka na kuratora");
-    await expect(mine).toContainText("Rozpatruje:");
+    await expect(mine).toContainText("Zgłoszenie do:");
     await expectNoAccessibilityViolations(explorer);
 
     // the curator of the organization accepts it

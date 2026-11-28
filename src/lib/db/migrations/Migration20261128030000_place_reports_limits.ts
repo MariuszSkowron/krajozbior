@@ -200,6 +200,9 @@ export class Migration20261128030000_place_reports_limits extends Migration {
       create trigger place_reports_place_limit before insert on place_reports
         for each row execute function place_reports_place_limit();
     `);
+    // Permissive: it applies to EVERY owner function (also the queue, the counter and the decision),
+    // not only to the limit above. The isolation of open reports between organizations rests on the
+    // `app_org_permission` condition in the body of each of those functions.
     this.addSql(`
       create policy place_reports_owner_open_select on place_reports
         for select to krajozbior_owner

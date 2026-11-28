@@ -193,6 +193,18 @@ describe("'Moje zgłoszenia'", () => {
     expect(html).toContain("Zgłoś problem z miejscem");
   });
 
+  it("leaves out the line of the organization when its name is not visible", async () => {
+    mocks.listMyReports.mockResolvedValue({
+      status: "ok",
+      items: [{ ...report, organizationName: "" }],
+    });
+
+    const html = renderToStaticMarkup(await MyReportsPage());
+
+    expect(html).toContain("Czeka na kuratora");
+    expect(html).not.toContain("Zgłoszenie do:");
+  });
+
   it("shows a waiting, an accepted and a rejected report with the reason, the note and the way to disagree", async () => {
     mocks.listMyReports.mockResolvedValue({
       status: "ok",
@@ -219,7 +231,7 @@ describe("'Moje zgłoszenia'", () => {
     expect(html).toContain("Odrzucone");
     expect(html).toContain("Powód: Nie zgadza się ze stanem na miejscu");
     expect(html).toContain("Notatka kuratora: Sprawdziliśmy na miejscu.");
-    expect(html).toContain("Rozpatruje: Gmina Tczew");
+    expect(html).toContain("Zgłoszenie do: Gmina Tczew");
     expect(html).toContain("Most Tczewski (miejsce usunięte)");
     expect(html).toContain("Nie zgadzasz się?");
     expect(html).toContain("mailto:kontakt@mariuszskowron.pl");

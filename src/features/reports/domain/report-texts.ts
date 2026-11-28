@@ -1,4 +1,6 @@
-import { OPEN_REPORTS_PER_AUTHOR_LIMIT } from "./limits";
+import { polishPlural } from "@/features/catalog/domain/place-count";
+
+import { DAILY_REPORT_LIMIT, OPEN_REPORTS_PER_AUTHOR_LIMIT } from "./limits";
 import { REJECT_REASON_LABELS, type RejectReason, type ReportStatus } from "./report";
 
 // Words the explorer reads about reports of a problem with a place (P4b, PR B): the form, the
@@ -11,18 +13,19 @@ export const CURATOR_SEES_NOTICE =
 export const OWN_ORGANIZATION_NOTICE = "Prowadzisz to miejsce — popraw je w edytorze.";
 
 export const MESSAGE_REQUIRED_ERROR =
-  "Opisz problem — przy tej kategorii kurator potrzebuje kilku słów.";
+  "Opisz problem — przy tym rodzaju kurator potrzebuje kilku słów.";
 
-export const DAILY_LIMIT_MESSAGE = "Wysłano już dużo zgłoszeń. Spróbuj jutro.";
+export const DAILY_LIMIT_MESSAGE = `Z Twojego konta wysłano w ciągu doby ${DAILY_REPORT_LIMIT} zgłoszeń. Kolejne wyślesz jutro.`;
 export const BURST_LIMIT_MESSAGE = "Za dużo zgłoszeń w krótkim czasie. Spróbuj za chwilę.";
 export const OPEN_LIMIT_MESSAGE = `Masz już ${OPEN_REPORTS_PER_AUTHOR_LIMIT} zgłoszeń czekających na kuratorów. Nowe wyślesz, gdy część z nich zostanie rozpatrzona.`;
 export const PLACE_QUEUE_FULL_MESSAGE =
-  "To miejsce ma już wiele zgłoszeń czekających na kuratora. Kurator się nimi zajmuje.";
-export const DUPLICATE_OPEN_MESSAGE = "Masz już otwarte zgłoszenie tego rodzaju dla tego miejsca.";
+  "To miejsce ma już wiele zgłoszeń czekających na kuratora. Spróbuj za kilka dni.";
+export const DUPLICATE_OPEN_MESSAGE =
+  "Twoje zgłoszenie tego rodzaju już czeka na kuratora. Znajdziesz je w „Moich zgłoszeniach”.";
 
 export const CATEGORY_REQUIRED_ERROR = "Wybierz rodzaj problemu.";
 export const MESSAGE_INVALID_ERROR =
-  "Opis może mieć do 1000 znaków i nie może zawierać znaków sterujących.";
+  "Opis może mieć do 1000 znaków. Usuń niewidoczne znaki skopiowane razem z tekstem.";
 export const SUBMIT_UNAVAILABLE_MESSAGE =
   "Nie udało się wysłać zgłoszenia. Spróbuj ponownie za chwilę.";
 
@@ -44,7 +47,7 @@ export function formatFormHeading(placeName: string): string {
 }
 
 /** What a failed send says, by the answer of the route; the route's own sentence wins when it has one. */
-export function formatSubmitFailure(status: number, message: unknown): string {
+export function formatSubmitFailure(status: number, message: unknown, error?: unknown): string {
   if ((status === 409 || status === 429) && typeof message === "string" && message !== "") {
     return message;
   }
@@ -53,7 +56,8 @@ export function formatSubmitFailure(status: number, message: unknown): string {
     case 401:
       return "Zaloguj się ponownie, żeby wysłać zgłoszenie.";
     case 403:
-      return OWN_ORGANIZATION_NOTICE;
+      // Only this refusal is about the place; the others (e.g. a foreign origin) are a failure.
+      return error === "own_organization" ? OWN_ORGANIZATION_NOTICE : SUBMIT_UNAVAILABLE_MESSAGE;
     case 404:
       return "Nie znaleziono tego miejsca.";
     case 413:
@@ -66,7 +70,12 @@ export function formatSubmitFailure(status: number, message: unknown): string {
 
 /** After sending: the organization that will look at the report. */
 export function formatSubmitted(organizationName: string): string {
-  return `Dziękujemy. Kurator ${organizationName} sprawdzi zgłoszenie. Jego decyzję zobaczysz w „Moich zgłoszeniach”.`;
+  return `Dziękujemy. Zgłoszenie trafiło do: ${organizationName}. Decyzję zobaczysz w „Moich zgłoszeniach”.`;
+}
+
+/** The counter read to a screen reader near the limit: "Został 1 znak.", "Zostały 2 znaki.", "Zostało 5 znaków." */
+export function formatCharactersLeft(left: number): string {
+  return `${polishPlural(left, "Został", "Zostały", "Zostało")} ${left} ${polishPlural(left, "znak", "znaki", "znaków")}.`;
 }
 
 /** The state of a report as its author reads it. */

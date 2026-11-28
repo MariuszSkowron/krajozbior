@@ -91,7 +91,9 @@ export default async function MyReportsPage() {
                   {report.decisionNote === null ? null : (
                     <p className={styles.note}>Notatka kuratora: {report.decisionNote}</p>
                   )}
-                  <p className={styles.meta}>Rozpatruje: {report.organizationName}</p>
+                  {report.organizationName === "" ? null : (
+                    <p className={styles.meta}>Zgłoszenie do: {report.organizationName}</p>
+                  )}
                   {report.status === "rejected" ? (
                     <p>
                       {DISAGREE_PROMPT}{" "}

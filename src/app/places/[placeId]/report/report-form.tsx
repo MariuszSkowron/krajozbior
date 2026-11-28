@@ -14,6 +14,7 @@ import {
 import {
   CATEGORY_REQUIRED_ERROR,
   CURATOR_SEES_NOTICE,
+  formatCharactersLeft,
   formatSubmitFailure,
   formatSubmitted,
   MESSAGE_HINT,
@@ -46,13 +47,17 @@ async function send(placeId: string, category: ReportCategory, message: string) 
     const payload = (await response.json().catch(() => ({}))) as {
       organizationName?: unknown;
       message?: unknown;
+      error?: unknown;
     };
 
     if (response.ok && typeof payload.organizationName === "string") {
       return { ok: true, organizationName: payload.organizationName } as const;
     }
 
-    return { ok: false, text: formatSubmitFailure(response.status, payload.message) } as const;
+    return {
+      ok: false,
+      text: formatSubmitFailure(response.status, payload.message, payload.error),
+    } as const;
   } catch {
     return { ok: false, text: SUBMIT_UNAVAILABLE_MESSAGE } as const;
   }
@@ -199,7 +204,7 @@ export function ReportForm({ placeId }: Readonly<{ placeId: string }>) {
           {length >= REPORT_MESSAGE_MAX_LENGTH
             ? "Osiągnięto limit znaków."
             : length >= ANNOUNCE_FROM
-              ? `Zostało ${REPORT_MESSAGE_MAX_LENGTH - length} znaków.`
+              ? formatCharactersLeft(REPORT_MESSAGE_MAX_LENGTH - length)
               : ""}
         </p>
         {problem.message === null ? null : (
