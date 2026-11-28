@@ -25,7 +25,7 @@ describe("renderSignInCodeEmail", () => {
   });
 
   it("warns in both bodies not to give the code to anyone (D-08)", () => {
-    const warning = `Wpisz go tylko na stronie ${APP_NAME} i nie podawaj nikomu — nie poprosimy o niego e-mailem, telefonem ani wiadomością.`;
+    const warning = `Wpisz go tylko na stronie Krajozbioru i nie podawaj nikomu — nie poprosimy o niego e-mailem, telefonem ani wiadomością.`;
 
     expect(email.text).toContain(warning);
     expect(email.html).toContain(warning);
