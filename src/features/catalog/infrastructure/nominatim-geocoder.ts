@@ -20,6 +20,58 @@ const TIMEOUT_MS = 5000;
 /** Searches waiting for their turn; more than this fails fast instead of piling up. */
 const MAX_WAITING = 4;
 
+/** A search answer is a few results; anything bigger than this is refused. */
+const MAX_RESPONSE_BYTES = 256 * 1024;
+/** After 429 or 403 no request is sent for this long. */
+const PAUSE_AFTER_REFUSAL_MS = 5 * 60 * 1000;
+
+/** Reads the body as text, or returns null when it is larger than `maxBytes`. */
+async function readLimitedText(response: Response, maxBytes: number): Promise<string | null> {
+  const declared = Number(response.headers.get("content-length"));
+
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    await response.body?.cancel().catch(() => undefined);
+
+    return null;
+  }
+
+  if (response.body === null) {
+    return "";
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  for (;;) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      break;
+    }
+
+    total += value.length;
+
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+
+      return null;
+    }
+
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return new TextDecoder().decode(bytes);
+}
+
 export type Geocoder = (query: string) => Promise<readonly GeocodeResult[]>;
 
 type Clock = Readonly<{ now: () => number; sleep: (ms: number) => Promise<void> }>;
@@ -42,8 +94,13 @@ export function createNominatimGeocoder(
   let tail: Promise<unknown> = Promise.resolve();
   let lastStart = 0;
   let waiting = 0;
+  let pausedUntil = 0;
 
   async function request(query: string): Promise<readonly GeocodeResult[]> {
+    if (clock.now() < pausedUntil) {
+      throw new Error("Geocoder paused after a refusal");
+    }
+
     const gap = lastStart + MIN_GAP_MS - clock.now();
 
     if (gap > 0) {
@@ -67,11 +124,25 @@ export function createNominatimGeocoder(
       redirect: "error",
     });
 
+    if (response.status === 429 || response.status === 403) {
+      // The service asks us to stop (or has blocked us): do not ask again for a few minutes.
+      pausedUntil = clock.now() + PAUSE_AFTER_REFUSAL_MS;
+      await response.body?.cancel().catch(() => undefined);
+
+      throw new Error(`Geocoder answered ${response.status}`);
+    }
+
     if (!response.ok) {
       throw new Error(`Geocoder answered ${response.status}`);
     }
 
-    return parseGeocodeResponse(await response.json());
+    const text = await readLimitedText(response, MAX_RESPONSE_BYTES);
+
+    if (text === null) {
+      throw new Error("Geocoder answer too large");
+    }
+
+    return parseGeocodeResponse(JSON.parse(text));
   }
 
   return (query) => {

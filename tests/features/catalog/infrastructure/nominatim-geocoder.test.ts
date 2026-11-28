@@ -100,6 +100,40 @@ describe("createNominatimGeocoder", () => {
     expect(await geocode("Rumia")).toHaveLength(1);
   });
 
+  it("refuses an answer larger than the limit, declared or streamed", async () => {
+    const declared = vi.fn(
+      async () => new Response("[]", { headers: { "content-length": String(10 * 1024 * 1024) } }),
+    );
+    const streamed = vi.fn(async () => new Response("[" + " ".repeat(300 * 1024) + "]"));
+
+    await expect(
+      createNominatimGeocoder(declared as unknown as typeof fetch, clock().value)("Rumia"),
+    ).rejects.toThrow("too large");
+    await expect(
+      createNominatimGeocoder(streamed as unknown as typeof fetch, clock().value)("Rumia"),
+    ).rejects.toThrow("too large");
+  });
+
+  it.each([429, 403])("stops asking for 5 minutes after a %i", async (status) => {
+    const time = clock();
+    let calls = 0;
+    const fetchImpl = vi.fn(async () => {
+      calls += 1;
+
+      return calls === 1 ? new Response("no", { status }) : Response.json(body);
+    });
+    const geocode = createNominatimGeocoder(fetchImpl as unknown as typeof fetch, time.value);
+
+    await expect(geocode("Rumia")).rejects.toThrow(String(status));
+    await expect(geocode("Rumia")).rejects.toThrow("paused");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    await time.value.sleep(5 * 60 * 1000 + 1);
+
+    expect(await geocode("Rumia")).toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it("refuses at once when too many searches are waiting", async () => {
     const geocode = createNominatimGeocoder(
       (async () => Response.json(body)) as unknown as typeof fetch,
