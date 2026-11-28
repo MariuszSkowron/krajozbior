@@ -4,6 +4,7 @@ import { isSameOrigin } from "@/features/identity/domain/origin";
 import { entryPath, loginEntry } from "@/features/identity/domain/login-entry";
 import { requestedReturnTo } from "@/features/identity/domain/return-to";
 import {
+  cleanupAbandonedAccounts,
   cleanupExpiredSessions,
   getIdentityProvider,
   getOtpSendLimiter,
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
 
       // Best effort and bounded; its failure never blocks the code.
       await cleanupExpiredSessions();
+      await cleanupAbandonedAccounts();
       // The same work and the same answer whether or not the message goes out
       // (a full daily pool skips only the hand-over to the mail provider).
       await getIdentityProvider().requestSignInCode(parsed.data.email, request.headers, {

@@ -45,12 +45,26 @@ describe("the screen „Zanim zaczniesz” (E11-Q4 A)", () => {
     expect(html("//evil.example/x")).toContain('name="returnTo" value="/"');
   });
 
-  it("offers „Nie akceptuję — wyloguj” as a logout that names the reason", () => {
+  it("offers „Nie akceptuję — usuń konto” as a post to the decline route, with no owner in it", () => {
     const markup = html("/my");
 
     expect(markup).toMatch(
-      /<form action="\/api\/auth\/logout" method="post"><input type="hidden" name="reason" value="terms-declined"\/><button [^>]*type="submit">Nie akceptuję — wyloguj<\/button><\/form>/,
+      /<form action="\/api\/me\/terms-decline" method="post"><button [^>]*type="submit">Nie akceptuję — usuń konto<\/button><\/form>/,
     );
+    expect(markup).toContain(
+      "Jeśli nie akceptujesz regulaminu, od razu usuwamy Twój adres e-mail.",
+    );
+  });
+
+  it("for an account that accepted an earlier version promises no deletion: „Nie akceptuję — wyloguj”", () => {
+    const markup = renderToStaticMarkup(
+      createElement(TermsGate, { path: "/my", problemCode: null, acceptedBefore: true }),
+    );
+
+    expect(markup).toContain('action="/api/me/terms-decline"');
+    expect(markup).toContain("Nie akceptuję — wyloguj</button>");
+    expect(markup).not.toContain("usuń konto");
+    expect(markup).not.toContain("od razu usuwamy Twój adres e-mail");
   });
 
   it("explains the new account only after a sign-in through „Zaloguj się”", () => {

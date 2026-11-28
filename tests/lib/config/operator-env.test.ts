@@ -23,6 +23,14 @@ const OPERATOR_VARIABLES = {
     "BETTER_AUTH_URL",
     "AUTH_CLIENT_IP_HEADER",
   ],
+  // Timer krajozbior-cleanup-abandoned (scripts/ops/server/cleanup-abandoned.sh): the script loads
+  // the same sign-in module as `auth:throttle`, so it needs the same sign-in settings.
+  "auth:cleanup-abandoned": [
+    "DATABASE_AUTH_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "AUTH_CLIENT_IP_HEADER",
+  ],
 } as const;
 
 // `catalog:import --target server` (F-K6, run by `wdroz.ps1 -Import`): the load goes through the
