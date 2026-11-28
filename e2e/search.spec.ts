@@ -93,7 +93,7 @@ async function createFixtures() {
   // A land on the border of two voivodeships: the main one and one extra (D-63).
   const sudety = await collection(SUDETY, "dolnoslaskie", "published", ["opolskie"]);
 
-  await place(SUDETY_PLACE, "ul. Górska, Kłodzko", sudety);
+  await place(SUDETY_PLACE, "ul. Górska, Nowa Ruda", sudety);
   await place(TOWER, "ul. Żurawia 3, Tczew", zulawy);
   await place(`Fabryka Poznańskiego ${TAG}`, "ul. Ogrodowa, Łódź", lodz);
   await place(DRAFT_PLACE, "ul. Szkicowa", draft);
