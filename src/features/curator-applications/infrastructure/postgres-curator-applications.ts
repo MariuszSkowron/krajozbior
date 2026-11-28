@@ -11,7 +11,7 @@ import type {
 
 // Raw SQL on the transaction of the use case. The applicant's statements name no account id: the
 // owner of a row is app_current_user_id() (the column default, the row policies). The
-// administrator's statements are calls of the three functions of Migration20261124010000, which
+// administrator's statements are calls of the three functions of Migration20261128040000, which
 // take their identity from the context; they return explicit columns only.
 
 const latestApplicationColumns = `
