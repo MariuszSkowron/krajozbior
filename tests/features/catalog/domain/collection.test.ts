@@ -105,7 +105,7 @@ describe("regionsOf and regionsLabelOf", () => {
     const collection = { region: "dolnoslaskie", extraRegions: ["opolskie"] } as const;
 
     expect(regionsOf(collection)).toEqual(["dolnoslaskie", "opolskie"]);
-    expect(regionsLabelOf(collection)).toBe("Dolnośląskie · Opolskie");
+    expect(regionsLabelOf(collection)).toBe("Dolnośląskie · Opolskie");
     expect(regionsLabelOf({ region: "lodzkie", extraRegions: [] })).toBe("Łódzkie");
   });
 });

@@ -110,7 +110,7 @@ describe("CollectionCard", () => {
 
     expect(html).toMatch(/<span class="[^"]*regionName[^"]*">Kujawsko-pomorskie<\/span>/);
     expect(html).toMatch(/<span class="[^"]*regionName[^"]*">Warmińsko-mazurskie<\/span>/);
-    expect(html).toContain('<span aria-hidden="true"> · </span>');
+    expect(html).toContain('<span aria-hidden="true"> · </span>');
     expect(html).toMatch(/<span class="[^"]*visuallyHidden[^"]*">, <\/span>/);
     expect(html.match(/visuallyHidden/g)).toHaveLength(1);
   });

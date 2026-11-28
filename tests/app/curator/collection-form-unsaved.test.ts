@@ -48,7 +48,7 @@ function regionHelp(extra: { hasExtraRegions?: boolean }): unknown {
 describe("the region field of the collection form", () => {
   it("explains what happens to the Także w list only when the collection has extra regions", () => {
     expect(regionHelp({ hasExtraRegions: true })).toBe(
-      "Gdy wybierzesz jedno z województw z listy „Także w”, zniknie ono z tej listy.",
+      "Gdy wybierzesz województwo z listy „Także w”, po zapisaniu zniknie ono z tej listy, a obecne główne na nią nie trafi.",
     );
     expect(regionHelp({ hasExtraRegions: false })).toBeUndefined();
     expect(regionHelp({})).toBeUndefined();

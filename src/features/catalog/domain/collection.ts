@@ -124,7 +124,7 @@ export function regionsLabelOf(collection: {
 }): string {
   return regionsOf(collection)
     .map((region) => REGION_LABELS[region])
-    .join(" · ");
+    .join(" · ");
 }
 
 /** CRLF and lone CR become LF, so a form's line breaks count once. */

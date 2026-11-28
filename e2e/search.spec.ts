@@ -270,9 +270,10 @@ test.describe("search", () => {
       const card = page.getByRole("link", { name: /Sudety graniczne/ });
 
       await expect(card).toBeVisible();
-      // Nazwy są osobnymi elementami (kropka ukryta przed czytnikiem, przecinek tylko dla niego).
-      await expect(card).toContainText("Dolnośląskie");
-      await expect(card).toContainText("Opolskie");
+      // Nazwy są osobnymi elementami (kropka ukryta przed czytnikiem, przecinek tylko dla niego):
+      // nazwa dostępna karty ma je w tej kolejności, po przecinku (Chromium wstawia spację przed
+      // przecinkiem, bo nazwy są osobnymi elementami blokowymi w wierszu, więc `\s*`).
+      await expect(card).toHaveAccessibleName(/Dolnośląskie\s*,\s*Opolskie/);
     }
 
     await page.goto("/search?region=slaskie");

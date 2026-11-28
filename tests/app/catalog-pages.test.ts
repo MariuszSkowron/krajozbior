@@ -137,7 +137,7 @@ describe("public catalog pages", () => {
       await collectionPage.default({ params: Promise.resolve({ slug: next() }) }),
     );
 
-    expect(html).toContain("Kolekcja · Dolnośląskie · Opolskie");
+    expect(html).toContain("Kolekcja · Dolnośląskie · Opolskie");
   });
 
   it("show a collection with region, organization and places linking to place pages", async () => {

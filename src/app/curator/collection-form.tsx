@@ -214,7 +214,7 @@ function CollectionFields({
         label="Województwo"
         help={
           props.mode === "edit" && props.collection.hasExtraRegions
-            ? "Gdy wybierzesz jedno z województw z listy „Także w”, zniknie ono z tej listy."
+            ? "Gdy wybierzesz województwo z listy „Także w”, po zapisaniu zniknie ono z tej listy, a obecne główne na nią nie trafi."
             : undefined
         }
         invalidHint={hint("region")}
