@@ -2,7 +2,24 @@
 // Nazwy i adresy są w jednym miejscu, bo korzystają z nich stopka, ekran logowania, ekran
 // „Zanim zaczniesz” i sama powłoka (strony prawne wolno czytać przed akceptacją regulaminu).
 
-export const CONTACT_EMAIL = "kontakt@mariuszskowron.pl";
+// Adresy ról w domenie serwisu (decyzja właściciela z 27.11.2026). Każdy temat ma własny adres;
+// teksty prawne, stopka i wiadomości e-mail biorą je stąd, a nie z ręcznie wpisanych napisów.
+export const CONTACT_ADDRESSES = {
+  // Sprawy ogólne; punkt kontaktowy z art. 11 i 12 aktu o usługach cyfrowych (DSA).
+  general: "kontakt@krajozbior.pl",
+  // Treści bezprawne lub niezgodne z regulaminem (DSA art. 16), prawa autorskie, właściciel terenu.
+  reports: "zgloszenia@krajozbior.pl",
+  // Reklamacje i odwołania od decyzji w sprawie treści lub konta.
+  complaints: "reklamacje@krajozbior.pl",
+  // Sprawy danych osobowych (RODO).
+  privacy: "prywatnosc@krajozbior.pl",
+  // Zgłoszenia podatności.
+  security: "bezpieczenstwo@krajozbior.pl",
+  // Gminy, PTTK, organizacje turystyczne, kuratorzy, współpraca.
+  partners: "partnerzy@krajozbior.pl",
+} as const;
+
+export const CONTACT_EMAIL = CONTACT_ADDRESSES.general;
 
 export const LEGAL_PAGES = [
   { slug: "regulamin", path: "/regulamin", title: "Regulamin" },

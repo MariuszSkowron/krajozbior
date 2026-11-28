@@ -2,7 +2,7 @@
 
 ## W skrócie
 
-Praca przechodzi od zadania w prywatnym repozytorium dokumentacji, przez specyfikację, implementację, dwa przeglądy (kod i bezpieczeństwo) i poprawki, do automatycznego scalenia w GitHub. Zmiany wrażliwe czekają na zatwierdzenie właściciela. Role, poziomy przeglądu, statusy i polecenia opisuje `docs/agent-workflow.md`; ten plik podaje kolejność i warunki przejścia.
+Praca przechodzi od zadania w prywatnym repozytorium dokumentacji, przez specyfikację, implementację, dwa przeglądy (kod i bezpieczeństwo) i poprawki, do automatycznego scalenia w GitHub. Zmiany wrażliwe czekają na zatwierdzenie właściciela. Role, poziomy przeglądu, statusy i polecenia opisuje [docs/agent-workflow.md](docs/agent-workflow.md); ten plik podaje kolejność i warunki przejścia. Streszczenie dla osób spoza projektu, z wynikami przeglądów: [Proces, przeglądy i bezpieczeństwo](docs/dla-oceniajacych/proces-i-przeglady.md).
 
 <!-- discovery:start -->
 
@@ -31,7 +31,7 @@ Zadanie jest gotowe do implementacji, gdy zawiera albo odsyła do specyfikacji z
 - wpływ na dane, prywatność i uprawnienia;
 - zależności oraz, dla interfejsu, odnośnik do prototypu lub mockupu.
 
-Defekt musi dodatkowo dać się odtworzyć. Braki specyfikacji można uzupełnić przed implementacją, ale brak elementu poziomu zadania zatrzymuje intake.
+Defekt musi dodatkowo dać się odtworzyć. Braki specyfikacji można uzupełnić przed implementacją, ale brak elementu poziomu zadania zatrzymuje przyjęcie zadania do pracy.
 
 ### Decyzje produktu jako chroniony kontrakt
 

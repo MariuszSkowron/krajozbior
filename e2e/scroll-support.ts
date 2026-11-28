@@ -11,6 +11,21 @@ export async function waitForEntrance(page: Page) {
   );
 }
 
+// A precaution (the cause of the rare failure is not confirmed): waits for the images that are
+// already loading, so a late image cannot move the page during the measurement. Lazy images that
+// have not started loading are skipped (decode() could wait for them forever), and the wait has a
+// limit of 3 s.
+export async function waitForImages(page: Page) {
+  await page.evaluate(() => {
+    const loading = Array.from(document.images).filter(
+      (image) => !(image.loading === "lazy" && !image.complete && image.currentSrc === ""),
+    );
+    const settled = Promise.all(loading.map((image) => image.decode().catch(() => undefined)));
+
+    return Promise.race([settled, new Promise((resolve) => setTimeout(resolve, 3000))]);
+  });
+}
+
 // A click on a filter must not scroll the page to the top. A shorter list lets the browser clamp
 // scrollY to the new maximum (or to 0 when the page becomes lower than the window), so the check
 // is: the page did not jump to the top, and scrollY equals the old value or the largest value the

@@ -2,28 +2,28 @@
 
 ## W skrócie
 
-Plan całej pierwszej wersji Krajozbioru jest podzielony na 12 dużych części (epików). Każdy epik dzieli się na historyjki, czyli pojedyncze rzeczy, które użytkownik od razu zauważy, a każda historyjka ma kryteria akceptacji w postaci zdań „KIEDY zrobię X, WTEDY zobaczę Y”. Poniżej jest lista epików z ich stanem oraz jeden epik rozpisany w całości: E12 „Odkrywanie”, dla którego istnieje [jawna specyfikacja](specyfikacja-e12-odkrywanie.md) z przeglądem i pięć scalonych PR-ów.
+Ten plik pokazuje, jak podzieliliśmy pracę nad pierwszą wersją Krajozbioru. Plan obejmuje 12 dużych części (epików). Każdy epik dzieli się na historyjki, czyli pojedyncze rzeczy, które użytkownik od razu zauważy, a każda historyjka ma kryteria akceptacji w postaci zdań „KIEDY zrobię X, WTEDY zobaczę Y”. Poniżej jest lista epików z ich stanem oraz jeden epik rozpisany w całości: E12 „Odkrywanie”, dla którego istnieje [jawna specyfikacja](specyfikacja-e12-odkrywanie.md) z przeglądem i sześć scalonych PR-ów.
 
 Zadania prowadzimy w prywatnym repozytorium; w tym repozytorium oznaczamy je jako `docs#N`. Backlog przygotował agent (skill `om-backlog`) na podstawie opisu produktu i makiet ekranów, a właściciel go zaakceptował. Oznaczenia: **[Z]** wymaganie właściciela, **[P]** propozycja agenta, którą właściciel musi przyjąć.
 
 ## Epiki
 
-Stan na 21 listopada 2026 roku. Numery z `#` to PR-y w tym repozytorium.
+Stan na 28 listopada 2026 roku. Numery z `#` to PR-y w tym repozytorium; pełna lista z opisami: [Stan realizacji](stan-realizacji.md). Każdy epik ma specyfikację z przeglądem innego modelu ([Specyfikacje](specyfikacje.md)).
 
-| Epik                                       | Co obejmuje                                                                               | Stan                                                                                             |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| E1. Organizacje i katalog kolekcji         | organizacje kuratorskie, kolekcje i miejsca, publikacja, panel kuratora, strony publiczne | ścieżka konkursowa scalona (#10, #11, #13, #14, #29); współzarządzanie i historia zmian w planie |
-| E2. Album odkrywcy                         | zapis kolekcji, wizyta na miejscu i z przeszłości, postęp, „Chcę zobaczyć”                | scalone (#15–#18, #34, #36)                                                                      |
-| E3. Wygląd „nocny album”                   | tokeny, dwa motywy, nawigacja, wspólne elementy, dostępność                               | ekrany ścieżki scalone (#25, #28, #31, #32)                                                      |
-| E4. Zdjęcia                                | zdjęcia oficjalne, okładki, zdjęcia odkrywców z moderacją kuratora                        | specyfikacja napisana; po wydaniu konkursowym                                                    |
-| E5. Zgłoszenia poprawek i problemów        | zgłoszenia odkrywców, kolejka kuratora                                                    | specyfikacja napisana; w planie                                                                  |
-| E6. Wydarzenia, karty legendarne i skrytka | wydarzenia kuratora i wyjątkowe karty za udział                                           | specyfikacja napisana; w planie                                                                  |
-| E7. Aktualności                            | wiadomości od kuratorów                                                                   | specyfikacja napisana; w planie                                                                  |
-| E8. Własne kolekcje odkrywców              | kolekcje prywatne i publiczne po akceptacji administratora                                | specyfikacja napisana; w planie                                                                  |
-| E9. Profil, statystyki i ustawienia        | profil, statystyki, wylogowanie, usunięcie konta                                          | częściowo scalone (#42, #43, #50, #54)                                                           |
-| E10. Administrator i zespół organizacji    | ekrany administratora, zapraszanie zespołu                                                | specyfikacja napisana; w planie                                                                  |
-| E11. Wdrożenie                             | serwer, wysyłka e-maili, regulamin i polityka prywatności, ta dokumentacja                | w toku (#55, #57, #58, #60, #61, #63, #64)                                                       |
-| E12. Odkrywanie                            | strona główna, wyszukiwarka, kolekcja jako album, mapa                                    | trzy z czterech historyjek scalone (#38–#41, #49); czwarta po konkursie                          |
+| Epik                                       | Co obejmuje                                                                               | Stan                                                                                                                                                                           |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| E1. Organizacje i katalog kolekcji         | organizacje kuratorskie, kolekcje i miejsca, publikacja, panel kuratora, strony publiczne | ścieżka konkursowa scalona (#10, #11, #13, #14, #29), ostrzeżenie o wejściu na teren (#85), usprawnienia panelu (#109, #121, #137); współzarządzanie i historia zmian w planie |
+| E2. Album odkrywcy                         | zapis kolekcji, wizyta na miejscu i z przeszłości, postęp, „Chcę zobaczyć”                | scalone (#15–#18, #34, #36), stan po wizycie (#135)                                                                                                                            |
+| E3. Wygląd „nocny album”                   | tokeny, dwa motywy, nawigacja, wspólne elementy, dostępność                               | scalone (#25, #28, #31, #32), nowy wygląd głównych stron (#127, #129, #130, #132)                                                                                              |
+| E4. Zdjęcia                                | zdjęcia oficjalne, okładki, zdjęcia odkrywców z moderacją kuratora                        | zdjęcia z Wikimedia Commons i okładki scalone (#81, #82, #86, #88, #89, #91, #100, #123); zdjęcia odkrywców po wydaniu konkursowym                                             |
+| E5. Zgłoszenia poprawek i problemów        | zgłoszenia odkrywców, kolejka kuratora                                                    | odnośnik „Zgłoś naruszenie” scalony (#97); kolejka kuratora w planie                                                                                                           |
+| E6. Wydarzenia, karty legendarne i skrytka | wydarzenia kuratora i wyjątkowe karty za udział                                           | przygotowanie scalone, jeszcze niewidoczne dla użytkowników (#126, #128); reszta w planie                                                                                      |
+| E7. Aktualności                            | wiadomości od kuratorów                                                                   | aktualności redakcji scalone (#93, #101, #107, #110, #111, #138); aktualności pisane przez kuratorów w planie                                                                  |
+| E8. Własne kolekcje odkrywców              | kolekcje prywatne i publiczne po akceptacji administratora                                | kolekcje prywatne scalone (#105); kolekcje publiczne w planie                                                                                                                  |
+| E9. Profil, statystyki i ustawienia        | profil, statystyki, wylogowanie, usunięcie konta                                          | scalone (#42, #43, #50, #54, #78, #95)                                                                                                                                         |
+| E10. Administrator i zespół organizacji    | ekrany administratora, zapraszanie zespołu                                                | próba weryfikacji dwuetapowej, sam test (#103); reszta w planie                                                                                                                |
+| E11. Wdrożenie                             | serwer, wysyłka e-maili, regulamin i polityka prywatności, ta dokumentacja                | narzędzia scalone (#55, #57, #58, #60–#64, #74, #77); uruchomienie pod publicznym adresem w toku                                                                               |
+| E12. Odkrywanie                            | strona główna, wyszukiwarka, kolekcja jako album, mapa                                    | wszystkie cztery historyjki scalone (#38–#41, #49, #79)                                                                                                                        |
 
 Poza epikami jest lista rzeczy odłożonych na później (m.in. aplikacja na Androida) i rzeczy, których świadomie nie robimy ([Produkt](produkt.md), „Czego nie robimy”).
 
@@ -56,7 +56,7 @@ Kryteria akceptacji **[Z]**:
 1. KIEDY otwieram kolekcję, WTEDY widzę okładkę, region, opis, kuratora, datę aktualizacji i siatkę miejsc z filtrem stanu (odwiedzone / do odwiedzenia).
 2. KIEDY przełączam widok kart na mapę, WTEDY widzę miejsca na mapie na podkładzie OpenStreetMap z podpisem źródła.
 
-Stan: kryterium 1 (bez okładki) i panel wybranego miejsca w #41, kryterium 2 w #49. Okładki przyjdą z epikiem E4 (zdjęcia); do tego czasu kolekcja ma tło z design systemu.
+Stan: kryterium 1 (bez okładki) i panel wybranego miejsca w #41, kryterium 2 w #49. Okładki przyszły z epikiem E4 (zdjęcia): okładka wybrana przez kuratora w #100, a bez wyboru zdjęcie pierwszego miejsca, które je ma, w #129. W nowym wyglądzie z #108 karta miejsca prowadzi wprost do strony miejsca zamiast do panelu „Wybrane miejsce”.
 
 ### E12-S4. „Nowa w okolicy” i filtr „Moich kolekcji” (`docs#82`)
 
@@ -64,7 +64,7 @@ Kryterium akceptacji **[Z]**: KIEDY w pobliżu pojawi się nowa kolekcja, WTEDY 
 
 Zmiana zakresu (22.11.2026): z ekranu „Moje kolekcje” usunięto blok „Pokaż nowe w okolicy”, zostaje tylko filtr postępu. Oznaczenie „Nowa w okolicy” działa dziś na stronie głównej (nie na ekranie „Moje kolekcje”).
 
-Stan: po konkursie, za zgodą właściciela. Dziś wszystkie kolekcje są nowe, więc oznaczenie niczego by nie mówiło. Specyfikacja opisuje już regułę (pierwsza publikacja najwyżej 30 dni temu i miejsce najwyżej 50 km od odkrywcy).
+Stan: scalone w #79. Reguła: pierwsza publikacja najwyżej 30 dni temu i miejsce najwyżej 50 km od odkrywcy. Filtr postępu działa od #112 jednym kliknięciem (przyciski „Wszystkie”, „W trakcie”, „Nierozpoczęte”, „Ukończone”).
 
 ## Jak powstał podział na PR-y
 

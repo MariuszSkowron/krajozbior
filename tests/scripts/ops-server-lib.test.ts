@@ -1475,6 +1475,44 @@ describe("hourly resource check: daily pool of sign-in codes (health-report.sh)"
 
     expect(output).not.toContain(ALARM_TEXT);
   });
+
+  bashIt("raises a separate alarm for the pool of accounts", () => {
+    const output = runReport(`{"event":"auth.otp_accounts_limit_80","limit":150}\n`);
+
+    expect(output).toContain("pula kodow dla kont wyczerpana");
+    expect(output).toContain("alarm 1 razy");
+    expect(output).not.toContain(ALARM_TEXT);
+  });
+
+  bashIt("raises a separate alarm for the pool of new addresses", () => {
+    const output = runReport(
+      `{"event":"auth.otp_new_account_limit_80","limit":100}\n{"event":"auth.otp_new_account_limit_100","limit":100}\n`,
+    );
+
+    expect(output).toContain("pula kodow dla nowych adresow wyczerpana");
+    expect(output).toContain("alarm 2 razy");
+    expect(output).not.toContain("pula kodow dla kont");
+  });
+
+  bashIt("counts the codes skipped because a pool or the new-address IP limit was full", () => {
+    const output = runReport(
+      [
+        `{"event":"auth.otp_send_skipped","pool":"new"}`,
+        `{"event":"auth.otp_send_skipped","pool":"new_ip"}`,
+        `{"event":"auth.otp_send_skipped","pool":"accounts"}`,
+        // The per-mailbox limit is ordinary use and does not raise the alarm.
+        `{"event":"auth.otp_send_skipped","pool":"sent"}`,
+      ].join("\n"),
+    );
+
+    expect(output).toContain("pominieto wysylke kodu logowania 3 razy");
+  });
+
+  bashIt("does not alarm for codes skipped only by the per-mailbox limit", () => {
+    const output = runReport(`{"event":"auth.otp_send_skipped","pool":"sent"}\n`);
+
+    expect(output).not.toContain("pominieto wysylke");
+  });
 });
 
 describe("small helpers", () => {

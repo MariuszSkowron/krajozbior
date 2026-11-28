@@ -1,3 +1,5 @@
+import { CONTACT_ADDRESSES } from "@/features/legal/domain/legal-pages";
+
 export const SIGN_IN_CODE_VALIDITY_MINUTES = 10;
 
 /** Name of the application in messages; `npm run rename-project` replaces it. */
@@ -21,8 +23,7 @@ export function escapeHtml(value: string): string {
 }
 
 /** Footer line required by the privacy policy (D-36 pkt 1, E11 5.8). */
-export const DATA_CONTROLLER_LINE =
-  "Administrator danych: Mariusz Skowron, kontakt@mariuszskowron.pl";
+export const DATA_CONTROLLER_LINE = `Administrator danych: Mariusz Skowron, ${CONTACT_ADDRESSES.privacy}`;
 
 export const PRIVACY_POLICY_PATH = "/polityka-prywatnosci";
 
@@ -34,12 +35,15 @@ export function renderSignInCodeEmail(input: SignInCodeEmailInput): RenderedEmai
   const { code, siteUrl } = input;
   const subject = `${code.replace(/[\r\n]+/g, " ")} — kod logowania (${APP_NAME})`;
   const rest = `Kod jest ważny ${SIGN_IN_CODE_VALIDITY_MINUTES} minut. To nie Ty prosisz o kod? Zignoruj tę wiadomość — bez kodu nikt nie zaloguje się na Twoje konto.`;
+  const warning = `Wpisz go tylko na stronie Krajozbioru i nie podawaj nikomu — nie poprosimy o niego e-mailem, telefonem ani wiadomością.`;
   const privacy = `Polityka prywatności: ${siteUrl.replace(/\/+$/, "")}${PRIVACY_POLICY_PATH}`;
 
   const text = [
     `Twój kod logowania (${APP_NAME}): ${code}.`,
     "",
     rest,
+    "",
+    warning,
     "",
     "--",
     APP_NAME,
@@ -56,6 +60,7 @@ export function renderSignInCodeEmail(input: SignInCodeEmailInput): RenderedEmai
 <p>Twój kod logowania (${escapeHtml(APP_NAME)}):</p>
 <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px;">${escapeHtml(code)}</p>
 <p>${escapeHtml(rest)}</p>
+<p>${escapeHtml(warning)}</p>
 <hr>
 <p style="font-size: 13px;">${escapeHtml(APP_NAME)}<br>
 ${escapeHtml(siteUrl)}<br>
