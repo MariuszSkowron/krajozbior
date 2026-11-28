@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { validateCuratorApplicationInput } from "@/features/curator-applications/domain/application-form";
+import { ORGANIZATION_NAME_MESSAGE } from "@/features/organizations/domain/organization";
 
 const valid = {
   organizationName: "Urząd Miejski w Rumi",
@@ -41,7 +42,31 @@ describe("validateCuratorApplicationInput", () => {
     ).toBe(true);
     expect(
       validateCuratorApplicationInput({ ...valid, organizationName: "a".repeat(121) }),
-    ).toEqual({ ok: false, fields: ["organizationName"] });
+    ).toEqual({
+      ok: false,
+      fields: ["organizationName"],
+      organizationNameMessage: "Nazwa może mieć najwyżej 120 znaków.",
+    });
+  });
+
+  it("counts the length after folding spaces", () => {
+    const name = `${"a ".repeat(30)}${" ".repeat(70)}b`;
+
+    expect(validateCuratorApplicationInput({ ...valid, organizationName: name }).ok).toBe(true);
+  });
+
+  it("says why the name is refused: empty, too long, or characters", () => {
+    const message = (organizationName: unknown) => {
+      const result = validateCuratorApplicationInput({ ...valid, organizationName });
+
+      return result.ok ? null : result.organizationNameMessage;
+    };
+
+    expect(message("   ")).toBe("Podaj nazwę organizacji.");
+    expect(message(undefined)).toBe("Podaj nazwę organizacji.");
+    expect(message("a".repeat(121))).toBe("Nazwa może mieć najwyżej 120 znaków.");
+    expect(message("Gmina \u{1f332}")).toBe(ORGANIZATION_NAME_MESSAGE);
+    expect(message("Gmina")).toBeNull();
   });
 
   it("names every wrong field, in the order of the form", () => {
@@ -56,6 +81,7 @@ describe("validateCuratorApplicationInput", () => {
     ).toEqual({
       ok: false,
       fields: ["organizationName", "organizationKind", "applicantRole", "contact", "websiteUrl"],
+      organizationNameMessage: "Podaj nazwę organizacji.",
     });
   });
 
@@ -75,6 +101,7 @@ describe("validateCuratorApplicationInput", () => {
     expect(validateCuratorApplicationInput({ ...valid, organizationName })).toEqual({
       ok: false,
       fields: ["organizationName"],
+      organizationNameMessage: ORGANIZATION_NAME_MESSAGE,
     });
   });
 
@@ -105,6 +132,10 @@ describe("validateCuratorApplicationInput", () => {
     "Koło PTTK nr 2 / Oddział Gdynia",
     "Fundacja Müller",
     "Café Literacka",
+    "\u{201c}Lux Veritatis\u{201d}",
+    "\u{ab}Nasz Dom\u{bb}",
+    "Koło \u{2014} Oddział",
+    "\u{2018}x\u{2019} \u{201a}y\u{2018}",
     "Towarzystwo Przyjaciół Ziemi Kłodzkiej \u{2013} Oddział Nysa",
   ])("accepts the real name %s (C-05)", (organizationName) => {
     expect(validateCuratorApplicationInput({ ...valid, organizationName })).toMatchObject({
@@ -121,13 +152,18 @@ describe("validateCuratorApplicationInput", () => {
 
   it("refuses control characters, also the line breaks of a single-line field", () => {
     for (const field of ["organizationName", "applicantRole", "contact"] as const) {
+      const extra =
+        field === "organizationName" ? { organizationNameMessage: ORGANIZATION_NAME_MESSAGE } : {};
+
       expect(validateCuratorApplicationInput({ ...valid, [field]: "a\r\nb" })).toEqual({
         ok: false,
         fields: [field],
+        ...extra,
       });
       expect(validateCuratorApplicationInput({ ...valid, [field]: "a\u0007b" })).toEqual({
         ok: false,
         fields: [field],
+        ...extra,
       });
     }
   });

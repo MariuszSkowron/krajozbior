@@ -852,6 +852,11 @@ describe("curator applications: access, administrator functions, session and gat
       ["soft hyphen", "Gmina\u{ad}Testowa"],
       ["Arabic number sign (Cf missing from the old list)", "Gmina\u{600}Testowa"],
       ["double space", "Gmina  Testowa"],
+      // Just outside the edges of the ranges.
+      ["one past Latin Extended-B (U+0250)", "Gmina \u{250}"],
+      ["one past Latin Extended Additional (U+1F00)", "Gmina \u{1f00}"],
+      ["one before Latin-1 letters (U+00BF)", "Gmina \u{bf}"],
+      ["a division sign", "Gmina \u{f7}"],
     ];
     // Real names the first, narrower set refused.
     const goodNames = [
@@ -862,6 +867,12 @@ describe("curator applications: access, administrator functions, session and gat
       "Café Literacka",
       'Fundacja Na+ \u{2019}x\u{2019}: "y"; z!?',
       "Towarzystwo Przyjaciół Ziemi Kłodzkiej \u{2013} Oddział Nysa",
+      "\u{201c}Lux Veritatis\u{201d}",
+      "\u{ab}Nasz Dom\u{bb}",
+      "Koło \u{2014} Oddział",
+      "\u{2018}Pod Lipą\u{2019} \u{201a}x\u{2018}",
+      // The first and the last letter of each range.
+      "Gmina \u{c0}\u{d6}\u{d8}\u{f6}\u{f8}\u{1bf}\u{1c4}\u{24f}\u{1e00}\u{1eff}",
     ];
 
     it("refuses invisible characters and look-alike letters in the name, in the table and in the function (C-05)", async () => {

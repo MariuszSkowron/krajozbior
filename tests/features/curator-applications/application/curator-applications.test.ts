@@ -174,6 +174,23 @@ describe("submitCuratorApplication", () => {
     });
   });
 
+  it("explains an empty and a too long organization name apart", async () => {
+    const { deps } = setup();
+
+    expect(await submitCuratorApplication(user, { ...form, organizationName: " " }, deps)).toEqual({
+      status: "invalid",
+      fields: ["organizationName"],
+      message: "Podaj nazwę organizacji.",
+    });
+    expect(
+      await submitCuratorApplication(user, { ...form, organizationName: "a".repeat(121) }, deps),
+    ).toEqual({
+      status: "invalid",
+      fields: ["organizationName"],
+      message: "Nazwa może mieć najwyżej 120 znaków.",
+    });
+  });
+
   it("answers rate_limited when the limiter refuses", async () => {
     const { deps } = setup();
 

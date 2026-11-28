@@ -40,7 +40,7 @@ const controlCharacters = String.raw`'[\U00000001-\U0000001f\U0000007f-\U0000009
 // as explicit code ranges (Latin-1 without the signs x and division, Latin Extended-A and B without
 // U+01C0-U+01C3, Latin Extended Additional), digits, a space and . , : ; ! ? ' right quote " low
 // and right double quotes ( ) & / + en dash and hyphen. No other script, so no look-alike letters.
-const organizationNamePattern = String.raw`'^[A-Za-z0-9\U000000c0-\U000000d6\U000000d8-\U000000f6\U000000f8-\U000001bf\U000001c4-\U0000024f\U00001e00-\U00001eff .,:;!?''\U00002019"\U0000201e\U0000201d()&/+\U00002013-]+$'`;
+const organizationNamePattern = String.raw`'^[A-Za-z0-9\U000000c0-\U000000d6\U000000d8-\U000000f6\U000000f8-\U000001bf\U000001c4-\U0000024f\U00001e00-\U00001eff .,:;!?''\U00002018\U00002019\U0000201a"\U0000201c\U0000201e\U0000201d()&/+\U00002013\U00002014\U000000ab\U000000bb-]+$'`;
 const slugPattern = `'^[a-z0-9]+(-[a-z0-9]+)*$'`;
 const maxApplicationsPerAccount = 20;
 const maxListedApplications = 200;

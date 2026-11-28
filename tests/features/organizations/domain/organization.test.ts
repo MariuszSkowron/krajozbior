@@ -1,6 +1,9 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import {
+  ORGANIZATION_NAME_PATTERN,
   canAddMember,
   isOrganizationKind,
   isOrganizationSlug,
@@ -20,6 +23,27 @@ describe("organization domain", () => {
       "other",
     ]);
     expect(ORGANIZATION_STATUSES).toEqual(["approved", "suspended"]);
+  });
+
+  it("keeps the name pattern of the migration identical to the JS one", () => {
+    const migration = readFileSync(
+      "src/lib/db/migrations/Migration20261128040000_curator_applications.ts",
+      "utf8",
+    );
+    const sqlLiteral = /const organizationNamePattern = String\.raw`'(.*)'`;/.exec(migration)?.[1];
+
+    expect(sqlLiteral).toBeDefined();
+
+    // SQL: \U000000c0 and a doubled apostrophe; JS: \u{C0} and a single one.
+    const fromSql = (sqlLiteral ?? "")
+      .replace(/\\U([0-9a-fA-F]{8})/g, (_m, hex: string) => `<${hex.toLowerCase()}>`)
+      .replace(/''/g, "'");
+    const fromJs = ORGANIZATION_NAME_PATTERN.source.replace(
+      /\\u\{([0-9a-fA-F]+)\}/g,
+      (_m, hex: string) => `<${hex.toLowerCase().padStart(8, "0")}>`,
+    );
+
+    expect(fromSql).toBe(fromJs);
   });
 
   it("recognizes a kind only from the frozen list", () => {

@@ -7,7 +7,6 @@ import {
   type Role,
 } from "@/features/identity/domain/actor";
 import type { ActorSession } from "@/features/identity/domain/identity-provider";
-import { ORGANIZATION_NAME_MESSAGE } from "@/features/organizations/domain/organization";
 
 import { validateCuratorApplicationInput } from "../domain/application-form";
 import { applicationScreenState } from "../domain/application-state";
@@ -186,7 +185,9 @@ export async function submitCuratorApplication(
     return {
       status: "invalid",
       fields: input.fields,
-      ...(input.fields.includes("organizationName") ? { message: ORGANIZATION_NAME_MESSAGE } : {}),
+      ...(input.organizationNameMessage === undefined
+        ? {}
+        : { message: input.organizationNameMessage }),
     };
   }
 

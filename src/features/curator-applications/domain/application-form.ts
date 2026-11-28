@@ -3,7 +3,8 @@ import { z } from "zod";
 import { normalizeLineBreaks } from "@/features/catalog/domain/collection";
 import {
   collapseSpaces,
-  ORGANIZATION_NAME_PATTERN,
+  ORGANIZATION_NAME_EMPTY_MESSAGE,
+  organizationNameProblem,
   ORGANIZATION_KINDS,
   type OrganizationKind,
 } from "@/features/organizations/domain/organization";
@@ -38,7 +39,12 @@ export type CuratorApplicationInput = Readonly<{
 
 export type CuratorApplicationValidation =
   | Readonly<{ ok: true; value: CuratorApplicationInput }>
-  | Readonly<{ ok: false; fields: readonly CuratorApplicationField[] }>;
+  | Readonly<{
+      ok: false;
+      fields: readonly CuratorApplicationField[];
+      /** Set when the organization name is wrong: which rule it broke. */
+      organizationNameMessage?: string;
+    }>;
 
 // Control (Cc) and invisible formatting (Cf: zero-width, right-to-left override, tags) characters.
 const CONTROL_CHARACTER = /[\p{Cc}\p{Cf}]/u;
@@ -55,9 +61,19 @@ const line = (min: number, max: number) =>
         .refine((value) => !CONTROL_CHARACTER.test(value)),
     );
 
-const organizationName = line(1, ORGANIZATION_NAME_MAX)
-  .transform(collapseSpaces)
-  .refine((value) => ORGANIZATION_NAME_PATTERN.test(value));
+// The length is counted after the spaces are folded; the message says which rule the name broke.
+const organizationName = z
+  .string()
+  .transform((value) => collapseSpaces(normalizeLineBreaks(value).normalize("NFC").trim()))
+  .pipe(
+    z.string().superRefine((value, ctx) => {
+      const problem = organizationNameProblem(value);
+
+      if (problem !== null) {
+        ctx.addIssue({ code: "custom", message: problem });
+      }
+    }),
+  );
 
 function isHttpsAddress(value: string): boolean {
   if (!value.startsWith("https://") || /\s/.test(value)) {
@@ -102,17 +118,24 @@ export function validateCuratorApplicationInput(input: unknown): CuratorApplicat
   }
 
   const fields = new Set<CuratorApplicationField>();
+  let nameMessage: string | undefined;
 
   for (const issue of parsed.error.issues) {
     const field = issue.path[0];
 
     if (isField(field)) {
       fields.add(field);
+
+      if (field === "organizationName" && nameMessage === undefined) {
+        // A value that is no string never reaches the rules: treat it as an empty name.
+        nameMessage = issue.code === "custom" ? issue.message : ORGANIZATION_NAME_EMPTY_MESSAGE;
+      }
     }
   }
 
   return {
     ok: false,
     fields: CURATOR_APPLICATION_FIELDS.filter((field) => fields.has(field)),
+    ...(nameMessage === undefined ? {} : { organizationNameMessage: nameMessage }),
   };
 }
