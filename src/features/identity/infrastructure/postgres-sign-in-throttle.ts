@@ -4,6 +4,7 @@ import { createHmac, hkdfSync } from "node:crypto";
 
 import type { Pool, PoolClient } from "pg";
 
+import { ACTION_KEY_PREFIX, MAX_ACTION_WINDOW_SECONDS } from "../domain/action-rate-limit";
 import {
   decide,
   normalizeEmail,
@@ -16,7 +17,9 @@ import {
 } from "../domain/sign-in-throttle";
 
 // Rows with an ended window and no active block that one reservation removes,
-// so the table stays bounded by the attempts of one window.
+// so the table stays bounded by the attempts of one window. Rows of action
+// limits (`action:` prefix) are kept for MAX_ACTION_WINDOW_SECONDS, because
+// their windows can be longer than the sign-in window.
 const CLEANUP_BATCH = 100;
 // The longest wait for a row lock of a bucket (SEC-3), like the code-request counters: a wait
 // that long ends in 503 with nothing counted (the transaction rolls back), instead of holding
@@ -149,11 +152,18 @@ export class PostgresSignInThrottle implements SignInThrottle {
       await client.query(
         `delete from auth.sign_in_throttle where key in (
            select key from auth.sign_in_throttle
-            where window_started_at <= now() - make_interval(secs => $1)
+            where window_started_at <= now() - make_interval(
+                    secs => case when starts_with(key, $4) then $5::double precision else $1::double precision end)
               and (locked_until is null or locked_until <= now())
               and key <> all($2::text[])
             limit $3 for update skip locked)`,
-        [SIGN_IN_WINDOW_SECONDS, names, CLEANUP_BATCH],
+        [
+          SIGN_IN_WINDOW_SECONDS,
+          names,
+          CLEANUP_BATCH,
+          ACTION_KEY_PREFIX,
+          MAX_ACTION_WINDOW_SECONDS,
+        ],
       );
 
       return result;

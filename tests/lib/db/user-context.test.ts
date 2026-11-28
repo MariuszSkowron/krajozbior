@@ -7,8 +7,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DatabaseQueryError } from "@/lib/db/database-error";
 import {
+  AdminContextError,
   InvalidActorIdError,
+  InvalidSessionTokenError,
   NestedUserContextError,
+  runInAdminContext,
   runInGuestContext,
   runInUserContext,
 } from "@/lib/db/user-context";
@@ -92,6 +95,91 @@ describe("runInUserContext", () => {
     );
     expect(work).not.toHaveBeenCalled();
     expect(calls).toEqual([]);
+  });
+});
+
+describe("runInAdminContext", () => {
+  const token = "sekretny-token-sesji-0123456789";
+
+  it("sets the actor and the session token transaction-locally before the work", async () => {
+    const { em, tx, calls } = fakeEntityManager();
+
+    const result = await runInAdminContext(em, { id: actorId }, token, async (context) => {
+      calls.push("work");
+      expect(context.em).toBe(tx);
+      return "done";
+    });
+
+    expect(result).toBe("done");
+    expect(calls).toEqual([
+      "begin",
+      `select set_config('app.user_id', ?, true) ["${actorId}"]`,
+      `select set_config('app.session_token', ?, true) ["${token}"]`,
+      "work",
+      "commit",
+    ]);
+  });
+
+  it("refuses an actor id that is not a UUID without touching the database", async () => {
+    const { em, calls } = fakeEntityManager();
+
+    await expect(runInAdminContext(em, { id: "x" }, token, vi.fn())).rejects.toBeInstanceOf(
+      InvalidActorIdError,
+    );
+    expect(calls).toEqual([]);
+  });
+
+  it.each(["", "a".repeat(513), "ab\ncd", "ab\u0000cd"])(
+    "refuses a token that cannot be a session token without touching the database: %j",
+    async (bad) => {
+      const { em, calls } = fakeEntityManager();
+      const error = (await runInAdminContext(em, { id: actorId }, bad, vi.fn()).catch(
+        (caught: unknown) => caught,
+      )) as Error;
+
+      expect(error).toBeInstanceOf(InvalidSessionTokenError);
+      expect(error.message).not.toContain("cd");
+      expect(calls).toEqual([]);
+    },
+  );
+
+  it("refuses to open inside another transaction", async () => {
+    const { em, calls } = fakeEntityManager({ inTransaction: true });
+
+    await expect(runInAdminContext(em, { id: actorId }, token, vi.fn())).rejects.toBeInstanceOf(
+      NestedUserContextError,
+    );
+    expect(calls).toEqual([]);
+  });
+
+  it("rolls back and rethrows an error of the work unchanged", async () => {
+    const { em, calls } = fakeEntityManager();
+    const failure = new Error("domain rule failed");
+
+    await expect(
+      runInAdminContext(em, { id: actorId }, token, async () => {
+        throw failure;
+      }),
+    ).rejects.toBe(failure);
+    expect(calls.at(-1)).toBe("rollback");
+  });
+
+  it("never lets the token into the error when the database refuses it", async () => {
+    const { em, tx } = fakeEntityManager();
+
+    tx.execute.mockImplementation(async (sql: string) => {
+      if (sql.includes("app.session_token")) {
+        throw new Error(`select set_config('app.session_token', '${token}', true) - failed`);
+      }
+    });
+    const error = (await runInAdminContext(em, { id: actorId }, token, vi.fn()).catch(
+      (caught: unknown) => caught,
+    )) as Error;
+
+    expect(error).toBeInstanceOf(AdminContextError);
+    expect(error.message).not.toContain(token);
+    expect(String(error.stack)).not.toContain(token);
+    expect(error.cause).toBeUndefined();
   });
 });
 

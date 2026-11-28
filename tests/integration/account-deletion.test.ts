@@ -89,6 +89,23 @@ async function populate(user: { id: string; email: string }) {
     `insert into public.profiles (first_name, family_initial, region, visibility)
      values ('Anna', 'K', 'pomorskie', 'public')`,
   );
+  // An application for the curator role (P7): a pending one written by the applicant, and a
+  // decided one of the same account (it goes with the applicant by cascade; the rule
+  // `decided_by` set null is tried separately, in "keeps the application of another account").
+  await as(
+    user,
+    `insert into public.curator_applications
+       (organization_name, organization_kind, applicant_role, contact)
+     values ('Gmina Rumia', 'municipality', 'promocja', 'promocja@example.com')`,
+  );
+  await admin$(
+    `insert into public.curator_applications
+       (applicant_user_id, organization_name, organization_kind, applicant_role, contact,
+        status, decided_at, decided_by, rejection_reason)
+     values ($1, 'Gmina Wejherowo', 'municipality', 'promocja', 'promocja@example.com',
+             'rejected', now(), $1, 'Brak potwierdzenia')`,
+    [user.id],
+  );
   // The theme remembered on the account (E9-4).
   await as(user, `insert into public.account_settings (theme) values ('light')`);
   // The acceptance of the terms (F-K3): evidence that goes with the account.
@@ -233,6 +250,7 @@ describe("account deletion on the real database", () => {
 
       expect(referencing.map(({ table }) => table)).toEqual(
         expect.arrayContaining([
+          "public.curator_applications",
           "public.organization_members",
           "public.profiles",
           "public.account_settings",
@@ -275,6 +293,38 @@ describe("account deletion on the real database", () => {
       );
     });
 
+    it("keeps the application of another account that the deleted account decided, only without the decider", async () => {
+      const a = await newExplorer("applicant");
+      const b = await newExplorer("decider");
+      const [{ id: applicationId }] = await admin$<{ id: string }>(
+        `insert into public.curator_applications
+           (applicant_user_id, organization_name, organization_kind, applicant_role, contact,
+            status, decided_at, decided_by, rejection_reason)
+         values ($1, 'Gmina Puck', 'municipality', 'promocja', 'promocja@example.com',
+                 'rejected', now(), $2, 'Brak potwierdzenia')
+         returning id`,
+        [a.id, b.id],
+      );
+      const read = async () =>
+        (
+          await admin$<Record<string, unknown>>(
+            `select status, rejection_reason, decided_at::text as decided_at, decided_by
+               from public.curator_applications where id = $1`,
+            [applicationId],
+          )
+        )[0]!;
+      const before = await read();
+
+      expect(before.decided_by).toBe(b.id);
+      expect(await deleteAccountRows(authPool, b.id)).toBe(true);
+
+      const after = await read();
+
+      expect(after).toEqual({ ...before, decided_by: null });
+      expect(after.status).toBe("rejected");
+      expect(await rowsOf("auth.users", "id", a.id)).toBe(1);
+    });
+
     it("leaves no address of A in clear text in any table of the auth schema, nor in the audit", async () => {
       const a = await newExplorer("address");
 
@@ -309,6 +359,7 @@ describe("account deletion on the real database", () => {
         "profiles",
         "account_settings",
         "terms_acceptance",
+        "curator_applications",
       ]) {
         expect(await as(a, `select * from public.${table}`), table).toEqual([]);
       }
@@ -536,6 +587,7 @@ describe("account deletion on the real database", () => {
       expect(inserts.map(({ name }) => name).sort()).toEqual([
         "operations_audit_account_deletion_insert",
         "operations_audit_ops_insert",
+        "operations_audit_panel_insert",
       ]);
       expect(owner.name).toBe("operations_audit_account_deletion_insert");
       for (const part of [

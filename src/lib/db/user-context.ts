@@ -59,6 +59,65 @@ export async function runInUserContext<T>(
   });
 }
 
+// Raised for a session token that cannot be a Better Auth token (empty, too long, control
+// characters). Like every error of the admin context it never carries the token.
+export class InvalidSessionTokenError extends Error {
+  constructor() {
+    super("Session token is not usable");
+    this.name = "InvalidSessionTokenError";
+  }
+}
+
+// Raised when the database refuses to take the session token. The original error is dropped on
+// purpose: the driver's message repeats the statement with its values (the secret token).
+export class AdminContextError extends Error {
+  constructor() {
+    super("Admin context could not be opened");
+    this.name = "AdminContextError";
+  }
+}
+
+const SESSION_TOKEN_MAX_LENGTH = 512;
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/;
+
+// The context of an administrator (spec "Rola kuratora", D-59): the same as `runInUserContext`
+// plus `app.session_token`, the token of the live session of the actor, for this transaction
+// only (set_config(..., true)). The functions of the administrator in the database compare it
+// with `auth.sessions` (`app_require_live_admin`), so an identifier alone is not enough. The
+// token comes from the session of the request (`IdentityProvider.getActorWithSession`), is
+// never logged, and never appears in an error of this wrapper.
+export async function runInAdminContext<T>(
+  em: EntityManager,
+  actor: ContextActor,
+  sessionToken: string,
+  work: (tx: TransactionContext) => Promise<T>,
+): Promise<T> {
+  if (!actorIdSchema.safeParse(actor.id).success) {
+    throw new InvalidActorIdError();
+  }
+  if (
+    sessionToken.length < 1 ||
+    sessionToken.length > SESSION_TOKEN_MAX_LENGTH ||
+    CONTROL_CHARACTERS.test(sessionToken)
+  ) {
+    throw new InvalidSessionTokenError();
+  }
+  if (em.isInTransaction()) {
+    throw new NestedUserContextError();
+  }
+
+  return transactionWithoutQueryText(em, async (tx) => {
+    await tx.execute("select set_config('app.user_id', ?, true)", [actor.id], "get");
+    try {
+      await tx.execute("select set_config('app.session_token', ?, true)", [sessionToken], "get");
+    } catch {
+      throw new AdminContextError();
+    }
+
+    return work({ em: tx });
+  });
+}
+
 // A database error leaves the context without the values that PostgreSQL repeats in its message
 // and fields (see `database-error.ts`; outside the context read only `code` and `constraint`);
 // other errors pass on unchanged.
@@ -112,4 +171,15 @@ export async function withUserContext<T>(
   const orm = await getOrm();
 
   return runInUserContext(orm.em, actor, work);
+}
+
+// Only for the use cases of the administrator, after the role check; see `runInAdminContext`.
+export async function withAdminContext<T>(
+  actor: ContextActor,
+  sessionToken: string,
+  work: (tx: TransactionContext) => Promise<T>,
+): Promise<T> {
+  const orm = await getOrm();
+
+  return runInAdminContext(orm.em, actor, sessionToken, work);
 }

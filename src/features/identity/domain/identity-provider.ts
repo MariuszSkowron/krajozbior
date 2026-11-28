@@ -4,6 +4,11 @@ export type Credentials = { email: string; password: string };
 
 export type CodeCredentials = { email: string; code: string };
 
+// The actor and the token of the session behind the request. The token is a secret: it goes
+// only to `withAdminContext` (the database checks the live session of an administrator with
+// it) and never to a log, a response or an error.
+export type ActorSession = { actor: Actor; sessionToken: string };
+
 export type SignInResult = {
   actor: Actor;
   setCookies: string[];
@@ -21,6 +26,9 @@ export interface IdentityProvider {
   // Resolves the actor from the request's session cookie; null when absent,
   // expired or forged. Never trusts a role sent by the client.
   getActor(headers: Headers): Promise<Actor | null>;
+  // The same resolution as `getActor`, with the token of the current session
+  // (`session.session.token` of Better Auth, equal to `auth.sessions.token`).
+  getActorWithSession(headers: Headers): Promise<ActorSession | null>;
   // Null for wrong credentials (the caller must not say which field was wrong).
   // Provider or database failures throw, so no partial session is reported.
   signIn(credentials: Credentials, headers: Headers): Promise<SignInResult | null>;
