@@ -5,7 +5,10 @@ import {
   DAILY_LIMIT_MESSAGE,
   DUPLICATE_OPEN_MESSAGE,
   formatCharactersLeft,
+  formatCounterOver,
   formatFormHeading,
+  formatMessageTooLong,
+  MESSAGE_INVALID_ERROR,
   formatMyReportState,
   formatPlaceName,
   formatRejectReason,
@@ -40,6 +43,20 @@ describe("texts of reports for the explorer", () => {
     expect(formatCharactersLeft(14)).toBe("Zostało 14 znaków.");
     expect(formatCharactersLeft(22)).toBe("Zostały 22 znaki.");
     expect(formatCharactersLeft(100)).toBe("Zostało 100 znaków.");
+  });
+
+  it("says how much too long a description is, declined (1, 2-4, 5+, 22)", () => {
+    expect(formatMessageTooLong(1)).toBe("Opis jest za długi o 1 znak. Skróć go.");
+    expect(formatMessageTooLong(3)).toBe("Opis jest za długi o 3 znaki. Skróć go.");
+    expect(formatMessageTooLong(140)).toBe("Opis jest za długi o 140 znaków. Skróć go.");
+    expect(formatCounterOver(22)).toBe("Za długi o 22 znaki");
+    expect(formatCounterOver(5)).toBe("Za długi o 5 znaków");
+  });
+
+  it("blames invisible characters only in their own message, not the length", () => {
+    expect(MESSAGE_INVALID_ERROR).toContain("niewidoczne znaki");
+    expect(MESSAGE_INVALID_ERROR).not.toContain("1000");
+    expect(formatMessageTooLong(10)).not.toContain("niewidoczne");
   });
 
   it("states the limit of open reports with the number of the limit", () => {

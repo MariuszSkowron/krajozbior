@@ -87,6 +87,11 @@ test.describe("reports of a problem with a place: the explorer", () => {
     const placePath = await openBridge(explorer);
 
     // from the place page to the form
+    // both links stand together, the first with a sentence that tells it from "Zgłoś naruszenie"
+    await expect(
+      explorer.getByText("Coś się nie zgadza na miejscu? Napisz do kuratora."),
+    ).toBeVisible();
+    await expect(explorer.getByRole("link", { name: "Zgłoś naruszenie" })).toBeVisible();
     await explorer.getByRole("link", { name: "Zgłoś problem z miejscem" }).click();
     await expect(explorer).toHaveURL(new RegExp(`${placePath}/report$`));
     await waitForHydration(explorer);
@@ -144,6 +149,15 @@ test.describe("reports of a problem with a place: the explorer", () => {
     await expect(thanks).toBeVisible();
     await expect(thanks).toContainText("Decyzję zobaczysz w „Moich zgłoszeniach”.");
     await expect(thanks).toBeFocused();
+    // the main way leads back to the place, "Moje zgłoszenia" is the second
+    await expect(thanks.getByRole("link", { name: "Wróć do miejsca" })).toHaveAttribute(
+      "href",
+      placePath,
+    );
+    await expect(thanks.getByRole("link", { name: "Moje zgłoszenia" })).toHaveAttribute(
+      "href",
+      "/my/reports",
+    );
 
     // the same kind for the same place again: refused with a sentence, not a failure
     await explorer.goto(`${placePath}/report`);
@@ -155,6 +169,10 @@ test.describe("reports of a problem with a place: the explorer", () => {
 
     await expect(refusal).toContainText("Twoje zgłoszenie tego rodzaju już czeka na kuratora.");
     await expect(refusal).toBeFocused();
+    await expect(refusal.getByRole("link", { name: "Otwórz „Moje zgłoszenia”" })).toHaveAttribute(
+      "href",
+      "/my/reports",
+    );
 
     // "Moje zgłoszenia" from the profile: the report waits
     await explorer.goto("/my");

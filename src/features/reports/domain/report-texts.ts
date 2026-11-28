@@ -31,8 +31,30 @@ export const DUPLICATE_OPEN_MESSAGE =
   "Twoje zgłoszenie tego rodzaju już czeka na kuratora. Znajdziesz je w „Moich zgłoszeniach”.";
 
 export const CATEGORY_REQUIRED_ERROR = "Wybierz rodzaj problemu.";
+// Only for a description that fits the limit and still is refused: it holds control characters.
 export const MESSAGE_INVALID_ERROR =
-  "Opis może mieć do 1000 znaków. Usuń niewidoczne znaki skopiowane razem z tekstem.";
+  "Opis zawiera niewidoczne znaki skopiowane razem z tekstem. Usuń je i spróbuj jeszcze raz.";
+
+function formatCharacters(count: number): string {
+  return `${count} ${polishPlural(count, "znak", "znaki", "znaków")}`;
+}
+
+/** The counter and the screen reader over the limit: "Za długi o 140 znaków". */
+export function formatCounterOver(over: number): string {
+  return `Za długi o ${formatCharacters(over)}`;
+}
+
+/** The error after sending a description over the limit. */
+export function formatMessageTooLong(over: number): string {
+  return `Opis jest za długi o ${formatCharacters(over)}. Skróć go.`;
+}
+
+export const SENT_BACK_TO_PLACE = "Wróć do miejsca";
+export const OPEN_MY_REPORTS = "Otwórz „Moje zgłoszenia”";
+export const MY_REPORTS_EMPTY_LINK = "Zobacz kolekcje";
+/** On the place page, by the link to a report of a problem: how it differs from "Zgłoś naruszenie". */
+export const REPORT_PROBLEM_HINT = "Coś się nie zgadza na miejscu? Napisz do kuratora.";
+export const REPORT_CONTENT_HINT = "Treść narusza prawo lub prawa autorskie? Napisz do nas.";
 export const SUBMIT_UNAVAILABLE_MESSAGE =
   "Nie udało się wysłać zgłoszenia. Spróbuj ponownie za chwilę.";
 

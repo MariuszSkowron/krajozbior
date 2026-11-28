@@ -14,7 +14,11 @@ import {
   getPublishedPlace,
 } from "@/features/catalog/application/public-catalog";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
-import { LINK_REPORT_PROBLEM } from "@/features/reports/domain/report-texts";
+import {
+  LINK_REPORT_PROBLEM,
+  REPORT_CONTENT_HINT,
+  REPORT_PROBLEM_HINT,
+} from "@/features/reports/domain/report-texts";
 import {
   getMyVisitOfPlace,
   listMyVisitKindsOfCollection,
@@ -275,16 +279,27 @@ export default async function PlacePage({ params }: { params: Params }) {
           collections={place.collections}
           progress={visit.kind === "explorer" ? visit.progress : new Map()}
         />
-        <p className={reportStyles.report}>
-          <ReportContentLink path={`/places/${place.id}`} title={place.name} />
-        </p>
         {/* P4b: zgłoszenie problemu z miejscem; bez przełącznika odnośnika nie ma. Gość trafia
-            na stronę zgłoszenia, która odsyła go do logowania i z powrotem. */}
-        {isPlaceReportsEnabled() ? (
-          <p className={reportStyles.report}>
-            <Link href={`/places/${place.id}/report`}>{LINK_REPORT_PROBLEM}</Link>
-          </p>
-        ) : null}
+            na stronę zgłoszenia, która odsyła go do logowania i z powrotem. Oba odnośniki stoją
+            w jednej grupie, każdy z jednym zdaniem o tym, do kogo trafia. */}
+        <div className={reportStyles.group}>
+          {isPlaceReportsEnabled() ? (
+            <div className={reportStyles.item}>
+              <p className={reportStyles.hint}>{REPORT_PROBLEM_HINT}</p>
+              <p className={reportStyles.report}>
+                <Link href={`/places/${place.id}/report`}>{LINK_REPORT_PROBLEM}</Link>
+              </p>
+            </div>
+          ) : null}
+          <div className={reportStyles.item}>
+            {isPlaceReportsEnabled() ? (
+              <p className={reportStyles.hint}>{REPORT_CONTENT_HINT}</p>
+            ) : null}
+            <p className={reportStyles.report}>
+              <ReportContentLink path={`/places/${place.id}`} title={place.name} />
+            </p>
+          </div>
+        </div>
       </section>
     </div>
   );

@@ -103,6 +103,19 @@
   text-align: end;
 }
 
+/* Za długi opis: licznik w kolorze błędu, a do tego słowa (nie sam kolor). */
+.counterOver {
+  color: var(--color-feedback-danger);
+  font-weight: var(--font-weight-strong);
+}
+
+/* Po wysłaniu: główna akcja wraca do miejsca, druga prowadzi do „Moich zgłoszeń”. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
 /* Zdanie o tym, co zobaczy kurator: nad przyciskiem, czytelne, nie drobny druk. */
 .notice {
   padding: var(--space-md);

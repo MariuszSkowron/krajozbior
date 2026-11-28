@@ -191,6 +191,9 @@ describe("'Moje zgłoszenia'", () => {
 
     expect(html).toContain("Nie masz jeszcze zgłoszeń.");
     expect(html).toContain("Zgłoś problem z miejscem");
+    // a way on: to the collections
+    expect(html).toContain('href="/search"');
+    expect(html).toContain("Zobacz kolekcje");
   });
 
   it("leaves out the line of the organization when its name is not visible", async () => {

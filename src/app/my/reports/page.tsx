@@ -13,6 +13,7 @@ import {
   formatPlaceName,
   formatRejectReason,
   MY_REPORTS_EMPTY,
+  MY_REPORTS_EMPTY_LINK,
   MY_REPORTS_TITLE,
 } from "@/features/reports/domain/report-texts";
 import { getReportsDeps } from "@/features/reports/infrastructure/reports-deps";
@@ -63,7 +64,12 @@ export default async function MyReportsPage() {
         <h1>{MY_REPORTS_TITLE}</h1>
       </header>
       {reports.length === 0 ? (
-        <p className={styles.empty}>{MY_REPORTS_EMPTY}</p>
+        <div className={styles.emptyState}>
+          <p className={styles.empty}>{MY_REPORTS_EMPTY}</p>
+          <Link className="button button--outline" href="/search">
+            {MY_REPORTS_EMPTY_LINK}
+          </Link>
+        </div>
       ) : (
         <ul className={styles.list}>
           {reports.map((report) => {

@@ -15,6 +15,8 @@ import {
   CATEGORY_REQUIRED_ERROR,
   CURATOR_SEES_NOTICE,
   formatCharactersLeft,
+  formatCounterOver,
+  formatMessageTooLong,
   formatSubmitFailure,
   formatSubmitted,
   MESSAGE_HINT,
@@ -23,6 +25,8 @@ import {
   MESSAGE_REQUIRED_ERROR,
   MESSAGE_REQUIRED_HINT,
   MY_REPORTS_TITLE,
+  OPEN_MY_REPORTS,
+  SENT_BACK_TO_PLACE,
   SUBMIT_LABEL,
   SUBMIT_UNAVAILABLE_MESSAGE,
 } from "@/features/reports/domain/report-texts";
@@ -57,9 +61,10 @@ async function send(placeId: string, category: ReportCategory, message: string) 
     return {
       ok: false,
       text: formatSubmitFailure(response.status, payload.message, payload.error),
+      duplicate: payload.error === "duplicate_open",
     } as const;
   } catch {
-    return { ok: false, text: SUBMIT_UNAVAILABLE_MESSAGE } as const;
+    return { ok: false, text: SUBMIT_UNAVAILABLE_MESSAGE, duplicate: false } as const;
   }
 }
 
@@ -72,6 +77,7 @@ export function ReportForm({ placeId }: Readonly<{ placeId: string }>) {
   const [message, setMessage] = useState("");
   const [problem, setProblem] = useState<Problem>({ category: null, message: null });
   const [failure, setFailure] = useState<string | null>(null);
+  const [failureIsDuplicate, setFailureIsDuplicate] = useState(false);
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
   const failureRef = useRef<HTMLDivElement>(null);
@@ -79,6 +85,7 @@ export function ReportForm({ placeId }: Readonly<{ placeId: string }>) {
   const categoryRef = useRef<HTMLInputElement>(null);
   const messageRef = useRef<HTMLTextAreaElement>(null);
   const length = [...normalizeLineBreaks(message)].length;
+  const over = Math.max(0, length - REPORT_MESSAGE_MAX_LENGTH);
 
   // The message that appears is where the focus goes (a screen reader reads it).
   useEffect(() => {
@@ -95,6 +102,7 @@ export function ReportForm({ placeId }: Readonly<{ placeId: string }>) {
 
   async function submit() {
     setFailure(null);
+    setFailureIsDuplicate(false);
 
     const checked = validateSubmitInput({ category, message });
 
@@ -104,7 +112,9 @@ export function ReportForm({ placeId }: Readonly<{ placeId: string }>) {
         message: checked.errors.includes("message")
           ? category !== "" && isTextRequired(category) && message.trim() === ""
             ? MESSAGE_REQUIRED_ERROR
-            : MESSAGE_INVALID_ERROR
+            : over > 0
+              ? formatMessageTooLong(over)
+              : MESSAGE_INVALID_ERROR
           : null,
       };
 
@@ -125,6 +135,7 @@ export function ReportForm({ placeId }: Readonly<{ placeId: string }>) {
       setSent(formatSubmitted(answer.organizationName));
     } else {
       setFailure(answer.text);
+      setFailureIsDuplicate(answer.duplicate);
     }
   }
 
@@ -132,9 +143,14 @@ export function ReportForm({ placeId }: Readonly<{ placeId: string }>) {
     return (
       <div ref={sentRef} role="status" tabIndex={-1} className={styles.success}>
         <p>{sent}</p>
-        <Link className="button button--primary" href="/my/reports">
-          {MY_REPORTS_TITLE}
-        </Link>
+        <div className={styles.actions}>
+          <Link className="button button--primary" href={`/places/${placeId}`}>
+            {SENT_BACK_TO_PLACE}
+          </Link>
+          <Link className="button button--outline" href="/my/reports">
+            {MY_REPORTS_TITLE}
+          </Link>
+        </div>
       </div>
     );
   }
@@ -196,16 +212,22 @@ export function ReportForm({ placeId }: Readonly<{ placeId: string }>) {
           {MESSAGE_HINT}
           {category !== "" && isTextRequired(category) ? ` ${MESSAGE_REQUIRED_HINT}` : ""}
         </p>
-        <p id="report-message-count" className={styles.counter}>
+        <p
+          id="report-message-count"
+          className={over > 0 ? `${styles.counter} ${styles.counterOver}` : styles.counter}
+        >
           {length} / {REPORT_MESSAGE_MAX_LENGTH}
+          {over > 0 ? ` — ${formatCounterOver(over)}` : ""}
         </p>
         {/* Announced only near the limit; a count at every keystroke would be noise. */}
         <p className={styles.visuallyHidden} aria-live="polite">
-          {length >= REPORT_MESSAGE_MAX_LENGTH
-            ? "Osiągnięto limit znaków."
-            : length >= ANNOUNCE_FROM
-              ? formatCharactersLeft(REPORT_MESSAGE_MAX_LENGTH - length)
-              : ""}
+          {over > 0
+            ? `${formatCounterOver(over)}.`
+            : length === REPORT_MESSAGE_MAX_LENGTH
+              ? "Osiągnięto limit znaków."
+              : length >= ANNOUNCE_FROM
+                ? formatCharactersLeft(REPORT_MESSAGE_MAX_LENGTH - length)
+                : ""}
         </p>
         {problem.message === null ? null : (
           <p id="report-message-error" className={styles.fieldError}>
@@ -223,6 +245,11 @@ export function ReportForm({ placeId }: Readonly<{ placeId: string }>) {
             <span className={styles.errorPrefix}>Błąd: </span>
             {failure}
           </p>
+          {failureIsDuplicate ? (
+            <p>
+              <Link href="/my/reports">{OPEN_MY_REPORTS}</Link>
+            </p>
+          ) : null}
         </div>
       )}
 
