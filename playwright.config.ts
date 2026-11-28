@@ -29,6 +29,15 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      testIgnore: /place-reports\.spec\.ts$/,
+    },
+    {
+      // The explorer's reports (P4b) add a report to the queue that place-reports-curator.spec.ts
+      // counts, so this spec runs only after all the others have finished.
+      name: "place-reports",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /place-reports\.spec\.ts$/,
+      dependencies: ["chromium"],
     },
   ],
   webServer: {
@@ -64,6 +73,8 @@ export default defineConfig({
       // The seeded demo accounts sign in to a production build only with this
       // test flag and a loopback BETTER_AUTH_URL (isDemoSignInAllowed).
       DEMO_ACCOUNTS_TEST_ONLY: "1",
+      // Reports of a problem with a place (P4b) are off by default; the specs need them on.
+      FEATURE_PLACE_REPORTS: "true",
     },
   },
 });
