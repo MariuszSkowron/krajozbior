@@ -1,0 +1,78 @@
+/*
+ * „Moje zgłoszenia” (P4b, PR B): lista zgłoszeń odkrywcy ze stanem i decyzją kuratora. Znaczniki
+ * stanu stoją na tle karty (reguła tła odznak, docs/design/accessibility.md). Tylko tokeny.
+ */
+.page {
+  display: grid;
+  gap: var(--space-lg);
+  justify-items: stretch;
+  padding-block: var(--space-lg) var(--space-xl);
+}
+
+@media (min-width: 48rem) {
+  .page {
+    justify-items: start;
+    padding-block: var(--space-xl);
+  }
+}
+
+.header h1,
+.item p,
+.item h2,
+.empty {
+  margin: 0;
+}
+
+.emptyState {
+  display: grid;
+  gap: var(--space-md);
+  justify-items: start;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 48rem) {
+  .list {
+    width: 100%;
+    max-width: 36rem;
+  }
+}
+
+.item {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.item article {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+}
+
+.place {
+  font-size: var(--font-size-lg);
+  overflow-wrap: anywhere;
+}
+
+.place a,
+.link {
+  color: var(--color-text-accent);
+}
+
+.meta {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Notatka kuratora to zwykły tekst z obcej ręki: zachowuje podziały wierszy, nie rozsadza układu. */
+.note {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}

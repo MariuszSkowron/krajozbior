@@ -39,7 +39,54 @@ export type ReportQueue = Readonly<{
   openTotal: number;
 }>;
 
-export type DecisionRefusal = "stale_version" | "author_gone" | "own_report" | "invalid_state";
+export type DecisionRefusal =
+  "stale_version" | "author_gone" | "own_report" | "invalid_state" | "duplicate_open";
+
+// One report as its author sees it in "Moje zgłoszenia". No id of the deciding curator and no
+// name of a person: the organization is a name, and the columns are chosen one by one.
+export type MyReport = Readonly<{
+  id: string;
+  category: ReportCategory;
+  status: ReportStatus;
+  rejectReason: RejectReason | null;
+  decisionNote: string | null;
+  createdAt: Date;
+  decidedAt: Date | null;
+  placeId: string | null;
+  placeName: string;
+  placeDeleted: boolean;
+  organizationName: string;
+}>;
+
+export type SubmitInput = Readonly<{ placeId: string; category: ReportCategory; message: string }>;
+
+// The answer of the repository to a new report: the database refuses with a code (limits, a
+// duplicate, a target the author may not report).
+export type InsertResult =
+  | Readonly<{ status: "ok"; id: string; organizationName: string }>
+  | Readonly<{ status: "not_found" }>
+  | Readonly<{ status: "own_organization" }>
+  | Readonly<{ status: "daily_limit" }>
+  | Readonly<{ status: "open_limit" }>
+  | Readonly<{ status: "place_queue_full" }>
+  | Readonly<{ status: "duplicate_open" }>;
+
+export type SubmitOutcome =
+  | Readonly<{ status: "ok"; value: Readonly<{ id: string; organizationName: string }> }>
+  | Readonly<{ status: "unauthenticated" }>
+  | Readonly<{ status: "invalid"; errors: readonly string[] }>
+  | Readonly<{ status: "not_found" }>
+  | Readonly<{ status: "own_organization" }>
+  | Readonly<{
+      status: "rate_limited";
+      reason: "burst" | "daily" | "open";
+      retryAfterSeconds?: number;
+    }>
+  | Readonly<{ status: "place_queue_full" }>
+  | Readonly<{ status: "duplicate_open" }>;
+
+export type MyReportsOutcome =
+  Readonly<{ status: "ok"; items: readonly MyReport[] }> | Readonly<{ status: "unauthenticated" }>;
 
 export type DecisionResult =
   | Readonly<{ status: "ok"; version: number }>
@@ -67,6 +114,10 @@ export type ReportsRepository = Readonly<{
     state: ReportQueueState,
   ): Promise<readonly QueueItem[]>;
   decide(tx: TransactionContext, input: DecideInput): Promise<DecisionResult>;
+  /** Sends a report as the actor of the transaction; the database sets the author and the addressee. */
+  insertReport(tx: TransactionContext, input: SubmitInput): Promise<InsertResult>;
+  /** The actor's own reports, the newest first (at most 200). */
+  listMine(tx: TransactionContext): Promise<readonly MyReport[]>;
 }>;
 
 export type ReportsDeps = Readonly<{
