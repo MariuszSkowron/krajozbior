@@ -413,6 +413,8 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
           );
 
           await expect(page.locator("html")).toHaveClass(new RegExp(`theme-${theme}`));
+          // Ekrany z loading.tsx najpierw pokazują szkielet bez nagłówka: czekamy na treść strony.
+          await expect(page.locator("main h1").first()).toBeVisible();
           expect(await axeViolations(page)).toEqual([]);
 
           // Przy reducedMotion: reduce nic nie jest animowane, a przycisk główny nie ma przejścia.
@@ -463,7 +465,7 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
         DESKTOP,
         "/my/want-to-see",
       );
-      const row = page.locator("ul li").first();
+      const row = page.locator("main ul li").first();
       const link = row.getByRole("link");
 
       // Strona może jeszcze pokazywać szkielet z loading.tsx: czekamy na prawdziwy wiersz.
