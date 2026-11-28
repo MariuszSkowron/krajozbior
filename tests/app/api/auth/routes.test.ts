@@ -129,7 +129,7 @@ beforeEach(() => {
   throttle.clearAccount.mockReset().mockResolvedValue(undefined);
   codeThrottle.reserve.mockReset().mockResolvedValue({ allowed: true });
   codeThrottle.clearAccount.mockReset().mockResolvedValue(undefined);
-  otpLimiter.reserve.mockReset().mockResolvedValue({ allowed: true });
+  otpLimiter.reserve.mockReset().mockResolvedValue({ allowed: true, deliver: true, skipped: null });
   provider.requestSignInCode.mockReset().mockResolvedValue(undefined);
   provider.signInWithCode.mockReset();
   cleanup.mockReset().mockResolvedValue(undefined);
@@ -454,18 +454,35 @@ describe("POST /api/auth/code/request limits", () => {
     expect(provider.requestSignInCode).not.toHaveBeenCalled();
   });
 
-  it("answers 503 to everybody once the global daily limit is reached", async () => {
-    otpLimiter.reserve.mockResolvedValue({
-      allowed: false,
-      reason: "global",
-      retryAfterSeconds: 3600,
+  it("answers the same when a daily pool is full: sent, with the message not handed over", async () => {
+    const answer = async (decision: { deliver: boolean; skipped: string | null }) => {
+      otpLimiter.reserve.mockResolvedValue({ allowed: true, ...decision });
+      provider.requestSignInCode.mockClear();
+
+      const response = await requestCode(jsonPost("/api/auth/code/request", { email: "a@b.test" }));
+
+      return { status: response.status, body: await response.json() };
+    };
+
+    const sent = await answer({ deliver: true, skipped: null });
+    const skipped = await answer({ deliver: false, skipped: "new" });
+
+    expect(skipped).toEqual(sent);
+    expect(skipped).toEqual({ status: 202, body: { status: "sent" } });
+    // The code is created and stored in both cases; only the flag differs.
+    expect(provider.requestSignInCode).toHaveBeenCalledWith("a@b.test", expect.any(Headers), {
+      deliver: false,
     });
+  });
 
-    const response = await requestCode(jsonPost("/api/auth/code/request", { email: "a@b.test" }));
+  it("passes deliver: true to the provider when the code goes out", async () => {
+    otpLimiter.reserve.mockResolvedValue({ allowed: true, deliver: true, skipped: null });
 
-    expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({ error: "code_unavailable" });
-    expect(provider.requestSignInCode).not.toHaveBeenCalled();
+    await requestCode(jsonPost("/api/auth/code/request", { email: "a@b.test" }));
+
+    expect(provider.requestSignInCode).toHaveBeenCalledWith("a@b.test", expect.any(Headers), {
+      deliver: true,
+    });
   });
 
   it("reports a limiter failure as unavailable", async () => {

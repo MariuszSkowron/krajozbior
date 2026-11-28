@@ -157,6 +157,13 @@ for (const size of [
       await expect(page.getByRole("main").getByRole("status")).toContainText(
         "kod jest już w drodze",
       );
+      // The third way out is the same for every address (D-64 pkt 3): a later try or a message.
+      await expect(page.getByRole("main").getByRole("status")).toContainText(
+        "Nadal nic? Spróbuj później albo napisz do nas:",
+      );
+      await expect(
+        page.getByRole("main").getByRole("status").getByRole("link", { name: /@/ }),
+      ).toHaveAttribute("href", /^mailto:.+@.+/);
       // After the first step the person stays on the signup page.
       await expect(page).toHaveURL(/\/login\/zaloz-konto\?kod=wyslany$/);
       await expect(

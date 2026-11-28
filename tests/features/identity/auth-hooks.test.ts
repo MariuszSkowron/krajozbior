@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createDatabaseHooks,
   createSendSignInCode,
+  signInCodeDelivery,
 } from "@/features/identity/infrastructure/auth-hooks";
 import { MemoryEmailSender } from "@/lib/email/memory-email-sender";
 
@@ -140,6 +141,33 @@ describe("sendVerificationOTP callback", () => {
     await vi.waitFor(() => expect(sender.lastTo("a@example.com")?.text).toContain("123456"));
     expect(sender.lastTo("a@example.com")).toMatchObject({ tag: "sign_in_code" });
     expect(sender.lastTo("a@example.com")?.text).toContain("http://localhost:3000");
+  });
+
+  it("hands the message over unless the request context says deliver: false", async () => {
+    const { send, sender } = setup();
+    const data = { email: "a@example.com", otp: "123456", type: "sign-in" };
+
+    await signInCodeDelivery.run({ deliver: false }, () => send(data, endpoint(null)));
+    await signInCodeDelivery.run({ deliver: false }, () => send(data, endpoint("user")));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(sender.all()).toEqual([]);
+
+    await signInCodeDelivery.run({ deliver: true }, () => send(data, endpoint(null)));
+    await vi.waitFor(() => expect(sender.lastTo("a@example.com")?.text).toContain("123456"));
+  });
+
+  it("looks the account up before skipping, as for every other request", async () => {
+    const { send } = setup();
+    const context = endpoint("user");
+
+    await signInCodeDelivery.run({ deliver: false }, () =>
+      send({ email: "a@example.com", otp: "123456", type: "sign-in" }, context),
+    );
+
+    const adapter = (
+      context as unknown as { context: { internalAdapter: { findUserByEmail: unknown } } }
+    ).context.internalAdapter;
+    expect(adapter.findUserByEmail).toHaveBeenCalledOnce();
   });
 
   it("sends nothing to staff, for other code types or without a context", async () => {

@@ -5,7 +5,11 @@ import { getAuthEnv } from "@/lib/config/env";
 import type { ActionRateLimiter } from "../domain/action-rate-limit";
 import type { ClientIpHeader } from "../domain/client-ip";
 import type { IdentityProvider } from "../domain/identity-provider";
-import { DEFAULT_OTP_GLOBAL_DAILY_LIMIT, type OtpSendLimiter } from "../domain/otp-send-limits";
+import {
+  DEFAULT_OTP_GLOBAL_DAILY_LIMIT,
+  DEFAULT_OTP_NEW_ACCOUNT_DAILY_LIMIT,
+  type OtpSendLimiter,
+} from "../domain/otp-send-limits";
 import type { SignInThrottle } from "../domain/sign-in-throttle";
 import { BetterAuthIdentityProvider, getAuthPool } from "./better-auth";
 import { logFailure } from "@/lib/log-failure";
@@ -60,6 +64,7 @@ export function getOtpSendLimiter(): OtpSendLimiter {
     getAuthPool,
     otpSendHmacKey(getAuthEnv().BETTER_AUTH_SECRET),
     () => getAuthEnv().OTP_GLOBAL_DAILY_LIMIT ?? DEFAULT_OTP_GLOBAL_DAILY_LIMIT,
+    () => getAuthEnv().OTP_NEW_ACCOUNT_DAILY_LIMIT ?? DEFAULT_OTP_NEW_ACCOUNT_DAILY_LIMIT,
   );
 
   return otpSendLimiter;
