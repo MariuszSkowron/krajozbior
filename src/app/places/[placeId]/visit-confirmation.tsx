@@ -319,7 +319,7 @@ export function VisitConfirmation({
       setState({
         kind: "failed",
         message:
-          "Ta przeglądarka nie pozwala zapisać wizyty. Odśwież stronę albo otwórz ją w nowszej przeglądarce.",
+          "Ta przeglądarka nie pozwala zapisać wizyty. Otwórz tę stronę w nowszej przeglądarce.",
         canRetry: false,
       });
 
