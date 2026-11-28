@@ -18,7 +18,7 @@ Pełny opis: [docs/agent-workflow.md](../agent-workflow.md) i [SDLC.md](../../SD
 
 - **Zasady:** [AGENTS.md](../../AGENTS.md) mówi agentowi, co wolno, jak pisać i testować kod, jak prowadzić specyfikacje i dzienniki oraz jak dobrać model do zadania (Opus do projektowania i przeglądów wrażliwych zmian, Sonnet do implementacji według specyfikacji, Haiku do prac mechanicznych). Przepływ od zadania do scalenia: [docs/agent-workflow.md](../agent-workflow.md).
 - **Skille** (gotowe instrukcje dla agenta do powtarzalnych zadań): własny skill projektu [`private-data`](../../.claude/skills/private-data/SKILL.md) prowadzi agenta przy każdej funkcji z danymi prywatnymi, od klasyfikacji danych przez migrację z regułami dostępu po wymagany test odmowy. Skille `om-*` w [`.claude/skills/`](../../.claude/skills/) obsługują pisanie i przegląd specyfikacji (`om-spec-writing`), backlog (`om-backlog`), przegląd kodu (`om-code-review`), raport bezpieczeństwa (`om-auto-sec-report-pr`) i otwieranie PR-ów. Zlecenie dla agenta podaje, który skill ma wczytać jako pierwszy; sprawdzamy to w zapisie jego sesji.
-- **Hooki:** sześć programów w [`.claude/hooks/`](../../.claude/hooks/) sprawdza każde polecenie agenta przed wykonaniem, np. blokuje migrację tabeli bez reguł dostępu albo zmianę plików poleceniami terminala. Lista z opisem i testami: [security-notes.md](../../security-notes.md).
+- **Hooki:** siedem programów w [`.claude/hooks/`](../../.claude/hooks/) sprawdza każde polecenie agenta przed wykonaniem, np. blokuje migrację tabeli bez reguł dostępu albo zmianę plików poleceniami terminala. Lista z opisem i testami: [security-notes.md](../../security-notes.md).
 - **Praca równoległa:** każdy agent pracuje we własnej kopii repozytorium (worktree), z własną bazą testową i portem, więc agenci nie przeszkadzają sobie nawzajem.
 
 ## Zabezpieczenia procesu
@@ -57,6 +57,8 @@ Późniejsze PR-y z kodem miały przegląd innego modelu niż autor (zwykle auto
 - **zatwierdzone po poprawkach** (większe poprawki sprawdzał kolejny, niezależny agent): #50 (profil; 2 uwagi średnie), #53 (wgrywanie kolekcji z pliku; przegląd w dwóch paczkach: łącznie 4 średnie i 15 drobnych), #55 (obraz produkcyjny i konfiguracja serwera; 2 średnie), #57 (wysyłka kodów logowania; 2 ważne), #58 (strony prawne i akceptacja regulaminu; 1 blokująca, bo nie uruchomiono jeszcze testów z bazą, E2E i budowy, oraz 2 ważne, 7 drobnych i 2 kosmetyczne), #60 (logi i limity; 1 blokująca w dokumentacji i teście), #61 (limit czasu zapytań; 1 drobna w dokumentacji), #63 (publiczne notatki bezpieczeństwa).
 
 Uwagi blokujące i ważne poprawiono przed scaleniem, a większe poprawki sprawdził niezależny agent. Treść uwag dotyczących bezpieczeństwa publikujemy tylko w tej ogólnej postaci.
+
+Od 21 listopada 2026 roku (decyzja D-39) każdy PR, także zmiana samej dokumentacji, czeka na zatwierdzenie właściciela w przeglądarce. Od #96 zmiany widoczne dla użytkownika przechodzą dodatkowo cztery przeglądy skillami: układ i przepływ ekranu (`om-ux-review-pr`), polszczyzna, ton i wypełniacze (`przeglad-polszczyzny`, `przeglad-tonu`, `przeglad-wypelniaczy`). Część opisów późniejszych PR-ów wymienia przeprowadzone przeglądy (np. #138); pełne wyniki z liczbą uwag są w prywatnych dziennikach pracy.
 
 ## Przegląd bezpieczeństwa ścieżki konkursowej
 
