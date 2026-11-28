@@ -465,6 +465,9 @@ test.describe("wygląd ekranów: axe, ruch, reguła tła", () => {
       );
       const row = page.locator("ul li").first();
       const link = row.getByRole("link");
+
+      // Strona może jeszcze pokazywać szkielet z loading.tsx: czekamy na prawdziwy wiersz.
+      await expect(link).toBeVisible();
       const backgrounds = () =>
         page.evaluate(() => {
           const li = document.querySelector("main ul li")!;
