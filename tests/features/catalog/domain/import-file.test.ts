@@ -198,6 +198,15 @@ describe("lines and records", () => {
     ["bidi override end", "‮"],
     ["bidi isolate start", "⁦"],
     ["bidi isolate end", "⁩"],
+    ["LRM", "‎"],
+    ["RLM", "‏"],
+    ["ALM", "؜"],
+    ["zero-width space", "​"],
+    ["zero-width non-joiner", "‌"],
+    ["zero-width joiner", "‍"],
+    ["word joiner", "⁠"],
+    ["soft hyphen", "­"],
+    ["byte order mark", "﻿"],
   ])("refuses %s in titles and texts", (_label, character) => {
     const inName = edited((items) => {
       items[3]!.name = `a${character}b`;

@@ -14,6 +14,7 @@ import {
   OWN_REGION_LABELS,
   type OwnRegion,
 } from "@/features/own-collections/domain/own-collection";
+import { HIDDEN_CHARACTERS_MESSAGE } from "@/lib/text/forbidden-characters";
 
 import { callOwnApi } from "./own-api";
 
@@ -30,8 +31,8 @@ const FIELDS = {
 } as const;
 
 const HINTS: Readonly<Record<string, string>> = {
-  title: `Wpisz nazwę kolekcji (do ${COLLECTION_TITLE_MAX_LENGTH} znaków).`,
-  summary: `Opis może mieć najwyżej ${COLLECTION_SUMMARY_MAX_LENGTH} znaków.`,
+  title: `Wpisz nazwę kolekcji (do ${COLLECTION_TITLE_MAX_LENGTH} znaków). ${HIDDEN_CHARACTERS_MESSAGE}`,
+  summary: `Opis może mieć najwyżej ${COLLECTION_SUMMARY_MAX_LENGTH} znaków. ${HIDDEN_CHARACTERS_MESSAGE}`,
   region: "Wybierz region.",
 };
 

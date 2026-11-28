@@ -80,6 +80,76 @@ describe("validateOwnCollectionInput", () => {
     }
   });
 
+  it("refuses hidden direction, zero-width and control characters (U-1)", () => {
+    const hidden = ["‮", "‎", "‏", "؜", "​", "‍", "﻿", "\u0007"];
+
+    for (const mark of hidden) {
+      expect(validateOwnCollectionInput({ title: `A${mark}B`, region: "polska" })).toEqual({
+        ok: false,
+        errors: ["title"],
+      });
+      expect(
+        validateOwnCollectionInput({ title: "A", summary: `a${mark}b`, region: "polska" }),
+      ).toEqual({ ok: false, errors: ["summary"] });
+    }
+
+    expect(validateOwnCollectionInput({ title: "A\nB", region: "polska" }).ok).toBe(false);
+    expect(
+      validateOwnCollectionInput({ title: "A", summary: "a\nb\n\nc", region: "polska" }).ok,
+    ).toBe(true);
+  });
+
+  it("allows emoji sequences with a skin tone and tag flags, still refuses a bare joiner (U-1)", () => {
+    const allowed = [
+      "\u{1F469}\u{1F3FD}‍\u{1F680}",
+      "\u{1F9D1}\u{1F3FF}‍\u{1F91D}‍\u{1F9D1}\u{1F3FB}",
+      "\u{1F468}‍\u{1F469}‍\u{1F467}",
+      "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}",
+    ];
+
+    for (const emoji of allowed) {
+      expect(
+        validateOwnCollectionInput({ title: `A ${emoji}`, summary: emoji, region: "polska" }).ok,
+      ).toBe(true);
+    }
+
+    expect(validateOwnCollectionInput({ title: "a‍b", region: "polska" }).ok).toBe(false);
+    expect(validateOwnCollectionInput({ title: "\u{E0067}", region: "polska" }).ok).toBe(false);
+  });
+
+  it("allows only the three tag flags and refuses any other tag sequence (U-1)", () => {
+    const tags = (text: string) =>
+      [...text].map((c) => String.fromCodePoint(0xe0000 + c.charCodeAt(0))).join("");
+    const cancel = "\u{E007F}";
+    const flag = "\u{1F3F4}";
+
+    for (const code of ["gbeng", "gbsct", "gbwls"]) {
+      const text = `${flag}${tags(code)}${cancel}`;
+
+      expect(validateOwnCollectionInput({ title: text, summary: text, region: "polska" }).ok).toBe(
+        true,
+      );
+    }
+    for (const hidden of [
+      `${flag}${tags("gbxyz")}${cancel}`,
+      `${flag}${tags("a".repeat(50))}${cancel}`,
+      `${flag}${tags("gbeng")}`,
+      `${tags("gbeng")}${cancel}`,
+      `${flag}${tags("gbengx")}${cancel}`,
+    ]) {
+      expect(validateOwnCollectionInput({ title: `A ${hidden}`, region: "polska" }).ok).toBe(false);
+      expect(validateOwnCollectionInput({ title: "A", summary: hidden, region: "polska" }).ok).toBe(
+        false,
+      );
+    }
+  });
+
+  it("keeps a tab allowed in the summary (U-1)", () => {
+    expect(validateOwnCollectionInput({ title: "A", summary: "a\tb", region: "polska" }).ok).toBe(
+      true,
+    );
+  });
+
   it("refuses a too long, NUL or non-text summary", () => {
     for (const summary of ["x".repeat(281), "a\u0000b", 5, null]) {
       expect(validateOwnCollectionInput({ title: "A", summary, region: "polska" })).toEqual({

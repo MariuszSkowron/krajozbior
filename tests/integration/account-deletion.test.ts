@@ -61,6 +61,12 @@ async function populate(user: { id: string; email: string }) {
      values (app_current_user_id(), ?, 'past', 'unknown')`,
     [placeId],
   );
+  // A visit on site, which its owner cannot delete: only the cascade of the account removes it.
+  await admin$(
+    `insert into public.visits (user_id, place_id, kind, client_visit_id)
+     values ($1, $2, 'on_site', $3)`,
+    [user.id, placeId, randomUUID()],
+  );
   await as(
     user,
     `insert into public.saved_collections (user_id, collection_id) values (app_current_user_id(), ?)`,
