@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { ErrorIcon } from "@/design-system/patterns/error-icon";
 import { entryPath, type LoginEntry } from "@/features/identity/domain/login-entry";
-import { CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
+import { CONTACT_ADDRESSES } from "@/features/legal/domain/legal-pages";
 
 import { changeLoginAddress } from "./actions";
 import { maskEmail } from "./login-email-cookie";
@@ -114,8 +114,8 @@ export function CodeForms({
         <p id="code-status" role="status" className={styles.status}>
           Jeśli adres jest poprawny, kod jest już w drodze. Nie ma go po kilku minutach? Sprawdź
           folder spam albo wyślij kod ponownie. Nadal nic? Spróbuj później albo napisz do nas:{" "}
-          <a className={styles.textLink} href={`mailto:${CONTACT_EMAIL}`}>
-            {CONTACT_EMAIL}
+          <a className={styles.textLink} href={`mailto:${CONTACT_ADDRESSES.general}`}>
+            {CONTACT_ADDRESSES.general}
           </a>
           .
         </p>
