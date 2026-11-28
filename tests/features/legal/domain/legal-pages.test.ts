@@ -9,14 +9,15 @@ import {
 } from "@/features/legal/domain/legal-pages";
 
 describe("the legal pages", () => {
-  it("are four public routes with distinct addresses", () => {
+  it("are five public routes with distinct addresses", () => {
     expect(LEGAL_PAGES.map((page) => page.path)).toEqual([
       "/regulamin",
       "/polityka-prywatnosci",
       "/zasady",
       "/oswiadczenie-o-zdjeciach",
+      "/umowa-powierzenia",
     ]);
-    expect(new Set(LEGAL_PAGES.map((page) => page.slug)).size).toBe(4);
+    expect(new Set(LEGAL_PAGES.map((page) => page.slug)).size).toBe(5);
   });
 
   it("find a page by its slug", () => {

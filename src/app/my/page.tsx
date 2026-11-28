@@ -11,7 +11,7 @@ import {
   FIRST_SIGN_IN_EXISTING_ACCOUNT,
   FIRST_SIGN_IN_PARAM,
 } from "@/features/identity/domain/login-entry";
-import { CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
+import { CONTACT_ADDRESSES, CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
 import { isPlaceReportsEnabled } from "@/lib/config/env";
 import { logFailure } from "@/lib/log-failure";
 import { getRequestProfile } from "@/app/request-profile";
@@ -159,6 +159,20 @@ export default async function MyPage({
           </dl>
         )}
       </section>
+      {/* D-66: wniosek „Zostań kuratorem” uruchomimy później; do tego czasu zapraszamy e-mailem. Nie
+          pokazujemy tego kuratorom i administratorowi, którzy już mają dostęp. */}
+      {hasRole ? null : (
+        <section className={styles.invite} aria-labelledby="curator-invite-title">
+          <h2 id="curator-invite-title" className={styles.inviteTitle}>
+            Zostań kuratorem <span className={styles.soon}>W przygotowaniu</span>
+          </h2>
+          <p>
+            Reprezentujesz gminę lub oddział PTTK albo oprowadzasz po okolicy? Wniosek o status
+            kuratora uruchomimy później. Już dziś napisz do nas:{" "}
+            <a href={`mailto:${CONTACT_ADDRESSES.partners}`}>{CONTACT_ADDRESSES.partners}</a>.
+          </p>
+        </section>
+      )}
       <nav aria-labelledby="profile-title">
         <ul className={styles.links}>
           {/* P4b: „Moje zgłoszenia” istnieje tylko, gdy zgłaszanie problemów jest włączone. */}
