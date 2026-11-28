@@ -4,6 +4,7 @@ import type { TransactionContext } from "@/lib/db/user-context";
 import {
   decideCollection,
   decideExtraRegions,
+  decideKind,
   decidePlace,
   diffComposition,
   sameIds,
@@ -35,6 +36,7 @@ import type {
   ExtraRegionsResult,
   ImportKeyRow,
   ImportPreview,
+  KindResult,
   PlaceReport,
   PlaceResult,
   PublicationResult,
@@ -214,6 +216,7 @@ async function readCollection(
     firstPublishedAt: row.firstPublishedAt,
     content: { title: row.title, summary: row.summary, region: row.region },
     extraRegions: row.extraRegions,
+    kind: row.kind,
     placeIds: await deps.catalog.repository.listCollectionPlaceIds(tx, key.entityId),
   };
 }
@@ -377,6 +380,7 @@ async function previewImport(
     const photos: Record<string, number> = {};
     const publishable: PublishableCollection[] = [];
     let extraRegionsUpdated = 0;
+    let kindUpdated = 0;
 
     for (const place of file.places) {
       const key = keys.places.get(place.importKey);
@@ -435,6 +439,14 @@ async function previewImport(
         ) {
           extraRegionsUpdated += 1;
         }
+
+        // A new collection starts as a theme collection.
+        if (
+          decideKind(stored === null ? "theme" : (stored.kind ?? "theme"), collection.kind) ===
+          "set"
+        ) {
+          kindUpdated += 1;
+        }
       }
 
       if (
@@ -458,6 +470,7 @@ async function previewImport(
       orphanedKeys: await deps.imports.countOrphanedKeys(tx, organizationId),
       collectionLimitExceeded: existing + (collections.create ?? 0) > MAX_COLLECTIONS_PER_LIST,
       ...(extraRegionsUpdated > 0 ? { extraRegions: { updated: extraRegionsUpdated } } : {}),
+      ...(kindUpdated > 0 ? { kind: { updated: kindUpdated } } : {}),
       ...(publish ? { publishable } : {}),
     };
 
@@ -725,6 +738,28 @@ async function loadCollection(
     }
   }
 
+  // Kind (land or theme): only when the file names it, also in a published collection (an order
+  // of the catalog, not content: `version` stays). A new collection was created as a theme.
+  let kindResult: KindResult | undefined;
+
+  if (collection.kind !== null) {
+    const current = await repository.findEditableCollection(tx, collectionId);
+
+    if (current === null) {
+      throw new CollectionRefusal("not_found");
+    }
+
+    if (decideKind(current.kind, collection.kind) === "set") {
+      if (!(await repository.setKind(tx, collectionId, collection.kind))) {
+        throw new CollectionRefusal("not_found");
+      }
+
+      kindResult = "updated";
+    } else {
+      kindResult = "unchanged";
+    }
+  }
+
   // What the loader leaves behind: the version and, when it synced the
   // composition, the places in order.
   const row = await repository.findEditableCollection(tx, collectionId);
@@ -788,6 +823,7 @@ async function loadCollection(
     ...(publication === undefined ? {} : { publication }),
     ...(publicationRefusal === undefined ? {} : { publicationRefusal }),
     ...(extraRegionsResult === undefined ? {} : { extraRegions: extraRegionsResult }),
+    ...(kindResult === undefined ? {} : { kind: kindResult }),
   };
 }
 

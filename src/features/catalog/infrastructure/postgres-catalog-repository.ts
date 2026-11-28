@@ -25,11 +25,18 @@ import type {
   RecentCollection,
   SearchPlaceHit,
 } from "../application/catalog-types";
-import { isRegion, type CollectionStatus, type Region } from "../domain/collection";
+import {
+  isCollectionKind,
+  isRegion,
+  type CollectionKind,
+  type CollectionStatus,
+  type Region,
+} from "../domain/collection";
 import {
   MAX_COLLECTIONS_PER_LIST,
   MAX_COVER_CANDIDATES,
   MAX_PLACES_PER_COLLECTION,
+  MAX_RELATED_COLLECTIONS,
 } from "../domain/limits";
 import { SEARCH_TIME_BUDGET_MS, foldSql, remainingBudgetMs } from "../domain/search";
 
@@ -39,10 +46,10 @@ import { SEARCH_TIME_BUDGET_MS, foldSql, remainingBudgetMs } from "../domain/sea
 // Coordinates are bound parameters of a curator's own place, never a log field.
 
 const collectionColumns = `c.id, c.slug, c.organization_id as "organizationId", c.title,
-  c.summary, c.region, c.extra_regions as "extraRegions", c.status,
+  c.summary, c.region, c.extra_regions as "extraRegions", c.kind, c.status,
   c.first_published_at as "firstPublishedAt", c.version`;
 const returningCollection = `id, slug, organization_id as "organizationId", title,
-  summary, region, extra_regions as "extraRegions", status,
+  summary, region, extra_regions as "extraRegions", kind, status,
   first_published_at as "firstPublishedAt", version`;
 const placeColumns = `id, organization_id as "organizationId", name, description, address,
   access_info as "accessInfo", access_restriction as "accessRestriction", latitude, longitude,
@@ -60,10 +67,13 @@ const withKnownRegions = <T extends { extraRegions: unknown }>(
   extraRegions: knownRegions(row.extraRegions),
 });
 
+// The CHECK keeps `kind` clean; an unknown value counts as a theme collection.
+const knownKind = (raw: unknown): CollectionKind => (isCollectionKind(raw) ? raw : "theme");
+
 const firstCollection = (rows: readonly CollectionRow[]): CollectionRow | null => {
   const row = first(rows);
 
-  return row === null ? null : withKnownRegions(row);
+  return row === null ? null : { ...withKnownRegions(row), kind: knownKind(row.kind) };
 };
 
 // The filter of the region form: the main voivodeship or one of the extra ones. The code is
@@ -237,6 +247,15 @@ export const postgresCatalogRepository: CatalogRepository = {
         where id = ?
         returning id`,
       [JSON.stringify(regions), id],
+    );
+
+    return rows.length > 0;
+  },
+
+  async setKind(tx, id, kind) {
+    const rows = await tx.em.execute<{ id: string }[]>(
+      `update public.collections set kind = ? where id = ? returning id`,
+      [kind, id],
     );
 
     return rows.length > 0;
@@ -590,7 +609,7 @@ export const postgresCatalogRepository: CatalogRepository = {
         // joined through `collection_places`, in the guest context), so they never show more
         // than the page lists. `greatest` skips a null (a collection without places).
         `select c.id, c.slug, c.title, c.summary, c.region, c.extra_regions as "extraRegions",
-                o.name as "organizationName", o.slug as "organizationSlug",
+                c.kind, o.name as "organizationName", o.slug as "organizationSlug",
                 (select count(*)::int
                    from public.collection_places cp
                    join public.places p on p.id = cp.place_id
@@ -671,11 +690,88 @@ export const postgresCatalogRepository: CatalogRepository = {
     return {
       ...rest,
       extraRegions: knownRegions(rest.extraRegions),
+      kind: knownKind(rest.kind),
       contentUpdatedAt: new Date(contentUpdatedAt),
       organization: { name: organizationName, slug: organizationSlug },
       places,
       cover,
     };
+  },
+
+  async listRelatedCollections(tx: TransactionContext, collectionId, kind) {
+    // The common places are counted in a CTE; the card is joined afterwards with the shared
+    // columns (the cover lateral stays outside any aggregation). The guest policies of `places`
+    // and `collection_places` show only rows of published collections of approved organizations;
+    // the other side is also checked here. Only collections of the organization of the asked one.
+    // `placesInRelated` counts each place of the asked collection once, however many of the
+    // related collections it lies in (nothing in the database keeps a place in one land only).
+    const rows = await tx.em.execute<
+      (CollectionCardRow & { sharedPlaces: number; placesInRelated: number })[]
+    >(
+      `with shared as (
+         select b.collection_id, count(distinct a.place_id)::int as shared_places
+           from public.collection_places a
+           join public.places pa on pa.id = a.place_id
+           join public.collection_places b
+             on b.place_id = a.place_id and b.collection_id <> a.collection_id
+          where a.collection_id = ?
+          group by b.collection_id
+       ),
+       listed as (
+         select c.id
+           from shared s
+           join public.collections c on c.id = s.collection_id
+           join public.organizations o on o.id = c.organization_id
+          where c.status = 'published' and o.status = 'approved'
+            and c.kind <> ?::text
+            and c.organization_id = (select organization_id from public.collections where id = ?)
+          order by s.shared_places desc, c.title, c.slug
+          limit ?
+       ),
+       union_places as (
+         select count(distinct a.place_id)::int as places_in_related
+           from public.collection_places a
+           join public.collection_places b on b.place_id = a.place_id
+          where a.collection_id = ? and b.collection_id in (select id from listed)
+       )
+       select ${collectionCardColumns}, s.shared_places as "sharedPlaces",
+              (select places_in_related from union_places) as "placesInRelated"
+         from shared s
+         join public.collections c on c.id = s.collection_id
+         join public.organizations o on o.id = c.organization_id
+         ${collectionCardJoin}
+        where c.status = 'published' and o.status = 'approved'
+          and c.kind <> ?::text
+          and c.organization_id = (select organization_id from public.collections where id = ?)
+        order by s.shared_places desc, c.title, c.slug
+        limit ?`,
+      [
+        collectionId,
+        kind,
+        collectionId,
+        MAX_RELATED_COLLECTIONS,
+        collectionId,
+        kind,
+        collectionId,
+        MAX_RELATED_COLLECTIONS,
+      ],
+    );
+
+    return rows.map(({ sharedPlaces, placesInRelated, ...row }) => {
+      const card = toRecentCollection(row);
+
+      return {
+        id: card.id,
+        slug: card.slug,
+        title: card.title,
+        region: card.region,
+        extraRegions: card.extraRegions,
+        placeCount: card.placeCount,
+        cover: card.cover,
+        sharedPlaces,
+        placesInRelated,
+      };
+    });
   },
 
   async listRecentlyPublishedCollections(tx: TransactionContext, limit) {

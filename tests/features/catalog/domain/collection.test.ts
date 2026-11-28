@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  COLLECTION_KINDS,
   COLLECTION_STATUSES,
   REGIONS,
+  isCollectionKind,
   isRegion,
+  landLine,
   normalizeExtraRegions,
   normalizeLineBreaks,
   regionsLabelOf,
@@ -107,6 +110,54 @@ describe("regionsOf and regionsLabelOf", () => {
     expect(regionsOf(collection)).toEqual(["dolnoslaskie", "opolskie"]);
     expect(regionsLabelOf(collection)).toBe("Dolnośląskie · Opolskie");
     expect(regionsLabelOf({ region: "lodzkie", extraRegions: [] })).toBe("Łódzkie");
+  });
+});
+
+describe("collection kinds", () => {
+  it("knows exactly the two kinds", () => {
+    expect(COLLECTION_KINDS).toEqual(["land", "theme"]);
+    expect(isCollectionKind("land")).toBe(true);
+    expect(isCollectionKind("theme")).toBe(true);
+    expect(isCollectionKind("Land")).toBe(false);
+    expect(isCollectionKind(null)).toBe(false);
+  });
+});
+
+describe("landLine", () => {
+  const warmia = { slug: "warmia", title: "Warmia", sharedPlaces: 4 };
+  const torun = { slug: "torun", title: "Toruń", sharedPlaces: 2 };
+
+  it("is part of the land when every place lies in that one land", () => {
+    expect(landLine(4, [warmia])).toEqual({ kind: "part_of", land: warmia });
+  });
+
+  it("lists the land when one place of the collection lies elsewhere", () => {
+    expect(landLine(5, [warmia])).toEqual({ kind: "spread", lands: [warmia] });
+  });
+
+  it("is part of the land whose shared places equal the place count, however the lands are listed", () => {
+    // A place lies in exactly one land, so a land holding all places is the only one listed.
+    expect(landLine(4, [{ ...warmia, sharedPlaces: 4 }])).toEqual({
+      kind: "part_of",
+      land: warmia,
+    });
+    expect(landLine(4, [{ ...torun, sharedPlaces: 4 }])).toEqual({
+      kind: "part_of",
+      land: { ...torun, sharedPlaces: 4 },
+    });
+  });
+
+  it("lists the lands in the given order when there are several", () => {
+    expect(landLine(6, [warmia, torun])).toEqual({ kind: "spread", lands: [warmia, torun] });
+    expect(landLine(4, [warmia, torun])).toEqual({ kind: "spread", lands: [warmia, torun] });
+  });
+
+  it("gives no line without lands, and never says part of for an empty collection", () => {
+    expect(landLine(4, [])).toBeNull();
+    expect(landLine(0, [{ ...warmia, sharedPlaces: 0 }])).toEqual({
+      kind: "spread",
+      lands: [{ ...warmia, sharedPlaces: 0 }],
+    });
   });
 });
 

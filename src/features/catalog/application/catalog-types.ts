@@ -2,7 +2,12 @@ import type { ActionRateLimiter } from "@/features/identity/domain/action-rate-l
 import type { Actor } from "@/features/identity/domain/actor";
 import type { TransactionContext } from "@/lib/db/user-context";
 
-import type { CollectionInput, CollectionStatus, Region } from "../domain/collection";
+import type {
+  CollectionInput,
+  CollectionKind,
+  CollectionStatus,
+  Region,
+} from "../domain/collection";
 import type { NearbyCandidate } from "../domain/nearby";
 import type { AccessRestriction, PlaceInput } from "../domain/place";
 
@@ -16,6 +21,8 @@ export type CollectionRow = Readonly<{
   region: Region;
   /** Extra voivodeships (0-3) in the order of REGIONS; set by the import file, read only in the panel. */
   extraRegions: readonly Region[];
+  /** Land or theme collection; set by the import file, read only in the panel. */
+  kind: CollectionKind;
   status: CollectionStatus;
   firstPublishedAt: Date | null;
   version: number;
@@ -95,6 +102,8 @@ export type PublishedCollection = Readonly<{
   summary: string;
   region: Region;
   extraRegions: readonly Region[];
+  /** Land (`land`) or a smaller collection with one theme or story (`theme`). */
+  kind: CollectionKind;
   organization: Readonly<{ name: string; slug: string }>;
   places: readonly PublishedPlaceSummary[];
   /** How many places the collection has now (the same places as `places`). */
@@ -155,6 +164,25 @@ export type RecentCollection = Readonly<{
   placeCount: number;
   /** The cover photo (E4-3); `null` keeps the placeholder background of the card. */
   cover: CollectionCover | null;
+}>;
+
+/**
+ * A published collection of the other kind (a theme collection for a land and the other way
+ * round) that shares places with a collection: the fields of a card plus the number of common
+ * places. Public fields only.
+ */
+export type RelatedCollection = Readonly<{
+  id: string;
+  slug: string;
+  title: string;
+  region: Region;
+  extraRegions: readonly Region[];
+  placeCount: number;
+  cover: CollectionCover | null;
+  /** How many places this collection has in common with the collection asked about. */
+  sharedPlaces: number;
+  /** Distinct places of the asked collection lying in any of the listed related collections. */
+  placesInRelated: number;
 }>;
 
 // One place found by the public search: the first public collection (alphabetically) it lies in.
@@ -270,6 +298,11 @@ export interface CatalogRepository {
    * actor has this id.
    */
   setExtraRegions(tx: TransactionContext, id: string, regions: readonly Region[]): Promise<boolean>;
+  /**
+   * Sets the kind (land or theme; the import file). `version` and `updated_at` stay (an order
+   * of the catalog, not content). `false` when no row of the actor has this id.
+   */
+  setKind(tx: TransactionContext, id: string, kind: CollectionKind): Promise<boolean>;
   setCollectionStatus(
     tx: TransactionContext,
     id: string,
@@ -378,6 +411,16 @@ export interface CatalogRepository {
     tx: TransactionContext,
     slug: string,
   ): Promise<PublishedCollection | null>;
+  /**
+   * Published collections of the same approved organization and of the other kind than `kind`
+   * that share at least one public place with the collection, the most shared places first,
+   * at most MAX_RELATED_COLLECTIONS. Guest context; the count is computed, nothing is stored.
+   */
+  listRelatedCollections(
+    tx: TransactionContext,
+    collectionId: string,
+    kind: CollectionKind,
+  ): Promise<readonly RelatedCollection[]>;
   findPublishedPlace(tx: TransactionContext, id: string): Promise<PublishedPlace | null>;
   /** The cover (with its credit and place) of a published collection, `null` when it has none. */
   findCollectionBanner(tx: TransactionContext, slug: string): Promise<CollectionBanner | null>;

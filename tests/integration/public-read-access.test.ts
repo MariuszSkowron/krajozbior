@@ -161,6 +161,7 @@ describe("public read of collections and places (guest context)", () => {
         summary: "Opis kolekcji",
         region: "pomorskie",
         extraRegions: [],
+        kind: "theme",
         organization: { name: "Gmina A", slug: "gmina-a" },
         places: [
           {
@@ -729,6 +730,7 @@ describe("public read of collections and places (guest context)", () => {
         "cover",
         "extraRegions",
         "id",
+        "kind",
         "organization",
         "placeCount",
         "places",

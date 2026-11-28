@@ -21,7 +21,11 @@ import {
   getPublishedCollection,
   getPublishedPlace,
 } from "@/features/catalog/application/public-catalog";
-import { COLLECTION_STATUSES, REGIONS } from "@/features/catalog/domain/collection";
+import {
+  COLLECTION_KINDS,
+  COLLECTION_STATUSES,
+  REGIONS,
+} from "@/features/catalog/domain/collection";
 import { postgresCatalogRepository } from "@/features/catalog/infrastructure/postgres-catalog-repository";
 import {
   DEMO_COLLECTION_TITLE,
@@ -702,6 +706,7 @@ describe("collections, places and their links", () => {
 
       expect(await listOf("region")).toEqual([...REGIONS]);
       expect(await listOf("extra_regions")).toEqual([...REGIONS]);
+      expect(await listOf("kind")).toEqual([...COLLECTION_KINDS]);
       expect(await listOf("status")).toEqual([...COLLECTION_STATUSES]);
     });
 
@@ -833,6 +838,89 @@ describe("collections, places and their links", () => {
         `select has_column_privilege('krajozbior_app', 'public.collections', 'extra_regions', 'insert') as insert,
                 has_column_privilege('krajozbior_app', 'public.collections', 'extra_regions', 'update') as update,
                 has_column_privilege('krajozbior_app', 'public.collections', 'extra_regions', 'select') as select`,
+      );
+
+      expect(grants).toEqual([{ insert: true, update: true, select: true }]);
+    });
+  });
+
+  describe("kind of a collection (land or theme)", () => {
+    const setKind = (actor: { id: string }, id: string) =>
+      as(actor, `update public.collections set kind = 'land' where id = ? returning id`, [id]);
+
+    it("defaults to theme, refuses other values (23514) and does not bump the version", async () => {
+      const id = await newCollection(curA, orgA);
+      const before = await rowOf(id);
+
+      expect(before.kind).toBe("theme");
+      expect(await setKind(curA, id)).toHaveLength(1);
+
+      const after = await rowOf(id);
+
+      expect(after.kind).toBe("land");
+      expect(after.version).toBe(before.version);
+      expect(after.updated_at).toEqual(before.updated_at);
+
+      const code = await as(curA, `update public.collections set kind = 'x' where id = ?`, [
+        id,
+      ]).then(
+        () => "accepted",
+        (error: { cause?: { code?: string }; code?: string }) => error.cause?.code ?? error.code,
+      );
+
+      expect(code).toBe("23514");
+    });
+
+    it("lets a member of the organization insert and update, and nobody else", async () => {
+      const id = await newCollection(curA, orgA);
+
+      expect(await setKind(curB, id)).toHaveLength(0);
+      expect(await setKind(explorer, id)).toHaveLength(0);
+      await expect(
+        asGuest(`update public.collections set kind = 'land' where id = ? returning id`, [id]),
+      ).rejects.toThrow(/read-only|permission denied/);
+      expect((await rowOf(id)).kind).toBe("theme");
+
+      await expect(
+        as(
+          outsider,
+          `insert into public.collections (slug, organization_id, title, region, kind)
+           values (?, ?, 't', 'dolnoslaskie', 'land')`,
+          [slug(), orgA],
+        ),
+      ).rejects.toThrow(rejectedByPolicy);
+      expect(
+        await as(
+          curA,
+          `insert into public.collections (slug, organization_id, title, region, kind)
+           values (?, ?, 't', 'dolnoslaskie', 'land') returning kind`,
+          [slug(), orgA],
+        ),
+      ).toEqual([{ kind: "land" }]);
+    });
+
+    it("does not let a member of a suspended organization change it", async () => {
+      const [{ id }] = await admin$<{ id: string }>(
+        `insert into public.collections (slug, organization_id, title, region)
+         values ($1, $2, 't', 'dolnoslaskie') returning id`,
+        [slug(), orgS],
+      );
+
+      await admin$(`update public.organizations set status = 'suspended' where id = $1`, [orgS]);
+      try {
+        expect(await setKind(curB, id)).toHaveLength(0);
+      } finally {
+        await admin$(`update public.organizations set status = 'approved' where id = $1`, [orgS]);
+      }
+
+      expect((await rowOf(id)).kind).toBe("theme");
+    });
+
+    it("has exactly the new column grants for the application role", async () => {
+      const grants = await admin$<{ insert: boolean; update: boolean; select: boolean }>(
+        `select has_column_privilege('krajozbior_app', 'public.collections', 'kind', 'insert') as insert,
+                has_column_privilege('krajozbior_app', 'public.collections', 'kind', 'update') as update,
+                has_column_privilege('krajozbior_app', 'public.collections', 'kind', 'select') as select`,
       );
 
       expect(grants).toEqual([{ insert: true, update: true, select: true }]);

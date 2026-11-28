@@ -422,6 +422,36 @@ describe("collection record", () => {
     });
   });
 
+  describe("kind of the collection (kind)", () => {
+    const withKind = (value: unknown) =>
+      edited((items) => {
+        items[1]!.kind = value;
+      });
+    const kindOf = (content: string) => {
+      const result = parseImportFile(content);
+
+      return result.ok ? result.collections[0]!.kind : "refused";
+    };
+
+    it("means 'no change' when the field is absent (characterization of a file without it)", () => {
+      const result = parseImportFile(fullFile);
+
+      expect(result.ok).toBe(true);
+      expect(kindOf(fullFile)).toBeNull();
+    });
+
+    it("accepts land and theme", () => {
+      expect(kindOf(withKind("land"))).toBe("land");
+      expect(kindOf(withKind("theme"))).toBe("theme");
+    });
+
+    it("refuses another code or another type, without the text of the file", () => {
+      expect(has(errorsOf(withKind("SEKRET-12345")), 2, "kind", "bad_value")).toBe(true);
+      expect(JSON.stringify(errorsOf(withKind("SEKRET-12345")))).not.toContain("SEKRET");
+      expect(has(errorsOf(withKind(3)), 2, "kind", "wrong_type")).toBe(true);
+    });
+  });
+
   it("refuses an empty list of places, a key of the wrong shape and a key without the prefix", () => {
     const empty = edited((items) => {
       items[1]!.places = [];
