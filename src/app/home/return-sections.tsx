@@ -8,7 +8,7 @@ import {
   saveNudgeText,
 } from "@/features/album/domain/home-return";
 import type { NewCollection, PlaceOfTheDay } from "@/features/catalog/application/catalog-types";
-import { REGION_LABELS } from "@/features/catalog/domain/collection";
+import { regionsLabelOf } from "@/features/catalog/domain/collection";
 import { cardCoverImage } from "@/features/catalog/domain/collection-cover";
 import { formatPlaceCount } from "@/features/catalog/domain/place-count";
 import { firstSentence } from "@/features/catalog/domain/place-of-day";
@@ -163,7 +163,7 @@ export function NewCollectionsSection({
             <CollectionCard
               href={`/collections/${collection.slug}`}
               title={collection.title}
-              regionLabel={REGION_LABELS[collection.region]}
+              regionLabel={regionsLabelOf(collection)}
               cover={cardCoverImage(collection.cover)}
               note={`dodana ${formatSavedDate(collection.firstPublishedAt)} · ${formatPlaceCount(collection.placeCount)} · ${collection.organization.name}`}
             />
