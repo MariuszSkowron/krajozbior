@@ -130,8 +130,8 @@ test.describe("two layers of collections: a land and its theme collections", () 
     // Temat A ma w krainie 2 miejsca, temat B 1: najpierw ten z większą liczbą.
     await expect(section.getByRole("link")).toHaveCount(2);
     await expect(section.getByRole("link").first()).toContainText(THEME_A);
-    await expect(section.getByRole("link").first()).toContainText("2 miejsca z tej krainy");
-    await expect(section.getByRole("link").nth(1)).toContainText("1 miejsce z tej krainy");
+    await expect(section.getByRole("link").first()).toContainText("2 z 2 miejsc w tej krainie");
+    await expect(section.getByRole("link").nth(1)).toContainText("1 z 2 miejsc w tej krainie");
     // Gość nie ma postępu na kartach.
     await expect(section.getByRole("progressbar")).toHaveCount(0);
 
