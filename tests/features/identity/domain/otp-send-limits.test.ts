@@ -189,6 +189,11 @@ describe("decideOtpSend: pools of codes that go out", () => {
     expect(NEW_ACCOUNTS_PER_IP_DAILY).toBe(30);
   });
 
+  it("uses the default threshold of 30 requests per IP when the state gives none", () => {
+    expect(decide([], [full("ip", NEW_ACCOUNTS_PER_IP_DAILY - 1)])).toEqual(SENT);
+    expect(decide([], [full("ip", NEW_ACCOUNTS_PER_IP_DAILY)])).toEqual(skipped("new_ip"));
+  });
+
   it("has no IP threshold without an IP bucket", () => {
     expect(decide([], [])).toEqual(SENT);
   });
