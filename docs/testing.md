@@ -2,7 +2,7 @@
 
 ## W skrócie
 
-Są cztery poziomy kontroli: testy jednostkowe z progiem pokrycia logiki domeny, testy integracyjne na prawdziwym PostgreSQL z rolami, testy przeglądarkowe (E2E) oraz kontrole statyczne i build. Lokalnie `npm run check` obejmuje format, lint, typy, jednostkowe i build; integracja i E2E działają osobno (w CI jako joby `integration` i `e2e`). Komputer lokalny jest słabszy niż suma potrzeb kilku agentów, więc pełne przebiegi integracji i E2E idą przede wszystkim w CI, które w repozytorium publicznym jest bezpłatne. CI uruchamia pełny zestaw dla każdego PR-a, także draftu.
+Są cztery poziomy kontroli: testy jednostkowe z progiem pokrycia logiki domeny, testy integracyjne na prawdziwym PostgreSQL z rolami, testy przeglądarkowe (E2E) oraz kontrole statyczne i build. Lokalnie `npm run check` obejmuje format, lint, typy, testy jednostkowe z progiem pokrycia (`test:coverage`) i build; integracja i E2E działają osobno (w CI jako joby `integration` i `e2e`). Komputer lokalny jest słabszy niż suma potrzeb kilku agentów, więc przed pushem autor uruchamia tylko dotknięty zakres integracji i E2E, a pełne przebiegi potwierdza CI, które w repozytorium publicznym jest bezpłatne. CI uruchamia pełny zestaw dla każdego PR-a, także draftu.
 
 ## Testy jednostkowe i coverage
 
@@ -71,12 +71,12 @@ Wymaga uruchomionego Docker Desktop. **Przed każdym przebiegiem środowisko mus
 Komputer lokalny wystarcza dla dwóch agentów, które budują lub testują, i kilku lekkich. Więcej równoległej pracy spowalnia wszystkich i daje fałszywe porażki testów zależnych od czasu.
 
 - **Naraz najwyżej 2 agenty z testami lub buildem** i 1–2 lekkie (przegląd, dokumentacja). Kolejne zadanie startuje, gdy zwolni się miejsce.
-- **Jeden lokalny przebieg E2E naraz.** Playwright lokalnie zawsze w jednym workerze (skrypty z `scripts/test-env/` to wymuszają).
-- **Pełna integracja i E2E idą w CI.** Lokalnie autor uruchamia `npm run check` i testy ukierunkowane (`npx vitest run <pliki>`, `npm run test:integration -- <pliki>`, jeden spec E2E). Recenzent uruchamia tylko testy związane z diffem. Gdy agent musi uruchomić integrację lokalnie, używa środowiska swojego stanowiska (`test-env-test.ps1 integration`) albo jednorazowego kontenera na wolnym porcie spoza zakresów stanowisk (np. 57442) i usuwa go po przebiegu.
+- **Jeden lokalny przebieg E2E naraz.** Playwright lokalnie zawsze w jednym workerze (skrypty z `scripts/test-env/` to wymuszają). Kolejkę lokalnego E2E prowadzi orkiestrator. Agent nie czeka na wolne środowisko: dostaje E2E w zleceniu tylko wtedy, gdy orkiestrator przydzielił mu kolejkę; inaczej kończy na kodzie i testach jednostkowych, a E2E uruchamia orkiestrator albo osobny agent.
+- **Przed pushem autor uruchamia lokalnie** `npm run check`, testy integracyjne plików dotykających zmienionego przypadku użycia (`npm run test:integration -- <pliki>`) i spece E2E dotkniętych ekranów, przez `scripts/test-env/` w kolejce E2E orkiestratora. **Pełne zestawy integracji i E2E idą w CI jako potwierdzenie.** Samo `npm run test:unit` (`npx vitest run <pliki>`) służy do szybkich przebiegów w trakcie pracy, nie jako kontrola końcowa. Recenzent uruchamia tylko testy związane z diffem. Gdy agent musi uruchomić integrację lokalnie, używa środowiska swojego stanowiska (`test-env-test.ps1 integration`) albo jednorazowego kontenera na wolnym porcie spoza zakresów stanowisk (np. 57442) i usuwa go po przebiegu.
 - **Pula stanowisk `ws-1`, `ws-2`.** Stałe worktree (np. `.claude/worktrees/ws-1`) z zainstalowanym `node_modules`. Agent dostaje wolne stanowisko i przełącza w nim gałąź (`git switch -c <gałąź> origin/main`), zamiast tworzyć worktree i uruchamiać `npm ci` od nowa. Po zmianie `package-lock.json` na `main` stanowisko robi `npm ci` raz.
 - **Vitest uruchamiaj ze ścieżki zaczynającej się od `C:\`** (wielka litera dysku, np. `Set-Location 'C:\...'` w PowerShell). Przebiegi uruchomione ze ścieżki `c:\` (mała litera, tak otwiera folder m.in. VS Code) kończyły się błędami, których nie było przy `C:\`; przyczyna nie jest zbadana. Liczbę wątków ogranicz, gdy działa drugi agent: `npx vitest run --maxWorkers=2`.
 - **Docker z limitem pamięci.** Kontenery `scripts/test-env/` startują z `--memory=1g` (dwa na stanowisko); jednorazowe kontenery uruchamiane ręcznie też dostają `--memory=1g`. Docker Desktop ma ustawiony limit pamięci (np. 6 GB), żeby nie zabrał jej przeglądarce i Node.
-- **Poprawki po przeglądzie sprawdza pełny `npm run test:unit`**, nie tylko testy zmienionego pliku: poprawka często psuje coś obok.
+- **Poprawki po przeglądzie sprawdza pełny `npm run check`** (zawiera `test:coverage`), nie tylko testy zmienionego pliku: poprawka często psuje coś obok, a samo `test:unit` nie łapie spadku poniżej progu pokrycia.
 - **Logi agentów w osobnych katalogach** (`.ai/tmp/<agent>/`, `test-results-<agent>/` nie są wspólne), żeby równoległe przebiegi nie nadpisywały sobie wyników.
 
 ## Kontrole bezpieczeństwa w CI
