@@ -10,6 +10,7 @@ import type {
   PublishedCollection,
   PublishedPlace,
   RecentCollection,
+  RelatedCollection,
 } from "./catalog-types";
 
 // Public reads for everyone, a guest included (D-T4): always in the guest
@@ -80,6 +81,21 @@ export async function getPublishedCollection(
   );
 
   return found === null ? { status: "not_found" } : { status: "ok", value: found };
+}
+
+/**
+ * Collections related to a published one through common places (land <-> theme): for a land
+ * the theme collections, for a theme collection the lands. Guest context, so a signed-in curator
+ * gets what a guest gets. The caller reads this in its own `try/catch`: a failure must not
+ * break the page.
+ */
+export async function listRelatedCollections(
+  collection: Pick<PublishedCollection, "id" | "kind">,
+  deps: CatalogDeps,
+): Promise<readonly RelatedCollection[]> {
+  return deps.withGuestContext((tx) =>
+    deps.repository.listRelatedCollections(tx, collection.id, collection.kind),
+  );
 }
 
 /**

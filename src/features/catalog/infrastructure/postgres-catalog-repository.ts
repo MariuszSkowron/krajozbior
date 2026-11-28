@@ -36,6 +36,7 @@ import {
   MAX_COLLECTIONS_PER_LIST,
   MAX_COVER_CANDIDATES,
   MAX_PLACES_PER_COLLECTION,
+  MAX_RELATED_COLLECTIONS,
 } from "../domain/limits";
 import { SEARCH_TIME_BUDGET_MS, foldSql, remainingBudgetMs } from "../domain/search";
 
@@ -592,7 +593,7 @@ export const postgresCatalogRepository: CatalogRepository = {
         // joined through `collection_places`, in the guest context), so they never show more
         // than the page lists. `greatest` skips a null (a collection without places).
         `select c.id, c.slug, c.title, c.summary, c.region, c.extra_regions as "extraRegions",
-                o.name as "organizationName", o.slug as "organizationSlug",
+                c.kind, o.name as "organizationName", o.slug as "organizationSlug",
                 (select count(*)::int
                    from public.collection_places cp
                    join public.places p on p.id = cp.place_id
@@ -673,11 +674,56 @@ export const postgresCatalogRepository: CatalogRepository = {
     return {
       ...rest,
       extraRegions: knownRegions(rest.extraRegions),
+      kind: knownKind(rest.kind),
       contentUpdatedAt: new Date(contentUpdatedAt),
       organization: { name: organizationName, slug: organizationSlug },
       places,
       cover,
     };
+  },
+
+  async listRelatedCollections(tx: TransactionContext, collectionId, kind) {
+    // The common places are counted in a CTE; the card is joined afterwards with the shared
+    // columns (the cover lateral stays outside any aggregation). The guest policies of `places`
+    // and `collection_places` show only rows of published collections of approved organizations;
+    // the other side is also checked here. Only collections of the organization of the asked one.
+    const rows = await tx.em.execute<(CollectionCardRow & { sharedPlaces: number })[]>(
+      `with shared as (
+         select b.collection_id, count(distinct a.place_id)::int as shared_places
+           from public.collection_places a
+           join public.places pa on pa.id = a.place_id
+           join public.collection_places b
+             on b.place_id = a.place_id and b.collection_id <> a.collection_id
+          where a.collection_id = ?
+          group by b.collection_id
+       )
+       select ${collectionCardColumns}, s.shared_places as "sharedPlaces"
+         from shared s
+         join public.collections c on c.id = s.collection_id
+         join public.organizations o on o.id = c.organization_id
+         ${collectionCardJoin}
+        where c.status = 'published' and o.status = 'approved'
+          and c.kind <> ?::text
+          and c.organization_id = (select organization_id from public.collections where id = ?)
+        order by s.shared_places desc, c.title, c.slug
+        limit ?`,
+      [collectionId, kind, collectionId, MAX_RELATED_COLLECTIONS],
+    );
+
+    return rows.map(({ sharedPlaces, ...row }) => {
+      const card = toRecentCollection(row);
+
+      return {
+        id: card.id,
+        slug: card.slug,
+        title: card.title,
+        region: card.region,
+        extraRegions: card.extraRegions,
+        placeCount: card.placeCount,
+        cover: card.cover,
+        sharedPlaces,
+      };
+    });
   },
 
   async listRecentlyPublishedCollections(tx: TransactionContext, limit) {

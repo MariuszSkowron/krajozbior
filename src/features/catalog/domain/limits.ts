@@ -10,6 +10,12 @@ export const curatorWriteLimit: ActionLimit = { limit: 120, windowSeconds: 10 * 
 // stop a runaway account from making every page and progress count expensive.
 export const MAX_COLLECTIONS_PER_LIST = 200;
 export const MAX_PLACES_PER_COLLECTION = 500;
+/**
+ * The page of a collection shows at most this many related collections (land <-> theme): a
+ * bound of the list (D-25) and of the progress reads of the page of a land. Today the most a
+ * collection has is 10 (Casimir the Great's castles).
+ */
+export const MAX_RELATED_COLLECTIONS = 12;
 /** The cover picker of the editor lists at most this many photos (D-25 style bound, E4-3). */
 export const MAX_COVER_CANDIDATES = 200;
 
