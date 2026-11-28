@@ -755,7 +755,8 @@ export const postgresCatalogRepository: CatalogRepository = {
     // Pula banera (R3, PR 4): miejsce z listy QID, w opublikowanej kolekcji zatwierdzonej
     // organizacji, z pierwszym gotowym zdjęciem nadającym się na baner (>= 1100 px, nie szersze niż
     // 16:9). Kontekst gościa zostawia tylko zdjęcie, które wolno zobaczyć każdemu; kolumny
-    // `hidden_*` nie są czytane. Ten sam QID u kilku miejsc daje jedno (najmniejsze `id`, stały wybór).
+    // `hidden_*` nie są czytane. Miejsce z ograniczeniem dostępu (`access_restriction` inne niż
+    // `none`) odpada, jak w „Miejscu dnia” (C-01). Ten sam QID u kilku miejsc daje jedno (najmniejsze `id`, stały wybór).
     return tx.em.execute<HomeBannerCandidate[]>(
       `select distinct on (s.wikidata_qid)
               s.wikidata_qid as qid,
@@ -778,6 +779,7 @@ export const postgresCatalogRepository: CatalogRepository = {
             limit 1
          ) ph on true
         where s.wikidata_qid in (${qids.map(() => "?").join(", ")})
+          and p.access_restriction = 'none'
           and o.status = 'approved'
           and exists (
             select
