@@ -176,7 +176,12 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   });
   const signedOut = first(params.wylogowano) === "1";
   // The person declined the terms on the "Zanim zaczniesz" screen (F-K3, E11-Q4 A).
-  const termsDeclined = first(params.wylogowano) === "odmowa";
+  // `odmowa`: the account never accepted anything and was deleted; `odmowa-konto`: it stayed (it
+  // accepted an older version); `odmowa-blad`: the deletion failed, the person is signed out.
+  const declineSignal = first(params.wylogowano);
+  const termsDeclined = declineSignal === "odmowa";
+  const termsDeclinedKept = declineSignal === "odmowa-konto";
+  const termsDeclineFailed = declineSignal === "odmowa-blad";
   const signOutFailed = first(params.wylogowanie) === "blad";
   // Only a signal for the message after deleting the account (E9-5).
   const accountDeleted = first(params.konto) === "usuniete";
@@ -245,9 +250,22 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
       ) : null}
       {termsDeclined ? (
         <p role="status" className={styles.status}>
-          Wylogowano. Konto działa dopiero po akceptacji regulaminu. Zapisaliśmy tylko Twój adres
-          e-mail; jeśli chcesz, żebyśmy go usunęli, napisz na{" "}
+          Usunęliśmy Twoje konto razem z adresem e-mail. Jeśli zmienisz zdanie, możesz założyć je od
+          nowa.
+        </p>
+      ) : null}
+      {termsDeclinedKept ? (
+        <p role="status" className={styles.status}>
+          Wylogowano. Konto zostaje, ale działa dopiero po akceptacji regulaminu. Jeśli chcesz je
+          usunąć, napisz na{" "}
           <a href={`mailto:${CONTACT_ADDRESSES.privacy}`}>{CONTACT_ADDRESSES.privacy}</a>.
+        </p>
+      ) : null}
+      {termsDeclineFailed ? (
+        <p role="status" className={styles.status}>
+          Wylogowano, ale nie udało się usunąć konta. Napisz na{" "}
+          <a href={`mailto:${CONTACT_ADDRESSES.privacy}`}>{CONTACT_ADDRESSES.privacy}</a>, a
+          usuniemy je ręcznie.
         </p>
       ) : null}
       {signOutFailed ? (

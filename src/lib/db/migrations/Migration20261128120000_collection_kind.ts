@@ -15,7 +15,7 @@ import { Migration } from "@mikro-orm/migrations";
 //   z COLLECTION_KINDS z domeny).
 // - Istniejące wiersze dostają `theme`, więc zachowanie po migracji jest takie samo jak przed nią.
 
-export class Migration20261128100000_collection_kind extends Migration {
+export class Migration20261128120000_collection_kind extends Migration {
   override async up(): Promise<void> {
     this.addSql(`
       alter table collections

@@ -2,6 +2,22 @@
  * Odnośnik „Zgłoś naruszenie” pod treścią miejsca: mały, spokojny tekst; cel dotykowy co najmniej
  * 44 px. Tylko tokeny z tokens.css.
  */
+.group {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.item {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
 .report {
   margin: 0;
   font-size: var(--font-size-sm);

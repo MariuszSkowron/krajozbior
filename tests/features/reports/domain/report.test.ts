@@ -8,6 +8,7 @@ import {
   isReportCategory,
   isReportQueueState,
   MAX_OPEN_REPORTS_SHOWN,
+  countMessageCharacters,
   normalizeLineBreaks,
   REJECT_REASON_LABELS,
   REJECT_REASONS,
@@ -38,6 +39,10 @@ describe("lists of the reports", () => {
 
   it("normalizes line breaks", () => {
     expect(normalizeLineBreaks("a\r\nb\rc\nd")).toBe("a\nb\nc\nd");
+    // the counter counts what validation counts: trimmed, line breaks once, by characters
+    expect(countMessageCharacters(`${"a".repeat(1000)}\n`)).toBe(1000);
+    expect(countMessageCharacters("  ab\r\ncd \r\n")).toBe(5);
+    expect(countMessageCharacters("😀😀")).toBe(2);
   });
 });
 

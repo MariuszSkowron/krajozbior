@@ -69,7 +69,13 @@ test.describe("profile and logout", () => {
     // Paczka N: no role name for an explorer and no tiles that repeat the main menu.
     await expect(main).not.toContainText("Twoja rola");
     await expect(main).not.toContainText("Użytkownik");
-    await expect(main.getByRole("link")).toHaveText(["Ustawienia", "Napisz do nas"]);
+    // P4b: "Moje zgłoszenia" is there because the E2E server runs with FEATURE_PLACE_REPORTS=true;
+    // without the switch the list is the two entries below (tests/app/my-page.test.ts).
+    await expect(main.getByRole("link")).toHaveText([
+      "Moje zgłoszenia",
+      "Ustawienia",
+      "Napisz do nas",
+    ]);
     await expect(main.getByRole("link", { name: "Moje kolekcje" })).toHaveCount(0);
     await expect(main.getByRole("link", { name: "Chcę zobaczyć" })).toHaveCount(0);
     // UX-06: "Profil" is only in the menu. On a phone (where this test runs) "Wyloguj" is only

@@ -29,6 +29,7 @@ const SCRIPTS = [
   "backup.sh",
   "restore-test.sh",
   "health-report.sh",
+  "cleanup-abandoned.sh",
   "showcase.sh",
 ];
 
@@ -143,6 +144,12 @@ const OPS_ENV: Record<string, string[]> = {
     "AUTH_CLIENT_IP_HEADER",
   ],
   "auth:throttle": [
+    "DATABASE_AUTH_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "AUTH_CLIENT_IP_HEADER",
+  ],
+  "auth:cleanup-abandoned": [
     "DATABASE_AUTH_URL",
     "BETTER_AUTH_SECRET",
     "BETTER_AUTH_URL",

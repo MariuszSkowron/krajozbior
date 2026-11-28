@@ -26,6 +26,7 @@
     "db:migration:create": "tsx --conditions react-server --env-file-if-exists=.env ./node_modules/@mikro-orm/cli/cli.js migration:create",
     "db:seed:demo": "tsx --conditions react-server --env-file-if-exists=.env ./scripts/seed-demo-accounts.ts",
     "auth:throttle": "tsx --conditions react-server --env-file-if-exists=.env ./scripts/auth-throttle.ts",
+    "auth:cleanup-abandoned": "tsx --conditions react-server --env-file-if-exists=.env ./scripts/cleanup-abandoned-accounts.ts",
     "auth:create-admin": "tsx --conditions react-server --env-file-if-exists=.env ./scripts/create-admin.ts",
     "catalog:import": "tsx --conditions react-server --env-file-if-exists=.env ./scripts/catalog-import.ts",
     "photos:fetch": "tsx --conditions react-server --env-file-if-exists=.env ./scripts/photos-fetch.ts",

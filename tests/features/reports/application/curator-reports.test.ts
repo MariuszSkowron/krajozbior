@@ -30,6 +30,8 @@ function setup(
     countOpen: vi.fn(async () => 7),
     listQueue: vi.fn(async () => []),
     decide: vi.fn(async () => options.decision ?? ({ status: "ok", version: 2 } as const)),
+    insertReport: vi.fn(),
+    listMine: vi.fn(),
   } satisfies ReportsRepository;
   const deps: ReportsDeps = {
     limiter: { reserve },
