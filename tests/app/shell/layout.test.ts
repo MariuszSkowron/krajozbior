@@ -101,7 +101,7 @@ describe("app shell", () => {
     const html = await shell();
 
     expect(html).toMatch(
-      /role="region" aria-label="Wersja testowa"><p><strong>Wersja testowa<\/strong> — dokumenty prawne w wersji roboczej\. <a href="\/zasady">Najważniejsze zasady<\/a><\/p><button type="button"[^>]*>Zamknij<\/button>/,
+      /role="region" aria-label="Wersja konkursowa"><p><strong>Wersja konkursowa<\/strong> — część funkcji uruchomimy później\. <a href="\/zasady">Najważniejsze zasady<\/a><\/p><button type="button"[^>]*>Zamknij<\/button>/,
     );
   });
 

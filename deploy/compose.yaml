@@ -76,8 +76,11 @@ services:
     mem_limit: 1g
     # Zdjęcia (E4, spec 5.11.1): wolumen tylko do odczytu, dopóki aplikacja zdjęć nie przyjmuje
     # (E4-1 zmieni to na odczyt i zapis). Zły stan katalogu tylko ostrzega w logu przy starcie.
+    # Zgłaszanie problemów z miejscem (D-66): na serwerze włączone, więc przełącznik nie zależy od
+    # pliku `.env.production`; wyłączenie to zmiana tej linii i wdrożenie.
     environment:
       MEDIA_ROOT: /var/lib/krajozbior/media
+      FEATURE_PLACE_REPORTS: "true"
     volumes:
       - media:/var/lib/krajozbior/media:ro
     depends_on:

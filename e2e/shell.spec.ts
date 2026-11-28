@@ -398,12 +398,12 @@ test.describe("nagłówek konta", () => {
     }
   });
 
-  test("„Wyloguj” w nagłówku kończy się na tej samej prawej linii co „Zamknij” paska „Wersja testowa” (UX-P3-03)", async ({
+  test("„Wyloguj” w nagłówku kończy się na tej samej prawej linii co „Zamknij” paska „Wersja konkursowa” (UX-P3-03)", async ({
     browser,
   }) => {
     const page = await signedInPage(browser, "user", { width: 1440, height: 900 });
     const logout = page.getByRole("banner").getByRole("button", { name: "Wyloguj" });
-    const close = page.getByRole("region", { name: "Wersja testowa" }).getByRole("button", {
+    const close = page.getByRole("region", { name: "Wersja konkursowa" }).getByRole("button", {
       name: "Zamknij",
     });
 

@@ -9,18 +9,15 @@ import styles from "./legal.module.css";
 
 type HeadingBlock = Extract<Block, { kind: "heading" }>;
 
-// Tytuł karty i `noindex` stron prawnych w wersji roboczej (E11-Q15 A): robocza polityka nie
-// ma krążyć w wynikach wyszukiwarek. Linki ze strony dalej są śledzone (`follow`).
+// Tytuł karty stron prawnych. Od wersji 1.1 (pierwszej obowiązującej) strony są indeksowane;
+// `noindex` obowiązywał tylko dla wersji roboczej (E11-Q15 A).
 export function legalMetadata(slug: LegalSlug): Metadata {
-  return {
-    title: `${legalPage(slug).title} — Krajozbiór`,
-    robots: { index: false, follow: true },
-  };
+  return { title: `${legalPage(slug).title} — Krajozbiór` };
 }
 
-// Strona prawna (F-K3, spec E11, sekcja 5.9): publiczna, bez logowania. U góry wyróżniony
-// dopisek „Wersja robocza”, numer wersji, spis treści z kotwicami (dla długich tekstów)
-// i lista wersji dokumentu (przed pierwszą zmianą ma jeden wpis, regulamin rozdz. 16 ust. 1).
+// Strona prawna (F-K3, spec E11, sekcja 5.9): publiczna, bez logowania. U góry numer wersji
+// z datą wejścia w życie, spis treści z kotwicami (dla długich tekstów) i lista wersji
+// dokumentu (wersja 1.1 jest pierwszą obowiązującą, regulamin rozdz. 16 ust. 1).
 export function LegalPage({ slug }: Readonly<{ slug: LegalSlug }>) {
   const document = LEGAL_DOCUMENTS[slug];
   const { title } = legalPage(slug);
@@ -32,11 +29,9 @@ export function LegalPage({ slug }: Readonly<{ slug: LegalSlug }>) {
   return (
     <article className={`content-width ${styles.page}`}>
       <h1>{title}</h1>
-      <p className={styles.draft}>
-        <strong>Wersja robocza z dnia {document.date}</strong> Tekst czeka na sprawdzenie przez
-        prawnika.
+      <p className={styles.version}>
+        Wersja {document.version} — obowiązuje od {document.date}
       </p>
-      <p className={styles.version}>Wersja {document.version}</p>
       {sections.length >= 4 ? (
         <nav aria-label="Spis treści" className={styles.toc}>
           <h2 className={styles.tocTitle}>Spis treści</h2>
@@ -56,7 +51,7 @@ export function LegalPage({ slug }: Readonly<{ slug: LegalSlug }>) {
         <h2 id="wersje-dokumentu">Wersje tego dokumentu</h2>
         <ul>
           <li>
-            Wersja {document.version} z dnia {document.date} (obowiązująca, robocza)
+            Wersja {document.version} z dnia {document.date} (obowiązująca)
           </li>
         </ul>
       </section>
