@@ -127,6 +127,13 @@ test.describe("two layers of collections: a land and its theme collections", () 
     const section = page.getByRole("region", { name: "Kolekcje w tej krainie" });
 
     await expect(section).toBeVisible();
+    // Sekcja stoi przed listą miejsc (decyzja właściciela 28.11).
+    const sectionTop = (await section.boundingBox())?.y ?? Number.POSITIVE_INFINITY;
+    const placesTop =
+      (await page.getByRole("heading", { level: 2, name: "Miejsca w kolekcji" }).boundingBox())
+        ?.y ?? Number.NEGATIVE_INFINITY;
+
+    expect(sectionTop).toBeLessThan(placesTop);
     // Temat A ma w krainie 2 miejsca, temat B 1: najpierw ten z większą liczbą.
     await expect(section.getByRole("link")).toHaveCount(2);
     await expect(section.getByRole("link").first()).toContainText(THEME_A);
@@ -151,7 +158,7 @@ test.describe("two layers of collections: a land and its theme collections", () 
     await page.goto("/search");
     await page.getByRole("link", { name: THEME_B }).click();
     await expect(page.getByRole("heading", { level: 1, name: THEME_B })).toBeVisible();
-    await expect(page.getByText("Miejsca z tej kolekcji leżą w krainie:")).toBeVisible();
+    await expect(page.getByText("1 z 2 miejsc kolekcji leży w krainie:")).toBeVisible();
     await expect(page.getByText("Część krainy:")).toHaveCount(0);
     await expect(landLink(page)).toBeVisible();
   });

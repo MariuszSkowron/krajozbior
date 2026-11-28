@@ -37,4 +37,20 @@ describe("landLineLabel", () => {
   ])("place count %i, lands %i", (placeCount, lands, expected) => {
     expect(landLineLabel(placeCount, lands)).toBe(expected);
   });
+
+  it.each([
+    [2, 1, 1, "1 z 2 miejsc kolekcji leży w krainie: "],
+    [9, 1, 2, "2 z 9 miejsc kolekcji leżą w krainie: "],
+    [9, 2, 5, "5 z 9 miejsc kolekcji leży w krainach: "],
+    [30, 2, 22, "22 z 30 miejsc kolekcji leżą w krainach: "],
+  ])(
+    "says how many places lie there when only part does: %i, %i lands, %i",
+    (placeCount, lands, shared, expected) => {
+      expect(landLineLabel(placeCount, lands, shared)).toBe(expected);
+    },
+  );
+
+  it("keeps the whole-collection form when every place lies there", () => {
+    expect(landLineLabel(2, 1, 2)).toBe("Miejsca z tej kolekcji leżą w krainie: ");
+  });
 });

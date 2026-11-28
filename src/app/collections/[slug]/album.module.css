@@ -67,7 +67,8 @@
   gap: var(--space-md);
 }
 
-.listHead h2 {
+.listHead h2,
+.related h2 {
   margin: 0;
   font-size: var(--font-size-xl);
 }
@@ -426,7 +427,8 @@
     width: auto;
   }
 
-  .places {
+  .places,
+  .related {
     margin-block-start: var(--space-xl);
   }
 
@@ -435,7 +437,8 @@
     align-items: center;
   }
 
-  .listHead h2 {
+  .listHead h2,
+  .related h2 {
     font-size: var(--font-size-2xl);
   }
 
@@ -512,5 +515,38 @@
 
   .chipCount {
     margin-inline-start: var(--space-xs);
+  }
+}
+
+/* „Kolekcje w tej krainie” (druga warstwa): sekcja jak „Miejsca w kolekcji” (ten sam nagłówek i
+   odstęp). Telefon: karty w poziomo przewijanym pasku (kolejność w DOM = wizualna, fokus
+   przewija pasek, przyciąganie tylko „proximity”); komputer: zwykła siatka. */
+.relatedCards {
+  display: flex;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0 0 var(--space-sm);
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--space-xs);
+}
+
+.relatedCards > li {
+  flex: 0 0 min(80%, 18rem);
+  scroll-snap-align: start;
+}
+
+@media (min-width: 48rem) {
+  .relatedCards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+    gap: var(--space-lg);
+    padding-bottom: 0;
+    overflow-x: visible;
+  }
+
+  .relatedCards > li {
+    flex: initial;
   }
 }

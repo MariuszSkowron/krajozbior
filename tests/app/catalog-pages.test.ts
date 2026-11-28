@@ -643,8 +643,9 @@ describe("public catalog pages", () => {
       expect(html).toContain("3 z 9 miejsc kolekcji leżą tu");
       expect(html).toContain("1 z 9 miejsc kolekcji leży tu");
       expect(html.indexOf("Wieże ciśnień")).toBeLessThan(html.indexOf("Zamki"));
-      // The section comes after the places.
-      expect(html.indexOf("Miejsca w kolekcji")).toBeLessThan(html.indexOf("tez-kolekcje"));
+      // The section comes before the places (owner decision 28.11), after the intro.
+      expect(html.indexOf("tez-kolekcje")).toBeLessThan(html.indexOf("Miejsca w kolekcji"));
+      expect(html.indexOf("Kurator:")).toBeLessThan(html.indexOf("tez-kolekcje"));
       expect(mocks.related).toHaveBeenCalledWith(
         expect.objectContaining({ id: "c1", kind: "land" }),
         expect.anything(),
@@ -711,7 +712,8 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Miejsca z tej kolekcji leżą w krainach: ");
+      // 3 + 2 miejsc w krainach z 6: nie wszystkie, więc linia mówi, ile.
+      expect(html).toContain("5 z 6 miejsc kolekcji leży w krainach: ");
       expect(html).toContain('<a href="/collections/warmia-cccccc">Warmia</a>');
       expect(html).toContain('<a href="/collections/torun-dddddd">Toruń i Ziemia Dobrzyńska</a>');
       expect(html.indexOf(">Warmia<")).toBeLessThan(html.indexOf(">Toruń i Ziemia"));
@@ -724,7 +726,8 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain("Miejsca z tej kolekcji leżą w krainie: ");
+      expect(html).toContain("1 z 6 miejsc kolekcji leży w krainie: ");
+      expect(html).not.toContain("Miejsca z tej kolekcji leżą");
       expect(html).not.toContain("Część krainy");
     });
 

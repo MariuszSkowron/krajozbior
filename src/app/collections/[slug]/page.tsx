@@ -298,6 +298,9 @@ export default async function CollectionPage({
           </p>
         ) : null}
       </div>
+      {collection.kind === "land" && related.length > 0 ? (
+        <RelatedCollections collections={related} progress={relatedProgress} />
+      ) : null}
       <section className={`${styles.section} ${panelStyles.places}`} aria-labelledby="miejsca">
         <div className={panelStyles.listHead}>
           <h2 id="miejsca">Miejsca w kolekcji</h2>
@@ -400,9 +403,6 @@ export default async function CollectionPage({
           </>
         )}
       </section>
-      {collection.kind === "land" && related.length > 0 ? (
-        <RelatedCollections collections={related} progress={relatedProgress} />
-      ) : null}
     </div>
   );
 }
