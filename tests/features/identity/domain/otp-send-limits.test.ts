@@ -72,7 +72,7 @@ describe("decideOtpSend: limits of sign-in code requests", () => {
   ] as const)("refuses a full daily %s bucket until UTC midnight", (scope, limit) => {
     expect(decide([], [{ scope, count: limit }])).toEqual({
       allowed: false,
-      reason: "rate",
+      reason: "daily",
       retryAfterSeconds: HOUR,
     });
     expect(decide([], [{ scope, count: limit - 1 }])).toEqual({ allowed: true });
@@ -84,7 +84,7 @@ describe("decideOtpSend: limits of sign-in code requests", () => {
         [win({ scope: "email", attempts: 5, windowStartedAt: ago(60) })],
         [{ scope: "ip", count: 100 }],
       ),
-    ).toEqual({ allowed: false, reason: "rate", retryAfterSeconds: HOUR });
+    ).toEqual({ allowed: false, reason: "daily", retryAfterSeconds: HOUR });
     expect(
       decide(
         [win({ scope: "email", attempts: 5, windowStartedAt: ago(60) })],
@@ -107,6 +107,44 @@ describe("msUntilNextUtcDay", () => {
   it("counts to the next UTC midnight", () => {
     expect(msUntilNextUtcDay(now)).toBe(HOUR * 1000);
     expect(msUntilNextUtcDay(new Date("2026-11-15T00:00:00Z"))).toBe(24 * HOUR * 1000);
+  });
+});
+
+describe("day boundary (UTC, not Polish time)", () => {
+  const HOUR_MS = 3_600_000;
+
+  it("the day ends at UTC midnight: 01:00 in winter and 02:00 in summer in Poland", () => {
+    // 28.11 23:59:30 UTC (winter, 00:59:30 in Poland): 30 s to the reset.
+    expect(msUntilNextUtcDay(new Date("2026-11-28T23:59:30Z"))).toBe(30_000);
+    // Exactly UTC midnight: a new day starts, the next reset is 24 h away.
+    expect(msUntilNextUtcDay(new Date("2026-11-29T00:00:00Z"))).toBe(24 * HOUR_MS);
+    // Polish midnight in winter (23:00 UTC) is not the boundary: one hour left.
+    expect(msUntilNextUtcDay(new Date("2026-11-28T23:00:00Z"))).toBe(HOUR_MS);
+    // Summer: Polish midnight is 22:00 UTC; two hours left.
+    expect(msUntilNextUtcDay(new Date("2026-07-15T22:00:00Z"))).toBe(2 * HOUR_MS);
+  });
+
+  it("a full daily bucket sends Retry-After to UTC midnight, as a daily refusal", () => {
+    // Polish noon (11:00 UTC in winter): 13 h to 00:00 UTC.
+    const decision = decideOtpSend({
+      window: [],
+      daily: [{ scope: "email", count: otpSendLimits.daily.email }],
+      globalLimit: 250,
+      now: new Date("2026-11-28T11:00:00Z"),
+    });
+
+    expect(decision).toEqual({ allowed: false, reason: "daily", retryAfterSeconds: 13 * 3600 });
+  });
+
+  it("the first second of a new UTC day lets the request in (no row for the new day)", () => {
+    expect(
+      decideOtpSend({
+        window: [],
+        daily: [],
+        globalLimit: 250,
+        now: new Date("2026-11-29T00:00:01Z"),
+      }),
+    ).toEqual({ allowed: true });
   });
 });
 

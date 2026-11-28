@@ -43,9 +43,12 @@ export type OtpDailyBucket = { scope: OtpSendScope | "global"; count: number };
 
 export type OtpSendDecision =
   | { allowed: true }
-  // `rate`: a limit of the address or the IP (429); `global`: the daily limit
-  // of the application (503, the same answer for everybody).
-  | { allowed: false; reason: "rate" | "global"; retryAfterSeconds: number };
+  // `rate`: a 15-minute limit of the address or the IP (429); `daily`: a daily
+  // limit of the address or the IP (429, the wait lasts to UTC midnight);
+  // `global`: the daily limit of the application (503, the same answer for
+  // everybody). Which limit was hit depends only on the counters, never on
+  // whether the address has an account, so the kind may be shown to the person.
+  | { allowed: false; reason: "rate" | "daily" | "global"; retryAfterSeconds: number };
 
 export interface OtpSendLimiter {
   // Counts the request in every bucket when all of them have room; otherwise
@@ -94,14 +97,21 @@ export function decideOtpSend(state: OtpSendState): OtpSendDecision {
     }
   }
 
+  let dailyFull = false;
+
   for (const { scope, count } of state.daily) {
     if (scope !== "global" && count >= otpSendLimits.daily[scope]) {
+      dailyFull = true;
       retryAfterMs = Math.max(retryAfterMs, untilTomorrow);
     }
   }
 
   return retryAfterMs > 0
-    ? { allowed: false, reason: "rate", retryAfterSeconds: seconds(retryAfterMs) }
+    ? {
+        allowed: false,
+        reason: dailyFull ? "daily" : "rate",
+        retryAfterSeconds: seconds(retryAfterMs),
+      }
     : { allowed: true };
 }
 
