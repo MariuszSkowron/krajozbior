@@ -22,6 +22,8 @@
 #                     (catalog:import --dry-run), the owner answers tak/nie, then the load of
 #                     drafts. The file travels in the payload (base64 + SHA-256), lives on the
 #                     server only for one command and is mounted read-only into `ops`.
+#                     -ImportPublish (D-68): the preview is `--publish --dry-run` with the list of
+#                     collections to publish, and after "tak" the load also publishes them.
 #   -Mode zdjecia     photos from Wikimedia Commons (spec 5.11.5, E4-2z): `photos:fetch` in the
 #                     `ops` container (volume krajozbior-media), optional -PhotoLimit,
 #                     -PhotoRetryFailed, -PhotoRefetchMissing. One connection, only the `ops`
@@ -51,6 +53,7 @@ param(
   [string]$NewsFile = '',
   [string]$ImportFile = '',
   [string]$OrgSlug = '',
+  [switch]$ImportPublish,
   [int]$PhotoLimit = 0,
   [switch]$PhotoRetryFailed,
   [switch]$PhotoRefetchMissing
@@ -91,6 +94,7 @@ if ($Mode -eq 'import' -and -not $ImportFile) {
     'odswiez ja (new-deploy-secrets.ps1 -OdswiezWdroz, docs/deployment.md "Wgrywanie kolekcji"). Nic nie zrobiono.')
 }
 if ($Mode -ne 'import' -and ($ImportFile -or $OrgSlug)) { throw '-ImportFile i -OrgSlug dzialaja tylko w trybie import.' }
+if ($Mode -ne 'import' -and $ImportPublish) { throw '-ImportPublish dziala tylko w trybie import.' }
 if ($Mode -eq 'aktualnosci' -and -not $NewsFile) {
   throw ('Brak pliku z aktualnosciami. Jesli wpisales wdroz.ps1 -Aktualnosci <plik>, Twoja kopia wdroz.ps1 jest starsza niz ten tryb: ' +
     'odswiez ja (new-deploy-secrets.ps1 -OdswiezWdroz, docs/deployment.md "Publikowanie aktualnosci"). Nic nie zrobiono.')
@@ -274,7 +278,9 @@ switch ($Mode) {
     # Not a secret (public profile); base64 has no quote or new line, as the preamble requires.
     $plain.KZ_IMPORT_B64 = [Convert]::ToBase64String($bytes)
     $plain.KZ_ORG_SLUG = $slug
-    $plain.KZ_REASON = New-ImportReason $importName
+    $plain.KZ_REASON = New-ImportReason $importName ([bool]$ImportPublish)
+    # D-68: both phases get --publish on the server (the list in the preview, then the publication).
+    if ($ImportPublish) { $plain.KZ_IMPORT_PUBLISH = '1' }
     $bytes = $null
     $vault = Open-Vault
     Add-Secret 'KZ_OPS_PW' $vault.Ops
@@ -315,6 +321,7 @@ function Invoke-RemoteConnection {
   $payload = New-RemotePayload ([IO.File]::ReadAllText((Join-Path $serverDir 'lib.sh'))) `
     (New-RemotePreamble $plain $secretVars) ([IO.File]::ReadAllText((Join-Path $serverDir $modeScript)))
   $phase = if ($plain.ContainsKey('KZ_IMPORT_PHASE')) { ", faza $($plain.KZ_IMPORT_PHASE), plik $($plain.KZ_IMPORT_NAME)" } else { '' }
+  if ($plain.ContainsKey('KZ_IMPORT_PUBLISH')) { $phase += ', z publikacja (D-68)' }
   Write-Report ("wdrozenie: tryb {0}{4}, commit {1}, konto {2}, start {3:yyyy-MM-dd HH:mm:ss}" -f $Mode, $Sha, $user, (Get-Date), $phase) | Out-Null
   Write-Say "Lacze z serwerem jako $user (tryb $Mode). Gdy klient zapyta o haslo klucza, wpisz haslo wdrozeniowe."
 
@@ -350,6 +357,13 @@ function Invoke-RemoteConnection {
         Write-Say (Write-Report "podsumowanie: $summary") 'Cyan'
         if ($summary.StartsWith('Wgrane czesciowo')) { $script:importPartial = $true }
       }
+      # D-68: the preview of -Publikuj lists every collection the load would publish.
+      $count = Get-ImportPublishableCount $safe
+      if ($count -ge 0) {
+        $script:importPublishable = $count
+        Write-Say (Write-Report "do publikacji: $count kolekcji (linia w pliku: tytul (klucz))") 'Cyan'
+        foreach ($entry in @(Get-ImportPublishableLines $safe)) { Write-Say (Write-Report $entry) }
+      }
     }
     if ($Mode -eq 'zdjecia') {
       $summary = Format-PhotosSummary $safe
@@ -366,6 +380,7 @@ function Invoke-RemoteConnection {
 
 $importResult = ''
 $importPartial = $false
+$importPublishable = -1
 $photosRemaining = $false
 $photosStopped = $false
 if ($Mode -eq 'import' -or $Mode -eq 'aktualnosci') {
@@ -379,6 +394,20 @@ if ($Mode -eq 'import' -or $Mode -eq 'aktualnosci') {
       Write-Say 'Powyzej podglad: co zrobi wgranie pliku z aktualnosciami (nowa, zmieniona, bez zmian, wycofana). Na serwerze nic sie jeszcze nie zmienilo.' 'Yellow'
       Write-Say 'Odpowiedz tak, zeby wgrac plik (aktualnosci staja sie publiczne od razu), albo nie, zeby zakonczyc bez zmian.'
       Read-YesNo 'Wgrac aktualnosci na serwer'
+    } elseif ($ImportPublish) {
+      Write-Say 'Powyzej podglad: co wgranie zrobiloby z kolekcjami i miejscami, oraz lista kolekcji do publikacji. Na serwerze nic sie jeszcze nie zmienilo.' 'Yellow'
+      $decision = Get-ImportPublishDecision $script:importPublishable
+      if ($decision -eq 'no-list') {
+        # The running version printed no list: do not publish blind.
+        Write-Say 'Podglad nie pokazal listy kolekcji do publikacji, wiec publikacji nie bedzie. Konczymy bez zmian.' 'Yellow'
+        $false
+      } elseif ($decision -eq 'nothing') {
+        Write-Say 'Nic do publikacji: zadna kolekcja z pliku nie kwalifikuje sie (nowe, oznaczone, bez recznych zmian). Konczymy bez zmian.' 'Yellow'
+        $false
+      } else {
+        Write-Say "Odpowiedz tak, zeby wgrac szkice i od razu opublikowac $($script:importPublishable) kolekcji z listy (stana sie publiczne; wycofanie tylko w panelu kuratora), albo nie, zeby zakonczyc bez zmian."
+        Read-YesNo "Wgrac szkice i opublikowac $($script:importPublishable) kolekcji na serwerze"
+      }
     } else {
       Write-Say 'Powyzej podglad: co wgranie zrobiloby z kolekcjami i miejscami. Na serwerze nic sie jeszcze nie zmienilo.' 'Yellow'
       Write-Say 'Odpowiedz tak, zeby wgrac szkice (publikujesz pozniej sam w panelu), albo nie, zeby zakonczyc bez zmian.'
@@ -408,7 +437,9 @@ if ($code -eq 0 -and $importResult -eq 'declined') {
     Write-Say 'Kolejne polaczenia ida jako deploy; logowanie roota przez SSH jest wylaczone.'
     Write-Say 'Po aktualizacji systemu serwer moze sam zrestartowac sie najblizszej nocy o 4:30 (czas serwera). To normalne.'
   }
-  if ($Mode -eq 'import') {
+  if ($Mode -eq 'import' -and $ImportPublish) {
+    Write-Say 'Kolekcje z listy sa opublikowane, reszta zostala szkicami. Sprawdz je na stronie i w panelu kuratora.'
+  } elseif ($Mode -eq 'import') {
     Write-Say 'Szkice sa na serwerze. Obejrzyj je w panelu kuratora; publikujesz je sam, gdy beda gotowe.'
   }
   if ($Mode -eq 'aktualnosci') {
@@ -436,7 +467,7 @@ if ($code -eq 0 -and $importResult -eq 'declined') {
     Write-Say 'To nie awaria: plik jest wgrywany w calosci albo wcale. Napisz agentowi: kod 3 (z raportem); po poprawce pliku powtorz to samo polecenie.' 'Yellow'
   } elseif ($importPartial) {
     Write-Report 'wynik: CZESCIOWO (kod 3): czesc szkicow jest na serwerze' | Out-Null
-    Write-Say 'CZESCIOWO WGRANE (kod 3): czesc szkicow jest juz na serwerze, czesc kolekcji zostala odrzucona.' 'Yellow'
+    Write-Say 'CZESCIOWO WGRANE (kod 3): czesc szkicow jest juz na serwerze, czesc kolekcji (albo ich publikacji) zostala odrzucona.' 'Yellow'
     Write-Say 'To nie jest awaria. Napisz agentowi: czesciowo (z raportem); po ustaleniu przyczyny to samo wgranie mozna powtorzyc.' 'Yellow'
   } elseif ($Mode -eq 'zdjecia' -and $code -eq 3) {
     Write-Report 'wynik: ZAJETE (kod 3): poprzednie pobieranie jeszcze trwa' | Out-Null
