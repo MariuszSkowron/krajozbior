@@ -11,6 +11,13 @@ export async function waitForEntrance(page: Page) {
   );
 }
 
+// Images that load late change the height of the page (and so the largest possible scrollY).
+export async function waitForImages(page: Page) {
+  await page.evaluate(() =>
+    Promise.all(Array.from(document.images).map((image) => image.decode().catch(() => undefined))),
+  );
+}
+
 // A click on a filter must not scroll the page to the top. A shorter list lets the browser clamp
 // scrollY to the new maximum (or to 0 when the page becomes lower than the window), so the check
 // is: the page did not jump to the top, and scrollY equals the old value or the largest value the

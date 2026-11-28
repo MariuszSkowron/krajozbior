@@ -3,7 +3,7 @@ import axe from "axe-core";
 import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
-import { expectScrollKept } from "./scroll-support";
+import { expectScrollKept, waitForEntrance, waitForImages } from "./scroll-support";
 
 // E12-S4: "Moje kolekcje": the filter by the state of progress (?stan=), state buttons that are
 // links (one click, no script needed, no jump to the top). The block "Pokaż nowe w okolicy" was
@@ -143,6 +143,10 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     // The filter does not jump to the top. A low window keeps the page longer than the screen even
     // when the filtered list is empty, so the browser cannot clamp scrollY to 0 by itself.
     await page.setViewportSize({ width: 390, height: 360 });
+    // The sections still animate in and the images are still loading: the page height and the
+    // position of the sticky bar change until then, so measure only after both have settled.
+    await waitForEntrance(page);
+    await waitForImages(page);
     await states.scrollIntoViewIfNeeded();
     await page.evaluate(() => window.scrollBy(0, 60));
 
@@ -157,7 +161,8 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     await expect(page.getByRole("heading", { name: "Zapisane kolekcje (0 z 1)" })).toBeVisible();
     await expect(current("W trakcie")).toHaveAttribute("aria-current", "page");
     // A shorter list may clamp scrollY to the new maximum, but never to the top.
-    await page.waitForTimeout(300);
+    await waitForEntrance(page);
+    await waitForImages(page);
     await expectScrollKept(page, states, scrollBefore);
     await inBothThemes(page, () => expectNoAccessibilityViolations(page));
 
