@@ -15,8 +15,14 @@ const REQUIRED_MESSAGE = "Zaznacz pole „Akceptuję Regulamin”.";
 export function TermsForm({
   returnTo,
   serverProblem,
+  termsVersion,
   termsDate,
-}: Readonly<{ returnTo: string; serverProblem?: string; termsDate: string }>) {
+}: Readonly<{
+  returnTo: string;
+  serverProblem?: string;
+  termsVersion: string;
+  termsDate: string;
+}>) {
   const [clientProblem, setClientProblem] = useState<string | null>(null);
   const checkRef = useRef<HTMLInputElement>(null);
   const problem = clientProblem ?? serverProblem;
@@ -57,8 +63,8 @@ export function TermsForm({
           onChange={() => setClientProblem(null)}
         />
         <span>
-          Akceptuję Regulamin (wersja robocza z dnia {termsDate}) i potwierdzam zapoznanie się z
-          Polityką prywatności.
+          Akceptuję Regulamin (wersja {termsVersion} z dnia {termsDate}) i potwierdzam zapoznanie
+          się z Polityką prywatności.
         </span>
       </label>
       <button type="submit" className={`button button--primary ${styles.submit}`}>

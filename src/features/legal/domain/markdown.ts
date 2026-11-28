@@ -10,7 +10,7 @@ export type Inline =
   | { kind: "em"; text: string }
   | { kind: "link"; text: string; href: string };
 
-export type ListBlock = { kind: "list"; ordered: boolean; items: ListItem[] };
+export type ListBlock = { kind: "list"; ordered: boolean; items: ListItem[]; start?: number };
 
 export type ListItem = { inlines: Inline[]; children: ListBlock[] };
 
@@ -75,7 +75,7 @@ export function slugify(text: string): string {
 }
 
 const HEADING = /^(#{2,3}) (.+)$/;
-const LIST_LINE = /^( *)(?:(-)|\d+\.) (.*)$/;
+const LIST_LINE = /^( *)(?:(-)|(\d+)\.) (.*)$/;
 
 function splitRow(line: string): string[] {
   return line
@@ -92,7 +92,7 @@ function parseList(lines: string[]): ListBlock {
   let root: ListBlock | undefined;
 
   for (const line of lines) {
-    const [, spaces, dash, text] = LIST_LINE.exec(line)!;
+    const [, spaces, dash, number, text] = LIST_LINE.exec(line)!;
     const indent = spaces!.length;
 
     while (stack.length > 0 && indent < stack.at(-1)!.indent) {
@@ -107,6 +107,12 @@ function parseList(lines: string[]): ListBlock {
         ordered: dash === undefined,
         items: [],
       };
+
+      // Lista numerowana, która zaczyna się od innej liczby niż 1 (ciąg przerwany akapitem,
+      // np. ust. 6 po akapicie wstawionym między punkty), zachowuje numer pierwszego punktu.
+      if (number !== undefined && Number(number) !== 1) {
+        list.start = Number(number);
+      }
 
       if (top === undefined) {
         root = list;

@@ -30,6 +30,11 @@ export const LEGAL_PAGES = [
     path: "/oswiadczenie-o-zdjeciach",
     title: "Oświadczenie o zdjęciach",
   },
+  {
+    slug: "umowa-powierzenia",
+    path: "/umowa-powierzenia",
+    title: "Umowa powierzenia (załącznik nr 2)",
+  },
 ] as const;
 
 export type LegalSlug = (typeof LEGAL_PAGES)[number]["slug"];

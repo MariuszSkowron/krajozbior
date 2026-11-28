@@ -21,6 +21,7 @@ const LEGAL = [
   { path: "/polityka-prywatnosci", title: "Polityka prywatności" },
   { path: "/zasady", title: "Najważniejsze zasady" },
   { path: "/oswiadczenie-o-zdjeciach", title: "Oświadczenie o zdjęciach" },
+  { path: "/umowa-powierzenia", title: "Umowa powierzenia (załącznik nr 2)" },
 ] as const;
 
 // Each address may ask for three codes in 15 minutes: every test makes its own.
@@ -175,10 +176,12 @@ test.describe("strony prawne, stopka i pasek", () => {
     }
   });
 
-  test("pasek „Wersja testowa” prowadzi do zasad i zamyka się na czas sesji", async ({ page }) => {
+  test("pasek „Wersja konkursowa” prowadzi do zasad i zamyka się na czas sesji", async ({
+    page,
+  }) => {
     await page.goto("/");
 
-    const banner = page.getByRole("region", { name: "Wersja testowa" });
+    const banner = page.getByRole("region", { name: "Wersja konkursowa" });
 
     await expect(banner).toBeVisible();
     await expect(banner.getByRole("link", { name: "Najważniejsze zasady" })).toHaveAttribute(
@@ -194,13 +197,16 @@ test.describe("strony prawne, stopka i pasek", () => {
     await expect(banner).toBeHidden();
   });
 
-  test("cztery strony prawne mają noindex, ekran logowania także; strony kolekcji nie", async ({
+  test("strony prawne są indeksowane, ekran logowania ma noindex; strony kolekcji też nie mają", async ({
     page,
   }) => {
-    for (const legal of [...LEGAL, { path: "/login", title: "Logowanie" }]) {
+    for (const legal of LEGAL) {
       await page.goto(legal.path);
-      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+      await expect(page.locator('meta[name="robots"][content*="noindex"]')).toHaveCount(0);
     }
+
+    await page.goto("/login");
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
 
     await page.goto("/");
     await expect(page.locator('meta[name="robots"][content*="noindex"]')).toHaveCount(0);
@@ -215,7 +221,9 @@ test.describe("strony prawne, stopka i pasek", () => {
       for (const legal of LEGAL) {
         await page.goto(legal.path);
         await expect(page.getByRole("heading", { level: 1, name: legal.title })).toBeVisible();
-        await expect(page.getByText(/Wersja robocza z dnia/)).toBeVisible();
+        await expect(
+          page.getByText("Wersja 1.1 — obowiązuje od 28 listopada 2026 r."),
+        ).toBeVisible();
         await expectNoAccessibilityViolations(page);
       }
     });
