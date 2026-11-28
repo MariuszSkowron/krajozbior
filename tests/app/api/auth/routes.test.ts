@@ -75,6 +75,7 @@ vi.mock("@/features/identity/infrastructure", () => ({
   getCodeVerifyThrottle: () => codeThrottle,
   getOtpSendLimiter: () => otpLimiter,
   cleanupExpiredSessions: () => cleanup(),
+  cleanupAbandonedAccounts: async () => undefined,
   getClientIpHeader: () => ipHeader.value,
 }));
 

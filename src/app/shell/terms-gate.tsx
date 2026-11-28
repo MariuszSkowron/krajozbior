@@ -4,7 +4,6 @@ import { safeReturnTo } from "@/features/identity/domain/return-to";
 import { legalPage } from "@/features/legal/domain/legal-pages";
 import { TERMS_DRAFT_DATE } from "@/features/terms/domain/terms-version";
 
-import { LogoutForm } from "./logout-form";
 import styles from "./terms-gate.module.css";
 import { TermsForm } from "./terms-form";
 
@@ -22,7 +21,8 @@ export function termsGateProblem(code: string | null): string | undefined {
 // bieżącej wersji regulaminu, zastępuje stronę. Konto widzi tylko ten ekran i wylogowanie;
 // strony prawne dalej działają. O tym, kiedy ekran się pokazuje, decyduje TermsGuard
 // (terms-guard.tsx), który podaje ścieżkę strony i kod problemu z parametru `zgoda`.
-// Natywny formularz działa bez JavaScriptu. „Nie akceptuję” wylogowuje.
+// Natywny formularz działa bez JavaScriptu. „Nie akceptuję” wylogowuje i od razu usuwa konto
+// (adres e-mail i sesje), jeśli nigdy niczego nie zaakceptowało (regulamin rozdz. 4 ust. 2).
 export function TermsGate({
   path,
   problemCode,
@@ -75,6 +75,7 @@ function TermsGateBody({
         <li>Nie zapisujemy Twojej lokalizacji; zapamiętujemy samą wizytę.</li>
         <li>Twoich wizyt nie pokazujemy innym.</li>
         <li>Konto możesz w każdej chwili usunąć w ustawieniach; dane znikają od razu.</li>
+        <li>Jeśli nie akceptujesz regulaminu, od razu usuwamy Twój adres e-mail.</li>
         <li>Logujesz się kodem z e-maila. Nikomu go nie przekazuj.</li>
       </ul>
       <p className={styles.links}>
@@ -92,9 +93,11 @@ function TermsGateBody({
         serverProblem={problem}
         termsDate={TERMS_DRAFT_DATE}
       />
-      <LogoutForm className={`button button--outline ${styles.submit}`} reason="terms-declined">
-        Nie akceptuję — wyloguj
-      </LogoutForm>
+      <form method="post" action="/api/me/terms-decline">
+        <button className={`button button--outline ${styles.submit}`} type="submit">
+          Nie akceptuję — usuń konto
+        </button>
+      </form>
     </>
   );
 }

@@ -259,6 +259,15 @@ describe("home page of a guest", () => {
     expect(await render({ wylogowanie: "blad" })).toMatch(
       /role="status"[^>]*>Nie udało się wylogować\./,
     );
+    // After „Nie akceptuję” the page says the address is gone, never that it was only saved.
+    const declined = await render({ wylogowano: "odmowa" });
+
+    expect(declined).toContain("Usunęliśmy Twoje konto razem z adresem e-mail.");
+    expect(declined).not.toContain("Zapisaliśmy");
+    expect(await render({ wylogowano: "odmowa-konto" })).toContain(
+      "Konto działa dopiero po akceptacji regulaminu.",
+    );
+    expect(await render({ wylogowano: "odmowa-blad" })).toContain("nie udało się usunąć konta");
     // Nothing of the sign-out in the default page (the sorting status region is empty).
     const plain = await render();
 

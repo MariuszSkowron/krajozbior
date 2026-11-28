@@ -45,11 +45,14 @@ describe("the screen „Zanim zaczniesz” (E11-Q4 A)", () => {
     expect(html("//evil.example/x")).toContain('name="returnTo" value="/"');
   });
 
-  it("offers „Nie akceptuję — wyloguj” as a logout that names the reason", () => {
+  it("offers „Nie akceptuję — usuń konto” as a post to the decline route, with no owner in it", () => {
     const markup = html("/my");
 
     expect(markup).toMatch(
-      /<form action="\/api\/auth\/logout" method="post"><input type="hidden" name="reason" value="terms-declined"\/><button [^>]*type="submit">Nie akceptuję — wyloguj<\/button><\/form>/,
+      /<form action="\/api\/me\/terms-decline" method="post"><button [^>]*type="submit">Nie akceptuję — usuń konto<\/button><\/form>/,
+    );
+    expect(markup).toContain(
+      "Jeśli nie akceptujesz regulaminu, od razu usuwamy Twój adres e-mail.",
     );
   });
 
