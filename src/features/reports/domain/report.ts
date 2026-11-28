@@ -84,6 +84,11 @@ export function normalizeLineBreaks(text: string): string {
   return text.replace(/\r\n?/g, "\n");
 }
 
+/** Length of a description as validation sees it: line breaks once, trimmed, in characters. */
+export function countMessageCharacters(text: string): number {
+  return [...normalizeLineBreaks(text).trim()].length;
+}
+
 export function isReportCategory(value: unknown): value is ReportCategory {
   return typeof value === "string" && (REPORT_CATEGORIES as readonly string[]).includes(value);
 }

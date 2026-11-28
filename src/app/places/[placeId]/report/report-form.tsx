@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useHydrated } from "@/app/use-hydrated";
 import { REPORT_MESSAGE_MAX_LENGTH } from "@/features/reports/domain/limits";
 import {
-  normalizeLineBreaks,
+  countMessageCharacters,
   REPORT_CATEGORIES,
   REPORT_CATEGORY_LABELS,
   type ReportCategory,
@@ -84,7 +84,7 @@ export function ReportForm({ placeId }: Readonly<{ placeId: string }>) {
   const sentRef = useRef<HTMLDivElement>(null);
   const categoryRef = useRef<HTMLInputElement>(null);
   const messageRef = useRef<HTMLTextAreaElement>(null);
-  const length = [...normalizeLineBreaks(message)].length;
+  const length = countMessageCharacters(message);
   const over = Math.max(0, length - REPORT_MESSAGE_MAX_LENGTH);
 
   // The message that appears is where the focus goes (a screen reader reads it).
@@ -217,7 +217,7 @@ export function ReportForm({ placeId }: Readonly<{ placeId: string }>) {
           className={over > 0 ? `${styles.counter} ${styles.counterOver}` : styles.counter}
         >
           {length} / {REPORT_MESSAGE_MAX_LENGTH}
-          {over > 0 ? ` — ${formatCounterOver(over)}` : ""}
+          {over > 0 ? ` — ${formatCounterOver(over).toLowerCase()}` : ""}
         </p>
         {/* Announced only near the limit; a count at every keystroke would be noise. */}
         <p className={styles.visuallyHidden} aria-live="polite">

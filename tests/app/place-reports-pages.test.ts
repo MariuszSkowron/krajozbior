@@ -192,7 +192,7 @@ describe("'Moje zgłoszenia'", () => {
     expect(html).toContain("Nie masz jeszcze zgłoszeń.");
     expect(html).toContain("Zgłoś problem z miejscem");
     // a way on: to the collections
-    expect(html).toContain('href="/search"');
+    expect(html).toContain('href="/"');
     expect(html).toContain("Zobacz kolekcje");
   });
 

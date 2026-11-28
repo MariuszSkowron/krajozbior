@@ -54,7 +54,7 @@ export const OPEN_MY_REPORTS = "Otwórz „Moje zgłoszenia”";
 export const MY_REPORTS_EMPTY_LINK = "Zobacz kolekcje";
 /** On the place page, by the link to a report of a problem: how it differs from "Zgłoś naruszenie". */
 export const REPORT_PROBLEM_HINT = "Coś się nie zgadza na miejscu? Napisz do kuratora.";
-export const REPORT_CONTENT_HINT = "Treść narusza prawo lub prawa autorskie? Napisz do nas.";
+export const REPORT_CONTENT_HINT = "Treść jest bezprawna albo łamie regulamin? Napisz do nas.";
 export const SUBMIT_UNAVAILABLE_MESSAGE =
   "Nie udało się wysłać zgłoszenia. Spróbuj ponownie za chwilę.";
 

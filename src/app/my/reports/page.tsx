@@ -66,7 +66,7 @@ export default async function MyReportsPage() {
       {reports.length === 0 ? (
         <div className={styles.emptyState}>
           <p className={styles.empty}>{MY_REPORTS_EMPTY}</p>
-          <Link className="button button--outline" href="/search">
+          <Link className="button button--outline" href="/">
             {MY_REPORTS_EMPTY_LINK}
           </Link>
         </div>

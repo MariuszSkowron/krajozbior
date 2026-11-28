@@ -91,7 +91,9 @@ test.describe("reports of a problem with a place: the explorer", () => {
     await expect(
       explorer.getByText("Coś się nie zgadza na miejscu? Napisz do kuratora."),
     ).toBeVisible();
-    await expect(explorer.getByRole("link", { name: "Zgłoś naruszenie" })).toBeVisible();
+    await expect(
+      explorer.getByRole("main").getByRole("link", { name: "Zgłoś naruszenie" }),
+    ).toBeVisible();
     await explorer.getByRole("link", { name: "Zgłoś problem z miejscem" }).click();
     await expect(explorer).toHaveURL(new RegExp(`${placePath}/report$`));
     await waitForHydration(explorer);
@@ -132,6 +134,13 @@ test.describe("reports of a problem with a place: the explorer", () => {
     await expect(
       explorer.getByText("Opisz problem — przy tym rodzaju kurator potrzebuje kilku słów."),
     ).toBeVisible();
+
+    // a description over the limit: the counter turns to words and the error says by how much
+    await explorer.getByLabel("Co jest na miejscu inaczej?").fill("a".repeat(1001));
+    await expect(explorer.getByText("1001 / 1000 — za długi o 1 znak")).toBeVisible();
+    await send.click();
+    await expect(explorer.getByText("Opis jest za długi o 1 znak. Skróć go.")).toBeVisible();
+    await expect(explorer.getByText("niewidoczne znaki")).toHaveCount(0);
 
     // the real report
     await explorer.getByRole("radio", { name: CATEGORY }).check();
