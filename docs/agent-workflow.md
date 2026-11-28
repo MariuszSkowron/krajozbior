@@ -8,16 +8,16 @@ Repozytorium kodu jest publiczne, więc nic prywatnego tu nie trafia. Specyfikac
 
 ## 1. Role
 
-| Rola                     | Kto                                               | Co robi                                                                                                                        | Czego nie robi                                              |
-| ------------------------ | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| Właściciel               | człowiek                                          | akceptuje zakres i decyzje, ustawia statusy przeglądu (`scripts/review-status.ps1`), zatwierdza PR-y wrażliwe, zatwierdza push | nie uruchamia poleceń; nie jest autorem PR-ów agentów       |
-| Orkiestrator             | główna sesja Claude Code                          | dzieli pracę, przydziela stanowiska `ws-N`, dobiera poziom przeglądu, ustawia gotowość i auto-merge                            | nie implementuje dużych zmian sam; nie zatwierdza PR        |
-| Autor                    | subagent (zwykle Sonnet, przy projektowaniu Opus) | implementuje zadanie, uruchamia lokalną bramkę, otwiera draft PR                                                               | nie oznacza PR jako gotowego, nie scala                     |
-| Recenzent kodu           | świeży subagent                                   | czyta diff, komentuje PR, zgłasza werdykt do statusu `agent-review`                                                            | nie poprawia kodu; nie publikuje ustaleń bezpieczeństwa     |
-| Recenzent bezpieczeństwa | świeży subagent (Opus)                            | raport do `<docs>/.ai/security/`, zadanie w `<docs>`, werdykt do statusu `security-review`                                     | nie komentuje szczegółów w publicznym PR                    |
-| Agent poprawek           | świeży subagent                                   | wprowadza uwagi, wypycha jedną paczkę                                                                                          | nie ustawia statusów na własnych poprawkach                 |
-| Weryfikator poprawek     | kolejny świeży subagent                           | sprawdza poprawki niezależnie od autora, zgłasza werdykt do statusów na nowym commicie                                         | nie poprawia sam                                            |
-| Bot                      | aplikacja GitHub `<app-slug>[bot]`                | jedyna tożsamość agentów na tym komputerze: push, PR-y, statusy, zadania w `<docs>`                                            | nie ma uprawnień administratora; nie jest właścicielem kodu |
+| Rola                     | Kto                                               | Co robi                                                                                                                                              | Czego nie robi                                              |
+| ------------------------ | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Właściciel               | człowiek                                          | akceptuje zakres i decyzje, zatwierdza PR-y wrażliwe, zatwierdza push (okno zgody)                                                                   | nie uruchamia poleceń; nie jest autorem PR-ów agentów       |
+| Orkiestrator             | główna sesja Claude Code                          | dzieli pracę, przydziela stanowiska `ws-N`, dobiera poziom przeglądu, ustawia statusy przeglądu (`scripts/review-status.ps1`), gotowość i auto-merge | nie implementuje dużych zmian sam; nie zatwierdza PR        |
+| Autor                    | subagent (zwykle Sonnet, przy projektowaniu Opus) | implementuje zadanie, uruchamia lokalną bramkę, otwiera draft PR                                                                                     | nie oznacza PR jako gotowego, nie scala                     |
+| Recenzent kodu           | świeży subagent                                   | czyta diff, komentuje PR, kończy werdyktem w raporcie (statusu nie ustawia)                                                                          | nie poprawia kodu; nie publikuje ustaleń bezpieczeństwa     |
+| Recenzent bezpieczeństwa | świeży subagent (Opus)                            | raport do `<docs>/.ai/security/`, zadanie w `<docs>`, werdykt w raporcie (statusu nie ustawia)                                                       | nie komentuje szczegółów w publicznym PR                    |
+| Agent poprawek           | świeży subagent                                   | wprowadza uwagi, wypycha jedną paczkę                                                                                                                | nie ustawia statusów na własnych poprawkach                 |
+| Weryfikator poprawek     | kolejny świeży subagent                           | sprawdza poprawki niezależnie od autora, kończy werdyktem w raporcie                                                                                 | nie poprawia sam                                            |
+| Bot                      | aplikacja GitHub `<app-slug>[bot]`                | jedyna tożsamość agentów na tym komputerze: push, PR-y, statusy, zadania w `<docs>`                                                                  | nie ma uprawnień administratora; nie jest właścicielem kodu |
 
 ## 2. Etapy
 
@@ -28,7 +28,7 @@ Zadanie jest issue w repozytorium dokumentacji (publiczne repozytorium ma wyłą
 ### Etap 2. Implementacja
 
 1. Orkiestrator przydziela autorowi wolne stanowisko (`ws-1` albo `ws-2`, `docs/testing.md`, „Wydajność lokalna”) i gałąź od aktualnego `origin/main`.
-2. Autor implementuje, uruchamia `npm run check` i testy ukierunkowane, a plan i run zapisuje w `<docs>/.ai/runs/`.
+2. Autor implementuje, a przed oddaniem uruchamia lokalnie `npm run check` (zawiera `test:coverage` i próg pokrycia domeny), testy integracyjne plików dotykających zmienionego przypadku użycia i spece E2E dotkniętych ekranów (`docs/testing.md`). Plan i run zapisuje w `<docs>/.ai/runs/`. Kolejkę lokalnego E2E prowadzi orkiestrator: autor nie czeka na wolne środowisko, a E2E dostaje w zleceniu tylko wtedy, gdy orkiestrator przydzielił mu kolejkę; inaczej kończy na kodzie, `npm run check` i testach integracyjnych, a dotknięte spece E2E przed pushem uruchamia orkiestrator albo osobny agent.
 3. Autor otwiera **draft** PR (`gh pr create --draft`) według `.github/pull_request_template.md`. CI uruchamia pełny zestaw także dla draftu (repozytorium jest publiczne, minuty są bezpłatne, a żaden job nie ma warunku pomijania). Draft oznacza tylko „jeszcze nie do scalenia”. Mimo to wypychaj zmiany w paczkach, bo każdy push to kilkanaście minut kolejki.
 4. Nowa funkcja z danymi prywatnymi albo nowa trasa API dopisuje swoje ścieżki do `.github/CODEOWNERS` w tym samym PR (sekcja 3).
 
@@ -44,7 +44,7 @@ Poziom przeglądu zależy od ryzyka:
 
 Zasady przeglądu:
 
-- Recenzent czyta diff PR (`gh pr diff <n>` albo `git -C <worktree> diff origin/main...HEAD`) i tylko pliki potrzebne do oceny, nie całe repozytorium. Uruchamia testy ukierunkowane; pełny zestaw uruchamia autor lokalnie i CI.
+- Recenzent czyta diff PR (`gh pr diff <n>` albo `git -C <worktree> diff origin/main...HEAD`) i tylko pliki potrzebne do oceny, nie całe repozytorium. Uruchamia testy związane z diffem; autor uruchomił swój zestaw lokalnie przed oddaniem (etap 2), a pełne zestawy integracji i E2E potwierdza CI.
 - Uwagi o jakości kodu mogą trafić do publicznego PR jako komentarz review (treść z pliku: `gh pr review <n> --comment --body-file <plik>`).
 - Ustalenia bezpieczeństwa trafiają do raportu `<docs>/.ai/security/YYYY-MM-DD-pr-<n>.md` i do zadania w `<docs>` z etykietą `security`. Publiczny PR dostaje tylko status `security-review`.
 - Recenzent sprawdza, czy nowe ścieżki wrażliwe trafiły do `CODEOWNERS`; brak wpisu to uwaga blokująca.
@@ -75,13 +75,13 @@ Zasady przeglądu:
 
 Ruleset wymaga dwóch statusów commita. Ustawia się je na **bieżącym** commicie PR (każdy push tworzy nowy commit bez statusów).
 
-**Statusy ustawia właściciel skryptem** `scripts/review-status.ps1`, bo tryb automatyczny Claude Code blokuje agentowi ustawianie statusów przeglądu na własnym PR jako omijanie nadzoru. Agent kończy przegląd werdyktem w komentarzu lub raporcie i prosi właściciela o statusy; reguły `allow` w ustawieniach agenta nie poszerzamy. Skrypt odświeża token aplikacji, czyta SHA bieżącego commitu i ustawia oba statusy:
+**Statusy ustawia orkiestrator skryptem** `scripts/review-status.ps1` (zgoda właściciela z 18.11), dopiero gdy bieżący commit ma przegląd kodu, przegląd bezpieczeństwa (poziom A) i weryfikację wszystkich commitów z kodem po ostatnim przeglądzie. Recenzenci i weryfikatorzy kończą werdyktem w komentarzu lub raporcie i statusów nie ustawiają; reguły `allow` w ustawieniach agenta nie poszerzamy. Gdy tryb automatyczny Claude Code zablokuje skrypt, orkiestrator prosi właściciela o statusy i nie obchodzi blokady. Skrypt odświeża token aplikacji, czyta SHA bieżącego commitu i ustawia oba statusy:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/review-status.ps1 -Pr <n>[,<n>...]
 ```
 
-Opcje: `-CarryOver` (po aktualizacji gałęzi o `main` bez konfliktów; dopisuje do opisu „przeniesione po aktualizacji z main”), `-Only agent-review|security-review` (jeden status), `-State failure` (opis „do poprawy”), `-DryRun` (tylko wypisuje polecenia, bez połączenia z GitHub), `-SkipToken` (bez odświeżania tokenu).
+Opcje: `-CarryOver` (tylko przy czystym merge `main` bez konfliktów i bez nowych commitów z kodem po ostatnim przeglądzie; dopisuje do opisu „przeniesione po aktualizacji z main”), `-Only agent-review|security-review` (jeden status), `-State failure` (opis „do poprawy”), `-DryRun` (tylko wypisuje polecenia, bez połączenia z GitHub), `-SkipToken` (bez odświeżania tokenu).
 
 | Status            | `success`                             | `failure`                             | Czyj werdykt                                                                                   |
 | ----------------- | ------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -92,11 +92,25 @@ Opis statusu `security-review` jest zawsze neutralny: bez nazwy podatności, pli
 
 **Statusy to bramka wygody, nie zabezpieczenie.** Ruleset przyjmuje statusy `agent-review` i `security-review` tylko od aplikacji projektu (`integration_id` = App ID, ustawia `scripts/setup-github.ps1`), ale aplikacja to właśnie agent: bot ustawia je także na własnym PR. Statusy chronią przed scaleniem PR-a, którego nikt nie przejrzał przez pomyłkę. Przed złośliwym lub zmanipulowanym agentem chroni wyłącznie `CODEOWNERS` z zatwierdzeniem właściciela (sekcja 3).
 
-**Aktualizacja gałęzi o nowy `main`.** Po każdym scaleniu innego PR-a gałąź trzeba zaktualizować (ruleset wymaga gałęzi aktualnej). Robi to orkiestrator przez merge, bez rebase i bez force-push. Gdy merge przeszedł bez konfliktów, orkiestrator prosi właściciela o przeniesienie obu statusów na nowy commit (`scripts/review-status.ps1 -Pr <n> -CarryOver`, opis „…, przeniesione po aktualizacji z main”). Gdy były konflikty, ich rozwiązanie przechodzi przegląd poziomu B. Aktualizacja (także przycisk **Update branch** w GitHub) tworzy nowy commit, a ruleset unieważnia wtedy zatwierdzenie właściciela (`dismiss_stale_reviews_on_push: true`). PR ze ścieżkami z `CODEOWNERS` trzeba więc po każdej aktualizacji zatwierdzić ponownie. To świadomy wybór: bezpieczeństwo przed wygodą, bo inaczej po zatwierdzeniu dałoby się dopisać do PR-a dowolną zmianę.
+**Aktualizacja gałęzi o nowy `main`.** Po każdym scaleniu innego PR-a gałąź trzeba zaktualizować (ruleset wymaga gałęzi aktualnej). Robi to orkiestrator przez merge, bez rebase i bez force-push. Orkiestrator przenosi oba statusy na nowy commit (`scripts/review-status.ps1 -Pr <n> -CarryOver`, opis „…, przeniesione po aktualizacji z main”) tylko wtedy, gdy merge przeszedł bez konfliktów **i** gałąź nie ma nowych commitów z kodem po ostatnim przeglądzie. Przed każdym ustawieniem statusów (także `-CarryOver`) orkiestrator porównuje HEAD z commitem, na którym zakończył się ostatni przegląd i weryfikacja. Każdy commit z kodem po nim wymaga świeżego weryfikatora (Opus, `om-code-review` i `om-auto-sec-report-pr` na diffie od tego commita). Gdy były konflikty, ich rozwiązanie przechodzi przegląd poziomu B. Aktualizacja (także przycisk **Update branch** w GitHub) tworzy nowy commit, a ruleset unieważnia wtedy zatwierdzenie właściciela (`dismiss_stale_reviews_on_push: true`). PR ze ścieżkami z `CODEOWNERS` trzeba więc po każdej aktualizacji zatwierdzić ponownie. To świadomy wybór: bezpieczeństwo przed wygodą, bo inaczej po zatwierdzeniu dałoby się dopisać do PR-a dowolną zmianę.
 
 ### Etap 6. Scalenie
 
 Warunki: wątki review rozwiązane, oba statusy zielone na bieżącym commicie, uwagi poważne rozstrzygnięte przez właściciela.
+
+**Przed prośbą o zatwierdzenie PR (i przed ustawieniem statusów).** Lista powstaje z tabeli poziomów w etapie 3, nie z pamięci. Dla każdego PR orkiestrator sprawdza i zapisuje w runie:
+
+1. poziom przeglądu (A, B albo C) i jego uzasadnienie;
+2. raport przeglądu kodu dla bieżącego commita;
+3. dla poziomu A osobny raport bezpieczeństwa w `<docs>/.ai/security/`;
+4. cztery przeglądy tego, co widzi użytkownik (etap 3) albo „nie dotyczy” z powodem;
+5. niezależną weryfikację każdego commita z kodem, który doszedł po ostatnim przeglądzie (w tym poprawek i scaleń `main`);
+6. wynik lokalnych kontroli autora (`npm run check` i testy dotkniętego zakresu) oraz zielone CI;
+7. statusy `agent-review` i `security-review` ustawione dopiero na końcu, na bieżącym commicie.
+
+Przy przekazaniu między sesjami do każdego PR dopisz „przeglądy: zrobione / brak”.
+
+**Kroki scalenia** (po liście kontrolnej wyżej):
 
 1. **Poczekaj, aż skończą się wszystkie przebiegi CI ostatniego pushu i będą zielone.** Nie wypychaj i nie włączaj auto-merge w jednym ruchu: dwa przebiegi startujące sekundę po sobie anulują się nawzajem.
 
@@ -116,7 +130,7 @@ Właściciel nigdy nie scala przy wszystkich checkach pominiętych (szary symbol
 
 - Orkiestrator zamyka zadanie w `<docs>` (`gh issue close <N> --repo {owner}/{repo}-docs --comment "..."`), przenosi specyfikację do `<docs>/.ai/specs/implemented/` i zapisuje run.
 - Pozostałe otwarte PR-y aktualizuje o nowy `main` (merge, nie rebase, bez force-push) i przepuszcza przez CI, po jednym. Ruleset i tak nie scali PR-a nieaktualnego. PR-y ze ścieżkami z `CODEOWNERS` wracają po aktualizacji do właściciela po ponowne zatwierdzenie.
-- Zmiany w `<docs>` agent commituje bezpośrednio na `main` repozytorium dokumentacji (bez PR). Push wymaga zgody właściciela; rób go w paczkach, np. na koniec sesji: `git -C ../<projekt>-docs push origin main`.
+- Zmiany w `<docs>` agent commituje bezpośrednio na `main` repozytorium dokumentacji (bez PR). Push wymaga zgody właściciela; rób go w paczkach, np. na koniec sesji: `git -C ../<projekt>-docs push origin HEAD` (okno zgody). Nigdy polecenie zakończone na `main`: reguła `deny` blokuje je bez okna zgody.
 
 ## 3. Wyjątki od auto-merge (zatwierdza właściciel)
 
@@ -177,7 +191,7 @@ Skille czytają konfigurację z `.ai/agentic.config.json` w katalogu bieżącego
 | ----------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Implementacja           | zlecenie dla subagenta, `om-check-and-commit`                        | `om-auto-create-pr`, `om-auto-create-pr-loop`, `om-auto-implement-spec` i `om-auto-write-spec` commitują plan lub specyfikację do PR. Tu się to nie uda (ścieżka ignorowana, job `guard`). Lokalne rozszerzenie każe się zatrzymać. Rozwiązanie docelowe: wydzielić skill (`om-eject-and-customize`) i zapisywać plan w `<docs>`. |
 | Otwarcie PR             | `om-open-pr`                                                         | Skill otwiera PR gotowy; rozszerzenie zmienia to na draft i przenosi operacje na zadaniu do `<docs>`.                                                                                                                                                                                                                             |
-| Przegląd kodu           | `om-code-review`, `om-auto-review-pr`                                | Skill zatwierdza lub odrzuca PR formalnym review; tu werdykt to komentarz i status `agent-review` (rozszerzenie i `.ai/trackers/github.md`).                                                                                                                                                                                      |
+| Przegląd kodu           | `om-code-review`, `om-auto-review-pr`                                | Skill zatwierdza lub odrzuca PR formalnym review; tu werdykt to komentarz review i raport; status `agent-review` ustawia orkiestrator (etap 5).                                                                                                                                                                                   |
 | Przegląd bezpieczeństwa | `om-auto-sec-report-pr`                                              | `securityReport.publish: "local"` zapisuje raport w ignorowanym `.ai/analysis/`; skill nie umie zapisać poza repozytorium, więc agent przenosi raport do `<docs>/.ai/security/` ręcznie. Nigdy `publish: "pr"`.                                                                                                                   |
 | Poprawki                | `om-auto-fix-pr`                                                     | Skill oznacza PR jako gotowy przy przygotowaniu do scalenia; rozszerzenie tego zabrania (gotowość dopiero w etapie 6). Wprowadza tylko uwagi właściciela, bota i zleconego przeglądu.                                                                                                                                             |
 | Scalenie                | brak skilla                                                          | `om-approve-merge-pr` zatwierdza i scala bezpośrednio, co tu jest zabronione; rozszerzenie każe się zatrzymać. Etap 6 wykonuje orkiestrator według tego dokumentu.                                                                                                                                                                |
