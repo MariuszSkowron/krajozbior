@@ -74,7 +74,14 @@ export async function POST(request: Request) {
 
         return decision.reason === "global"
           ? failure(request, returnTo, 503, "code_unavailable", retryAfter, entry)
-          : failure(request, returnTo, 429, "code_too_many_attempts", retryAfter, entry);
+          : failure(
+              request,
+              returnTo,
+              429,
+              decision.reason === "daily" ? "code_daily_limit" : "code_too_many_attempts",
+              retryAfter,
+              entry,
+            );
       }
 
       // Best effort and bounded; its failure never blocks the code.
