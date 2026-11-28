@@ -10,11 +10,15 @@ const mocks = vi.hoisted(() => ({
   pathname: "/",
   search: "",
   termsAccepted: true,
+  acceptedBefore: false,
   url: "/",
 }));
 
 vi.mock("@/app/auth-photo-loader", () => ({ loadAuthPhoto: async () => null }));
-vi.mock("@/app/shell/terms-state", () => ({ shellTermsAccepted: async () => mocks.termsAccepted }));
+vi.mock("@/app/shell/terms-state", () => ({
+  shellTermsAccepted: async () => mocks.termsAccepted,
+  shellTermsEverAccepted: async () => mocks.acceptedBefore,
+}));
 vi.mock("next/headers", () => ({
   // The address of the first request, as the proxy passed it before the fix of the client
   // navigation bypass (F-K3, M1). The shell must not decide by it: after a `next/link`
@@ -75,6 +79,7 @@ beforeEach(() => {
   mocks.search = "";
   mocks.themeCookie = undefined;
   mocks.termsAccepted = true;
+  mocks.acceptedBefore = false;
   mocks.url = "/";
 });
 
@@ -96,7 +101,7 @@ describe("app shell", () => {
     const html = await shell();
 
     expect(html).toMatch(
-      /role="region" aria-label="Wersja testowa"><p><strong>Wersja testowa<\/strong> — dokumenty prawne w wersji roboczej\. <a href="\/zasady">Najważniejsze zasady<\/a><\/p><button type="button"[^>]*>Zamknij<\/button>/,
+      /role="region" aria-label="Wersja konkursowa"><p><strong>Wersja konkursowa<\/strong> — część funkcji uruchomimy później\. <a href="\/zasady">Najważniejsze zasady<\/a><\/p><button type="button"[^>]*>Zamknij<\/button>/,
     );
   });
 
@@ -143,6 +148,21 @@ describe("app shell", () => {
       expect(header(html)).toContain("Wyloguj");
       expect(html).toContain("<footer");
     });
+
+    it.each([
+      [false, "Nie akceptuję — usuń konto"],
+      [true, "Nie akceptuję — wyloguj"],
+    ])(
+      "words the decline button by the acceptance history (acceptedBefore=%s)",
+      async (acceptedBefore, label) => {
+        mocks.getActor.mockResolvedValue(as("user"));
+        mocks.termsAccepted = false;
+        mocks.acceptedBefore = acceptedBefore;
+        mocks.url = mocks.pathname = "/my";
+
+        expect(await shell()).toContain(`${label}</button>`);
+      },
+    );
 
     it.each(["/regulamin", "/polityka-prywatnosci?x=1", "/zasady/", "/oswiadczenie-o-zdjeciach"])(
       "keeps the legal page %s readable before the acceptance, without the menu",

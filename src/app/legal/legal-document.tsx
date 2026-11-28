@@ -40,7 +40,13 @@ function renderList(block: ListBlock, key: number): ReactNode {
     </li>
   ));
 
-  return block.ordered ? <ol key={key}>{items}</ol> : <ul key={key}>{items}</ul>;
+  return block.ordered ? (
+    <ol key={key} start={block.start}>
+      {items}
+    </ol>
+  ) : (
+    <ul key={key}>{items}</ul>
+  );
 }
 
 export function LegalBlocks({ blocks }: Readonly<{ blocks: readonly Block[] }>) {

@@ -40,10 +40,9 @@ function close() {
   listeners.forEach((listener) => listener());
 }
 
-// The "Wersja testowa" bar (E11-Q2 A, spec 5.9): the legal texts are drafts, and the bar says so on
-// every page until the public launch. It can be closed for the session. The links are plain
-// anchors on purpose: a full page load redraws the shell, so the terms screen cannot be skipped
-// by a soft navigation.
+// The "Wersja konkursowa" bar (D-67 point 6): some functions are launched later, and the bar says
+// so on every page. It can be closed for the session. The links are plain anchors on purpose: a
+// full page load redraws the shell, so the terms screen cannot be skipped by a soft navigation.
 export function TestVersionBanner() {
   const closed = useSyncExternalStore(subscribe, isClosed, () => false);
 
@@ -52,9 +51,9 @@ export function TestVersionBanner() {
   }
 
   return (
-    <div className={styles.testBanner} role="region" aria-label="Wersja testowa">
+    <div className={styles.testBanner} role="region" aria-label="Wersja konkursowa">
       <p>
-        <strong>Wersja testowa</strong> — dokumenty prawne w wersji roboczej.{" "}
+        <strong>Wersja konkursowa</strong> — część funkcji uruchomimy później.{" "}
         <a href="/zasady">Najważniejsze zasady</a>
       </p>
       <button type="button" className={styles.testBannerClose} onClick={close}>

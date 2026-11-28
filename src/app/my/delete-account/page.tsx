@@ -7,6 +7,7 @@ import { getRequestActor, loginHref } from "@/app/request-actor";
 import { LogoutForm } from "@/app/shell/logout-form";
 import { DELETE_CONFIRMATION_WORD, isSignInFresh } from "@/features/account/domain/deletion";
 import { getIdentityProvider } from "@/features/identity/infrastructure";
+import { CONTACT_ADDRESSES } from "@/features/legal/domain/legal-pages";
 
 import styles from "./delete-account.module.css";
 
@@ -21,8 +22,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 // What the refusal codes of the route mean for the person (the form posts
 // natively and the route redirects back here with `?blad=`).
 const messages: Record<string, string> = {
-  managed_account:
-    "Tego konta nie usuniesz samodzielnie: jesteś jedyną osobą w organizacji. Napisz do zespołu, a ustalimy, co zrobić z treściami organizacji.",
+  managed_account: `Tego konta nie usuniesz samodzielnie: jesteś jedyną osobą w zespole organizacji. Napisz do nas na adres ${CONTACT_ADDRESSES.partners} — dodamy do zespołu inną osobę albo ustalimy, co zrobić z kolekcjami organizacji.`,
   invalid_confirmation: `Wpisz dokładnie słowo ${DELETE_CONFIRMATION_WORD}, aby potwierdzić usunięcie.`,
   stale_session: "Minęło ponad 15 minut od logowania. Zaloguj się ponownie, aby usunąć konto.",
   invalid_request: "Nie udało się odczytać formularza. Spróbuj jeszcze raz.",

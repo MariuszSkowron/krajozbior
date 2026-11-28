@@ -172,6 +172,12 @@ function expectMediaVolumes(config: ComposeConfig, source: string, backupState: 
 }
 
 describe("server configuration (deploy/compose.yaml)", () => {
+  dockerComposeIt("switches place reports on for the app (D-66)", () => {
+    const config = composeConfig(SERVER, ["--profile", "ops"]);
+
+    expect(config.services.app?.environment?.FEATURE_PLACE_REPORTS).toBe("true");
+  });
+
   dockerComposeIt("publishes ports only for the proxy", () => {
     const config = composeConfig(SERVER, ["--profile", "ops"]);
 

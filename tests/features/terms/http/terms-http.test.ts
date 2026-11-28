@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TermsDeps } from "@/features/terms/application/terms-types";
 import { CURRENT_TERMS_VERSION } from "@/features/terms/domain/terms-version";
 
-const provider = vi.hoisted(() => ({ getActor: vi.fn() }));
+const provider = vi.hoisted(() => ({ getActor: vi.fn(), signOut: vi.fn() }));
+const deleteAccount = vi.hoisted(() => vi.fn());
 
 vi.mock("@/features/identity/infrastructure", () => ({
   getIdentityProvider: () => provider,
+  deleteNeverAcceptedAccount: deleteAccount,
 }));
 vi.mock("@/features/terms/infrastructure/terms-deps", () => ({
   getTermsDeps: () => {
@@ -14,13 +16,14 @@ vi.mock("@/features/terms/infrastructure/terms-deps", () => ({
   },
 }));
 
-const { handleTermsAcceptance } = await import("@/features/terms/http/terms-http");
+const { handleTermsAcceptance, handleTermsDecline } =
+  await import("@/features/terms/http/terms-http");
 
 const actor = { id: "11111111-1111-4111-8111-111111111111", role: "user" } as const;
 const accept = vi.fn(async () => undefined);
 const deps = {
   withUserContext: async (_a: unknown, work: (tx: never) => Promise<unknown>) => work({} as never),
-  repository: { hasAccepted: async () => false, accept },
+  repository: { hasAccepted: async () => false, hasAnyAcceptance: async () => false, accept },
 } as unknown as TermsDeps;
 
 function post(body: string, contentType: string, headers: Record<string, string> = {}) {
@@ -150,5 +153,72 @@ describe("POST /api/me/terms-acceptance", () => {
     expect(redirect.headers.get("Location")).toBe("/?zgoda=niedostepny");
     expect(console.error).toHaveBeenCalledWith("Terms acceptance failed:", "Error");
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
+  });
+});
+
+describe("POST /api/me/terms-decline", () => {
+  const decline = (headers: Record<string, string> = {}) =>
+    new Request("http://localhost/api/me/terms-decline", {
+      method: "POST",
+      headers,
+      body: "userId=22222222-2222-4222-8222-222222222222",
+    });
+
+  beforeEach(() => {
+    provider.signOut.mockReset().mockResolvedValue(["session=; Max-Age=0"]);
+    deleteAccount.mockReset().mockResolvedValue(true);
+  });
+
+  it("signs the session out, deletes the account of the session and clears the cookies", async () => {
+    const response = await handleTermsDecline(decline());
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("Location")).toBe("/?wylogowano=odmowa");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(response.headers.getSetCookie().join("\n")).toContain("session=; Max-Age=0");
+    // The account comes from the session, never from the body.
+    expect(deleteAccount).toHaveBeenCalledExactlyOnceWith(actor.id);
+  });
+
+  it("says the account stayed when the database kept it", async () => {
+    deleteAccount.mockResolvedValue(false);
+
+    expect((await handleTermsDecline(decline())).headers.get("Location")).toBe(
+      "/?wylogowano=odmowa-konto",
+    );
+  });
+
+  it("stays signed out and says so when the deletion fails, logging only the class", async () => {
+    deleteAccount.mockRejectedValue(new Error("db down: secret"));
+
+    const response = await handleTermsDecline(decline());
+
+    expect(response.headers.get("Location")).toBe("/?wylogowano=odmowa-blad");
+    expect(response.headers.getSetCookie().join("\n")).toContain("session=; Max-Age=0");
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
+  });
+
+  it("deletes nothing when the sign-out fails", async () => {
+    provider.signOut.mockRejectedValue(new Error("boom"));
+
+    expect((await handleTermsDecline(decline())).headers.get("Location")).toBe(
+      "/?wylogowanie=blad",
+    );
+    expect(deleteAccount).not.toHaveBeenCalled();
+  });
+
+  it("sends a guest to the sign-in and deletes nothing", async () => {
+    provider.getActor.mockResolvedValue(null);
+
+    expect((await handleTermsDecline(decline())).headers.get("Location")).toBe("/login");
+    expect(deleteAccount).not.toHaveBeenCalled();
+  });
+
+  it("refuses a foreign origin before anything happens", async () => {
+    const response = await handleTermsDecline(decline({ origin: "http://evil.example" }));
+
+    expect(response.status).toBe(403);
+    expect(provider.getActor).not.toHaveBeenCalled();
+    expect(deleteAccount).not.toHaveBeenCalled();
   });
 });

@@ -20,7 +20,14 @@ const LEGAL = [
   { path: "/regulamin", title: "Regulamin" },
   { path: "/polityka-prywatnosci", title: "Polityka prywatności" },
   { path: "/zasady", title: "Najważniejsze zasady" },
-  { path: "/oswiadczenie-o-zdjeciach", title: "Oświadczenie o zdjęciach" },
+  {
+    path: "/oswiadczenie-o-zdjeciach",
+    title: "Oświadczenie o prawach do zdjęcia i licencja (załącznik nr 1)",
+  },
+  {
+    path: "/umowa-powierzenia",
+    title: "Umowa powierzenia przetwarzania danych osobowych (załącznik nr 2)",
+  },
 ] as const;
 
 // Each address may ask for three codes in 15 minutes: every test makes its own.
@@ -103,6 +110,19 @@ async function signInWithCode(page: Page, email: string, entry: "login" | "signu
   await expect(page).not.toHaveURL(/\/login/);
 }
 
+async function accountCount(email: string): Promise<number> {
+  const client = new Client({
+    connectionString: parseE2eAdminDatabaseUrl(process.env.DATABASE_ADMIN_URL),
+  });
+
+  await client.connect();
+  try {
+    return (await client.query(`select 1 from auth.users where email = $1`, [email])).rowCount ?? 0;
+  } finally {
+    await client.end();
+  }
+}
+
 async function acceptances(email: string): Promise<{ terms_version: string }[]> {
   const client = new Client({
     connectionString: parseE2eAdminDatabaseUrl(process.env.DATABASE_ADMIN_URL),
@@ -175,10 +195,12 @@ test.describe("strony prawne, stopka i pasek", () => {
     }
   });
 
-  test("pasek „Wersja testowa” prowadzi do zasad i zamyka się na czas sesji", async ({ page }) => {
+  test("pasek „Wersja konkursowa” prowadzi do zasad i zamyka się na czas sesji", async ({
+    page,
+  }) => {
     await page.goto("/");
 
-    const banner = page.getByRole("region", { name: "Wersja testowa" });
+    const banner = page.getByRole("region", { name: "Wersja konkursowa" });
 
     await expect(banner).toBeVisible();
     await expect(banner.getByRole("link", { name: "Najważniejsze zasady" })).toHaveAttribute(
@@ -194,13 +216,16 @@ test.describe("strony prawne, stopka i pasek", () => {
     await expect(banner).toBeHidden();
   });
 
-  test("cztery strony prawne mają noindex, ekran logowania także; strony kolekcji nie", async ({
+  test("strony prawne są indeksowane, ekran logowania ma noindex; strony kolekcji też nie mają", async ({
     page,
   }) => {
-    for (const legal of [...LEGAL, { path: "/login", title: "Logowanie" }]) {
+    for (const legal of LEGAL) {
       await page.goto(legal.path);
-      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+      await expect(page.locator('meta[name="robots"][content*="noindex"]')).toHaveCount(0);
     }
+
+    await page.goto("/login");
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
 
     await page.goto("/");
     await expect(page.locator('meta[name="robots"][content*="noindex"]')).toHaveCount(0);
@@ -215,7 +240,9 @@ test.describe("strony prawne, stopka i pasek", () => {
       for (const legal of LEGAL) {
         await page.goto(legal.path);
         await expect(page.getByRole("heading", { level: 1, name: legal.title })).toBeVisible();
-        await expect(page.getByText(/Wersja robocza z dnia/)).toBeVisible();
+        await expect(
+          page.getByText("Wersja 1.1 — obowiązuje od 28 listopada 2026 r."),
+        ).toBeVisible();
         await expectNoAccessibilityViolations(page);
       }
     });
@@ -332,28 +359,30 @@ test.describe("ekran „Zanim zaczniesz”", () => {
     await expect(page.getByRole("navigation", { name: "Główna" })).toHaveCount(0);
   });
 
-  test("„Nie akceptuję” wylogowuje i mówi, jak usunąć adres; po ponownym logowaniu ekran wraca", async ({
+  test("„Nie akceptuję” wylogowuje i od razu usuwa konto; ponowne logowanie zakłada nowe", async ({
     page,
   }) => {
     const email = newAddress("decline");
 
     await signInWithCode(page, email);
     await expect(gateHeading(page)).toBeVisible();
+    expect(await accountCount(email)).toBe(1);
 
-    await page.getByRole("button", { name: "Nie akceptuję — wyloguj" }).click();
+    await page.getByRole("button", { name: "Nie akceptuję — usuń konto" }).click();
 
     await expect(page).toHaveURL(/\/\?wylogowano=odmowa$/);
-    const message = page
-      .getByRole("status")
-      .filter({ hasText: "Konto działa dopiero po akceptacji" });
-
-    await expect(message).toContainText("po akceptacji regulaminu");
-    await expect(message.getByRole("link", { name: "prywatnosc@krajozbior.pl" })).toBeVisible();
+    await expect(
+      page
+        .getByRole("status")
+        .filter({ hasText: "Usunęliśmy Twoje konto razem z adresem e-mail." }),
+    ).toBeVisible();
     await expect(page.getByRole("banner").getByRole("link", { name: "Zaloguj się" })).toBeVisible();
+    expect(await accountCount(email)).toBe(0);
     expect(await acceptances(email)).toEqual([]);
 
     await signInWithCode(page, email);
     await expect(gateHeading(page)).toBeVisible();
+    expect(await accountCount(email)).toBe(1);
   });
 
   test("odmowa akceptacji bez zaznaczonego pola po stronie serwera wraca na ekran z komunikatem", async ({

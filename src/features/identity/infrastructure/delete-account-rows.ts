@@ -8,6 +8,15 @@ import { SoleOrganizationMemberError } from "../domain/identity-provider";
 // for an address: `<type>-otp-<e-mail>` (and `change-email-otp-<id>:<new e-mail>`).
 const CODE_TYPES = ["sign-in", "email-verification", "forget-password"] as const;
 
+export type DeleteAccountOptions = Readonly<{
+  /**
+   * Delete only when the account never accepted any version of the terms, has the plain role and
+   * no organization, and is at least this many days old (0 = any age). Otherwise nothing is
+   * deleted and the result is false (privacy policy 1.1, section 9).
+   */
+  onlyAbandonedOlderThanDays?: number;
+}>;
+
 /**
  * Deletes one account as krajozbior_auth, in one transaction (E9-5, D-E9-3):
  *
@@ -27,7 +36,11 @@ const CODE_TYPES = ["sign-in", "email-verification", "forget-password"] as const
  * Throws SoleOrganizationMemberError when the BEFORE DELETE trigger refuses to
  * leave an organization without a member (Q8; atomic with the deletion).
  */
-export async function deleteAccountRows(pool: Pool, accountId: string): Promise<boolean> {
+export async function deleteAccountRows(
+  pool: Pool,
+  accountId: string,
+  options: DeleteAccountOptions = {},
+): Promise<boolean> {
   const client = await pool.connect();
 
   try {
@@ -42,6 +55,22 @@ export async function deleteAccountRows(pool: Pool, accountId: string): Promise<
       await client.query("rollback");
 
       return false;
+    }
+
+    // Only an account that never accepted the terms, has no other role and is old enough goes
+    // (the guard of the database, read under the row lock, so an acceptance that is being
+    // written at this moment either shows up here or fails on the foreign key afterwards).
+    if (options.onlyAbandonedOlderThanDays !== undefined) {
+      const { rows: guard } = await client.query<{ abandoned: boolean }>(
+        `select public.auth_account_is_abandoned($1::uuid, make_interval(days => $2::int)) as abandoned`,
+        [accountId, options.onlyAbandonedOlderThanDays],
+      );
+
+      if (guard[0]?.abandoned !== true) {
+        await client.query("rollback");
+
+        return false;
+      }
     }
 
     const email = rows[0].email;

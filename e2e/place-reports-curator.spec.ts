@@ -6,7 +6,9 @@ import { waitForHydration } from "../tests/support/e2e-hydration";
 // P4b, PR A: the queue of reports in the panel of the curator, on the three demo reports of the
 // seed (two waiting, one rejected, all about places of the organization of curator-a). Needs a
 // migrated, seeded database like the other curator specs; without it the spec is skipped. The
-// spec changes the queue (decides, undoes), so it runs on a fresh environment.
+// spec changes the queue (decides, undoes), so it runs on a fresh environment. It does not depend
+// on e2e/place-reports.spec.ts: that spec accepts its own report, so the number of waiting reports
+// stays the same and only the list "Rozpatrzone" may hold more than the two reports counted here.
 const password = process.env.DEMO_ACCOUNT_PASSWORD;
 
 const emailOf = (name: string) => `${name}@demo.krajozbior.local`;
@@ -138,14 +140,19 @@ test.describe("queue of reports of the curator", () => {
       "aria-current",
       "page",
     );
-    await expect(reports).toHaveCount(2);
+    // At least these two: e2e/place-reports.spec.ts may have added an accepted report of its own.
+    await expect.poll(() => reports.count()).toBeGreaterThanOrEqual(2);
     await expect(curator.getByRole("article", { name: /Zamek w Malborku/ })).toContainText(
       "Powód: Nie zgadza się ze stanem na miejscu.",
     );
     await expect(curator.getByRole("article", { name: /Zamek w Malborku/ })).toContainText(
       "Notatka: Sprawdziliśmy na miejscu: ścieżka jest ogólnodostępna.",
     );
-    await expect(curator.getByRole("button", { name: "Cofnij decyzję" })).toHaveCount(2);
+    // The report accepted above is there, with its own text.
+    await expect(
+      reports.filter({ hasText: "Brama przy wejściu była zamknięta" }).first(),
+    ).toBeVisible();
+    await expect(curator.getByRole("button", { name: "Cofnij decyzję" })).not.toHaveCount(0);
     await expectNoAccessibilityViolations(curator);
     await curator.context().close();
   });

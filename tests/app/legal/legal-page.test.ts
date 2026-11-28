@@ -10,24 +10,37 @@ const html = (slug: Parameters<typeof LegalPage>[0]["slug"]) =>
 
 describe("a legal page", () => {
   it.each(LEGAL_PAGES)(
-    "$slug has one h1 with the title, the draft note and the version",
+    "$slug has one h1 with the title and the version in force, and no draft note",
     (page) => {
       const markup = html(page.slug);
 
       expect(markup.match(/<h1>/g)).toHaveLength(1);
       expect(markup).toContain(`<h1>${page.title}</h1>`);
-      expect(markup).toContain("<strong>Wersja robocza z dnia 19 listopada 2026 r.</strong>");
-      expect(markup).toContain("Tekst czeka na sprawdzenie przez prawnika.");
-      expect(markup).toContain("Wersja 0.2</p>");
+      expect(markup).toContain("Wersja 1.1 — obowiązuje od 28 listopada 2026 r.</p>");
+      expect(markup).not.toMatch(/wersj\w+ robocz|sprawdzenie przez prawnika/i);
     },
   );
 
-  it("lists the versions of the document: one before the first change", () => {
+  it("lists the versions of the document: 1.1 is the first one in force", () => {
     const markup = html("regulamin");
 
     expect(markup).toMatch(
-      /<section[^>]*aria-labelledby="wersje-dokumentu"[^>]*><h2 id="wersje-dokumentu">Wersje tego dokumentu<\/h2><ul><li>Wersja 0\.2 z dnia 19 listopada 2026 r\. \(obowiązująca, robocza\)<\/li><\/ul>/,
+      /<section[^>]*aria-labelledby="wersje-dokumentu"[^>]*><h2 id="wersje-dokumentu">Wersje tego dokumentu<\/h2><ul><li>Wersja 1\.1 z dnia 28 listopada 2026 r\. \(obowiązująca\)<\/li><\/ul>/,
     );
+  });
+
+  it("links the regulations to the data processing agreement (annex 2) in chapter 10 and in the annex", () => {
+    const markup = html("regulamin");
+
+    expect(markup.match(/href="\/umowa-powierzenia"/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("keeps the numbers of the clauses that follow a paragraph put between the points (chapters 4 and 7)", () => {
+    const markup = html("regulamin");
+
+    expect(markup).toContain("<p>Kolekcje organizacji kuratorskiej, współtworzone przez Ciebie");
+    expect(markup).toMatch(/<\/p><ol start="6"><li>Jeśli w zespole organizacji kuratorskiej/);
+    expect(markup).toMatch(/<\/p><ol start="6"><li>Własna kolekcja jest prywatna/);
   });
 
   it("gives a long text a table of contents with anchors to the chapters", () => {
@@ -71,12 +84,9 @@ describe("a legal page", () => {
     );
   });
 
-  it("is kept out of search results but its links are followed (E11-Q15 A)", () => {
+  it("is open to search engines: version 1.1 is final, so there is no noindex", () => {
     for (const page of LEGAL_PAGES) {
-      expect(legalMetadata(page.slug)).toEqual({
-        title: `${page.title} — Krajozbiór`,
-        robots: { index: false, follow: true },
-      });
+      expect(legalMetadata(page.slug)).toEqual({ title: `${page.title} — Krajozbiór` });
     }
   });
 });

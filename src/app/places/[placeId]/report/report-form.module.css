@@ -1,0 +1,166 @@
+/*
+ * Formularz „Zgłoś problem z miejscem” (P4b, PR B): jedna kolumna, telefon najpierw. Cele dotyku
+ * co najmniej minimalne (--size-touch-min), błędy tekstem, nie samym kolorem. Tylko tokeny.
+ */
+.page {
+  display: grid;
+  gap: var(--space-lg);
+  justify-items: stretch;
+  padding-block: var(--space-lg) var(--space-xl);
+}
+
+@media (min-width: 48rem) {
+  .page {
+    justify-items: start;
+    padding-block: var(--space-xl);
+  }
+}
+
+.page h1,
+.page p {
+  margin: 0;
+}
+
+.back {
+  color: var(--color-text-accent);
+}
+
+.form {
+  display: grid;
+  gap: var(--space-md);
+  align-self: stretch;
+}
+
+@media (min-width: 48rem) {
+  .form {
+    width: 100%;
+    max-width: 32rem;
+  }
+}
+
+.fieldset {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-md);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.fieldset[aria-invalid="true"] {
+  border-color: var(--color-feedback-danger);
+  border-width: 2px;
+}
+
+.fieldset legend {
+  padding-inline: var(--space-xs);
+  font-weight: var(--font-weight-strong);
+}
+
+/* Cel dotyku radia: cały wiersz z etykietą ma co najmniej minimalną wysokość. */
+.choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: var(--space-sm);
+}
+
+.choice label {
+  display: flex;
+  align-items: center;
+  min-height: var(--size-touch-min);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.field label {
+  font-weight: var(--font-weight-strong);
+}
+
+.field textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.field textarea[aria-invalid="true"] {
+  border-color: var(--color-feedback-danger);
+  border-width: 2px;
+}
+
+.hint {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.counter {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+/* Za długi opis: licznik w kolorze błędu, a do tego słowa (nie sam kolor). */
+.counterOver {
+  color: var(--color-feedback-danger);
+  font-weight: var(--font-weight-strong);
+}
+
+/* Po wysłaniu: główna akcja wraca do miejsca, druga prowadzi do „Moich zgłoszeń”. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+/* Zdanie o tym, co zobaczy kurator: nad przyciskiem, czytelne, nie drobny druk. */
+.notice {
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-inline-start: var(--space-xs) solid var(--color-brand-accent);
+  border-radius: var(--radius-md);
+}
+
+.fieldError {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
+}
+
+.errorPrefix {
+  color: var(--color-feedback-danger);
+}
+
+.error,
+.success {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+
+.error {
+  border-inline-start: var(--space-xs) solid var(--color-feedback-danger);
+  font-weight: var(--font-weight-strong);
+}
+
+.success {
+  border-inline-start: var(--space-xs) solid var(--color-feedback-success);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip-path: inset(50%);
+}

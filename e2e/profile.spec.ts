@@ -69,7 +69,15 @@ test.describe("profile and logout", () => {
     // Paczka N: no role name for an explorer and no tiles that repeat the main menu.
     await expect(main).not.toContainText("Twoja rola");
     await expect(main).not.toContainText("Użytkownik");
-    await expect(main.getByRole("link")).toHaveText(["Ustawienia", "Napisz do nas"]);
+    // P4b: "Moje zgłoszenia" is there because the E2E server runs with FEATURE_PLACE_REPORTS=true;
+    // without the switch the list is the two entries below (tests/app/my-page.test.ts).
+    // The "Zostań kuratorem — w przygotowaniu" block (documents 1.1) adds the partners' address.
+    await expect(main.getByRole("link")).toHaveText([
+      "partnerzy@krajozbior.pl",
+      "Moje zgłoszenia",
+      "Ustawienia",
+      "Napisz do nas",
+    ]);
     await expect(main.getByRole("link", { name: "Moje kolekcje" })).toHaveCount(0);
     await expect(main.getByRole("link", { name: "Chcę zobaczyć" })).toHaveCount(0);
     // UX-06: "Profil" is only in the menu. On a phone (where this test runs) "Wyloguj" is only
@@ -92,7 +100,11 @@ test.describe("profile and logout", () => {
     );
     expect(overflow).toBe(0);
 
-    for (const link of await main.getByRole("link").all()) {
+    // The address inside the curator block's sentence is an inline link (exempt from the 44 px
+    // target, WCAG 2.5.8); every other link is a separate target.
+    const separateLinks = main.getByRole("link").filter({ hasNotText: "partnerzy@krajozbior.pl" });
+
+    for (const link of await separateLinks.all()) {
       expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(44);
     }
 
