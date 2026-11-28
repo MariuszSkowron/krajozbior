@@ -49,6 +49,7 @@ const discover = [
     slug: "mosty-i-zamki",
     title: "Mosty i zamki",
     region: "pomorskie",
+    extraRegions: [],
     organization: { name: "Gmina A" },
     placeCount: 3,
     cover: null,

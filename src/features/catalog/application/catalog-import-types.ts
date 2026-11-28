@@ -150,6 +150,9 @@ export type CollectionResult =
 export type CompositionResult =
   "synced" | "noop" | "kept_manual_edit" | "kept_manual_delete" | "skipped_already_published";
 
+/** Extra voivodeships of a collection; reported only when the file names them (`extra_regions`). */
+export type ExtraRegionsResult = "updated" | "unchanged";
+
 export type PublicationResult =
   "published" | "skipped_already_published" | "kept_manual_edit" | "refused";
 
@@ -185,6 +188,8 @@ export type CollectionReport = Readonly<{
   /** Only with `--publish` for a collection marked `publish: true`; a refusal keeps the loaded draft. */
   publication?: PublicationResult;
   publicationRefusal?: string;
+  /** Only when the file names `extra_regions` for the collection. */
+  extraRegions?: ExtraRegionsResult;
   places: readonly PlaceReport[];
 }>;
 
@@ -198,6 +203,8 @@ export type ImportPreview = Readonly<{
   orphanedKeys: Readonly<Record<"collection" | "place", number>>;
   /** True when the new collections would not fit in the limit of the organization. */
   collectionLimitExceeded: boolean;
+  /** Collections whose extra voivodeships would change; absent when none (only a count). */
+  extraRegions?: Readonly<{ updated: number }>;
   /** With `--publish`: collections marked `publish: true` that a load would publish now. */
   publishable?: readonly PublishableCollection[];
 }>;
