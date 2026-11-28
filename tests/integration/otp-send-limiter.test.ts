@@ -285,6 +285,21 @@ describe("PostgresOtpSendLimiter", () => {
     expect(await counter("new_accounts")).toBe(4);
   });
 
+  // (h2) The first requests of the day: the pool rows do not exist yet, so the
+  // limiter must create them before taking the lock (else both would pass).
+  it("lets exactly one of two parallel first requests of the day take the only place", async () => {
+    newAccountLimit = 1;
+    await admin$("truncate auth.otp_send_counters");
+
+    const pair = await Promise.all([
+      limiter().reserve({ email: "pierwsza1@example.com", ip: "198.51.100.211" }),
+      limiter().reserve({ email: "pierwsza2@example.com", ip: "198.51.100.212" }),
+    ]);
+
+    expect(pair.filter(delivered)).toHaveLength(1);
+    expect(await counter("new_accounts")).toBe(1);
+  });
+
   // (f) No address, IP or hash in the pool rows.
   it("keeps the pool rows free of addresses and IPs", async () => {
     await createAccount("stala@example.com");

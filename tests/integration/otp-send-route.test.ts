@@ -165,7 +165,7 @@ describe("POST /api/auth/code/request: no account oracle through the pools", () 
 
   it("answers 429 with the same body for an account and a new address at the address limit", async () => {
     const prepare = async () => undefined;
-    const hit = async (hasAccount: boolean) => {
+    const hit = async (hasAccount: boolean, upperCase = false) => {
       counter += 1;
       const email = `limit${counter}@example.com`;
       if (hasAccount)
@@ -177,19 +177,31 @@ describe("POST /api/auth/code/request: no account oracle through the pools", () 
           new Request("http://localhost:3000/api/auth/code/request", {
             method: "POST",
             headers: { "content-type": "application/json", host: "localhost:3000" },
-            body: JSON.stringify({ email }),
+            body: JSON.stringify({ email: upperCase ? email.toUpperCase() : email }),
           }),
         );
       }
 
-      return { status: last!.status, body: await last!.text() };
+      return {
+        status: last!.status,
+        body: await last!.text(),
+        headers: [...last!.headers.entries()]
+          .filter(([name]) => name !== "set-cookie" && name !== "date")
+          .sort(),
+      };
     };
 
     const account = await hit(true);
     const fresh = await hit(false);
+    const accountUpper = await hit(true, true);
+    const freshUpper = await hit(false, true);
 
     expect(account.status).toBe(429);
     expect(account).toEqual(fresh);
+    // An address in capitals is the same address: same limit, same answer.
+    expect(accountUpper.status).toBe(429);
+    expect(accountUpper).toEqual(freshUpper);
+    expect(accountUpper).toEqual(account);
   });
 
   it("answers the same after a probe at one below the full pool, whether or not the probed address has an account", async () => {

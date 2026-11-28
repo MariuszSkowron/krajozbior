@@ -138,6 +138,9 @@ describe("sendVerificationOTP callback", () => {
 
     await send({ email: "a@example.com", otp: "123456", type: "sign-in" }, endpoint(null));
 
+    // Preparing the message is off the answer's path: nothing is sent yet when
+    // the callback has returned and the microtasks have run.
+    expect(sender.lastTo("a@example.com")).toBeUndefined();
     await vi.waitFor(() => expect(sender.lastTo("a@example.com")?.text).toContain("123456"));
     expect(sender.lastTo("a@example.com")).toMatchObject({ tag: "sign_in_code" });
     expect(sender.lastTo("a@example.com")?.text).toContain("http://localhost:3000");
@@ -214,9 +217,9 @@ describe("sendVerificationOTP callback", () => {
     }
 
     expect(answers).toEqual(Array(6).fill(undefined));
-    // Only the non-admin requests reached the provider.
-    expect(hanging.send).toHaveBeenCalledTimes(2);
-    expect(failing.send).toHaveBeenCalledTimes(2);
+    // Only the non-admin requests reached the provider (after the answer).
+    await vi.waitFor(() => expect(hanging.send).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(failing.send).toHaveBeenCalledTimes(2));
   });
 
   it("logs a failed or throwing send without the address or the code", async () => {

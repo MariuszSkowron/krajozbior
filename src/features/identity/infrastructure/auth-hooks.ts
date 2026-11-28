@@ -156,7 +156,9 @@ export function createSendSignInCode(deps: SignInCodeDeps) {
       return;
     }
 
-    void deliverSignInCode(deps, data.email, data.otp);
+    // A macrotask: rendering and the start of the hand-over run after the
+    // callback has returned, off the answer's path, whatever is delivered.
+    setImmediate(() => void deliverSignInCode(deps, data.email, data.otp));
   };
 }
 
@@ -165,9 +167,6 @@ export const signInCodeDelivery = new AsyncLocalStorage<{ deliver: boolean }>();
 
 async function deliverSignInCode(deps: SignInCodeDeps, to: string, code: string): Promise<void> {
   try {
-    // The message is prepared after the first await, so the callback returns at
-    // the same point whether or not the message is handed over.
-    await Promise.resolve();
     const email = renderSignInCodeEmail({ code, siteUrl: deps.siteUrl() });
     const result = await deps.emailSender().send({ to, tag: "sign_in_code", ...email });
 
