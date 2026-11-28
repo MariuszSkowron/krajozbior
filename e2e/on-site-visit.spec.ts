@@ -180,6 +180,41 @@ test.describe("confirming a visit on site", () => {
     await b.context().close();
   });
 
+  test("an older browser without crypto.randomUUID still records the visit", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, EXPLORER_A);
+
+    await page.addInitScript(() => {
+      Object.defineProperty(crypto, "randomUUID", { value: undefined, configurable: true });
+    });
+    await openBridge(page);
+    expect(await page.evaluate(() => typeof crypto.randomUUID)).toBe("undefined");
+    await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
+    await expect(page.getByText("Most Tczewski jest w Twoim albumie.")).toBeVisible();
+    expect(await visitCount(EXPLORER_A)).toBe(1);
+    await page.context().close();
+  });
+
+  test("without any source of random values the button returns with a message", async ({
+    browser,
+  }) => {
+    const page = await signedInPage(browser, EXPLORER_A);
+
+    await page.addInitScript(() => {
+      Object.defineProperty(crypto, "randomUUID", { value: undefined, configurable: true });
+      Object.defineProperty(crypto, "getRandomValues", { value: undefined, configurable: true });
+    });
+    await openBridge(page);
+    await page.getByRole("button", { name: "Potwierdzam wizytę" }).click();
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Ta przeglądarka nie pozwala zapisać wizyty." }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Potwierdzam wizytę" })).toBeEnabled();
+    expect(await visitCount(EXPLORER_A)).toBe(0);
+    await page.context().close();
+  });
+
   test("out of range: the distance is shown, the check can be repeated, no visit exists", async ({
     browser,
   }) => {
