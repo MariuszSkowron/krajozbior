@@ -19,7 +19,9 @@ import {
   DEMO_COLLECTION_TITLE,
   seedDemoCatalog,
 } from "../src/features/catalog/infrastructure/seed-demo-catalog";
+import { DEMO_EMAIL_DOMAIN } from "../src/features/identity/domain/demo-account-list";
 import { seedDemoNews } from "../src/features/news/infrastructure/seed-demo-news";
+import { seedDemoReports } from "../src/features/reports/infrastructure/seed-demo-reports";
 import {
   assertDemoOrganizationsSeeded,
   demoOrganizations,
@@ -73,6 +75,17 @@ async function main() {
     );
 
     console.log(`Demo collection "${DEMO_COLLECTION_TITLE}": ${sample}`);
+
+    // Three sample reports of a problem with the places of the sample collection (two waiting,
+    // one rejected), so a demo curator has a queue. Refused where the demo accounts may not sign in.
+    const reports = await seedDemoReports(
+      process.env.DATABASE_URL as string,
+      process.env.DATABASE_OPS_URL as string,
+      `user@${DEMO_EMAIL_DOMAIN}`,
+      sampleCurator,
+    );
+
+    console.log(`Demo reports: ${reports}`);
 
     // The editorial organization and three demo news, through the writer of `news:import`.
     const news = await seedDemoNews(process.env.DATABASE_OPS_URL as string);
