@@ -3,7 +3,7 @@ import axe from "axe-core";
 import { Client } from "pg";
 
 import { parseE2eAdminDatabaseUrl } from "../tests/support/e2e-database-url";
-import { expectScrollKept } from "./scroll-support";
+import { expectScrollKept, waitForEntrance, waitForImages } from "./scroll-support";
 
 // E12-S4: "Moje kolekcje": the filter by the state of progress (?stan=), state buttons that are
 // links (one click, no script needed, no jump to the top). The block "Pokaż nowe w okolicy" was
@@ -143,6 +143,11 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     // The filter does not jump to the top. A low window keeps the page longer than the screen even
     // when the filtered list is empty, so the browser cannot clamp scrollY to 0 by itself.
     await page.setViewportSize({ width: 390, height: 360 });
+    // The sections still animate in (the sticky bar moves by up to 12 px) and images may still be
+    // loading: measure only after both have settled. This is a precaution; a deliberately slow
+    // answer to the click (the test below) does not reproduce the rare jump, so its cause is open.
+    await waitForEntrance(page);
+    await waitForImages(page);
     await states.scrollIntoViewIfNeeded();
     await page.evaluate(() => window.scrollBy(0, 60));
 
@@ -157,7 +162,8 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     await expect(page.getByRole("heading", { name: "Zapisane kolekcje (0 z 1)" })).toBeVisible();
     await expect(current("W trakcie")).toHaveAttribute("aria-current", "page");
     // A shorter list may clamp scrollY to the new maximum, but never to the top.
-    await page.waitForTimeout(300);
+    await waitForEntrance(page);
+    await waitForImages(page);
     await expectScrollKept(page, states, scrollBefore);
     await inBothThemes(page, () => expectNoAccessibilityViolations(page));
 
@@ -183,6 +189,48 @@ test.describe("Moje kolekcje: filtr postępu", () => {
     await page.goto("/my/collections?stan=cokolwiek");
     await expect(card()).toBeVisible();
     await expect(current("Wszystkie")).toHaveAttribute("aria-current", "page");
+
+    await page.context().close();
+  });
+
+  test("a slow answer to a filter click keeps the list and the scroll position (no skeleton)", async ({
+    browser,
+  }) => {
+    await saveDemoCollection();
+
+    const page = await signedInPage(browser);
+    const states = page.getByRole("navigation", { name: "Stan postępu" });
+
+    await page.goto("/my/collections");
+    await expect(list(page).getByRole("link", { name: DEMO_TITLE })).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 360 });
+    await waitForEntrance(page);
+    await states.scrollIntoViewIfNeeded();
+    await page.evaluate(() => window.scrollBy(0, 60));
+
+    const scrollBefore = await page.evaluate(() => Math.round(window.scrollY));
+
+    expect(scrollBefore).toBeGreaterThan(0);
+
+    // The server answers the filter navigation late. Meanwhile the old page has to stay: no
+    // skeleton of loading.tsx, no shorter page, no lost scroll position.
+    await page.route(/[?&]stan=/, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.continue();
+    });
+    await states.getByRole("link", { name: /^W trakcie \(\d+\)$/ }).click();
+    await page.waitForTimeout(700);
+
+    // Proof that the answer is still pending: the address has not changed yet.
+    expect(page.url()).not.toContain("stan=");
+    await expect(page.getByRole("status")).toHaveCount(0);
+    await expect(states).toBeVisible();
+    expect(await page.evaluate(() => Math.round(window.scrollY))).toBe(scrollBefore);
+
+    await expect(page).toHaveURL(/\?stan=w-trakcie$/);
+    await expect(page.getByText("Nie masz kolekcji w trakcie.")).toBeVisible();
+    await waitForEntrance(page);
+    await expectScrollKept(page, states, scrollBefore);
 
     await page.context().close();
   });
