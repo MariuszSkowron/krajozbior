@@ -29,6 +29,32 @@ beforeEach(() => {
   store.effects = [];
 });
 
+function regionHelp(extra: { hasExtraRegions?: boolean }): unknown {
+  const root = CollectionForm({
+    mode: "edit",
+    collection: { ...collection, ...extra },
+  } as never) as ReactElement<{ children: ReactElement[] }>;
+  const fields = root.props.children[1] as ReactElement<Record<string, unknown>>;
+  const form = (fields.type as (props: unknown) => ReactElement<{ children: ReactElement[] }>)(
+    fields.props,
+  );
+  const region = form.props.children.find(
+    (child) => (child?.props as { label?: string } | undefined)?.label === "Województwo",
+  );
+
+  return (region?.props as { help?: unknown }).help;
+}
+
+describe("the region field of the collection form", () => {
+  it("explains what happens to the Także w list only when the collection has extra regions", () => {
+    expect(regionHelp({ hasExtraRegions: true })).toBe(
+      "Gdy wybierzesz województwo z listy „Także w”, po zapisaniu zniknie ono z tej listy, a obecne główne na nią nie trafi.",
+    );
+    expect(regionHelp({ hasExtraRegions: false })).toBeUndefined();
+    expect(regionHelp({})).toBeUndefined();
+  });
+});
+
 describe("the fields of the collection form", () => {
   it("clear the unsaved flag when they are replaced after a save (new version)", () => {
     const root = CollectionForm({ mode: "edit", collection } as never) as ReactElement<{

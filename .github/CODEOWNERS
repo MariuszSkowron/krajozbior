@@ -96,6 +96,14 @@
 /tests/integration/news-*.test.ts @MariuszSkowron
 /docs/news-import.md              @MariuszSkowron
 
+# Zgłoszenia problemów z miejscami (P4b, wycinek E5; dane CUR: autor + kurator organizacji
+# miejsca, kurator czyta tylko przez funkcje bazy). Migracja (/src/lib/db/), trasy (/src/app/api/),
+# panel (/src/app/curator/), Profil (/src/app/my/), strony miejsc (/src/app/places/) i testy
+# odmowy dostępu (/tests/integration/) mają już właściciela.
+/src/features/reports/             @MariuszSkowron
+/tests/features/reports/           @MariuszSkowron
+/e2e/place-reports*.spec.ts        @MariuszSkowron
+
 # Zdjęcia miejsc (E4-2a, tabela `place_photos`: klasa Publiczna po publikacji, inaczej CUR):
 # pobieranie z Wikimedia Commons jako rola operatora (`photos:fetch`); migracja i testy dostępu
 # mają właściciela przez /src/lib/db/ i /tests/integration/

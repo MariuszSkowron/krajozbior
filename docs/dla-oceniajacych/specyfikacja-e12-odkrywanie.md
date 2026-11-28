@@ -4,15 +4,18 @@
 
 Przed tym epikiem strona startowa aplikacji była pustym szkieletem, a gość mógł trafić do kolekcji tylko z bezpośredniego linku. Specyfikacja zamienia ją na prawdziwą stronę główną: zalogowany odkrywca widzi swój album (liczby, ulubione kolekcje, ostatnie wizyty), a każdy, także gość, widzi kolekcje do odkrycia, wyszukiwarkę i, dopiero po kliknięciu, kolekcje w okolicy. Pozycja telefonu nie opuszcza przeglądarki. Strona kolekcji dostała filtr „odwiedzone / do odwiedzenia”, panel wybranego miejsca na komputerze i widok mapy OpenStreetMap. Do wersji konkursowej nie były potrzebne zmiany w bazie danych.
 
+Ten plik opisuje specyfikację w wersji zaakceptowanej przed implementacją. Późniejsze zmiany ekranów (po uwagach właściciela i nowym wyglądzie) wymienia wiersz „Późniejsze zmiany” w tabeli niżej, a obecny stan: [Stan realizacji](stan-realizacji.md).
+
 To jawne streszczenie pełnej specyfikacji, która leży w prywatnym repozytorium dokumentacji. Pominęliśmy w nim numery decyzji i pytań właściciela, harmonogram dzień po dniu oraz szczegóły ryzyk, które nie zostały jeszcze zamknięte.
 
-| Pole               | Wartość                                                                                               |
-| ------------------ | ----------------------------------------------------------------------------------------------------- |
-| Epik i historyjki  | `docs#13`; `docs#79` (S1), `docs#80` (S2), `docs#81` (S3), `docs#82` (S4), zob. [Backlog](backlog.md) |
-| Autor specyfikacji | Claude Opus (skill `om-spec-writing`)                                                                 |
-| Przegląd           | Claude Sonnet, inny model niż autor; poprawki sprawdził kolejny, niezależny agent (Sonnet)            |
-| Akceptacja         | właściciel, 18 listopada 2026 roku                                                                    |
-| Wdrożenie          | PR #38, #39, #40, #41, #49 (historyjka S4 po konkursie)                                               |
+| Pole               | Wartość                                                                                                  |
+| ------------------ | -------------------------------------------------------------------------------------------------------- |
+| Epik i historyjki  | `docs#13`; `docs#79` (S1), `docs#80` (S2), `docs#81` (S3), `docs#82` (S4), zob. [Backlog](backlog.md)    |
+| Autor specyfikacji | Claude Opus (skill `om-spec-writing`)                                                                    |
+| Przegląd           | Claude Sonnet, inny model niż autor; poprawki sprawdził kolejny, niezależny agent (Sonnet)               |
+| Akceptacja         | właściciel, 18 listopada 2026 roku                                                                       |
+| Wdrożenie          | PR #38, #39, #40, #41, #49 i #79 (historyjka S4)                                                         |
+| Późniejsze zmiany  | #108 (bez panelu „Wybrane miejsce”), #112 (prostszy filtr), #114 (jedna sekcja kolekcji), #129 (okładka) |
 
 Oznaczenia: **[Z]** wymaganie właściciela, **[P]** propozycja agenta (właściciel ją przyjął razem z całą specyfikacją), **decyzja techniczna** to wybór projektowy autora.
 
@@ -96,14 +99,14 @@ Wymagane testy odmowy dostępu (wszystkie istnieją w repozytorium):
 
 Każdy PR zostawia działającą aplikację bez martwych linków i był scalany osobno, po pełnym CI i przeglądzie.
 
-| Krok  | Zakres                                                                   | Historyjka       | PR           |
-| ----- | ------------------------------------------------------------------------ | ---------------- | ------------ |
-| E12-1 | strona główna: sekcje gościa i odkrywcy                                  | S1 (kryt. 1 i 3) | #38          |
-| E12-2 | wyszukiwarka, „Wszystkie kolekcje”, pole wyszukiwania na stronie głównej | S2, S1           | #39          |
-| E12-3 | „W okolicy” liczone w przeglądarce                                       | S1 (kryt. 2)     | #40          |
-| E12-4 | kolekcja jako album: nagłówek, filtr, siatka, panel miejsca              | S3 (kryt. 1)     | #41          |
-| E12-5 | widok mapy                                                               | S3 (kryt. 2)     | #49          |
-| E12-6 | „Moje kolekcje”: filtr postępu, „Nowa w okolicy”                         | S4               | po konkursie |
+| Krok  | Zakres                                                                   | Historyjka       | PR  |
+| ----- | ------------------------------------------------------------------------ | ---------------- | --- |
+| E12-1 | strona główna: sekcje gościa i odkrywcy                                  | S1 (kryt. 1 i 3) | #38 |
+| E12-2 | wyszukiwarka, „Wszystkie kolekcje”, pole wyszukiwania na stronie głównej | S2, S1           | #39 |
+| E12-3 | „W okolicy” liczone w przeglądarce                                       | S1 (kryt. 2)     | #40 |
+| E12-4 | kolekcja jako album: nagłówek, filtr, siatka, panel miejsca              | S3 (kryt. 1)     | #41 |
+| E12-5 | widok mapy                                                               | S3 (kryt. 2)     | #49 |
+| E12-6 | „Moje kolekcje”: filtr postępu, „Nowa w okolicy”                         | S4               | #79 |
 
 Specyfikacja określiła też kolejność cięcia przy braku czasu (najpierw mapa, potem panel miejsca) i zasadę, że każde cięcie wymaga zgody właściciela. Cięcie nie było potrzebne.
 

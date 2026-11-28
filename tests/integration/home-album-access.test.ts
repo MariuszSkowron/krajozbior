@@ -324,6 +324,7 @@ describe("home page: personal album and public collections", () => {
       slug: expect.any(String),
       title: "Kolekcja",
       region: "pomorskie",
+      extraRegions: [],
       organization: { name: expect.any(String) },
       placeCount: expect.any(Number),
       cover: null,

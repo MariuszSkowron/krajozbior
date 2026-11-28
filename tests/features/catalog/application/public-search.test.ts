@@ -15,6 +15,7 @@ const collection = (title: string): RecentCollection => ({
   slug: title.toLowerCase(),
   title,
   region: "pomorskie",
+  extraRegions: [],
   organization: { name: "Gmina" },
   placeCount: 1,
   cover: null,

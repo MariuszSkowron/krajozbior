@@ -1,0 +1,164 @@
+/*
+ * Kolejka zgłoszeń w panelu kuratora (P4b). Tylko tokeny z src/design-system/tokens/tokens.css.
+ * Ramka, nagłówek i przełącznik organizacji korzystają z curator.module.css.
+ */
+
+.attention {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.attention h2 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.attentionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+/* Kafelek z liczbą jest odnośnikiem; cały jest celem kliknięcia. */
+.counter {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: var(--size-touch-min);
+  padding-inline: var(--space-md);
+  color: var(--color-text-strong);
+  font-weight: var(--font-weight-strong);
+  text-decoration: none;
+  background: var(--color-surface-tint);
+  border: 1px solid var(--color-border-default);
+  border-inline-start: var(--space-xs) solid var(--color-brand-accent);
+  border-radius: var(--radius-md);
+}
+
+.counter:hover {
+  background: var(--color-surface-hover);
+}
+
+.quietLink {
+  color: var(--color-text-accent);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: var(--size-touch-min);
+  padding-inline: var(--space-md);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+
+.tab:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.tab[aria-current] {
+  background: var(--color-surface-tint);
+  color: var(--color-text-strong);
+  font-weight: var(--font-weight-strong);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.report h2 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.report h2:focus-visible {
+  outline: 3px solid var(--color-border-focus);
+  outline-offset: 3px;
+}
+
+.reportMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm) var(--space-md);
+  color: var(--color-text-secondary);
+}
+
+/* Opis zgłoszenia to cudzy tekst: zwykły tekst, łamanie linii, bez klikalnych adresów. */
+.message {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.removed {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.decision {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.notice {
+  padding: var(--space-md);
+  background: var(--color-surface-tint);
+  border: 1px solid var(--color-border-subtle);
+  border-inline-start: var(--space-xs) solid var(--color-brand-accent);
+  border-radius: var(--radius-md);
+}
+
+.noticeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.overflow {
+  margin: 0;
+  padding: var(--space-md);
+  background: var(--color-surface-tint);
+  border-radius: var(--radius-md);
+}
+
+.rejectForm {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.emptyState:focus-visible {
+  outline: 3px solid var(--color-border-focus);
+  outline-offset: 3px;
+}
