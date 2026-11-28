@@ -40,6 +40,17 @@ Na razie nie ma zmian w przygotowaniu: wszystkie scalone zmiany są opisane w wy
 - Ostrzeżenie przy miejscu prywatnym, ogrodzonym lub w ruinie: kurator ustawia „Wejście na teren”, odkrywca widzi prośbę, by nie wchodzić na teren (#85).
 - Zdjęcia miejsc z Wikimedia Commons na stronie miejsca, z podpisem: autor, licencja i odnośnik do pliku źródłowego (#88).
 - Przygotowanie do zdjęć miejsc, jeszcze niewidoczne dla użytkowników: miejsce na zdjęcia na serwerze (#81), biblioteka bezpiecznego zmniejszania zdjęć i usuwania z nich lokalizacji GPS i danych autora (#82) oraz dane, licencje i pobieranie zdjęć z Wikimedia Commons (#86).
+- Pobieranie zdjęć z Wikimedia Commons na serwer jednym poleceniem właściciela (#89).
+- Okładka kolekcji ze zdjęcia z Wikimedia Commons, z podpisem licencji także w podglądzie udostępnionego linku (#100), oraz miniatury zdjęć na kartach miejsc w kolekcji (#123).
+- Aktualności redakcji: zasady treści i stanów (#93), tabela z ochroną dostępu i funkcjami operatora (#101), wgrywanie z pliku (#107) i tryb w skrypcie wdrożenia (#110), strony aktualności dla odkrywców i gości (#111), a we wpisie zdjęcie powiązanego miejsca lub kolekcji (#138).
+- Własne, prywatne kolekcje odkrywców z miejscami z katalogu (#105).
+- Odnośnik „Zgłoś naruszenie” w stopce i na stronie miejsca (#97) oraz „Napisz do nas” w Profilu (#95).
+- Pinezka na mapie w edytorze miejsca kuratora i powrót do kolekcji z komunikatem (#109); kurator po zalogowaniu trafia do panelu kuratora (#121).
+- Panel kuratora: ostrzeżenie o niezapisanych zmianach, link do strony kolekcji, liczba zapisów i wyszukiwanie adresu (#137).
+- Nowy wygląd: wspólna rama strony do 1440 px (#127), strona kolekcji z okładką, postępem i kafelkami miejsc (#129), strona miejsca w dwóch kolumnach z kartami kolekcji (#130) oraz strona główna z banerem na całą szerokość (#132) i losowym zdjęciem z listy wybranych miejsc (#133).
+- Pierwszy kontakt: wejścia „Zaloguj się” i „Załóż konto”, ekran Start nowej osoby i test „złotej ścieżki” (#134).
+- Po wizycie od razu odświeżony postęp, podpowiedź „Co dalej” i jeden stan „Kolekcja kompletna” (#135).
+- Przygotowanie kart legendarnych, jeszcze niewidoczne dla użytkowników: reguły czasu wydarzeń i niemożliwej podróży (#126) oraz karta i scena odsłonięcia w katalogu komponentów (#128).
 
 ### Zmieniono
 
@@ -54,6 +65,12 @@ Na razie nie ma zmian w przygotowaniu: wszystkie scalone zmiany są opisane w wy
 - Automatyczna analiza kodu CodeQL sprawdza także szkice pull requestów (#45, #48).
 - Automatyczne aktualizacje zależności są łączone w grupy, co zmniejsza liczbę osobnych zmian (#12).
 - Wyniki testów końcowych (E2E) nie trafiają do repozytorium ani do formatowania (#19).
+- Logowanie kodem w dwóch krokach, a formularz hasła jest schowany pod odnośnikiem (#104); nagłówek pokazuje imię i rolę, a profil nie powtarza menu (#115).
+- Teksty bez form zależnych od płci, ze spójnymi nazwami i datami (#98); prostsza strona miejsca z jednym stanem wizyty (#106), strona kolekcji bez pustej karty (#108), filtr „Moich kolekcji” jednym kliknięciem (#112) i jedna sekcja kolekcji na stronie głównej (#114).
+- Poprawki po przeglądach interfejsu i tekstów (#122, #125), nazwa „Do odkrycia” na mapie kolekcji (#131), krótkie podpisy zdjęć i przycisk „Pokaż najbliższe” (#136).
+- Polityka prywatności potwierdza wyłączone śledzenie wiadomości e-mail (#102).
+- Stabilniejsze testy (#94, #99, #113, #118, #119) i test próbny weryfikacji dwuetapowej administratora, bez zmian w aplikacji (#103).
+- Aktualizacja grupy zależności (#117).
 
 ### Naprawiono
 
@@ -63,6 +80,7 @@ Na razie nie ma zmian w przygotowaniu: wszystkie scalone zmiany są opisane w wy
 - W dzienniku serwera po nieudanym zapytaniu zostaje tylko rodzaj błędu i kod, bez wartości wpisanych przez użytkownika; właściciel dostaje e-mail, gdy dzienna pula kodów logowania zbliża się do końca, a serwer zamyka połączenia, które zbyt długo nic nie przysyłają (#76).
 - Formularze logowania, wylogowania i usuwania konta odrzucają nienormalnie duże żądania (odpowiedź 413), ekran usuwania konta nie wywraca się po wejściu w link ze specjalną wartością, a wyszukiwarka ma test na apostrofy i znaki specjalne (#83).
 - Wygasłe sesje logowania są usuwane z bazy, zgodnie z polityką prywatności (#84).
+- Publikacja kolekcji nie gubi niezapisanego tekstu w edytorze kuratora (#120), a zapis tuż po publikacji nie zgłasza fałszywego konfliktu (#124).
 
 ### Bezpieczeństwo
 
@@ -73,6 +91,8 @@ Na razie nie ma zmian w przygotowaniu: wszystkie scalone zmiany są opisane w wy
 - Zapisy w dzienniku operacji wykonuje osobna rola o ograniczonych uprawnieniach (#22).
 - Hook blokuje zapis plików z powłoki, żeby agent AI nie obchodził przeglądu zmian (#33).
 - Jawne notatki o bezpieczeństwie dla oceniających opisują uprawnienia agenta i przebieg próby wstrzyknięcia poleceń (#63).
+- Dziennik biblioteki logowania zapisuje tylko rodzaj błędu bazy, bez danych osobowych (#90).
+- Zdjęcia z Wikimedia Commons są pobierane tylko w wersji sprawdzonej przy doborze kolekcji (#91).
 
 ### Dokumentacja
 
@@ -81,4 +101,7 @@ Na razie nie ma zmian w przygotowaniu: wszystkie scalone zmiany są opisane w wy
 - Opis wzorca danych prywatnych uwzględnia zapis przez rolę operatora (#23).
 - Zasady pracy z botem projektu i wprowadzenie do opisu każdego pull requesta (#9).
 - Dokumentacja dla oceniających: mapa wymogów konkursu, lista pozostałej pracy i opis planowanego epiku (#68).
+- Szkic tego dziennika zmian (#69) i jego uzupełnienie o #59–#88 (#92).
+- Cztery skille przeglądu tekstów i ekranów oraz zasada przeglądu zmian widocznych dla użytkownika (#96).
+- Jedna wersja zasad przeglądów, testów i statusów dla agentów (#139).
 - Założenie projektu i przygotowanie narzędzi agentów (#7).
