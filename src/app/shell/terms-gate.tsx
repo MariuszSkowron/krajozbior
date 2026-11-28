@@ -28,9 +28,12 @@ export function TermsGate({
   problemCode,
   photo = null,
   firstSignIn = false,
+  acceptedBefore = false,
 }: Readonly<{
   path: string;
   problemCode: string | null;
+  /** Konto przyjęło już wcześniejszą wersję regulaminu: odmowa tylko wylogowuje, nie usuwa. */
+  acceptedBefore?: boolean;
   /** Zdjęcie z puli banera do drugiej kolumny (komputer); bez niego tło zastępcze. */
   photo?: HomeBannerPick | null;
   /** Ktoś wybrał „Zaloguj się”, a konta z tym adresem nie było: wyjaśniamy, że je założyliśmy. */
@@ -42,7 +45,13 @@ export function TermsGate({
   return (
     <div className="content-width-wide">
       <AuthTwoColumns photo={photo} sentence="Za chwilę zaczniesz zbierać miejsca w swoim albumie.">
-        <TermsGateBody path={path} problem={problem} links={links} firstSignIn={firstSignIn} />
+        <TermsGateBody
+          path={path}
+          problem={problem}
+          links={links}
+          firstSignIn={firstSignIn}
+          acceptedBefore={acceptedBefore}
+        />
       </AuthTwoColumns>
     </div>
   );
@@ -53,11 +62,13 @@ function TermsGateBody({
   problem,
   links,
   firstSignIn,
+  acceptedBefore,
 }: Readonly<{
   path: string;
   problem: string | undefined;
   links: readonly ReturnType<typeof legalPage>[];
   firstSignIn: boolean;
+  acceptedBefore: boolean;
 }>) {
   return (
     <>
@@ -75,7 +86,9 @@ function TermsGateBody({
         <li>Nie zapisujemy Twojej lokalizacji; zapamiętujemy samą wizytę.</li>
         <li>Twoich wizyt nie pokazujemy innym.</li>
         <li>Konto możesz w każdej chwili usunąć w ustawieniach; dane znikają od razu.</li>
-        <li>Jeśli nie akceptujesz regulaminu, od razu usuwamy Twój adres e-mail.</li>
+        {acceptedBefore ? null : (
+          <li>Jeśli nie akceptujesz regulaminu, od razu usuwamy Twój adres e-mail.</li>
+        )}
         <li>Logujesz się kodem z e-maila. Nikomu go nie przekazuj.</li>
       </ul>
       <p className={styles.links}>
@@ -95,7 +108,7 @@ function TermsGateBody({
       />
       <form method="post" action="/api/me/terms-decline">
         <button className={`button button--outline ${styles.submit}`} type="submit">
-          Nie akceptuję — usuń konto
+          {acceptedBefore ? "Nie akceptuję — wyloguj" : "Nie akceptuję — usuń konto"}
         </button>
       </form>
     </>

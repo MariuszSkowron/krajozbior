@@ -17,7 +17,8 @@ import { Migration } from "@mikro-orm/migrations";
 // `terms_acceptance` ma FORCE ROW LEVEL SECURITY, a test dostępu pilnuje, że krajozbior_owner nie
 // widzi tam żadnego wiersza. Dlatego polityka właściciela działa tylko wewnątrz tej funkcji:
 // funkcja ustawia na czas transakcji znacznik `krajozbior.terms_probe`, a polityka wymaga tego
-// znacznika. Poza funkcją właściciel nadal nie widzi niczego. Wiersze organizacji czyta istniejąca
+// znacznika oraz zalogowanej roli krajozbior_auth (`session_user`, wzorzec z news_posts), bo
+// znacznik z kropką może ustawić każda rola. Poza funkcją właściciel nadal nie widzi niczego. Wiersze organizacji czyta istniejąca
 // polityka `organization_members_function_select` (Migration20261118140000).
 export class Migration20261128110000_abandoned_accounts extends Migration {
   override name = "Migration20261128110000_abandoned_accounts";
@@ -26,7 +27,10 @@ export class Migration20261128110000_abandoned_accounts extends Migration {
     this.addSql(`
       create policy terms_acceptance_abandoned_probe_select on public.terms_acceptance
         for select to krajozbior_owner
-        using (current_setting('krajozbior.terms_probe', true) = 'on');
+        using (
+          session_user = 'krajozbior_auth'
+          and current_setting('krajozbior.terms_probe', true) = 'on'
+        );
     `);
     this.addSql(`
       create function auth_account_is_abandoned(p_user_id uuid, p_min_age interval)

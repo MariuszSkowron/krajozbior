@@ -22,7 +22,13 @@ import { TermsGate } from "./terms-gate";
 export function TermsGuard({
   children,
   photo = null,
-}: Readonly<{ children: ReactNode; photo?: HomeBannerPick | null }>) {
+  acceptedBefore = false,
+}: Readonly<{
+  children: ReactNode;
+  photo?: HomeBannerPick | null;
+  /** Konto przyjęło wcześniej jakąś wersję regulaminu: odmowa go nie usuwa. */
+  acceptedBefore?: boolean;
+}>) {
   const pathname = usePathname();
 
   if (isLegalPath(pathname)) {
@@ -32,8 +38,17 @@ export function TermsGuard({
   // O tym, czy ekran jest widoczny, decyduje sama ścieżka; parametry `zgoda` i `wejscie` dokładają
   // tylko komunikaty, więc nawet zawieszony odczyt zapytania pokazuje ekran, nigdy stronę.
   return (
-    <Suspense fallback={<TermsGate path={pathname} problemCode={null} photo={photo} />}>
-      <TermsGateWithProblem path={pathname} photo={photo} />
+    <Suspense
+      fallback={
+        <TermsGate
+          path={pathname}
+          problemCode={null}
+          photo={photo}
+          acceptedBefore={acceptedBefore}
+        />
+      }
+    >
+      <TermsGateWithProblem path={pathname} photo={photo} acceptedBefore={acceptedBefore} />
     </Suspense>
   );
 }
@@ -41,12 +56,14 @@ export function TermsGuard({
 function TermsGateWithProblem({
   path,
   photo,
-}: Readonly<{ path: string; photo: HomeBannerPick | null }>) {
+  acceptedBefore,
+}: Readonly<{ path: string; photo: HomeBannerPick | null; acceptedBefore: boolean }>) {
   const params = useSearchParams();
 
   return (
     <TermsGate
       path={path}
+      acceptedBefore={acceptedBefore}
       problemCode={params.get("zgoda")}
       photo={photo}
       firstSignIn={params.get(FIRST_SIGN_IN_PARAM) === FIRST_SIGN_IN_FROM_LOGIN}

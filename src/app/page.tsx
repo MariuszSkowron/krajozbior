@@ -218,8 +218,9 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
       ) : null}
       {termsDeclinedKept ? (
         <p role="status" className={styles.status}>
-          Wylogowano. Konto działa dopiero po akceptacji regulaminu. Możesz je usunąć w ustawieniach
-          po zalogowaniu.
+          Wylogowano. Konto zostaje, ale działa dopiero po akceptacji regulaminu. Jeśli chcesz je
+          usunąć, napisz na{" "}
+          <a href={`mailto:${CONTACT_ADDRESSES.privacy}`}>{CONTACT_ADDRESSES.privacy}</a>.
         </p>
       ) : null}
       {termsDeclineFailed ? (

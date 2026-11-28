@@ -219,6 +219,23 @@ describe("accounts without an accepted version of the terms", () => {
       });
     });
 
+    it("does not open the acceptances to a role that only sets the transaction marker", async () => {
+      await account("marker", { accepted: true });
+
+      // The marker alone (settable by any role) is not enough: the policy also wants the login
+      // role krajozbior_auth, so neither the owner nor the application sees any row.
+      for (const role of ["krajozbior_owner", "krajozbior_app"] as const) {
+        await withClient(db.urls[role], async (client) => {
+          await client.query("begin");
+          await client.query(`select set_config('krajozbior.terms_probe', 'on', true)`);
+          expect((await client.query(`select * from public.terms_acceptance`)).rows, role).toEqual(
+            [],
+          );
+          await client.query("rollback");
+        });
+      }
+    });
+
     it("lets neither krajozbior_app nor krajozbior_auth read or delete acceptances to dodge the guard", async () => {
       const user = await account("dodge", { accepted: true });
 

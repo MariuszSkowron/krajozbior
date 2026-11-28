@@ -56,6 +56,17 @@ describe("the screen „Zanim zaczniesz” (E11-Q4 A)", () => {
     );
   });
 
+  it("for an account that accepted an earlier version promises no deletion: „Nie akceptuję — wyloguj”", () => {
+    const markup = renderToStaticMarkup(
+      createElement(TermsGate, { path: "/my", problemCode: null, acceptedBefore: true }),
+    );
+
+    expect(markup).toContain('action="/api/me/terms-decline"');
+    expect(markup).toContain("Nie akceptuję — wyloguj</button>");
+    expect(markup).not.toContain("usuń konto");
+    expect(markup).not.toContain("od razu usuwamy Twój adres e-mail");
+  });
+
   it("explains the new account only after a sign-in through „Zaloguj się”", () => {
     const explanation = "Dla tego adresu nie było jeszcze konta, więc je założyliśmy.";
 

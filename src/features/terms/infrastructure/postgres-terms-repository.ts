@@ -19,6 +19,16 @@ export const postgresTermsRepository: TermsAcceptanceRepository = {
     return rows[0]?.accepted === true;
   },
 
+  async hasAnyAcceptance(tx) {
+    const rows = await tx.em.execute<{ accepted: boolean }[]>(
+      `select exists (
+         select 1 from public.terms_acceptance where user_id = app_current_user_id()
+       ) as accepted`,
+    );
+
+    return rows[0]?.accepted === true;
+  },
+
   async accept(tx, version) {
     await tx.em.execute(
       `insert into public.terms_acceptance (terms_version) values (?)

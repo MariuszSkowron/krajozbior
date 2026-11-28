@@ -1071,7 +1071,7 @@ describe("POST /api/auth/logout", () => {
     expect((await post("returnTo=")).headers.get("Location")).toBe("/?wylogowano=1");
   });
 
-  it("tells the home page that the terms were declined (F-K3, E11-Q4 A)", async () => {
+  it("ignores an old `reason` field: no message claims a deletion that did not happen", async () => {
     provider.signOut.mockResolvedValue([]);
 
     const post = (body: string) =>
@@ -1083,10 +1083,7 @@ describe("POST /api/auth/logout", () => {
         }),
       );
 
-    expect((await post("reason=terms-declined")).headers.get("Location")).toBe(
-      "/?wylogowano=odmowa",
-    );
-    // Any other reason changes nothing.
+    expect((await post("reason=terms-declined")).headers.get("Location")).toBe("/?wylogowano=1");
     expect((await post("reason=whatever")).headers.get("Location")).toBe("/?wylogowano=1");
   });
 

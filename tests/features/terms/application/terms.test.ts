@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { acceptCurrentTerms, hasAcceptedCurrentTerms } from "@/features/terms/application/terms";
+import {
+  acceptCurrentTerms,
+  hasAcceptedCurrentTerms,
+  hasEverAcceptedTerms,
+} from "@/features/terms/application/terms";
 import type { TermsDeps } from "@/features/terms/application/terms-types";
 import { CURRENT_TERMS_VERSION } from "@/features/terms/domain/terms-version";
 
@@ -9,14 +13,19 @@ const actor = { id: "11111111-1111-4111-8111-111111111111", role: "user" } as co
 function makeDeps(accepted = false) {
   const tx = {} as never;
   const hasAccepted = vi.fn(async () => accepted);
+  const hasAnyAcceptance = vi.fn(async () => accepted);
   const accept = vi.fn(async () => undefined);
   const withUserContext = vi.fn(async (_actor: unknown, work: (tx: never) => Promise<unknown>) =>
     work(tx),
   );
 
   return {
-    deps: { withUserContext, repository: { hasAccepted, accept } } as unknown as TermsDeps,
+    deps: {
+      withUserContext,
+      repository: { hasAccepted, hasAnyAcceptance, accept },
+    } as unknown as TermsDeps,
     hasAccepted,
+    hasAnyAcceptance,
     accept,
     withUserContext,
     tx,
@@ -49,6 +58,22 @@ describe("hasAcceptedCurrentTerms", () => {
       status: "ok",
       value: true,
     });
+  });
+});
+
+describe("hasEverAcceptedTerms", () => {
+  it.each([true, false])("answers %s from the repository for any version", async (value) => {
+    const { deps, hasAnyAcceptance, tx } = makeDeps(value);
+
+    expect(await hasEverAcceptedTerms(actor, deps)).toEqual({ status: "ok", value });
+    expect(hasAnyAcceptance).toHaveBeenCalledWith(tx);
+  });
+
+  it("turns a guest away before the database", async () => {
+    const { deps, withUserContext } = makeDeps();
+
+    expect(await hasEverAcceptedTerms(null, deps)).toEqual({ status: "unauthenticated" });
+    expect(withUserContext).not.toHaveBeenCalled();
   });
 });
 

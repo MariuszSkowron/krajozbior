@@ -11,7 +11,7 @@ import { AccountArea } from "./shell/account-area";
 import { MainNav } from "./shell/main-nav";
 import { SiteFooter } from "./shell/site-footer";
 import { loadAuthPhoto } from "./auth-photo-loader";
-import { shellTermsAccepted } from "./shell/terms-state";
+import { shellTermsAccepted, shellTermsEverAccepted } from "./shell/terms-state";
 import { TermsGuard } from "./shell/terms-guard";
 import { TestVersionBanner } from "./shell/test-version-banner";
 import { requestTheme, themeColor } from "./shell/theme";
@@ -57,6 +57,8 @@ export default async function RootLayout({
   // The photo beside the "Zanim zaczniesz" screen (the pool of the home banner); drawn only
   // when the screen is shown.
   const gatePhoto = termsAccepted ? null : await loadAuthPhoto();
+  // Declining deletes only an account that never accepted anything; the screen words it so.
+  const acceptedBefore = termsAccepted ? true : await shellTermsEverAccepted();
 
   return (
     <html
@@ -85,7 +87,7 @@ export default async function RootLayout({
         </div>
         {showNav ? <MainNav /> : null}
         <main id="tresc" tabIndex={-1} className={styles.main}>
-          {termsAccepted ? children : <TermsGuard photo={gatePhoto}>{children}</TermsGuard>}
+          {termsAccepted ? children : <TermsGuard photo={gatePhoto} acceptedBefore={acceptedBefore}>{children}</TermsGuard>}
         </main>
         <SiteFooter />
       </body>

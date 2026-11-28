@@ -14,7 +14,9 @@ vi.mock("@/app/fonts", () => ({
 vi.mock("@/app/shell/shell-account", () => ({
   shellAccount: async () => ({ role: null, displayName: null, curatorOrganizations: [] }),
 }));
-vi.mock("@/app/shell/terms-state", () => ({ shellTermsAccepted: async () => true }));
+vi.mock("@/app/shell/terms-state", () => ({ shellTermsAccepted: async () => true,
+  shellTermsEverAccepted: async () => true,
+}));
 vi.mock("@/app/request-actor", () => ({
   getRequestActor: async () => null,
   loginHref: () => "/login",

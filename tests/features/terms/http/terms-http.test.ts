@@ -23,7 +23,7 @@ const actor = { id: "11111111-1111-4111-8111-111111111111", role: "user" } as co
 const accept = vi.fn(async () => undefined);
 const deps = {
   withUserContext: async (_a: unknown, work: (tx: never) => Promise<unknown>) => work({} as never),
-  repository: { hasAccepted: async () => false, accept },
+  repository: { hasAccepted: async () => false, hasAnyAcceptance: async () => false, accept },
 } as unknown as TermsDeps;
 
 function post(body: string, contentType: string, headers: Record<string, string> = {}) {
