@@ -121,4 +121,4 @@ Reguły i hooki agenta chronią przed pomyłką i przed prostym wstrzyknięciem 
 
 ## 6. Jak zgłosić problem
 
-Jeśli znajdziesz podatność albo sekret w repozytorium, napisz na **kontakt@mariuszskowron.pl** (ten sam adres co w polityce prywatności serwisu). Nie opisuj podatności publicznie, zanim jej nie naprawimy; odpowiemy i potwierdzimy poprawkę.
+Jeśli znajdziesz podatność albo sekret w repozytorium, napisz na **bezpieczenstwo@krajozbior.pl** (ten sam adres jest w pliku `/.well-known/security.txt` serwisu). Nie opisuj podatności publicznie, zanim jej nie naprawimy; odpowiemy i potwierdzimy poprawkę.

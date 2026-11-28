@@ -20,7 +20,7 @@ import {
   SIGNUP_PATH,
 } from "@/features/identity/domain/login-entry";
 import { isNewExplorerAccount } from "@/features/identity/domain/role-home";
-import { CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
+import { CONTACT_ADDRESSES } from "@/features/legal/domain/legal-pages";
 import { getMyProfile } from "@/features/profile/application/profile";
 import { getProfileDeps } from "@/features/profile/infrastructure/profile-deps";
 
@@ -209,7 +209,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         <p role="status" className={styles.status}>
           Wylogowano. Konto działa dopiero po akceptacji regulaminu. Zapisaliśmy tylko Twój adres
           e-mail; jeśli chcesz, żebyśmy go usunęli, napisz na{" "}
-          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+          <a href={`mailto:${CONTACT_ADDRESSES.privacy}`}>{CONTACT_ADDRESSES.privacy}</a>.
         </p>
       ) : null}
       {signOutFailed ? (
