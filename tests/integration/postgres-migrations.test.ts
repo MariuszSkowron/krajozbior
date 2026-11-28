@@ -342,6 +342,35 @@ describe("PostgreSQL migrations and transactions", () => {
     }
   });
 
+  it("reverts the collection kind migration alone: the column and its grants go, and come back", async () => {
+    const owner = await MikroORM.init(createOrmConfig(db.urls.krajozbior_owner));
+    const kindState = () =>
+      orm.em.execute<{ column: boolean; insert: boolean; update: boolean }>(
+        `select exists (select 1 from information_schema.columns
+                         where table_name = 'collections' and column_name = 'kind') as "column",
+                (select count(*) > 0 from information_schema.column_privileges
+                  where table_name = 'collections' and column_name = 'kind'
+                    and grantee = 'krajozbior_app' and privilege_type = 'INSERT') as "insert",
+                (select count(*) > 0 from information_schema.column_privileges
+                  where table_name = 'collections' and column_name = 'kind'
+                    and grantee = 'krajozbior_app' and privilege_type = 'UPDATE') as "update"`,
+        [],
+        "get",
+      );
+
+    try {
+      expect(await kindState()).toEqual({ column: true, insert: true, update: true });
+
+      await owner.migrator.down({ to: "Migration20261128020000_collection_extra_regions" });
+      expect(await kindState()).toEqual({ column: false, insert: false, update: false });
+
+      await owner.migrator.up();
+      expect(await kindState()).toEqual({ column: true, insert: true, update: true });
+    } finally {
+      await owner.close(true);
+    }
+  });
+
   it("writes and reads a technical record, then rolls it back", async () => {
     await orm.em.execute(`create table integration_technical_records (
       id text primary key,

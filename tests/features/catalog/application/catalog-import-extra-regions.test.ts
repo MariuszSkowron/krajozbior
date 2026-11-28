@@ -17,6 +17,7 @@ const collection: ImportCollection = {
   summary: "Opis",
   region: "dolnoslaskie",
   extraRegions: ["opolskie"],
+  kind: null,
   placeKeys: [],
   publish: false,
 };

@@ -79,9 +79,14 @@ export function resultOfOutcome(
       const photos: Record<string, number> = {};
       const publications: Record<string, number> = {};
       let extraRegionsUpdated = 0;
+      let kindUpdated = 0;
 
       for (const collection of outcome.collections) {
         count(collections, collection.result);
+
+        if (collection.kind === "updated") {
+          kindUpdated += 1;
+        }
 
         if (collection.publication !== undefined) {
           count(publications, collection.publication);
@@ -115,6 +120,7 @@ export function resultOfOutcome(
           photos_skipped_unknown_license: photos.skipped_unknown_license ?? 0,
           // Only a count, no region codes; absent when no collection changed (as before).
           ...(extraRegionsUpdated > 0 ? { extra_regions_updated: extraRegionsUpdated } : {}),
+          ...(kindUpdated > 0 ? { kind_updated: kindUpdated } : {}),
           // D-68: counts of the publication results only (no keys, no titles).
           ...(batch.publish === true ? { publication_results: publications } : {}),
         },

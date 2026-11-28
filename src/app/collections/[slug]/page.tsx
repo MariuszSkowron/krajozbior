@@ -7,7 +7,15 @@ import { getRequestActor, logReadFailure, loginHref, signupHref } from "@/app/re
 import { getCollectionProgress } from "@/features/album/application/saved-collections";
 import { getAlbumDeps } from "@/features/album/infrastructure/album-deps";
 import { progressCounts } from "@/features/album/domain/progress";
-import { getPublishedCollection } from "@/features/catalog/application/public-catalog";
+import type {
+  PublishedCollection,
+  RelatedCollection,
+} from "@/features/catalog/application/catalog-types";
+import {
+  getPublishedCollection,
+  listRelatedCollections,
+} from "@/features/catalog/application/public-catalog";
+import type { Actor } from "@/features/identity/domain/actor";
 import {
   STATE_FILTERS,
   STATE_FILTER_LABELS,
@@ -19,7 +27,7 @@ import {
   parseView,
   type VisitKind,
 } from "@/features/catalog/domain/album-view";
-import { regionsLabelOf } from "@/features/catalog/domain/collection";
+import { landLine, regionsLabelOf } from "@/features/catalog/domain/collection";
 import { ogCoverDescription, ogImageUrl } from "@/features/catalog/domain/collection-cover";
 import { formatPlaceCount } from "@/features/catalog/domain/place-count";
 import { getCatalogDeps } from "@/features/catalog/infrastructure/catalog-deps";
@@ -34,6 +42,7 @@ import { CollectionCover, CoverProgress } from "./collection-cover";
 import { CollectionMapLoader } from "./collection-map-loader";
 import { CollectionPlaces } from "./collection-places";
 import { PlaceTile } from "./place-tile";
+import { LandLineText, RelatedCollections, type RelatedProgress } from "./related-collections";
 import { SaveCollectionButton } from "./save-collection-button";
 
 // Rendered on every request and never cached by a shared cache (src/proxy.ts
@@ -108,6 +117,44 @@ async function loadAlbum(collectionId: string, slug: string) {
   }
 }
 
+// The second layer: collections of the other kind that share places with this one (a land and
+// its theme collections). Its own `try/catch`: a failed read leaves the page without the
+// section or the line (the class of the error is logged, nothing else).
+async function loadRelated(collection: Pick<PublishedCollection, "id" | "kind">) {
+  try {
+    return await listRelatedCollections(collection, getCatalogDeps());
+  } catch (error) {
+    logReadFailure("Related collections read", error);
+
+    return [];
+  }
+}
+
+// The explorer's progress on each card of a land (at most MAX_RELATED_COLLECTIONS reads); a
+// failed read hides only the progress of that card.
+async function loadRelatedProgress(
+  actor: Actor,
+  related: readonly RelatedCollection[],
+): Promise<RelatedProgress> {
+  const progress = new Map<string, { visited: number; total: number }>();
+
+  await Promise.all(
+    related.map(async ({ id }) => {
+      try {
+        const answer = await getCollectionProgress(actor, id, getAlbumDeps());
+
+        if (answer.status === "ok" && answer.value.progress.kind === "progress") {
+          progress.set(id, progressCounts(answer.value.progress));
+        }
+      } catch (error) {
+        logReadFailure("Related collection progress read", error);
+      }
+    }),
+  );
+
+  return progress;
+}
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const result = await load((await params).slug);
 
@@ -163,6 +210,18 @@ export default async function CollectionPage({
   const collection = result.value;
   const query = (await searchParams) ?? {};
   const album = await loadAlbum(collection.id, collection.slug);
+  const related = await loadRelated(collection);
+  const relatedProgress: RelatedProgress =
+    collection.kind === "land" && album.kind === "explorer"
+      ? await loadRelatedProgress(album.actor, related)
+      : new Map();
+  const landLineOfTheme =
+    collection.kind === "land"
+      ? null
+      : landLine(
+          collection.placeCount,
+          related.map(({ slug, title, sharedPlaces }) => ({ slug, title, sharedPlaces })),
+        );
   const kinds = album.kind === "explorer" ? album.kinds : null;
   const stan = kinds === null ? "wszystkie" : parseStateFilter(query.stan);
   const widok = parseView(query.widok);
@@ -193,6 +252,13 @@ export default async function CollectionPage({
         <div className={panelStyles.introText}>
           {collection.summary === "" ? null : (
             <p className={styles.summary}>{collection.summary}</p>
+          )}
+          {landLineOfTheme === null ? null : (
+            <LandLineText
+              line={landLineOfTheme}
+              placeCount={collection.placeCount}
+              placesInLands={related[0]?.placesInRelated ?? 0}
+            />
           )}
           <p className={panelStyles.curator}>
             <svg
@@ -236,6 +302,9 @@ export default async function CollectionPage({
           </p>
         ) : null}
       </div>
+      {collection.kind === "land" && related.length > 0 ? (
+        <RelatedCollections collections={related} progress={relatedProgress} />
+      ) : null}
       <section className={`${styles.section} ${panelStyles.places}`} aria-labelledby="miejsca">
         <div className={panelStyles.listHead}>
           <h2 id="miejsca">Miejsca w kolekcji</h2>

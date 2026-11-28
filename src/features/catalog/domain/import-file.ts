@@ -10,11 +10,12 @@
 import { z } from "zod";
 
 import {
+  isCollectionKind,
   isRegion,
   normalizeExtraRegions,
   validateCollectionInput,
 } from "@/features/catalog/domain/collection";
-import type { Region } from "@/features/catalog/domain/collection";
+import type { CollectionKind, Region } from "@/features/catalog/domain/collection";
 import {
   ACCESS_RESTRICTIONS,
   PLACE_ACCESS_MAX_LENGTH,
@@ -131,6 +132,8 @@ const collectionSchema = z.strictObject({
   // Absent: the collection keeps what it has; `[]` clears; a list sets exactly that list. The
   // count rule (at most 3) is the domain's `too_many`; the bound here only caps absurd input.
   extra_regions: z.array(z.string()).max(16).optional(),
+  // Absent: the kind stays; the code itself is checked by `isCollectionKind` (`bad_value`).
+  kind: z.string().optional(),
   places: z.array(importKey).min(1).max(MAX_PLACES_IN_FILE_COLLECTION),
   publish: z.boolean().optional(),
   review: z.strictObject({ status: z.literal("approved") }),
@@ -260,6 +263,8 @@ export type ImportCollection = Readonly<{
   region: Region;
   /** `null`: the file does not say (the collection keeps its extra regions); `[]` clears them. */
   extraRegions: readonly Region[] | null;
+  /** `null`: the file does not say (the collection keeps its kind; a new one is a `theme`). */
+  kind: CollectionKind | null;
   placeKeys: readonly string[];
   publish: boolean;
 }>;
@@ -566,6 +571,12 @@ export function parseImportFile(
         extraRegions = extra.value;
       }
 
+      if (parsed.data.kind !== undefined && !isCollectionKind(parsed.data.kind)) {
+        fail(line, "kind", "bad_value");
+
+        return;
+      }
+
       collections.push({
         line,
         importKey: parsed.data.import_key,
@@ -573,6 +584,7 @@ export function parseImportFile(
         summary: checked.value.summary,
         region: checked.value.region,
         extraRegions,
+        kind: parsed.data.kind ?? null,
         placeKeys: parsed.data.places,
         publish: parsed.data.publish ?? false,
       });
