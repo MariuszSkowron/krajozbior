@@ -300,6 +300,8 @@ try {
     # accounts sign in only with DEMO_ACCOUNTS_TEST_ONLY=1 and a loopback address.
     ALLOW_DEMO_SEED         = '1'
     DEMO_ACCOUNTS_TEST_ONLY = '1'
+    # Reports of a problem with a place (P4b) are off by default; the E2E specs need them on.
+    FEATURE_PLACE_REPORTS   = 'true'
     # No memory of "Miejsce dnia": specs delete the places they seed.
     PLACE_OF_DAY_CACHE_TTL_MS = '0'
     # Sign-in codes to a local outbox, like playwright.config.ts.
