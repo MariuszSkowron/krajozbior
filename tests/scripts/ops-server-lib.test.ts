@@ -574,6 +574,19 @@ describe("mode import: collection file to the server (remote.sh, F-K6)", () => {
     expect(result.leftovers).toEqual([]);
   });
 
+  it("remote.sh looks for the marker that the real scripts/catalog-import.ts carries (D-68)", () => {
+    const remote = readFileSync(join(SERVER_DIR, "remote.sh"), "utf8");
+    // remote.sh checks several markers in that file; the one of the publication sits in the
+    // `KZ_IMPORT_PUBLISH` branch.
+    const marker =
+      /KZ_IMPORT_PUBLISH:-\}" = "1" \]; then\s+grep -q -- '([^']+)' "\$KZ_SRC\/scripts\/catalog-import\.ts"/.exec(
+        remote,
+      )?.[1];
+
+    expect(marker).toBe("server-publish");
+    expect(readFileSync(join(root, "scripts/catalog-import.ts"), "utf8")).toContain(marker!);
+  });
+
   // D-68: the marker of the server publication in the running code (see scripts/catalog-import.ts).
   const READY_PUBLISH = `${READY}\necho "server-publish" >>"$KZ_SRC/scripts/catalog-import.ts"`;
 

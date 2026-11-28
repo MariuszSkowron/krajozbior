@@ -396,9 +396,13 @@ if ($Mode -eq 'import' -or $Mode -eq 'aktualnosci') {
       Read-YesNo 'Wgrac aktualnosci na serwer'
     } elseif ($ImportPublish) {
       Write-Say 'Powyzej podglad: co wgranie zrobiloby z kolekcjami i miejscami, oraz lista kolekcji do publikacji. Na serwerze nic sie jeszcze nie zmienilo.' 'Yellow'
-      if ($script:importPublishable -lt 0) {
+      $decision = Get-ImportPublishDecision $script:importPublishable
+      if ($decision -eq 'no-list') {
         # The running version printed no list: do not publish blind.
         Write-Say 'Podglad nie pokazal listy kolekcji do publikacji, wiec publikacji nie bedzie. Konczymy bez zmian.' 'Yellow'
+        $false
+      } elseif ($decision -eq 'nothing') {
+        Write-Say 'Nic do publikacji: zadna kolekcja z pliku nie kwalifikuje sie (nowe, oznaczone, bez recznych zmian). Konczymy bez zmian.' 'Yellow'
         $false
       } else {
         Write-Say "Odpowiedz tak, zeby wgrac szkice i od razu opublikowac $($script:importPublishable) kolekcji z listy (stana sie publiczne; wycofanie tylko w panelu kuratora), albo nie, zeby zakonczyc bez zmian."

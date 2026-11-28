@@ -517,6 +517,33 @@ describe("mode import: checks on the owner's computer (F-K6)", () => {
     );
   });
 
+  psIt("publication (D-68): control characters in a title or key never reach the console", () => {
+    const preview = JSON.stringify({
+      outcome: "preview",
+      publishable: [{ line: 2, importKey: "col:a\u001b[2J", title: "Zamki\r\u001b[31m nad Odra" }],
+      publishableCount: 1,
+    });
+
+    // One entry: PowerShell unwraps a one-element array inside $(...), so it comes back as text.
+    expect(psJson<string>(`Get-ImportPublishableLines ${psString(preview)}`)).toBe(
+      "  linia 2: Zamki??[31m nad Odra (col:a?[2J)",
+    );
+  });
+
+  psIt("publication (D-68): decision after the preview (-1 no list, 0 nothing, N asks)", () => {
+    expect(
+      psJson<string[]>("@(-1, 0, 1, 7 | ForEach-Object { Get-ImportPublishDecision $_ })"),
+    ).toEqual(["no-list", "nothing", "ask", "ask"]);
+  });
+
+  it("deploy.ps1 asks yes/no only when the decision is 'ask'", () => {
+    const deploy = withoutComments(readFileSync(join(OPS_DIR, "deploy.ps1"), "utf8"));
+
+    expect(deploy).toContain("Get-ImportPublishDecision $script:importPublishable");
+    expect(deploy).toContain("$decision -eq 'no-list'");
+    expect(deploy).toContain("$decision -eq 'nothing'");
+  });
+
   it("wdroz.ps1 passes -Publikuj on only with -Import; deploy.ps1 sends the switch in the payload (D-68)", () => {
     const deploy = withoutComments(readFileSync(join(OPS_DIR, "deploy.ps1"), "utf8"));
     const starter = withoutComments(readFileSync(join(OPS_DIR, "wdroz.template.ps1"), "utf8"));

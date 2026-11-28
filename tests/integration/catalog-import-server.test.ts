@@ -336,6 +336,48 @@ describe("catalog:import --target server on a real database", () => {
     });
   });
 
+  it("--publish is refused to an account without membership (no change, rejected entry)", async () => {
+    const outsider = { id: randomUUID(), role: "user" as const, email: "obcy-serwer@example.com" };
+
+    await admin$(`insert into auth.users (id, name, email) values ($1, 'obcy', $2)`, [
+      outsider.id,
+      outsider.email,
+    ]);
+
+    const deps = serverDeps();
+    const base = deps.server!;
+    const outsiderDeps: CatalogImportCommandDeps = {
+      ...deps,
+      server: {
+        ...base,
+        connect: async () => ({
+          run: ({ file, orgSlug, preview, publish }) =>
+            executeCatalogImport(
+              { actor: outsider, orgSlug, file, preview, publish },
+              catalogDeps(),
+            ),
+          close: closed,
+        }),
+      },
+    };
+    const before = await admin$<{ title: string; status: string }>(
+      `select title, status from public.collections order by title`,
+    );
+    const entriesBefore = (await auditRows()).length;
+    const result = await runCatalogImport(flags([...write, "--publish"]), outsiderDeps);
+
+    expect(result.exitCode).toBe(3);
+    expect(await admin$(`select title, status from public.collections order by title`)).toEqual(
+      before,
+    );
+
+    const last = (await auditRows()).at(-1)!;
+
+    expect((await auditRows()).length).toBe(entriesBefore + 2);
+    expect(last).toMatchObject({ outcome: "rejected", error_code: "import_refused" });
+    expect(last.details).toMatchObject({ phase: "finish", refusal: "organization_unavailable" });
+  });
+
   it("--remove on the server writes catalog_remove entries", async () => {
     const result = await runCatalogImport(flags([...write, "--remove"]), serverDeps());
 

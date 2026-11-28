@@ -671,8 +671,20 @@ function Get-ImportPublishableLines([string]$line) {
   $o = Get-ImportPublishablePreview $line
   if ($null -eq $o) { return @() }
   return @(@(Get-JsonField $o 'publishable') | Where-Object { $null -ne $_ } | ForEach-Object {
-      "  linia $(Get-JsonField $_ 'line'): $(Get-JsonField $_ 'title') ($(Get-JsonField $_ 'importKey'))"
+      # Control characters (ESC, CR, ...) in a title could redraw the console before the question.
+      $title = [string](Get-JsonField $_ 'title') -replace '\p{Cc}', '?'
+      $key = [string](Get-JsonField $_ 'importKey') -replace '\p{Cc}', '?'
+      "  linia $(Get-JsonField $_ 'line'): $title ($key)"
     })
+}
+
+# What to do after the preview of -Publikuj (D-68), from the count of Get-ImportPublishableCount:
+# 'no-list' (-1: the running version printed no list) and 'nothing' (0) end without a question
+# and without changes; 'ask' (more than 0) asks yes/no.
+function Get-ImportPublishDecision([int]$count) {
+  if ($count -lt 0) { return 'no-list' }
+  if ($count -eq 0) { return 'nothing' }
+  return 'ask'
 }
 
 # The number of collections to publish from that preview line, or -1 for any other line.
