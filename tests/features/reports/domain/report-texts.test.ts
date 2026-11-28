@@ -60,8 +60,12 @@ describe("texts of reports for the explorer", () => {
     [3, "3 zgłoszenia"],
     [5, "5 zgłoszeń"],
     [10, "10 zgłoszeń"],
+    [12, "12 zgłoszeń"],
+    [13, "13 zgłoszeń"],
+    [14, "14 zgłoszeń"],
     [22, "22 zgłoszenia"],
     [50, "50 zgłoszeń"],
+    [112, "112 zgłoszeń"],
   ])("declines the number of reports: %i", (count, text) => {
     expect(formatReportCount(count)).toBe(text);
   });

@@ -148,6 +148,10 @@ test.describe("queue of reports of the curator", () => {
     await expect(curator.getByRole("article", { name: /Zamek w Malborku/ })).toContainText(
       "Notatka: Sprawdziliśmy na miejscu: ścieżka jest ogólnodostępna.",
     );
+    // The report accepted above is there, with its own text.
+    await expect(
+      reports.filter({ hasText: "Brama przy wejściu była zamknięta" }).first(),
+    ).toBeVisible();
     await expect(curator.getByRole("button", { name: "Cofnij decyzję" })).not.toHaveCount(0);
     await expectNoAccessibilityViolations(curator);
     await curator.context().close();
