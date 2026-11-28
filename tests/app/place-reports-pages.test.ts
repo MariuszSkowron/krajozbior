@@ -237,7 +237,7 @@ describe("'Moje zgłoszenia'", () => {
     expect(html).toContain("Zgłoszenie do: Gmina Tczew");
     expect(html).toContain("Most Tczewski (miejsce usunięte)");
     expect(html).toContain("Nie zgadzasz się?");
-    expect(html).toContain("mailto:kontakt@mariuszskowron.pl");
+    expect(html).toContain("mailto:reklamacje@krajozbior.pl");
     // exactly one "Nie zgadzasz się?": only the rejected one has it
     expect(html.match(/Nie zgadzasz się\?/g)).toHaveLength(1);
     // no name of a curator, no id of one

@@ -17,7 +17,7 @@ import {
   MY_REPORTS_TITLE,
 } from "@/features/reports/domain/report-texts";
 import { getReportsDeps } from "@/features/reports/infrastructure/reports-deps";
-import { CONTACT_EMAIL } from "@/features/legal/domain/legal-pages";
+import { CONTACT_ADDRESSES } from "@/features/legal/domain/legal-pages";
 import { formatSavedDate } from "@/features/want-to-see/domain/saved-date";
 import { isPlaceReportsEnabled } from "@/lib/config/env";
 
@@ -103,7 +103,7 @@ export default async function MyReportsPage() {
                   {report.status === "rejected" ? (
                     <p>
                       {DISAGREE_PROMPT}{" "}
-                      <a className={styles.link} href={`mailto:${CONTACT_EMAIL}`}>
+                      <a className={styles.link} href={`mailto:${CONTACT_ADDRESSES.complaints}`}>
                         {DISAGREE_LINK}
                       </a>
                       .

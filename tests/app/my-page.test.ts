@@ -264,7 +264,7 @@ describe("profile page", () => {
     const on = renderToStaticMarkup(await MyPage());
     const hrefs = [...on.matchAll(/<a [^>]*href="([^"]+)"/g)].map((match) => match[1]);
 
-    expect(hrefs).toEqual(["/my/reports", "/my/settings", "mailto:kontakt@mariuszskowron.pl"]);
+    expect(hrefs).toEqual(["/my/reports", "/my/settings", "mailto:kontakt@krajozbior.pl"]);
     expect(on).toContain("Moje zgłoszenia");
     vi.unstubAllEnvs();
   });
