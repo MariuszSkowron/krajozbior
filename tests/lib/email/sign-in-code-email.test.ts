@@ -24,6 +24,13 @@ describe("renderSignInCodeEmail", () => {
     expect(email.html).toContain('lang="pl"');
   });
 
+  it("warns in both bodies not to give the code to anyone (D-08)", () => {
+    const warning = `Wpisz go tylko na stronie Krajozbioru i nie podawaj nikomu — nie poprosimy o niego e-mailem, telefonem ani wiadomością.`;
+
+    expect(email.text).toContain(warning);
+    expect(email.html).toContain(warning);
+  });
+
   it("has no remote images, scripts or other external resources", () => {
     expect(email.html).not.toMatch(/<img|<script|<link|<iframe|<video|<audio|<object|<embed/i);
     expect(email.html).not.toMatch(/\bsrc\s*=|url\(|@import/i);
@@ -42,7 +49,7 @@ describe("renderSignInCodeEmail", () => {
 
   it("ends with the data controller and the privacy policy in both bodies (E11 5.8)", () => {
     const footer = [
-      "Administrator danych: Mariusz Skowron, kontakt@mariuszskowron.pl",
+      "Administrator danych: Mariusz Skowron, prywatnosc@krajozbior.pl",
       "Polityka prywatności: https://krajozbior.example/polityka-prywatnosci",
     ];
 

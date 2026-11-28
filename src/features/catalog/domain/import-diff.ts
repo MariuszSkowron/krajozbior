@@ -1,4 +1,4 @@
-import type { CollectionInput, CollectionStatus } from "./collection";
+import type { CollectionInput, CollectionStatus, Region } from "./collection";
 import type { PlaceInput } from "./place";
 
 // Pure decisions of loading an approved collection file: what to do with one
@@ -62,6 +62,8 @@ export type StoredCollection = Readonly<{
   firstPublishedAt: Date | string | null;
   content: CollectionInput;
   placeIds: readonly string[];
+  /** Extra voivodeships as stored; absent counts as none. Not part of `content` (see `decideExtraRegions`). */
+  extraRegions?: readonly Region[];
 }>;
 
 export type CollectionContentDecision =
@@ -74,6 +76,30 @@ export type CollectionContentDecision =
 
 export type CompositionDecision =
   "sync" | "kept_manual_edit" | "kept_manual_delete" | "skipped_already_published";
+
+export type ExtraRegionsDecision = "set" | "noop" | "not_in_file" | "kept_manual_delete";
+
+/**
+ * Extra voivodeships follow the file whenever it names them (`wanted` not null), also for a
+ * published collection or one edited in the panel: they are a place in the filter, not content,
+ * and do not touch the version. `stored` null: the collection is gone (the owner's deletion
+ * wins). The lists are compared as sets (the database does not promise an order).
+ */
+export function decideExtraRegions(
+  stored: readonly Region[] | null,
+  wanted: readonly Region[] | null,
+): ExtraRegionsDecision {
+  if (stored === null) {
+    return "kept_manual_delete";
+  }
+  if (wanted === null) {
+    return "not_in_file";
+  }
+
+  const same = stored.length === wanted.length && wanted.every((region) => stored.includes(region));
+
+  return same ? "noop" : "set";
+}
 
 export type CollectionDecision = Readonly<{
   content: CollectionContentDecision;

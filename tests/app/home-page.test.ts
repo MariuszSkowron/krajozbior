@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   listNearby: vi.fn(),
   getBanner: vi.fn(),
   getHomeBanner: vi.fn(),
+  getHomePublicReads: vi.fn(),
+  listLatestNews: vi.fn(),
   connection: vi.fn(),
   getProfile: vi.fn(),
 }));
@@ -30,8 +32,15 @@ vi.mock("@/features/catalog/application/public-catalog", () => ({
   listNearbyCandidates: mocks.listNearby,
   getCollectionBanner: mocks.getBanner,
   getHomeBanner: mocks.getHomeBanner,
+  getHomePublicReads: mocks.getHomePublicReads,
+}));
+vi.mock("@/features/news/infrastructure/news-read-deps", () => ({ getNewsReadDeps: () => ({}) }));
+vi.mock("@/features/news/application/public-news", () => ({
+  listLatestNews: mocks.listLatestNews,
 }));
 vi.mock("next/server", () => ({ connection: mocks.connection }));
+// The save button of the nudge is a client component; here it only has to render.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const { default: HomePage } = await import("@/app/page");
 
@@ -49,6 +58,7 @@ const discover = [
     slug: "mosty-i-zamki",
     title: "Mosty i zamki",
     region: "pomorskie",
+    extraRegions: [],
     organization: { name: "Gmina A" },
     placeCount: 3,
     cover: null,
@@ -84,6 +94,7 @@ const nearby = [
 
 const album = {
   summary: { discoveredPlaces: 7, regions: 2, savedCollections: 1 },
+  homeReturn: { hasSaved: true, remaining: [], saveNudge: null },
   favorites: [
     {
       id: "c2",
@@ -135,6 +146,8 @@ beforeEach(() => {
   mocks.getBanner.mockReset().mockResolvedValue(null);
   mocks.getHomeBanner.mockReset().mockResolvedValue(null);
   mocks.connection.mockReset().mockResolvedValue(undefined);
+  mocks.getHomePublicReads.mockReset().mockResolvedValue({ placeOfDay: null, newCollections: [] });
+  mocks.listLatestNews.mockReset().mockResolvedValue([]);
   mocks.getHomeAlbum.mockReset().mockResolvedValue({ status: "ok", value: album });
   mocks.listSaved.mockReset().mockResolvedValue({ status: "ok", value: [] });
   mocks.getProfile.mockReset().mockResolvedValue({ status: "ok", value: { firstName: "Anna" } });
@@ -473,6 +486,29 @@ describe("home page of a signed-in explorer", () => {
     expect(html).toContain("Twój album");
   });
 
+  it("says the save sentence once when a visit comes with a nudge to save the started collection", async () => {
+    mocks.getHomeAlbum.mockResolvedValue({
+      status: "ok",
+      value: {
+        ...album,
+        summary: { discoveredPlaces: 1, regions: 1, savedCollections: 0 },
+        favorites: [],
+        homeReturn: {
+          hasSaved: false,
+          remaining: [],
+          saveNudge: { id: "n1", slug: "nowa", title: "Nowa", visited: 1, total: 3 },
+        },
+      },
+    });
+
+    const html = await render();
+
+    expect(html).not.toContain("Zapisz kolekcję, a pokażemy tu Twój postęp w niej.");
+    expect(html).not.toContain("Nie masz jeszcze zapisanych kolekcji");
+    expect(html).toContain("Masz 1 z 3 miejsc kolekcji Nowa. Zapisz ją, żeby widzieć postęp.");
+    expect(html).toMatch(/<a [^>]*href="#do-odkrycia"[^>]*>Zobacz kolekcje<\/a>/);
+  });
+
   it("shows a new explorer (no visit, no saved collection) the big banner with the first step, not the zeros", async () => {
     mocks.getHomeBanner.mockResolvedValue({
       ...banner,
@@ -538,5 +574,110 @@ describe("home page of a signed-in explorer", () => {
     mocks.getHomeAlbum.mockResolvedValue({ status: "unauthenticated" });
 
     expect(await render()).not.toContain("Odkryte miejsca");
+  });
+
+  it("shows the reasons to return from the album and leaves the saved out of the new ones", async () => {
+    mocks.getHomeAlbum.mockResolvedValue({
+      status: "ok",
+      value: {
+        ...album,
+        homeReturn: {
+          hasSaved: true,
+          remaining: [{ slug: "f-0", title: "Ulubiona 0", remaining: 3, names: ["Dwór"] }],
+          saveNudge: { id: "n1", slug: "nowa", title: "Nowa", visited: 1, total: 3 },
+        },
+      },
+    });
+    mocks.listSaved.mockResolvedValue({ status: "ok", value: ["wiezyce"] });
+
+    const html = await render();
+
+    expect(html).toContain("Do odkrycia w Twoich kolekcjach");
+    expect(html).toContain("do odkrycia: 3 · Dwór");
+    expect(html).toContain("Masz 1 z 3 miejsc kolekcji Nowa.");
+    expect(mocks.getHomePublicReads).toHaveBeenCalledWith(expect.anything(), new Set(["wiezyce"]));
+  });
+
+  it("does not repeat the collection of the banner in the list of what is left (P6, C-01)", async () => {
+    const row = (slug: string, title: string) => ({ slug, title, remaining: 3, names: ["Dwór"] });
+    const withRemaining = (remaining: ReturnType<typeof row>[]) => ({
+      status: "ok",
+      value: { ...album, homeReturn: { hasSaved: true, remaining, saveNudge: null } },
+    });
+
+    mocks.listSaved.mockResolvedValue({ status: "ok", value: ["wiezyce"] });
+
+    // The banner is the first saved collection ("wiezyce"): it stays in the banner only.
+    mocks.getHomeAlbum.mockResolvedValue(
+      withRemaining([row("wiezyce", "Wieżyce"), row("f-0", "Ulubiona 0")]),
+    );
+
+    const html = await render();
+    const rest = html.slice(html.indexOf('id="zostalo-title"'));
+    const section = rest.slice(0, rest.indexOf("</section>"));
+
+    expect(section).toContain("Ulubiona 0");
+    expect(section).not.toContain("/collections/wiezyce");
+
+    // Only the banner collection is left: no section, and no false "all complete".
+    mocks.getHomeAlbum.mockResolvedValue(withRemaining([row("wiezyce", "Wieżyce")]));
+
+    const alone = await render();
+
+    expect(alone).not.toContain("Do odkrycia w Twoich kolekcjach");
+    expect(alone).not.toContain("Wszystkie zapisane kolekcje masz ukończone");
+  });
+
+  it("shows up to three other collections when the banner collection is among those read (P6, m3)", async () => {
+    const row = (slug: string) => ({ slug, title: `Kol ${slug}`, remaining: 3, names: [] });
+
+    mocks.listSaved.mockResolvedValue({ status: "ok", value: ["wiezyce"] });
+    mocks.getHomeAlbum.mockResolvedValue({
+      status: "ok",
+      value: {
+        ...album,
+        homeReturn: {
+          hasSaved: true,
+          remaining: [row("wiezyce"), row("a"), row("b"), row("c")],
+          saveNudge: null,
+        },
+      },
+    });
+
+    const html = await render();
+    const rest = html.slice(html.indexOf('id="zostalo-title"'));
+    const section = rest.slice(0, rest.indexOf("</section>"));
+
+    expect(section).not.toContain("/collections/wiezyce");
+    expect(section.match(/<li /g)).toHaveLength(3);
+
+    // Without the banner collection among them, at most three are shown.
+    mocks.getHomeAlbum.mockResolvedValue({
+      status: "ok",
+      value: {
+        ...album,
+        homeReturn: {
+          hasSaved: true,
+          remaining: [row("a"), row("b"), row("c"), row("d")],
+          saveNudge: null,
+        },
+      },
+    });
+
+    const other = await render();
+    const rest2 = other.slice(other.indexOf('id="zostalo-title"'));
+
+    expect(rest2.slice(0, rest2.indexOf("</section>")).match(/<li /g)).toHaveLength(3);
+  });
+
+  it("leaves out only the public reasons to return when their read fails", async () => {
+    mocks.getHomePublicReads.mockRejectedValue(new Error("db down: secret-public"));
+
+    const html = await render();
+
+    expect(html).toContain("Twój album");
+    expect(html).not.toContain("Miejsce dnia");
+    expect(console.error).toHaveBeenCalledWith("Home public reads failed:", "Error");
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
   });
 });

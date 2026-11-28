@@ -3,6 +3,7 @@ import type { TransactionContext } from "@/lib/db/user-context";
 
 import {
   decideCollection,
+  decideExtraRegions,
   decidePlace,
   diffComposition,
   sameIds,
@@ -10,6 +11,7 @@ import {
   type StoredCollection,
   type StoredPlace,
 } from "../domain/import-diff";
+import type { Region } from "../domain/collection";
 import type { ImportCollection, ImportFileResult, ImportPlace } from "../domain/import-file";
 import {
   decidePhoto,
@@ -30,6 +32,7 @@ import type {
   CollectionReport,
   CollectionResult,
   CompositionResult,
+  ExtraRegionsResult,
   ImportKeyRow,
   ImportPreview,
   PlaceReport,
@@ -210,9 +213,18 @@ async function readCollection(
     status: row.status,
     firstPublishedAt: row.firstPublishedAt,
     content: { title: row.title, summary: row.summary, region: row.region },
+    extraRegions: row.extraRegions,
     placeIds: await deps.catalog.repository.listCollectionPlaceIds(tx, key.entityId),
   };
 }
+
+// The extra voivodeships the file asks for, without the main one that will stand in the
+// database (the SQL of `setExtraRegions` drops it too, so the next load finds the same list).
+const extraRegionsWanted = (
+  wanted: ImportCollection["extraRegions"],
+  mainRegion: Region,
+): readonly Region[] | null =>
+  wanted === null ? null : wanted.filter((region) => region !== mainRegion);
 
 /** Places named by a collection of the file but not described in it, that the organization lacks. */
 async function countUnknownExternalKeys(
@@ -364,6 +376,7 @@ async function previewImport(
     const places: Record<string, number> = {};
     const photos: Record<string, number> = {};
     const publishable: PublishableCollection[] = [];
+    let extraRegionsUpdated = 0;
 
     for (const place of file.places) {
       const key = keys.places.get(place.importKey);
@@ -407,6 +420,23 @@ async function previewImport(
 
       count(collections, decision.content);
 
+      // A new collection starts without extra voivodeships; a deleted one is left alone.
+      if (key === undefined || stored !== null) {
+        const mainAfter =
+          decision.content === "create" || decision.content === "update"
+            ? collection.region
+            : (stored as StoredCollection).content.region;
+
+        if (
+          decideExtraRegions(
+            stored === null ? [] : (stored.extraRegions ?? []),
+            extraRegionsWanted(collection.extraRegions, mainAfter),
+          ) === "set"
+        ) {
+          extraRegionsUpdated += 1;
+        }
+      }
+
       if (
         collection.publish &&
         decision.composition === "sync" &&
@@ -427,6 +457,7 @@ async function previewImport(
       photos,
       orphanedKeys: await deps.imports.countOrphanedKeys(tx, organizationId),
       collectionLimitExceeded: existing + (collections.create ?? 0) > MAX_COLLECTIONS_PER_LIST,
+      ...(extraRegionsUpdated > 0 ? { extraRegions: { updated: extraRegionsUpdated } } : {}),
       ...(publish ? { publishable } : {}),
     };
 
@@ -669,6 +700,31 @@ async function loadCollection(
     composition = decision.composition as CompositionResult;
   }
 
+  // Extra voivodeships: only when the file names them, also in a published collection (a place
+  // in the filter, not content: `version` stays, so the key of the load still fits). Read after
+  // the content step: a new main voivodeship has already left the list.
+  let extraRegionsResult: ExtraRegionsResult | undefined;
+
+  if (collection.extraRegions !== null) {
+    const current = await repository.findEditableCollection(tx, collectionId);
+
+    if (current === null) {
+      throw new CollectionRefusal("not_found");
+    }
+
+    const wantedExtra = extraRegionsWanted(collection.extraRegions, current.region);
+
+    if (decideExtraRegions(current.extraRegions, wantedExtra) === "set") {
+      if (!(await repository.setExtraRegions(tx, collectionId, wantedExtra as readonly Region[]))) {
+        throw new CollectionRefusal("not_found");
+      }
+
+      extraRegionsResult = "updated";
+    } else {
+      extraRegionsResult = "unchanged";
+    }
+  }
+
   // What the loader leaves behind: the version and, when it synced the
   // composition, the places in order.
   const row = await repository.findEditableCollection(tx, collectionId);
@@ -731,6 +787,7 @@ async function loadCollection(
     ...report(collectionResult(decision.content, composition), composition, placeReports),
     ...(publication === undefined ? {} : { publication }),
     ...(publicationRefusal === undefined ? {} : { publicationRefusal }),
+    ...(extraRegionsResult === undefined ? {} : { extraRegions: extraRegionsResult }),
   };
 }
 

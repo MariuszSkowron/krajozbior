@@ -2,7 +2,7 @@
 
 ## W skrócie
 
-Krajozbiór to aplikacja webowa do zbierania odwiedzonych miejsc w tematycznych kolekcjach, na komputer i telefon. To publiczne repozytorium kodu: aplikacja (Next.js, PostgreSQL z regułami dostępu, logowanie kodem z e-maila), testy, Storybook, CI i zasady pracy agentów AI. Kod jest publiczny tylko do wglądu (`LICENSE`). Dokumentacja produktu, decyzje i zadania są w osobnym, prywatnym repozytorium.
+Ten plik mówi, czym jest Krajozbiór, gdzie zacząć czytanie i jak uruchomić aplikację. Krajozbiór to aplikacja internetowa do zbierania odwiedzonych miejsc w tematycznych kolekcjach, na komputer i telefon. To publiczne repozytorium kodu: aplikacja (Next.js, PostgreSQL z regułami dostępu, logowanie kodem z e-maila), testy, Storybook, CI i zasady pracy agentów AI. Kod jest publiczny tylko do wglądu (`LICENSE`). Dokumentacja produktu, decyzje i zadania są w osobnym, prywatnym repozytorium.
 
 Projekt ma **dwa repozytoria, w dwóch folderach obok siebie**:
 
@@ -13,17 +13,24 @@ Projekt ma **dwa repozytoria, w dwóch folderach obok siebie**:
 
 Repozytorium powstało z szablonu `ai-repo-starter`.
 
+## Dla oceniających: zacznij tutaj
+
+Jeden punkt wejścia: **[docs/dla-oceniajacych/](docs/dla-oceniajacych/README.md)**. Znajdziesz tam opis w dwie minuty, spis „który plik odpowiada na które pytanie” i mapę wymogów konkursu z odnośnikami do kodu, testów i PR-ów. Pozostałe ważne pliki:
+
+| Plik                                   | Na jakie pytanie odpowiada                                                                |
+| -------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [security-notes.md](security-notes.md) | jakie uprawnienia ma agent AI, gdzie są sekrety, jak skończyły się próby prompt injection |
+| [CHANGELOG.md](CHANGELOG.md)           | co zmieniło się w kolejnych PR-ach (lista zmian wydania 1.0.0)                            |
+| [AGENTS.md](AGENTS.md)                 | jakie zasady obowiązują agentów AI w tym repozytorium                                     |
+| [SDLC.md](SDLC.md)                     | przez jakie etapy przechodzi każda zmiana, od zadania do scalenia                         |
+
 ## Jak działa Krajozbiór
 
 - **Kolekcje.** Miejsca są zebrane w tematyczne kolekcje, np. „Wieże ciśnień Pomorza”. Jedno miejsce może należeć do kilku kolekcji.
 - **Wizyty.** Odkrywca potwierdza wizytę lokalizacją telefonu na miejscu albo dopisuje wcześniejsze wizyty. Postęp w kolekcji widzi jako liczbę zebranych miejsc, np. 9/24.
 - **Kuratorzy.** Gotowe kolekcje przygotowują kuratorzy: gminy, organizacje turystyczne i lokalni przewodnicy. Użytkownicy mogą też tworzyć własne kolekcje.
 
-Działa pierwsza pełna ścieżka: kurator publikuje kolekcję, gość ją ogląda, a odkrywca zapisuje ją, potwierdza wizytę lokalizacją i widzi postęp. Pozostałe części pierwszej wersji są w przygotowaniu. Na początek aplikacja działa w przeglądarce na komputerze i telefonie.
-
-## Dla oceniających
-
-Jawny opis projektu dla osób, które go nie znają (produkt, architektura i ochrona danych, specyfikacje, proces z przeglądami, stan realizacji), jest w [docs/dla-oceniajacych/](docs/dla-oceniajacych/README.md). Uprawnienia agenta AI, miejsca przechowywania sekretów i wynik próby prompt injection opisuje [security-notes.md](security-notes.md).
+Działa pełna ścieżka: kurator publikuje kolekcję, gość ją ogląda, a odkrywca zakłada konto, zapisuje kolekcję, potwierdza wizytę lokalizacją i widzi postęp. Do tego działają strona główna, wyszukiwarka, mapa, zdjęcia miejsc z Wikimedia Commons, aktualności, profil ze statystykami i usunięcie konta. Szczegóły i lista PR-ów: [Stan realizacji](docs/dla-oceniajacych/stan-realizacji.md). Aplikacja działa w przeglądarce na komputerze i telefonie.
 
 ## Codzienny start (Visual Studio Code)
 

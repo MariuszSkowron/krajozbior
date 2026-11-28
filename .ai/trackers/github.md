@@ -43,11 +43,13 @@ Local addendum (see `docs/agent-workflow.md`). It narrows the operations below; 
 - **Pull requests** live in this (public) repository. **Issues** live in the private documentation repository, named like this one with a `-docs` suffix. Every issue operation (`get-issue`, `search-issues`, `create-issue`, `close-issue`, `comment-issue`, `update-issue`, `assign-issue`, `label-issue`, and `list-issue-comments` on an issue) passes `--repo {owner}/{repo}-docs` explicitly; resolve `{owner}/{repo}` with **repo-info** first.
 - PR bodies, PR comments and commit messages never link or name the private repository or quote its content. A task is referenced as plain text `docs#N` (no link, no closing keyword). After the merge the agent closes the issue with **close-issue** in the docs repository.
 - **Expired token.** The bot's installation token lasts one hour. On HTTP 401 / "Bad credentials" from `gh` or a git password prompt, run `powershell -ExecutionPolicy Bypass -File scripts/bot-token.ps1` and retry the operation once; never log in any other way.
-- **review-pr** never approves and never requests changes (an agent's approval would count as a human one, and the bot cannot review its own PR). The verdict is a plain review comment plus the commit status `agent-review` (see **set-review-status**).
+- **review-pr** never approves and never requests changes (an agent's approval would count as a human one, and the bot cannot review its own PR). The verdict is a plain review comment and a report; the reviewer does not set the commit status `agent-review`. The orchestrator sets it with `scripts/review-status.ps1` (`docs/agent-workflow.md`, stage 5; see **set-review-status**).
 - **merge-pr** only ever enables auto-merge: `gh pr merge {prNumber} --auto --squash` (the `guard-pr-merge` hook blocks every other form). GitHub merges when the ruleset is satisfied.
 - **mark-pr-ready** runs only after the last push's CI run has completed (`watch-run`), never in the same move as a push.
 
 #### set-review-status
+Used only by the orchestrator via `scripts/review-status.ps1`; reviewers and verifiers never call it.
+
 `{prNumber}`, context (`agent-review` or `security-review`), state (`success` / `failure` / `pending`), neutral description (max 140 characters, no finding details for `security-review`). Always set on the current head SHA; a new push needs a new status.
 ```bash
 SHA=$(gh pr view {prNumber} --json headRefOid --jq .headRefOid)
@@ -358,7 +360,7 @@ gh pr checkout {prNumber} --recurse-submodules=no
 ```bash
 gh pr review {prNumber} --comment --body-file <file>
 ```
-In this repository the verdict is a comment plus **set-review-status**; `--approve` and `--request-changes` are not used (see "This repository" above). GitHub rejects self-approval (reviewing your own PR); surface that instead of working around it.
+In this repository the verdict is a comment and a report (the orchestrator sets the status, see **set-review-status**); `--approve` and `--request-changes` are not used (see "This repository" above). GitHub rejects self-approval (reviewing your own PR); surface that instead of working around it.
 
 #### merge-pr
 `{prNumber}`; squash with auto-merge is the only form allowed here. GitHub merges once the ruleset is satisfied (required checks and statuses green, threads resolved, code-owner approval where required).

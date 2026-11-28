@@ -692,13 +692,150 @@ describe("collections, places and their links", () => {
              from pg_constraint c
             where c.conrelid = 'public.collections'::regclass and c.contype = 'c'`,
         );
-        const found = rows.find(({ def }) => def.includes(`(${column} = ANY`));
+        const found = rows.find(
+          ({ def }) =>
+            def.includes(`(${column} = ANY (ARRAY[`) || def.includes(`${column} <@ ARRAY[`),
+        );
 
         return [...(found?.def.matchAll(/'([a-z_]+)'::text/g) ?? [])].map((match) => match[1]);
       };
 
       expect(await listOf("region")).toEqual([...REGIONS]);
+      expect(await listOf("extra_regions")).toEqual([...REGIONS]);
       expect(await listOf("status")).toEqual([...COLLECTION_STATUSES]);
+    });
+
+    it("refuses extra regions that are unknown, too many, equal to the main one or null (23514)", async () => {
+      const id = await newCollection(curA, orgA);
+      const codeOf = async (value: string) => {
+        try {
+          await as(curA, `update public.collections set extra_regions = ${value} where id = ?`, [
+            id,
+          ]);
+
+          return "accepted";
+        } catch (error) {
+          return (
+            (error as { cause?: { code?: string }; code?: string }).cause?.code ??
+            (error as { code?: string }).code
+          );
+        }
+      };
+
+      // The collection is a draft of region 'pomorskie' (see newCollection).
+      expect(await codeOf(`array['atlantyda']::text[]`)).toBe("23514");
+      expect(await codeOf(`array['opolskie','slaskie','lubuskie','lodzkie']::text[]`)).toBe(
+        "23514",
+      );
+      expect(await codeOf(`array['pomorskie']::text[]`)).toBe("23514");
+      expect(await codeOf(`array['opolskie', null]::text[]`)).toBe("23514");
+      expect(await codeOf(`array['opolskie','slaskie','lubuskie']::text[]`)).toBe("accepted");
+      expect(await codeOf(`'{}'::text[]`)).toBe("accepted");
+    });
+  });
+
+  describe("extra regions (a region-border collection)", () => {
+    const setExtra = (actor: { id: string }, id: string) =>
+      as(
+        actor,
+        `update public.collections set extra_regions = array['opolskie']::text[]
+          where id = ? returning id`,
+        [id],
+      );
+
+    it("defaults to an empty list and does not bump the version or updated_at", async () => {
+      const id = await newCollection(curA, orgA);
+      const before = await rowOf(id);
+
+      expect(before.extra_regions).toEqual([]);
+      expect(await setExtra(curA, id)).toHaveLength(1);
+
+      const after = await rowOf(id);
+
+      expect(after.extra_regions).toEqual(["opolskie"]);
+      expect(after.version).toBe(before.version);
+      expect(after.updated_at).toEqual(before.updated_at);
+    });
+
+    it("lets a member of the organization insert and update, and nobody else", async () => {
+      const id = await newCollection(curA, orgA);
+
+      // Another organization's curator and an explorer touch 0 rows.
+      expect(await setExtra(curB, id)).toHaveLength(0);
+      expect(await setExtra(explorer, id)).toHaveLength(0);
+      // A guest context is a read-only transaction, so the write is refused outright.
+      await expect(
+        asGuest(
+          `update public.collections set extra_regions = '{opolskie}' where id = ? returning id`,
+          [id],
+        ),
+      ).rejects.toThrow(/read-only|permission denied/);
+      expect((await rowOf(id)).extra_regions).toEqual([]);
+
+      // INSERT of a guest or an outsider is refused; a member may name the column.
+      await expect(
+        asGuest(
+          `insert into public.collections (slug, organization_id, title, region, extra_regions)
+           values (?, ?, 't', 'dolnoslaskie', '{opolskie}')`,
+          [slug(), orgA],
+        ),
+      ).rejects.toThrow(/read-only|permission denied|row-level security/);
+      await expect(
+        as(
+          outsider,
+          `insert into public.collections (slug, organization_id, title, region, extra_regions)
+           values (?, ?, 't', 'dolnoslaskie', '{opolskie}')`,
+          [slug(), orgA],
+        ),
+      ).rejects.toThrow(rejectedByPolicy);
+      expect(
+        await as(
+          curA,
+          `insert into public.collections (slug, organization_id, title, region, extra_regions)
+           values (?, ?, 't', 'dolnoslaskie', '{opolskie}') returning extra_regions`,
+          [slug(), orgA],
+        ),
+      ).toEqual([{ extra_regions: ["opolskie"] }]);
+    });
+
+    it("does not let a member of a suspended organization change it", async () => {
+      const [{ id }] = await admin$<{ id: string }>(
+        `insert into public.collections (slug, organization_id, title, region)
+         values ($1, $2, 't', 'dolnoslaskie') returning id`,
+        [slug(), orgS],
+      );
+
+      await admin$(`update public.organizations set status = 'suspended' where id = $1`, [orgS]);
+      try {
+        expect(await setExtra(curB, id)).toHaveLength(0);
+      } finally {
+        await admin$(`update public.organizations set status = 'approved' where id = $1`, [orgS]);
+      }
+
+      expect((await rowOf(id)).extra_regions).toEqual([]);
+    });
+
+    it("does not show the extra regions of a draft to a guest", async () => {
+      const id = await newCollection(curA, orgA);
+
+      await setExtra(curA, id);
+
+      expect(
+        await asGuest(`select extra_regions from public.collections where id = ?`, [id]),
+      ).toEqual([]);
+      expect(
+        await as(curA, `select extra_regions from public.collections where id = ?`, [id]),
+      ).toEqual([{ extra_regions: ["opolskie"] }]);
+    });
+
+    it("has exactly the new column grants for the application role", async () => {
+      const grants = await admin$<{ insert: boolean; update: boolean; select: boolean }>(
+        `select has_column_privilege('krajozbior_app', 'public.collections', 'extra_regions', 'insert') as insert,
+                has_column_privilege('krajozbior_app', 'public.collections', 'extra_regions', 'update') as update,
+                has_column_privilege('krajozbior_app', 'public.collections', 'extra_regions', 'select') as select`,
+      );
+
+      expect(grants).toEqual([{ insert: true, update: true, select: true }]);
     });
   });
 

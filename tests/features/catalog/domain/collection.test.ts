@@ -4,7 +4,10 @@ import {
   COLLECTION_STATUSES,
   REGIONS,
   isRegion,
+  normalizeExtraRegions,
   normalizeLineBreaks,
+  regionsLabelOf,
+  regionsOf,
   validateCollectionInput,
 } from "@/features/catalog/domain/collection";
 
@@ -60,6 +63,50 @@ describe("validateCollectionInput", () => {
       ok: false,
       errors: ["title"],
     });
+  });
+});
+
+describe("normalizeExtraRegions", () => {
+  it("accepts an empty list and returns the extra regions in the order of REGIONS", () => {
+    expect(normalizeExtraRegions("dolnoslaskie", [])).toEqual({ ok: true, value: [] });
+    expect(normalizeExtraRegions("dolnoslaskie", ["slaskie", "opolskie"])).toEqual({
+      ok: true,
+      value: ["opolskie", "slaskie"],
+    });
+  });
+
+  it("rejects an unknown code, a repeat, the main region and more than three", () => {
+    expect(normalizeExtraRegions("dolnoslaskie", ["opolskie", "atlantyda", 3])).toEqual({
+      ok: false,
+      errors: [
+        { code: "bad_value", index: 1 },
+        { code: "bad_value", index: 2 },
+      ],
+    });
+    expect(normalizeExtraRegions("dolnoslaskie", ["opolskie", "opolskie"])).toEqual({
+      ok: false,
+      errors: [{ code: "duplicate", index: 1 }],
+    });
+    expect(normalizeExtraRegions("dolnoslaskie", ["dolnoslaskie"])).toEqual({
+      ok: false,
+      errors: [{ code: "same_as_region", index: 0 }],
+    });
+    expect(
+      normalizeExtraRegions("dolnoslaskie", ["opolskie", "slaskie", "lubuskie", "lodzkie"]),
+    ).toEqual({ ok: false, errors: [{ code: "too_many", index: null }] });
+    expect(
+      normalizeExtraRegions("dolnoslaskie", ["opolskie", "slaskie", "lubuskie"]),
+    ).toMatchObject({ ok: true });
+  });
+});
+
+describe("regionsOf and regionsLabelOf", () => {
+  it("puts the main region first and joins the labels", () => {
+    const collection = { region: "dolnoslaskie", extraRegions: ["opolskie"] } as const;
+
+    expect(regionsOf(collection)).toEqual(["dolnoslaskie", "opolskie"]);
+    expect(regionsLabelOf(collection)).toBe("Dolnośląskie · Opolskie");
+    expect(regionsLabelOf({ region: "lodzkie", extraRegions: [] })).toBe("Łódzkie");
   });
 });
 

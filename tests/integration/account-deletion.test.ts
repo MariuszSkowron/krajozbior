@@ -99,6 +99,25 @@ async function populate(user: { id: string; email: string }) {
   await as(user, `insert into public.account_settings (theme) values ('light')`);
   // The acceptance of the terms (F-K3): evidence that goes with the account.
   await as(user, `insert into public.terms_acceptance (terms_version) values ('0.2')`);
+  // A report of a problem with the place (P4b): the account is its author (the report stays
+  // without the person), and another report the account decided as a curator (`decided_by` is
+  // cleared). The superuser prepares the decided one; the app role cannot name the columns.
+  await as(
+    user,
+    `insert into public.place_reports (place_id, category, message) values (?, 'closed', 'Zamknięte')`,
+    [placeId],
+  );
+  const [decided] = await admin$<{ id: string }>(
+    `insert into public.place_reports (place_id, category, message, author_id)
+     values ($1, 'missing', '', null) returning id`,
+    [placeId],
+  );
+
+  await admin$(
+    `update public.place_reports set status = 'accepted', decided_by = $2, decided_at = now()
+      where id = $1`,
+    [decided!.id, user.id],
+  );
   // A membership of its own organization, with a colleague, so the account may go.
   const ownOrganization = await f.newOrganization(`Gmina ${user.id}`, `gmina-${user.id}`, [
     user,

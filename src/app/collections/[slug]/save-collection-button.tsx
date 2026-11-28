@@ -4,17 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import styles from "@/app/my/collections/collections.module.css";
+import { changeSavedCollection } from "@/app/saved-collection-request";
 import { useHydrated } from "@/app/use-hydrated";
-import { MAX_COLLECTIONS_PER_LIST } from "@/features/catalog/domain/limits";
 
 type Props = { collectionId: string; initialSaved: boolean };
-
-const MESSAGES: Record<number, string> = {
-  401: "Zaloguj się, żeby zapisać kolekcję.",
-  404: "Ta kolekcja nie jest już dostępna.",
-  409: `Masz już ${MAX_COLLECTIONS_PER_LIST} zapisanych kolekcji, to najwięcej. Usuń którąś, by zapisać nową.`,
-  429: "Za dużo prób. Spróbuj za chwilę.",
-};
 
 // Saves or unsaves the collection through the album route (PUT / DELETE, same
 // origin). The page is rendered on the server for the signed-in explorer; this
@@ -31,23 +24,17 @@ export function SaveCollectionButton({ collectionId, initialSaved }: Props) {
     setPending(true);
     setError(null);
 
-    try {
-      const response = await fetch(`/api/me/saved-collections/${collectionId}`, {
-        method: saved ? "DELETE" : "PUT",
-      });
+    const change = await changeSavedCollection(collectionId, saved ? "DELETE" : "PUT");
 
-      if (response.ok) {
-        setSaved(!saved);
-        setRemoved(saved);
-        router.refresh();
-      } else {
-        setError(MESSAGES[response.status] ?? "Nie udało się zapisać zmiany. Spróbuj ponownie.");
-      }
-    } catch {
-      setError("Brak połączenia. Spróbuj ponownie.");
-    } finally {
-      setPending(false);
+    if (change.ok) {
+      setSaved(!saved);
+      setRemoved(saved);
+      router.refresh();
+    } else {
+      setError(change.message);
     }
+
+    setPending(false);
   }
 
   return (

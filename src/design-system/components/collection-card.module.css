@@ -96,7 +96,7 @@
 
 .region {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-xs);
   color: var(--color-text-label);
   font-family: var(--font-family-mono);
@@ -110,6 +110,26 @@
   flex: none;
   width: 1rem;
   height: 1rem;
+  /* Pinezka stoi przy pierwszej linii, wyśrodkowana względem jej wysokości. */
+  margin-block: calc((1lh - 1rem) / 2);
+}
+
+/* Każda nazwa województwa to niełamliwa całość; łamanie tylko między nazwami. */
+.regionNames {
+  position: relative;
+}
+
+.regionName {
+  white-space: nowrap;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
 }
 
 .title {

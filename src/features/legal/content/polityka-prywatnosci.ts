@@ -3,6 +3,8 @@
 // wyłączone śledzenie wiadomości w Brevo potwierdził właściciel 22.11.2026 (D-49 pkt 8);
 // test w tests/features/legal/legal-content.test.ts pilnuje, żeby żaden znacznik roboczy
 // nie trafił do ruchu publicznego.
+import { CONTACT_ADDRESSES as ADDRESS } from "../domain/legal-pages";
+
 export const POLITYKA_PRYWATNOSCI = `
 ## 1. Kto odpowiada za Twoje dane
 
@@ -10,7 +12,7 @@ W tej polityce „RODO” oznacza rozporządzenie Parlamentu Europejskiego i Rad
 
 Administratorem Twoich danych osobowych jest Mariusz Skowron („my”, „administrator”). Adres do doręczeń podamy na prośbę wysłaną na adres e-mail poniżej.
 
-We wszystkich sprawach dotyczących danych osobowych napisz do nas: **kontakt@mariuszskowron.pl**.
+We wszystkich sprawach dotyczących danych osobowych napisz do nas: **${ADDRESS.privacy}**.
 
 Nie wyznaczyliśmy inspektora ochrony danych, ponieważ nie wymaga tego od nas art. 37 RODO.
 
@@ -74,7 +76,7 @@ Jeśli przetwarzamy dane na podstawie naszego prawnie uzasadnionego interesu, mo
 - **Firmy przetwarzające dane na nasze zlecenie** (podmioty przetwarzające) na podstawie umowy powierzenia:
   - netcup GmbH, Emmy-Noether-Straße 10, 76131 Karlsruhe, Niemcy — serwer: baza danych, zdjęcia i kopie zapasowe w centrum danych w Norymberdze;
   - Brevo SAS, 17 rue Salneuve, 75017 Paryż, Francja — wysyłka e-maili z kodami logowania i innych wiadomości dotyczących konta. Wyłączamy w nim śledzenie otwarć wiadomości i kliknięć w linki;
-  - Hostido.pl Gałązka spółka jawna, ul. Kartuska 5, 80-103 Gdańsk — obsługa skrzynki pocztowej kontakt@mariuszskowron.pl, na którą przychodzą wiadomości od Ciebie.
+  - Hostido.pl Gałązka spółka jawna, ul. Kartuska 5, 80-103 Gdańsk — obsługa skrzynek pocztowych w domenie krajozbior.pl, na które przychodzą wiadomości od Ciebie.
 - **Organy publiczne**, jeśli zażądają danych na podstawie przepisów prawa.
 
 Nie sprzedajemy Twoich danych i nie przekazujemy ich do celów reklamowych.
@@ -132,7 +134,7 @@ Masz prawo:
 
 **Prawo sprzeciwu.** Z przyczyn związanych z Twoją szczególną sytuacją możesz w każdej chwili wnieść sprzeciw wobec przetwarzania, które opieramy na naszym prawnie uzasadnionym interesie (art. 21 RODO).
 
-Aby skorzystać z tych praw, napisz na kontakt@mariuszskowron.pl. Odpowiemy w ciągu miesiąca; w sprawach szczególnie złożonych możemy przedłużyć ten termin o dwa miesiące, o czym poinformujemy Cię przed upływem pierwszego miesiąca. Możemy poprosić o potwierdzenie, że jesteś właścicielem konta, np. o wiadomość z adresu przypisanego do konta.
+Aby skorzystać z tych praw, napisz na ${ADDRESS.privacy}. Odpowiemy w ciągu miesiąca; w sprawach szczególnie złożonych możemy przedłużyć ten termin o dwa miesiące, o czym poinformujemy Cię przed upływem pierwszego miesiąca. Możemy poprosić o potwierdzenie, że jesteś właścicielem konta, np. o wiadomość z adresu przypisanego do konta.
 
 Masz też prawo złożyć skargę do Prezesa Urzędu Ochrony Danych Osobowych (ul. Stawki 2, 00-193 Warszawa, <https://uodo.gov.pl>).
 

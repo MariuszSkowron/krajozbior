@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { PhotoCreditLine } from "@/app/places/[placeId]/photo-credit";
 import { PlacePhoto } from "@/app/places/[placeId]/place-photo";
 import type { PlaceCover } from "@/features/catalog/application/catalog-types";
 
@@ -71,6 +72,17 @@ describe("PlacePhoto", () => {
     expect(html).toContain("Tytuł pliku: „Zamek w Malborku”. Autor: ");
     expect(html).not.toContain("<strong");
     expect(html).toContain("<figcaption");
+  });
+
+  it("marks the link to the author of the photo as ugc and nofollow, in the full and the short credit", () => {
+    const rel = 'rel="ugc nofollow noopener noreferrer"';
+
+    expect(render(cover)).toContain(
+      `<a href="https://commons.wikimedia.org/wiki/User:Fikcyjny" ${rel}>`,
+    );
+    expect(
+      renderToStaticMarkup(createElement(PhotoCreditLine, { photo: cover, place: null })),
+    ).toContain(`href="https://commons.wikimedia.org/wiki/User:Fikcyjny" ${rel}>`);
   });
 
   it("leaves out the links and the title it does not have, and escapes the author", () => {

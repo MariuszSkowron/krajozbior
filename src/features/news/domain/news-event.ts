@@ -1,4 +1,4 @@
-import { warsawToday } from "@/features/visits/domain/past-visit-request";
+import { warsawToday } from "@/lib/time/warsaw-today";
 
 import type { NewsKind } from "./news";
 

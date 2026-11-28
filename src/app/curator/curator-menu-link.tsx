@@ -4,19 +4,24 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-// Pozycja „Kolekcje” w menu panelu kuratora. Wszystkie ekrany panelu należą do kolekcji, więc
-// pozycja jest bieżąca na całym `/curator`: `page` na samej liście, `true` na ekranach
-// zagnieżdżonych (edycja kolekcji i miejsca), gdzie lista jest nadrzędną sekcją.
+const REPORTS = "/curator/reports";
+
+// Pozycja menu panelu kuratora: „Kolekcje” (`/curator`) i „Zgłoszenia” (`/curator/reports`). Ekrany
+// kolekcji (lista, edycja kolekcji i miejsca) należą do pozycji „Kolekcje”, ekrany zgłoszeń do
+// „Zgłoszeń”. Pozycja jest bieżąca: `page` na samym swoim ekranie, `true` na ekranach zagnieżdżonych,
+// gdzie jest nadrzędną sekcją.
 export function CuratorMenuLink({
   className,
+  href = "/curator",
   children,
-}: Readonly<{ className: string; children: ReactNode }>) {
+}: Readonly<{ className: string; href?: "/curator" | typeof REPORTS; children: ReactNode }>) {
   const pathname = usePathname() ?? "";
-  const current =
-    pathname === "/curator" ? "page" : pathname.startsWith("/curator/") ? true : undefined;
+  const inReports = pathname === REPORTS || pathname.startsWith(`${REPORTS}/`);
+  const own = href === REPORTS ? inReports : pathname.startsWith("/curator") && !inReports;
+  const current = !own ? undefined : pathname === href ? "page" : true;
 
   return (
-    <Link className={className} href="/curator" aria-current={current}>
+    <Link className={className} href={href} aria-current={current}>
       {children}
     </Link>
   );

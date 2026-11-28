@@ -364,6 +364,64 @@ describe("collection record", () => {
     expect(has(errors, 2, "region", "bad_value")).toBe(true);
   });
 
+  describe("extra voivodeships (extra_regions)", () => {
+    const region = (): string => records(fullFile)[1]!.region as string;
+    const other = (...skip: string[]) =>
+      ["opolskie", "slaskie", "lubuskie", "lodzkie", "podlaskie"].filter(
+        (code) => code !== region() && !skip.includes(code),
+      );
+    const withExtra = (value: unknown) =>
+      edited((items) => {
+        items[1]!.extra_regions = value;
+      });
+    const extraOf = (content: string) => {
+      const result = parseImportFile(content);
+
+      return result.ok ? result.collections[0]!.extraRegions : "refused";
+    };
+
+    it("means 'no change' when the field is absent, and an empty list when it is []", () => {
+      expect(extraOf(fullFile)).toBeNull();
+      expect(extraOf(withExtra([]))).toEqual([]);
+    });
+
+    it("returns the list in the order of REGIONS", () => {
+      const [first, second] = other();
+
+      expect(extraOf(withExtra([second, first]))).toEqual(
+        ["opolskie", "slaskie", "lubuskie", "lodzkie", "podlaskie"].filter(
+          (code) => code === first || code === second,
+        ),
+      );
+    });
+
+    it("reports an unknown code at the path of the element", () => {
+      const errors = errorsOf(withExtra([other()[0], "atlantyda"]));
+
+      expect(has(errors, 2, "extra_regions[1]", "bad_value")).toBe(true);
+    });
+
+    it("refuses a repeat, the main voivodeship and more than three", () => {
+      const [first, second, third, fourth] = other();
+
+      expect(has(errorsOf(withExtra([first, first])), 2, "extra_regions", "duplicate")).toBe(true);
+      expect(has(errorsOf(withExtra([region()])), 2, "extra_regions", "same_as_region")).toBe(true);
+      expect(
+        has(errorsOf(withExtra([first, second, third, fourth])), 2, "extra_regions", "too_many"),
+      ).toBe(true);
+    });
+
+    it("refuses a value that is not a list", () => {
+      expect(has(errorsOf(withExtra("opolskie")), 2, "extra_regions", "wrong_type")).toBe(true);
+    });
+
+    it("keeps the error free of the text of the file", () => {
+      const errors = errorsOf(withExtra(["SEKRET-12345"]));
+
+      expect(JSON.stringify(errors)).not.toContain("SEKRET");
+    });
+  });
+
   it("refuses an empty list of places, a key of the wrong shape and a key without the prefix", () => {
     const empty = edited((items) => {
       items[1]!.places = [];
