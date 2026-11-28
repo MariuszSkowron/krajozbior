@@ -135,6 +135,18 @@ describe("landLine", () => {
     expect(landLine(5, [warmia])).toEqual({ kind: "spread", lands: [warmia] });
   });
 
+  it("is part of the land whose shared places equal the place count, however the lands are listed", () => {
+    // A place lies in exactly one land, so a land holding all places is the only one listed.
+    expect(landLine(4, [{ ...warmia, sharedPlaces: 4 }])).toEqual({
+      kind: "part_of",
+      land: warmia,
+    });
+    expect(landLine(4, [{ ...torun, sharedPlaces: 4 }])).toEqual({
+      kind: "part_of",
+      land: { ...torun, sharedPlaces: 4 },
+    });
+  });
+
   it("lists the lands in the given order when there are several", () => {
     expect(landLine(6, [warmia, torun])).toEqual({ kind: "spread", lands: [warmia, torun] });
     expect(landLine(4, [warmia, torun])).toEqual({ kind: "spread", lands: [warmia, torun] });

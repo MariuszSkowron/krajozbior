@@ -640,8 +640,8 @@ describe("public catalog pages", () => {
       expect(html).toContain('<h2 id="tez-kolekcje">W tej krainie są też kolekcje</h2>');
       expect(html).toContain('href="/collections/wieze-aaaaaa"');
       expect(html).toContain('href="/collections/zamki-bbbbbb"');
-      expect(html).toContain("3 miejsca z tej krainy");
-      expect(html).toContain("1 miejsce z tej krainy");
+      expect(html).toContain("3 z 9 miejsc w tej krainie");
+      expect(html).toContain("1 z 9 miejsc w tej krainie");
       expect(html.indexOf("Wieże ciśnień")).toBeLessThan(html.indexOf("Zamki"));
       // The section comes after the places.
       expect(html.indexOf("Miejsca w kolekcji")).toBeLessThan(html.indexOf("tez-kolekcje"));
@@ -726,6 +726,25 @@ describe("public catalog pages", () => {
 
       expect(html).toContain("Miejsca z tej kolekcji leżą w krainie: ");
       expect(html).not.toContain("Część krainy");
+    });
+
+    it("says 'Część krainy' for a collection with one place that lies in the land", async () => {
+      mocks.collection.mockResolvedValue({ status: "ok", value: { ...collection, placeCount: 1 } });
+      mocks.related.mockResolvedValue([card("warmia-cccccc", "Warmia", 1)]);
+
+      const html = await render();
+
+      expect(html).toContain("Część krainy: ");
+    });
+
+    it("says 'Miejsce z tej kolekcji leży w krainie' when the count of places is one but not all lie in the land", async () => {
+      mocks.collection.mockResolvedValue({ status: "ok", value: { ...collection, placeCount: 1 } });
+      mocks.related.mockResolvedValue([card("warmia-cccccc", "Warmia", 0)]);
+
+      const html = await render();
+
+      expect(html).toContain("Miejsce z tej kolekcji leży w krainie: ");
+      expect(html).not.toContain("Miejsca z tej kolekcji");
     });
 
     it("keeps the page whole when the read of the related collections fails", async () => {

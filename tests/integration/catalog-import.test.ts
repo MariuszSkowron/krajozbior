@@ -1186,6 +1186,30 @@ describe("publishing and removing what a file loaded", () => {
     expect(await kindOf()).toEqual(["theme", "land"]);
   });
 
+  it("kind: a new collection created by the first load of a file gets its kind at once, under RLS, with version 1", async () => {
+    const { curator } = await newOrg("kd-c");
+    const lines = fileLines();
+
+    byKey(lines, "col:testowa-jeden").kind = "land";
+
+    const created = done(await load(curator, "kd-c", fileText(lines)));
+
+    expect(created.map((r) => r.result)).toEqual(["created", "created"]);
+    expect(created.map((r) => r.kind ?? null)).toEqual(["updated", null]);
+
+    const rows = await admin$<{ title: string; kind: string; version: number }>(
+      `select c.title, c.kind, c.version from collections c
+         join organizations o on o.id = c.organization_id
+        where o.slug = 'kd-c' order by c.title`,
+    );
+
+    // "dwa" has no kind in the file (theme by default); "jeden" is a land, version untouched.
+    expect(rows.map((r) => [r.kind, r.version])).toEqual([
+      ["theme", 1],
+      ["land", 1],
+    ]);
+  });
+
   it("kind: a collection deleted in the panel is not touched by a file that names its kind", async () => {
     const { curator } = await newOrg("kd-b");
 

@@ -75,6 +75,11 @@ export type LandLine =
  * by the number of shared places. "Part of a land" only when every place of the collection lies
  * in that one land; otherwise the lands are listed (one common place of a dozen is no "part").
  * No lands (or no places): no line.
+ *
+ * Every place belongs to exactly one land, so the shared places of different lands never
+ * overlap: when one land holds all `placeCount` places there is no other land in `lands`.
+ * The `lands.length === 1` condition is therefore equivalent to the specification's
+ * `sharedPlaces === placeCount`; it only states the same thing explicitly.
  */
 export function landLine(placeCount: number, lands: readonly LandOfCollection[]): LandLine | null {
   const [first] = lands;

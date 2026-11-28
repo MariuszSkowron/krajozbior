@@ -253,7 +253,9 @@ export default async function CollectionPage({
           {collection.summary === "" ? null : (
             <p className={styles.summary}>{collection.summary}</p>
           )}
-          {landLineOfTheme === null ? null : <LandLineText line={landLineOfTheme} />}
+          {landLineOfTheme === null ? null : (
+            <LandLineText line={landLineOfTheme} placeCount={collection.placeCount} />
+          )}
           <p className={panelStyles.curator}>
             <svg
               width="15"
