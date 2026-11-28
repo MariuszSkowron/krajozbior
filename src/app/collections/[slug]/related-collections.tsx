@@ -5,6 +5,7 @@ import { CollectionCard } from "@/design-system/components/collection-card";
 import type { RelatedCollection } from "@/features/catalog/application/catalog-types";
 import { regionsLabelOf, type LandLine } from "@/features/catalog/domain/collection";
 import { cardCoverImage } from "@/features/catalog/domain/collection-cover";
+import { polishPlural } from "@/features/catalog/domain/place-count";
 
 import home from "../../home/home-sections.module.css";
 import styles from "../../catalog.module.css";
@@ -13,12 +14,33 @@ import panelStyles from "./album.module.css";
 /** Postęp odkrywcy w kolekcji (brak wpisu: gość albo błąd odczytu, karta bez postępu). */
 export type RelatedProgress = ReadonlyMap<string, Readonly<{ visited: number; total: number }>>;
 
-// „3 z 9 miejsc w tej krainie”: bez orzeczenia, więc nie trzeba zgadzać liczebnika z czasownikiem.
-// Po „z” liczba całkowita rządzi dopełniaczem: „z 1 miejsca”, „z 2 miejsc”, „z 22 miejsc”.
-function sharedPlacesNote(collection: RelatedCollection): string {
-  const total = collection.placeCount === 1 ? "1 miejsca" : `${collection.placeCount} miejsc`;
+// „3 z 9 miejsc kolekcji leży tu”: mówi, czyich miejsc dotyczy liczba. Po „z” stoi dopełniacz
+// („z 9 miejsc”); czasownik zgadza się z pierwszą liczbą: „1 … leży”, „2–4 … leżą”, „5 … leży”,
+// „22 … leżą”. Wszystkie miejsca albo jedyne miejsce dostają osobne, naturalne zdanie.
+export function sharedPlacesNote(
+  collection: Pick<RelatedCollection, "sharedPlaces" | "placeCount">,
+): string {
+  const { sharedPlaces, placeCount } = collection;
 
-  return `${collection.sharedPlaces} z ${total} w tej krainie`;
+  if (placeCount === 1) {
+    return "Jedyne miejsce kolekcji leży tu";
+  }
+
+  if (sharedPlaces === placeCount) {
+    return "Wszystkie miejsca kolekcji leżą tu";
+  }
+
+  const verb = polishPlural(sharedPlaces, "leży", "leżą", "leży");
+
+  return `${sharedPlaces} z ${placeCount} miejsc kolekcji ${verb} tu`;
+}
+
+export function landLineLabel(placeCount: number, landCount: number): string {
+  const lands = landCount === 1 ? "krainie" : "krainach";
+
+  return placeCount === 1
+    ? `Miejsce z tej kolekcji leży w ${lands}: `
+    : `Miejsca z tej kolekcji leżą w ${lands}: `;
 }
 
 // Druga warstwa, strona krainy: mniejsze kolekcje (tematyczne albo z historią), które mają
@@ -30,7 +52,7 @@ export function RelatedCollections({
 }: Readonly<{ collections: readonly RelatedCollection[]; progress: RelatedProgress }>) {
   return (
     <section className={styles.section} aria-labelledby="tez-kolekcje">
-      <h2 id="tez-kolekcje">W tej krainie są też kolekcje</h2>
+      <h2 id="tez-kolekcje">Kolekcje w tej krainie</h2>
       <ul className={home.cards}>
         {collections.map((collection) => (
           <li key={collection.id}>
@@ -66,11 +88,7 @@ export function LandLineText({
 
   return (
     <p className={panelStyles.landLine}>
-      {placeCount === 1
-        ? "Miejsce z tej kolekcji leży w krainie: "
-        : line.lands.length === 1
-          ? "Miejsca z tej kolekcji leżą w krainie: "
-          : "Miejsca z tej kolekcji leżą w krainach: "}
+      {landLineLabel(placeCount, line.lands.length)}
       {line.lands.map((land, index) => (
         <Fragment key={land.slug}>
           {index === 0 ? null : ", "}

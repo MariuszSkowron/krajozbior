@@ -622,7 +622,7 @@ describe("public catalog pages", () => {
 
         expect(html).toContain(">Miejsca w kolekcji</h2>");
         expect(html).toContain("Kurator: Gmina A");
-        expect(html).not.toContain("W tej krainie są też kolekcje");
+        expect(html).not.toContain("Kolekcje w tej krainie");
         expect(html).not.toContain("Część krainy");
         expect(html).not.toContain("Miejsca z tej kolekcji leżą");
       }
@@ -637,11 +637,11 @@ describe("public catalog pages", () => {
 
       const html = await render();
 
-      expect(html).toContain('<h2 id="tez-kolekcje">W tej krainie są też kolekcje</h2>');
+      expect(html).toContain('<h2 id="tez-kolekcje">Kolekcje w tej krainie</h2>');
       expect(html).toContain('href="/collections/wieze-aaaaaa"');
       expect(html).toContain('href="/collections/zamki-bbbbbb"');
-      expect(html).toContain("3 z 9 miejsc w tej krainie");
-      expect(html).toContain("1 z 9 miejsc w tej krainie");
+      expect(html).toContain("3 z 9 miejsc kolekcji leżą tu");
+      expect(html).toContain("1 z 9 miejsc kolekcji leży tu");
       expect(html.indexOf("Wieże ciśnień")).toBeLessThan(html.indexOf("Zamki"));
       // The section comes after the places.
       expect(html.indexOf("Miejsca w kolekcji")).toBeLessThan(html.indexOf("tez-kolekcje"));
@@ -756,7 +756,7 @@ describe("public catalog pages", () => {
         const html = await render();
 
         expect(html).toContain(">Miejsca w kolekcji</h2>");
-        expect(html).not.toContain("W tej krainie są też kolekcje");
+        expect(html).not.toContain("Kolekcje w tej krainie");
         expect(html).not.toContain("Część krainy");
       }
     });

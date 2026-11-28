@@ -124,14 +124,16 @@ test.describe("two layers of collections: a land and its theme collections", () 
     await page.getByRole("link", { name: LAND }).click();
     await expect(page.getByRole("heading", { level: 1, name: LAND })).toBeVisible();
 
-    const section = page.getByRole("region", { name: "W tej krainie są też kolekcje" });
+    const section = page.getByRole("region", { name: "Kolekcje w tej krainie" });
 
     await expect(section).toBeVisible();
     // Temat A ma w krainie 2 miejsca, temat B 1: najpierw ten z większą liczbą.
     await expect(section.getByRole("link")).toHaveCount(2);
     await expect(section.getByRole("link").first()).toContainText(THEME_A);
-    await expect(section.getByRole("link").first()).toContainText("2 z 2 miejsc w tej krainie");
-    await expect(section.getByRole("link").nth(1)).toContainText("1 z 2 miejsc w tej krainie");
+    await expect(section.getByRole("link").first()).toContainText(
+      "Wszystkie miejsca kolekcji leżą tu",
+    );
+    await expect(section.getByRole("link").nth(1)).toContainText("1 z 2 miejsc kolekcji leży tu");
     // Gość nie ma postępu na kartach.
     await expect(section.getByRole("progressbar")).toHaveCount(0);
 
