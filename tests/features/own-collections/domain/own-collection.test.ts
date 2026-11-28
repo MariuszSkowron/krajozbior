@@ -117,6 +117,33 @@ describe("validateOwnCollectionInput", () => {
     expect(validateOwnCollectionInput({ title: "\u{E0067}", region: "polska" }).ok).toBe(false);
   });
 
+  it("allows only the three tag flags and refuses any other tag sequence (U-1)", () => {
+    const tags = (text: string) =>
+      [...text].map((c) => String.fromCodePoint(0xe0000 + c.charCodeAt(0))).join("");
+    const cancel = "\u{E007F}";
+    const flag = "\u{1F3F4}";
+
+    for (const code of ["gbeng", "gbsct", "gbwls"]) {
+      const text = `${flag}${tags(code)}${cancel}`;
+
+      expect(validateOwnCollectionInput({ title: text, summary: text, region: "polska" }).ok).toBe(
+        true,
+      );
+    }
+    for (const hidden of [
+      `${flag}${tags("gbxyz")}${cancel}`,
+      `${flag}${tags("a".repeat(50))}${cancel}`,
+      `${flag}${tags("gbeng")}`,
+      `${tags("gbeng")}${cancel}`,
+      `${flag}${tags("gbengx")}${cancel}`,
+    ]) {
+      expect(validateOwnCollectionInput({ title: `A ${hidden}`, region: "polska" }).ok).toBe(false);
+      expect(validateOwnCollectionInput({ title: "A", summary: hidden, region: "polska" }).ok).toBe(
+        false,
+      );
+    }
+  });
+
   it("keeps a tab allowed in the summary (U-1)", () => {
     expect(validateOwnCollectionInput({ title: "A", summary: "a\tb", region: "polska" }).ok).toBe(
       true,

@@ -15,7 +15,8 @@ const FORBIDDEN_MULTILINE_KEEP_TAB = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\p
 // characters of the flags of England, Scotland and Wales (a black flag, tags, a cancel tag).
 const EMOJI_JOINER =
   /(?<=\p{Extended_Pictographic}(?:️|\p{Emoji_Modifier})?)‍(?=\p{Extended_Pictographic})/gu;
-const FLAG_TAGS = /(?<=\u{1F3F4})[\u{E0020}-\u{E007E}]+\u{E007F}/gu;
+const FLAG_TAGS =
+  /(?<=\u{1F3F4})\u{E0067}\u{E0062}(?:\u{E0065}\u{E006E}\u{E0067}|\u{E0073}\u{E0063}\u{E0074}|\u{E0077}\u{E006C}\u{E0073})\u{E007F}/gu;
 
 /** True when the text holds a forbidden character; a line feed is allowed only when `allowLineFeed`. */
 export function hasForbiddenCharacter(

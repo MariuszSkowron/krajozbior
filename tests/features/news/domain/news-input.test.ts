@@ -298,6 +298,29 @@ describe("validateNewsInput: texts", () => {
     ).toBe(true);
   });
 
+  it("allows only the three tag flags and refuses any other tag sequence (U-1)", () => {
+    const tags = (text: string) =>
+      [...text].map((c) => String.fromCodePoint(0xe0000 + c.charCodeAt(0))).join("");
+    const cancel = "\u{E007F}";
+    const flag = "\u{1F3F4}";
+
+    for (const code of ["gbeng", "gbsct", "gbwls"]) {
+      expect(validateNewsInput({ ...valid, title: `Flaga ${flag}${tags(code)}${cancel}` }).ok).toBe(
+        true,
+      );
+    }
+    for (const hidden of [
+      `${flag}${tags("gbxyz")}${cancel}`,
+      `${flag}${tags("a".repeat(50))}${cancel}`,
+      `${flag}${tags("gbeng")}`,
+      `${tags("gbeng")}${cancel}`,
+      `${flag}${tags("gbengx")}${cancel}`,
+    ]) {
+      expect(validateNewsInput({ ...valid, title: `Flaga ${hidden}` }).ok).toBe(false);
+      expect(validateNewsInput({ ...valid, lead: hidden }).ok).toBe(false);
+    }
+  });
+
   it("refuses a lone surrogate in every text (N2)", () => {
     expect(fieldMessage({ ...valid, title: "Tytuł\ud800x" }, "title")).toBe(
       `Tytuł zawiera niedozwolone znaki. ${HIDDEN}`,
