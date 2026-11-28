@@ -4,6 +4,11 @@ import type { Actor } from "@/features/identity/domain/actor";
 import type { TransactionContext } from "@/lib/db/user-context";
 
 import type { HomeRecentVisit } from "../domain/home-album";
+import type {
+  RemainingCollection,
+  StartedUnsavedCollection,
+  UnvisitedPlace,
+} from "../domain/home-return";
 import type { Progress } from "../domain/progress";
 
 // One saved collection of the signed-in explorer, with the progress computed by
@@ -45,10 +50,24 @@ export type HomeFavoriteRow = Readonly<{
   visited: number;
 }>;
 
+// A saved collection with something left, as the repository reads it (the counts of the progress).
+export type IncompleteSavedRow = Omit<HomeFavoriteRow, "region">;
+
+// "Powody do powrotu" on the home page of the explorer: what is left in the saved collections and
+// the started collection the explorer has not saved. Public fields and own counts only.
+export type HomeReturn = Readonly<{
+  /** The explorer has at least one saved (public) collection with places (an empty one is not counted). */
+  hasSaved: boolean;
+  /** Saved collections with something left, at most three; empty when all are complete. */
+  remaining: readonly RemainingCollection[];
+  saveNudge: StartedUnsavedCollection | null;
+}>;
+
 export type HomeAlbum = Readonly<{
   summary: HomeSummary;
   favorites: readonly SavedCollectionSummary[];
   recentVisits: readonly HomeRecentVisit[];
+  homeReturn: HomeReturn;
 }>;
 
 export type CollectionPlaceLink = Readonly<{ collectionId: string; placeId: string }>;
@@ -92,10 +111,40 @@ export interface AlbumRepository {
    */
   homeFavorites(tx: TransactionContext, limit: number): Promise<readonly HomeFavoriteRow[]>;
   /**
+   * Saved public collections with at least one place not visited yet, in the order of
+   * `homeFavorites`, at most `limit`. Counted over all saved collections, not only the latest.
+   */
+  homeIncompleteSaved(
+    tx: TransactionContext,
+    limit: number,
+  ): Promise<readonly IncompleteSavedRow[]>;
+  /**
+   * True when the actor has at least one saved public collection with at least one place. A saved
+   * collection without places is counted neither as complete nor as open (N4, 27.11).
+   */
+  homeHasSavedWithPlaces(tx: TransactionContext): Promise<boolean>;
+  /**
    * The actor's `limit` latest visits, newest first. The place is joined only when
    * it is in a public collection; otherwise `place` is null.
    */
   homeRecentVisits(tx: TransactionContext, limit: number): Promise<readonly HomeRecentVisit[]>;
+  /**
+   * Places of the given collections (only those the actor has saved and that are public now)
+   * that the actor has not visited, by collection and position, at most `perCollection` each.
+   */
+  homeUnvisitedPlaces(
+    tx: TransactionContext,
+    collectionIds: readonly string[],
+    perCollection: number,
+  ): Promise<readonly UnvisitedPlace[]>;
+  /**
+   * Public collections with at least one place the actor visited that the actor has not saved,
+   * most visited places first (then the latest visit), at most `limit`.
+   */
+  homeStartedUnsaved(
+    tx: TransactionContext,
+    limit: number,
+  ): Promise<readonly StartedUnsavedCollection[]>;
   listPlaceIdsOfCollection(
     tx: TransactionContext,
     collectionId: string,

@@ -124,8 +124,12 @@ async function seed(client: Client): Promise<Seeded> {
   return { collectionId, places };
 }
 
+// "Miejsce dnia" (P6) is lower on the page and can show another place of the same pool, with its
+// own link and credit. The banner is everything above that section.
+const bannerPart = (html: string) => html.split('id="miejsce-dnia-title"')[0]!;
+
 const placeIdOf = (html: string, ids: string[]) =>
-  ids.find((id) => html.includes(`href="/places/${id}"`)) ?? null;
+  ids.find((id) => bannerPart(html).includes(`href="/places/${id}"`)) ?? null;
 
 // The draw is random, so a page is loaded until the banner shows the wanted place (three places:
 // a miss is 2/3 per try, so 60 tries leave about 3e-11 of a false failure).
@@ -133,7 +137,10 @@ async function loadWith(page: Page, placeId: string) {
   for (let attempt = 0; attempt < 60; attempt += 1) {
     await page.goto("/");
 
-    if ((await page.locator(`main a[href="/places/${placeId}"]`).count()) > 0) {
+    // The banner comes first in the page; "Miejsce dnia" below can link to a place of the pool too.
+    const first = await page.locator('main a[href^="/places/"]').first().getAttribute("href");
+
+    if (first === `/places/${placeId}`) {
       return;
     }
   }
@@ -185,7 +192,7 @@ test.describe("home page: the drawn banner of a guest", () => {
     const seen = new Set<string>();
 
     for (let attempt = 0; attempt < 30; attempt += 1) {
-      const html = await (await request.get("/")).text();
+      const html = bannerPart(await (await request.get("/")).text());
       const drawn = placeIdOf(html, ids);
 
       // The server HTML already has the right photo and the credit (no draw in the browser).
