@@ -56,6 +56,20 @@ describe("parseAuthEnv", () => {
     }
   });
 
+  it("reads the daily share of sign-in codes for new addresses as a positive whole number", () => {
+    const base = { DATABASE_AUTH_URL, BETTER_AUTH_SECRET: secret };
+
+    expect(
+      parseAuthEnv({ ...base, OTP_NEW_ACCOUNT_DAILY_LIMIT: "80" }).OTP_NEW_ACCOUNT_DAILY_LIMIT,
+    ).toBe(80);
+    expect(parseAuthEnv(base).OTP_NEW_ACCOUNT_DAILY_LIMIT).toBeUndefined();
+    for (const value of ["0", "-1", "1.5", "abc", "99999999"]) {
+      expect(() => parseAuthEnv({ ...base, OTP_NEW_ACCOUNT_DAILY_LIMIT: value })).toThrow(
+        ServerConfigError,
+      );
+    }
+  });
+
   it("accepts the auth connection and a long enough secret with an optional base URL", () => {
     expect(parseAuthEnv({ DATABASE_AUTH_URL, BETTER_AUTH_SECRET: secret })).toEqual({
       DATABASE_AUTH_URL,

@@ -35,6 +35,13 @@ const authEnvSchema = z.object({
     .regex(/^[1-9]\d{0,6}$/)
     .transform(Number)
     .optional(),
+  // The share of that limit for addresses without an account (default 100);
+  // accounts get the rest. A value not below the total makes one shared pool.
+  OTP_NEW_ACCOUNT_DAILY_LIMIT: z
+    .string()
+    .regex(/^[1-9]\d{0,6}$/)
+    .transform(Number)
+    .optional(),
 });
 
 export type AuthEnv = z.infer<typeof authEnvSchema>;
