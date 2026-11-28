@@ -34,7 +34,7 @@ const regions = [
   .map((region) => `'${region}'`)
   .join(", ");
 
-export class Migration20261128010000_collection_extra_regions extends Migration {
+export class Migration20261128020000_collection_extra_regions extends Migration {
   override async up(): Promise<void> {
     this.addSql(`
       alter table collections
