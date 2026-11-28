@@ -26,13 +26,4 @@ describe("LogoutForm", () => {
 
     expect(html).toContain('<input type="hidden" name="returnTo" value="/my/delete-account"/>');
   });
-
-  it("names the reason when the terms are declined (F-K3)", () => {
-    const html = renderToStaticMarkup(
-      LogoutForm({ className: "btn", children: "Nie akceptuję", reason: "terms-declined" }),
-    );
-
-    expect(html).toContain('<input type="hidden" name="reason" value="terms-declined"/>');
-    expect(html).not.toContain("returnTo");
-  });
 });

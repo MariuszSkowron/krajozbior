@@ -208,10 +208,10 @@ kz_bootstrap_backup_key() {
 }
 
 kz_bootstrap_timers() {
-  kz_step "timery: kopia 3:15, test odtworzenia w niedziele 4:00, kontrola co godzine"
+  kz_step "timery: kopia 3:15, test odtworzenia w niedziele 4:00, kontrola co godzine, usuwanie kont bez akceptacji 4:30"
   local name script when
   for entry in "backup|backup.sh|*-*-* 03:15:00" "restore-test|restore-test.sh|Sun *-*-* 04:00:00" \
-    "health|health-report.sh|hourly"; do
+    "health|health-report.sh|hourly" "cleanup-abandoned|cleanup-abandoned.sh|*-*-* 04:30:00"; do
     IFS='|' read -r name script when <<<"$entry"
     cat >"/etc/systemd/system/krajozbior-$name.service" <<EOF
 [Unit]
@@ -231,7 +231,7 @@ EOF
   done
   systemctl daemon-reload
   systemctl enable --now krajozbior-backup.timer krajozbior-restore-test.timer krajozbior-health.timer \
-    krajozbior-freeze-on.timer krajozbior-freeze-off.timer >/dev/null
+    krajozbior-cleanup-abandoned.timer krajozbior-freeze-on.timer krajozbior-freeze-off.timer >/dev/null
 }
 
 # Ports of public TCP listeners other than 22, 80 and 443, read from `ss -H -ltn` on stdin.

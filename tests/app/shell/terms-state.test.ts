@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getRequestActor: vi.fn(),
   hasAccepted: vi.fn(),
+  hasAnyAcceptance: vi.fn(),
 }));
 
 vi.mock("@/app/request-actor", () => ({ getRequestActor: mocks.getRequestActor }));
@@ -10,11 +11,15 @@ vi.mock("@/features/terms/infrastructure/terms-deps", () => ({
   getTermsDeps: () => ({
     withUserContext: async (_actor: unknown, work: (tx: never) => Promise<unknown>) =>
       work({} as never),
-    repository: { hasAccepted: mocks.hasAccepted, accept: vi.fn() },
+    repository: {
+      hasAccepted: mocks.hasAccepted,
+      hasAnyAcceptance: mocks.hasAnyAcceptance,
+      accept: vi.fn(),
+    },
   }),
 }));
 
-const { shellTermsAccepted } = await import("@/app/shell/terms-state");
+const { shellTermsAccepted, shellTermsEverAccepted } = await import("@/app/shell/terms-state");
 
 const actor = { id: "11111111-1111-4111-8111-111111111111", role: "user" } as const;
 
@@ -24,6 +29,29 @@ beforeEach(() => {
     .mockImplementation(() => undefined);
   mocks.getRequestActor.mockReset().mockResolvedValue(actor);
   mocks.hasAccepted.mockReset().mockResolvedValue(true);
+  mocks.hasAnyAcceptance.mockReset().mockResolvedValue(true);
+});
+
+describe("shellTermsEverAccepted", () => {
+  it("lets a guest through without asking the database", async () => {
+    mocks.getRequestActor.mockResolvedValue(null);
+
+    expect(await shellTermsEverAccepted()).toBe(true);
+    expect(mocks.hasAnyAcceptance).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])("answers %s from the database", async (value) => {
+    mocks.hasAnyAcceptance.mockResolvedValue(value);
+
+    expect(await shellTermsEverAccepted()).toBe(value);
+  });
+
+  it("answers true (the wording that promises nothing) and logs when the lookup fails", async () => {
+    mocks.hasAnyAcceptance.mockRejectedValue(new Error("db down: secret"));
+
+    expect(await shellTermsEverAccepted()).toBe(true);
+    expect(console.error).toHaveBeenCalledWith("Terms acceptance history lookup failed:", "Error");
+  });
 });
 
 describe("shellTermsAccepted", () => {

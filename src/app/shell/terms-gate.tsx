@@ -4,7 +4,6 @@ import { safeReturnTo } from "@/features/identity/domain/return-to";
 import { legalPage } from "@/features/legal/domain/legal-pages";
 import { CURRENT_TERMS_VERSION, TERMS_EFFECTIVE_DATE } from "@/features/terms/domain/terms-version";
 
-import { LogoutForm } from "./logout-form";
 import styles from "./terms-gate.module.css";
 import { TermsForm } from "./terms-form";
 
@@ -22,15 +21,19 @@ export function termsGateProblem(code: string | null): string | undefined {
 // bieżącej wersji regulaminu, zastępuje stronę. Konto widzi tylko ten ekran i wylogowanie;
 // strony prawne dalej działają. O tym, kiedy ekran się pokazuje, decyduje TermsGuard
 // (terms-guard.tsx), który podaje ścieżkę strony i kod problemu z parametru `zgoda`.
-// Natywny formularz działa bez JavaScriptu. „Nie akceptuję” wylogowuje.
+// Natywny formularz działa bez JavaScriptu. „Nie akceptuję” wylogowuje i od razu usuwa konto
+// (adres e-mail i sesje), jeśli nigdy niczego nie zaakceptowało (regulamin rozdz. 4 ust. 2).
 export function TermsGate({
   path,
   problemCode,
   photo = null,
   firstSignIn = false,
+  acceptedBefore = false,
 }: Readonly<{
   path: string;
   problemCode: string | null;
+  /** Konto przyjęło już wcześniejszą wersję regulaminu: odmowa tylko wylogowuje, nie usuwa. */
+  acceptedBefore?: boolean;
   /** Zdjęcie z puli banera do drugiej kolumny (komputer); bez niego tło zastępcze. */
   photo?: HomeBannerPick | null;
   /** Ktoś wybrał „Zaloguj się”, a konta z tym adresem nie było: wyjaśniamy, że je założyliśmy. */
@@ -42,7 +45,13 @@ export function TermsGate({
   return (
     <div className="content-width-wide">
       <AuthTwoColumns photo={photo} sentence="Za chwilę zaczniesz zbierać miejsca w swoim albumie.">
-        <TermsGateBody path={path} problem={problem} links={links} firstSignIn={firstSignIn} />
+        <TermsGateBody
+          path={path}
+          problem={problem}
+          links={links}
+          firstSignIn={firstSignIn}
+          acceptedBefore={acceptedBefore}
+        />
       </AuthTwoColumns>
     </div>
   );
@@ -53,11 +62,13 @@ function TermsGateBody({
   problem,
   links,
   firstSignIn,
+  acceptedBefore,
 }: Readonly<{
   path: string;
   problem: string | undefined;
   links: readonly ReturnType<typeof legalPage>[];
   firstSignIn: boolean;
+  acceptedBefore: boolean;
 }>) {
   return (
     <>
@@ -75,6 +86,9 @@ function TermsGateBody({
         <li>Nie zapisujemy współrzędnych telefonu; zapamiętujemy samą wizytę.</li>
         <li>Twoich wizyt nie pokazujemy innym.</li>
         <li>Konto możesz w każdej chwili usunąć w ustawieniach; dane znikają od razu.</li>
+        {acceptedBefore ? null : (
+          <li>Jeśli nie akceptujesz regulaminu, od razu usuwamy Twój adres e-mail.</li>
+        )}
         <li>Logujesz się kodem z e-maila. Nikomu go nie przekazuj.</li>
       </ul>
       <p className={styles.links}>
@@ -93,9 +107,11 @@ function TermsGateBody({
         termsVersion={CURRENT_TERMS_VERSION}
         termsDate={TERMS_EFFECTIVE_DATE}
       />
-      <LogoutForm className={`button button--outline ${styles.submit}`} reason="terms-declined">
-        Nie akceptuję — wyloguj
-      </LogoutForm>
+      <form method="post" action="/api/me/terms-decline">
+        <button className={`button button--outline ${styles.submit}`} type="submit">
+          {acceptedBefore ? "Nie akceptuję — wyloguj" : "Nie akceptuję — usuń konto"}
+        </button>
+      </form>
     </>
   );
 }
