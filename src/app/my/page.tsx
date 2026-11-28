@@ -167,8 +167,8 @@ export default async function MyPage({
             Zostań kuratorem <span className={styles.soon}>W przygotowaniu</span>
           </h2>
           <p>
-            Prowadzisz gminę, oddział PTTK albo oprowadzasz po okolicy? Wniosek o status kuratora w
-            serwisie uruchomimy później. Już dziś możesz napisać do nas na{" "}
+            Reprezentujesz gminę lub oddział PTTK albo oprowadzasz po okolicy? Wniosek o status
+            kuratora uruchomimy później. Już dziś napisz do nas:{" "}
             <a href={`mailto:${CONTACT_ADDRESSES.partners}`}>{CONTACT_ADDRESSES.partners}</a>.
           </p>
         </section>
