@@ -422,8 +422,8 @@ export function VisitConfirmation({
       {state.kind === "idle" ? (
         <p className={styles.hint}>
           {past === null
-            ? "Przeglądarka zapyta o zgodę na lokalizację. Nie zapisujemy, gdzie jesteś, tylko to, że miejsce trafiło do Twojego albumu."
-            : "Potwierdź na miejscu, gdy tu będziesz. Przeglądarka zapyta o zgodę na lokalizację; nie zapisujemy, gdzie jesteś."}
+            ? "Przeglądarka zapyta o zgodę na lokalizację. Nie zapisujemy współrzędnych telefonu, tylko wizytę: miejsce, datę i godzinę."
+            : "Potwierdź na miejscu, gdy tu będziesz. Przeglądarka zapyta o zgodę na lokalizację; nie zapisujemy współrzędnych telefonu."}
         </p>
       ) : null}
       {/* Drugorzędne akcje zostają w treści, nie w przypiętym pasku: „Zaznaczam wcześniejszą wizytę”

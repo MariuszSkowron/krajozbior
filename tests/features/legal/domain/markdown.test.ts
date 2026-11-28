@@ -128,6 +128,17 @@ describe("parseMarkdown", () => {
     expect(parseMarkdown("1. a\n2. b")).toMatchObject([{ kind: "list", ordered: true }]);
   });
 
+  it("keeps the first number of a numbered list that continues after a paragraph", () => {
+    const blocks = parseMarkdown(["1. a", "", "akapit", "", "2. b", "3. c"].join("\n"));
+
+    expect(blocks).toMatchObject([
+      { kind: "list", ordered: true },
+      { kind: "paragraph" },
+      { kind: "list", ordered: true, start: 2 },
+    ]);
+    expect(blocks[0]).not.toHaveProperty("start");
+  });
+
   it("nests lists by indentation and climbs back out", () => {
     const [list] = parseMarkdown(
       ["1. a", "   1. a1", "   2. a2", "      - a2x", "2. b", "   - b1", "3. c"].join("\n"),

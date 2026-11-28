@@ -137,7 +137,10 @@ describe("deletion screen", () => {
 
   it("explains the refusals the route sends back and ignores an unknown code", async () => {
     for (const [code, text] of [
-      ["managed_account", "jesteś jedyną osobą w organizacji"],
+      [
+        "managed_account",
+        "jesteś jedyną osobą w zespole organizacji. Napisz do nas na adres partnerzy@krajozbior.pl",
+      ],
       ["invalid_confirmation", "Wpisz dokładnie słowo USUŃ"],
       ["stale_session", "Minęło ponad 15 minut od logowania"],
       ["invalid_request", "Nie udało się odczytać formularza"],

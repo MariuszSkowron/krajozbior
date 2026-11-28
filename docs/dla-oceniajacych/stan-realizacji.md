@@ -106,12 +106,23 @@ Epiki (E1–E12) i ich historyjki opisuje [Backlog](backlog.md); listę zmian w 
 - Publiczne notatki bezpieczeństwa i wynik powtórzonej próby prompt injection (#63, #65).
 - Jedna wersja zasad przeglądów, testów i statusów dla agentów (#139).
 
+### Po pokazie: zgłoszenia, krainy, powody do powrotu i bezpieczeństwo logowania
+
+- Stabilny test filtra „Moich kolekcji” i wyglądu listy „Chcę zobaczyć” (#140).
+- Wyższy dzienny limit kodów logowania na adres IP, komunikat po jego wyczerpaniu i liczba zapisów kolekcji „mniej niż 3” (#141, D-62); osobne dzienne pule kodów, limit 5 kodów na skrzynkę i trzecie wyjście na ekranie kodu (#147, D-61, D-64).
+- Potwierdzenie wizyty działa też w starszych przeglądarkach, a odnośniki do autorów zdjęć mają `rel="ugc nofollow"` (#142).
+- Adresy kontaktowe w domenie krajozbior.pl, plik `security.txt` i ostrzeżenie w e-mailu z kodem (#143).
+- Kolejka zgłoszeń problemów z miejscami w panelu kuratora (#144) oraz formularz zgłoszenia dla odkrywcy, „Moje zgłoszenia” i limity (#149).
+- Kolekcje obejmujące kilka województw (krainy): filtr, wyszukiwanie, karty i import (#145, D-63).
+- Jeden punkt wejścia dla oceniających, aktualny stan realizacji i spis „co wynika z czego” (#146).
+- Ekran Start z powodami do powrotu: miejsce dnia, nowe kolekcje, aktualności i „co zostało” (#148, D-58).
+- Odmowa akceptacji regulaminu usuwa konto od razu, a konta bez akceptacji znikają po 7 dniach (#150, D-67).
+
 ## W toku
 
 Otwarte PR-y (stan na 28 listopada 2026 roku, aktualna lista jest w [zakładce PR-ów](https://github.com/MariuszSkowron/krajozbior/pulls)):
 
-- #140: stabilny test filtra „Moich kolekcji” i wyglądu listy „Chcę zobaczyć”.
-- #141: wyższy dzienny limit kodów logowania na adres IP, komunikat po jego wyczerpaniu i liczba zapisów kolekcji „mniej niż 3” (D-62).
+- Dokumenty prawne w wersji 1.1 (regulamin, polityka prywatności, zasady, oświadczenie), strona załącznika nr 2 `/umowa-powierzenia`, pasek „Wersja konkursowa”, blok „Zostań kuratorem — w przygotowaniu” i włączone zgłoszenia problemów z miejscami we wdrożeniu (#151, D-66, D-67).
 
 Poza PR-ami: uruchomienie aplikacji pod publicznym adresem (adres dopiszemy w [Dla oceniających](README.md)) i oznaczenie wydania 1.0.0 ([CHANGELOG.md](../../CHANGELOG.md)).
 

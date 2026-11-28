@@ -12,7 +12,7 @@ describe("the privacy policy about the map in the place editor", () => {
       "To samo dzieje się w edytorze miejsca w panelu kuratora, gdy kurator wybierze „Pokaż mapę”",
     );
     expect(policy).toContain(
-      "nie wybiera „Pokaż mapę” i ustawia położenie miejsca, wpisując współrzędne w polach formularza.",
+      "nie wybiera „Pokaż mapę” i ustawia położenie miejsca, wpisując współrzędne w polach formularza albo wyszukując adres.",
     );
   });
 
