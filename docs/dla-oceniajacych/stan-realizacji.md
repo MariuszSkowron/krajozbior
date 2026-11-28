@@ -122,7 +122,7 @@ Epiki (E1–E12) i ich historyjki opisuje [Backlog](backlog.md); listę zmian w 
 
 Otwarte PR-y (stan na 28 listopada 2026 roku, aktualna lista jest w [zakładce PR-ów](https://github.com/MariuszSkowron/krajozbior/pulls)):
 
-- Ten PR: dokumenty prawne w wersji 1.1 (regulamin, polityka prywatności, zasady, oświadczenie), strona załącznika nr 2 `/umowa-powierzenia`, pasek „Wersja konkursowa”, blok „Zostań kuratorem — w przygotowaniu” i włączone zgłoszenia problemów z miejscami we wdrożeniu (D-66, D-67).
+- Dokumenty prawne w wersji 1.1 (regulamin, polityka prywatności, zasady, oświadczenie), strona załącznika nr 2 `/umowa-powierzenia`, pasek „Wersja konkursowa”, blok „Zostań kuratorem — w przygotowaniu” i włączone zgłoszenia problemów z miejscami we wdrożeniu (#151, D-66, D-67).
 
 Poza PR-ami: uruchomienie aplikacji pod publicznym adresem (adres dopiszemy w [Dla oceniających](README.md)) i oznaczenie wydania 1.0.0 ([CHANGELOG.md](../../CHANGELOG.md)).
 
