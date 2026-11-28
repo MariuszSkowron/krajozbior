@@ -108,15 +108,43 @@ function setup(
 }
 
 describe("catalog:import --target server: refusals before any connection", () => {
-  it("refuses --publish on the server (E11-Q5 A)", async () => {
+  it("--publish on the server still needs --operator, --reason and the public profile (D-68)", async () => {
     const t = setup();
-    const result = await runCatalogImport(
-      ["--file", "x", ...serverFlags, ...writeFlags, "--publish"],
+    const noOperator = await runCatalogImport(
+      ["--file", "x", ...serverFlags, "--reason", "Pierwsza fala", "--publish"],
+      t.deps(false),
+    );
+    const noReason = await runCatalogImport(
+      ["--file", "x", ...serverFlags, "--operator", "Mariusz", "--publish"],
+      t.deps(false),
+    );
+    const full = await runCatalogImport(
+      [
+        "--file",
+        "x",
+        ...serverFlags.map((value) => (value === "public" ? "full" : value)),
+        ...writeFlags,
+        "--publish",
+      ],
       t.deps(false),
     );
 
-    expect(result.exitCode).toBe(3);
-    expect(JSON.parse(result.stdout[0]!)).toMatchObject({ code: "publish_on_server" });
+    expect([noOperator.exitCode, noReason.exitCode]).toEqual([2, 2]);
+    expect(noOperator.stderr.join(" ")).toContain("--operator i --reason");
+    expect(full.exitCode).toBe(3);
+    expect(JSON.parse(full.stdout[0]!)).toMatchObject({ code: "profile_not_public" });
+    expect(t.connectServer).not.toHaveBeenCalled();
+    expect(t.start).not.toHaveBeenCalled();
+  });
+
+  it("--publish and --remove do not combine on the server either", async () => {
+    const t = setup();
+    const result = await runCatalogImport(
+      ["--file", "x", ...serverFlags, ...writeFlags, "--publish", "--remove"],
+      t.deps(false),
+    );
+
+    expect(result.exitCode).toBe(2);
     expect(t.connectServer).not.toHaveBeenCalled();
   });
 
@@ -314,6 +342,87 @@ describe("catalog:import --target server: preview and load", () => {
     expect(result.stdout.join("")).not.toContain("@");
   });
 
+  it("previews a publication on the server: the list of collections, no write, no entry (D-68)", async () => {
+    const preview: CatalogImportOutcome = {
+      kind: "preview",
+      preview: {
+        collections: { create: 2 },
+        places: { create: 1 },
+        orphanedKeys: { collection: 0, place: 0 },
+        collectionLimitExceeded: false,
+        publishable: [
+          { line: 2, importKey: "col:a", title: "Zamki nad Odrą" },
+          { line: 3, importKey: "col:b", title: "Wieże widokowe" },
+        ],
+      },
+    };
+    const t = setup({ outcome: preview });
+    const result = await runCatalogImport(
+      ["--dry-run", "--file", "x", ...serverFlags, "--publish"],
+      t.deps(false),
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(t.run).toHaveBeenCalledWith(expect.objectContaining({ preview: true, publish: true }));
+    expect(JSON.parse(result.stdout[0]!)).toMatchObject({
+      outcome: "preview",
+      publishableCount: 2,
+      publishable: [
+        { line: 2, importKey: "col:a", title: "Zamki nad Odrą" },
+        { line: 3, importKey: "col:b", title: "Wieże widokowe" },
+      ],
+    });
+    expect(t.start).not.toHaveBeenCalled();
+    expect(t.finish).not.toHaveBeenCalled();
+  });
+
+  it("publishes on the server through the same runner and marks both audit entries (D-68)", async () => {
+    const published: CatalogImportOutcome = {
+      kind: "done",
+      batchId: "b",
+      collections: [
+        {
+          importKey: "col:a",
+          line: 2,
+          result: "created",
+          composition: "synced",
+          publication: "published",
+          places: [{ importKey: "ext:1", result: "created" }],
+        },
+      ],
+    };
+    const t = setup({ outcome: published });
+    const result = await runCatalogImport(
+      ["--file", "x", ...serverFlags, ...writeFlags, "--publish"],
+      t.deps(false),
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(t.calls).toEqual(["connect", "start", "run", "finish"]);
+    expect(t.run).toHaveBeenCalledWith(expect.objectContaining({ preview: false, publish: true }));
+    expect(t.start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        batch: expect.objectContaining({ operation: "catalog_import", publish: true }),
+      }),
+    );
+    expect(t.finish).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        result: expect.objectContaining({
+          outcome: "applied",
+          details: expect.objectContaining({
+            publish: true,
+            publication_results: { published: 1 },
+          }),
+        }),
+      }),
+    );
+    expect(JSON.parse(result.stdout[0]!)).toMatchObject({
+      outcome: "applied",
+      publicationResults: { published: 1 },
+    });
+  });
+
   it("uses catalog_remove for --remove", async () => {
     const removed: CatalogImportOutcome = {
       kind: "removed",
@@ -426,6 +535,54 @@ describe("the audit entries of the loader", () => {
       collections: 2,
       places: 5,
     });
+  });
+
+  it("marks a publication in both entries and counts its results; a plain load stays as before (D-68)", () => {
+    const publishing: ImportAuditBatch = { ...batch, publish: true };
+    const outcome: CatalogImportOutcome = {
+      kind: "done",
+      batchId: "batch-1",
+      collections: [
+        {
+          importKey: "col:a",
+          line: 2,
+          result: "created",
+          composition: "synced",
+          publication: "published",
+          places: [],
+        },
+        {
+          importKey: "col:b",
+          line: 3,
+          result: "created",
+          composition: "synced",
+          publication: "refused",
+          publicationRefusal: "empty",
+          places: [],
+        },
+        { importKey: "col:c", line: 4, result: "noop", composition: "noop", places: [] },
+      ],
+    };
+
+    expect(startDetails(publishing)).toMatchObject({ phase: "start", publish: true });
+    expect(resultOfOutcome(publishing, "e1", outcome).details).toMatchObject({
+      phase: "finish",
+      publish: true,
+      publication_results: { published: 1, refused: 1 },
+    });
+    expect(resultOfFailure(publishing, "e1", new Error("x")).details).toMatchObject({
+      publish: true,
+    });
+    expect(
+      resultOfOutcome(publishing, "e1", { kind: "refused", code: "curator_not_found" }).details,
+    ).toMatchObject({ publish: true });
+    // Without --publish the entries keep their earlier shape (no key at all).
+    expect(startDetails(batch)).not.toHaveProperty("publish");
+    expect(resultOfOutcome(batch, "e1", outcome).details).not.toHaveProperty("publish");
+    expect(resultOfOutcome(batch, "e1", outcome).details).not.toHaveProperty("publication_results");
+    expect(JSON.stringify(resultOfOutcome(publishing, "e1", outcome).details)).not.toContain(
+      "col:",
+    );
   });
 
   it("counts the results of a load, including a partial one", () => {

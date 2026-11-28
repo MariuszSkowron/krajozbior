@@ -20,7 +20,13 @@ export type ImportAuditBatch = Readonly<{
   fileSha256: string;
   collections: number;
   places: number;
+  /** D-68: the load also publishes (`--publish`); absent or false for a plain load. */
+  publish?: boolean;
 }>;
+
+// A load with publication carries `publish: true` in both entries; a plain
+// load leaves the key out, so its entries keep the earlier shape.
+const publishMark = (batch: ImportAuditBatch) => (batch.publish === true ? { publish: true } : {});
 
 export type ImportAuditResult = Readonly<{
   outcome: AuditOutcome;
@@ -40,6 +46,7 @@ export function startDetails(batch: ImportAuditBatch): Record<string, unknown> {
     profile: "public",
     collections: batch.collections,
     places: batch.places,
+    ...publishMark(batch),
   };
 }
 
@@ -53,6 +60,7 @@ function finishBase(batch: ImportAuditBatch, startEntryId: string): Record<strin
     start_entry_id: startEntryId,
     batch_id: batch.batchId,
     file_sha256: batch.fileSha256,
+    ...publishMark(batch),
   };
 }
 
@@ -69,10 +77,15 @@ export function resultOfOutcome(
       const collections: Record<string, number> = {};
       const places: Record<string, number> = {};
       const photos: Record<string, number> = {};
+      const publications: Record<string, number> = {};
       let extraRegionsUpdated = 0;
 
       for (const collection of outcome.collections) {
         count(collections, collection.result);
+
+        if (collection.publication !== undefined) {
+          count(publications, collection.publication);
+        }
 
         if (collection.extraRegions === "updated") {
           extraRegionsUpdated += 1;
@@ -102,6 +115,8 @@ export function resultOfOutcome(
           photos_skipped_unknown_license: photos.skipped_unknown_license ?? 0,
           // Only a count, no region codes; absent when no collection changed (as before).
           ...(extraRegionsUpdated > 0 ? { extra_regions_updated: extraRegionsUpdated } : {}),
+          // D-68: counts of the publication results only (no keys, no titles).
+          ...(batch.publish === true ? { publication_results: publications } : {}),
         },
       };
     }

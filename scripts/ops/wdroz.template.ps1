@@ -14,7 +14,9 @@
 #   ... wdroz.ps1 -Bootstrap [-Commit <sha>]     first preparation of the server
 #   ... wdroz.ps1 -Initial [-Commit <sha>]       first deployment
 #   ... wdroz.ps1 -Admin | -Diagnoza | -Otworz | -OdtworzKopie
-#   ... wdroz.ps1 -Import <full path of a *-public.ndjson file> [-OrgSlug <slug>]
+#   ... wdroz.ps1 -Import <full path of a *-public.ndjson file> [-OrgSlug <slug>] [-Publikuj]
+#       -Publikuj (D-68): the preview lists the collections with "publish": true, and after
+#       "tak" they are published together with the load (without it: drafts only)
 #   ... wdroz.ps1 -Aktualnosci <full path of an aktualnosci-<name>.ndjson file>   news of the team
 #   ... wdroz.ps1 -Zdjecia [-Limit <n>] [-PonowBledy] [-OdtworzBrakujace]   photos from Commons
 # Without -Commit the newest origin/main is used.
@@ -30,6 +32,7 @@ param(
   [string]$Aktualnosci = '',
   [string]$Import = '',
   [string]$OrgSlug = '',
+  [switch]$Publikuj,
   [switch]$Zdjecia,
   [int]$Limit = 0,
   [switch]$PonowBledy,
@@ -51,6 +54,7 @@ if ($Import -ne '') { $modes += 'import' }
 if ($Zdjecia) { $modes += 'zdjecia' }
 if ($modes.Count -gt 1) { throw 'Podaj jeden tryb naraz.' }
 if ($OrgSlug -ne '' -and $Import -eq '') { throw '-OrgSlug dziala tylko z -Import <plik>.' }
+if ($Publikuj -and $Import -eq '') { throw '-Publikuj dziala tylko z -Import <plik>.' }
 if (($Limit -ne 0 -or $PonowBledy -or $OdtworzBrakujace) -and -not $Zdjecia) {
   throw '-Limit, -PonowBledy i -OdtworzBrakujace dzialaja tylko z -Zdjecia.'
 }
@@ -111,6 +115,7 @@ if ($mode -eq 'aktualnosci') {
 if ($mode -eq 'import') {
   $deployArgs += @('-ImportFile', $Import)
   if ($OrgSlug -ne '') { $deployArgs += @('-OrgSlug', $OrgSlug) }
+  if ($Publikuj) { $deployArgs += '-ImportPublish' }
 }
 if ($mode -eq 'zdjecia') {
   if ($Limit -ne 0) { $deployArgs += @('-PhotoLimit', [string]$Limit) }
